@@ -70,6 +70,17 @@ DELAY_SCRIPT = b"""<script id="transparent-gateway-delay">
   var delayMs = delaySec * 1000;
   var MARK = 'data-gateway-ignore';
 
+  // Hide every real (non-gateway) direct child of <body> via a stylesheet
+  // rule rather than by touching each element's own style attribute.
+  // That keeps their outerHTML pristine, so the snapshots we clone into
+  // the overlay never inherit the "hidden" styling themselves.
+  var hideStyle = document.createElement('style');
+  hideStyle.textContent =
+    'body > :not([' + MARK + ']){position:fixed !important;top:0 !important;' +
+    'left:0 !important;opacity:0 !important;pointer-events:none !important;' +
+    'z-index:-1 !important;}';
+  document.head.appendChild(hideStyle);
+
   var overlay = document.createElement('div');
   overlay.setAttribute(MARK, '1');
   overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
@@ -80,25 +91,13 @@ DELAY_SCRIPT = b"""<script id="transparent-gateway-delay">
       el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE' && el.tagName !== 'LINK';
   }
 
-  function hide(el) {
-    el.style.setProperty('position', 'fixed', 'important');
-    el.style.setProperty('top', '0', 'important');
-    el.style.setProperty('left', '0', 'important');
-    el.style.setProperty('opacity', '0', 'important');
-    el.style.setProperty('pointer-events', 'none', 'important');
-    el.style.setProperty('z-index', '-1', 'important');
-  }
-
   var buffer = [];
   var lastSig = null;
 
   function tick() {
     var parts = [];
     Array.prototype.forEach.call(document.body.children, function (el) {
-      if (isReal(el)) {
-        hide(el);
-        parts.push(el.outerHTML);
-      }
+      if (isReal(el)) parts.push(el.outerHTML);
     });
     var html = parts.join('');
     if (html !== lastSig) {
@@ -116,6 +115,14 @@ DELAY_SCRIPT = b"""<script id="transparent-gateway-delay">
     var chosen = null;
     for (var i = buffer.length - 1; i >= 0; i--) {
       if (buffer[i].t <= target) { chosen = buffer[i]; break; }
+    }
+    if (!chosen && buffer.length > 0) {
+      // Not enough history yet (e.g. just after page load): show the
+      // most recent snapshot instead of leaving the page blank or stuck
+      // on a stale/incomplete first frame. This means the overlay tracks
+      // live for the first `delay` seconds, then genuine lag kicks in
+      // once the buffer actually spans that far back.
+      chosen = buffer[buffer.length - 1];
     }
     if (chosen && chosen.html !== shown) {
       shown = chosen.html;
