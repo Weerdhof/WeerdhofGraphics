@@ -20,6 +20,10 @@ takes precedence when no command-line argument is given.
 Then point your streaming software's Browser Source at:
     http://localhost:4000/scoreboard?view=streamoverlay&transparent=true
 instead of the vercel.app URL.
+
+Add &delay=60 to the URL to have the displayed score lag 60 seconds
+behind the real live score (handy for syncing graphics to a delayed
+video feed). Omit it, or use delay=0, for the normal live behaviour.
 """
 
 import os
@@ -50,6 +54,82 @@ STYLE_OVERRIDE = (
     b"html,body{background:transparent !important;background-color:transparent !important;}"
     b"</style></head>"
 )
+
+# Injected just before </body>. Only activates when ?delay=<seconds> is
+# present in the URL; otherwise it's a no-op and the page behaves exactly
+# as before. When active, it hides the real (live) content off-screen,
+# keeps recording snapshots of it as it changes, and shows a full-page
+# overlay that always lags `delay` seconds behind the live snapshots.
+# Live data (e.g. a websocket) keeps flowing to the hidden real page
+# exactly as normal - only what the viewer *sees* is time-shifted.
+DELAY_SCRIPT = b"""<script id="transparent-gateway-delay">
+(function () {
+  var params = new URLSearchParams(location.search);
+  var delaySec = parseFloat(params.get('delay') || '0');
+  if (!delaySec || isNaN(delaySec) || delaySec <= 0) return;
+  var delayMs = delaySec * 1000;
+  var MARK = 'data-gateway-ignore';
+
+  var overlay = document.createElement('div');
+  overlay.setAttribute(MARK, '1');
+  overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
+  document.body.appendChild(overlay);
+
+  function isReal(el) {
+    return el.nodeType === 1 && !el.hasAttribute(MARK) &&
+      el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE' && el.tagName !== 'LINK';
+  }
+
+  function hide(el) {
+    el.style.setProperty('position', 'fixed', 'important');
+    el.style.setProperty('top', '0', 'important');
+    el.style.setProperty('left', '0', 'important');
+    el.style.setProperty('opacity', '0', 'important');
+    el.style.setProperty('pointer-events', 'none', 'important');
+    el.style.setProperty('z-index', '-1', 'important');
+  }
+
+  var buffer = [];
+  var lastSig = null;
+
+  function tick() {
+    var parts = [];
+    Array.prototype.forEach.call(document.body.children, function (el) {
+      if (isReal(el)) {
+        hide(el);
+        parts.push(el.outerHTML);
+      }
+    });
+    var html = parts.join('');
+    if (html !== lastSig) {
+      lastSig = html;
+      var now = Date.now();
+      buffer.push({ t: now, html: html });
+      var cutoff = now - delayMs - 10000;
+      while (buffer.length > 1 && buffer[0].t < cutoff) buffer.shift();
+    }
+  }
+
+  var shown = null;
+  function render() {
+    var target = Date.now() - delayMs;
+    var chosen = null;
+    for (var i = buffer.length - 1; i >= 0; i--) {
+      if (buffer[i].t <= target) { chosen = buffer[i]; break; }
+    }
+    if (chosen && chosen.html !== shown) {
+      shown = chosen.html;
+      overlay.innerHTML = chosen.html;
+    }
+  }
+
+  new MutationObserver(tick).observe(document.body, {
+    childList: true, subtree: true, characterData: true, attributes: true
+  });
+  tick();
+  setInterval(render, 200);
+})();
+</script></body>"""
 
 
 class ProxyHandler(BaseHTTPRequestHandler):
@@ -88,8 +168,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
             return
 
         content_type = resp_headers.get("Content-Type", "")
-        if "text/html" in content_type and b"</head>" in content:
-            content = content.replace(b"</head>", STYLE_OVERRIDE, 1)
+        if "text/html" in content_type:
+            if b"</head>" in content:
+                content = content.replace(b"</head>", STYLE_OVERRIDE, 1)
+            if b"</body>" in content:
+                content = content.replace(b"</body>", DELAY_SCRIPT, 1)
 
         self.send_response(status)
         for k, v in resp_headers.items():
