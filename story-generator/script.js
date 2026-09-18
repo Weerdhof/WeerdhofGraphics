@@ -53,7 +53,9 @@
         DFS: ['arnhem'],
         HUP: ['hurry'],
         HCV: ['vise', 'visé'],
-        HVA: ['aalsmeer'],
+        // "Aalsmeer" in the results feed, but "RoyalFloraHolland/HVA" in
+        // the standings table — same team, two different display names.
+        HVA: ['aalsmeer', 'royalfloraholland'],
         HUB: ['hubo'],
         VOL: ['volendam'],
         TAC: ['tachos', 'mossel', 'witte ster'],
@@ -135,7 +137,7 @@
   // it's plain manual entry rather than CSV-driven like the other modes.
   const RANK_ROW_TOP = 245, RANK_ROW_BOTTOM = 1601, RANK_ROWS = 14;
   const RANK_ROW_H = (RANK_ROW_BOTTOM - RANK_ROW_TOP) / RANK_ROWS;
-  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 92, RANK_BADGE_PAD = 14;
+  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 74, RANK_BADGE_PAD = 10;
   const RANK_NUM_X = 104, RANK_CODE_X = 313, RANK_P_X = 504, RANK_PTS_X = 648, RANK_GD_X = 782;
   const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 24;
   const RANK_DATA_FONT = 36;
@@ -302,6 +304,50 @@
     });
   }
 
+  // ---------- Check standings SHL site (ranking mode) ----------
+  const checkStandingsBtn = document.getElementById('checkStandingsBtn');
+  const checkStandingsStatus = document.getElementById('checkStandingsStatus');
+
+  function showStandingsStatus(text, cls) {
+    if (!checkStandingsStatus) return;
+    checkStandingsStatus.textContent = text;
+    checkStandingsStatus.className = 'save-status' + (cls ? ' ' + cls : '');
+    checkStandingsStatus.hidden = false;
+  }
+
+  if (checkStandingsBtn) {
+    checkStandingsBtn.addEventListener('click', () => {
+      const aliases = COMPETITIONS.men.resultAliases;
+      checkStandingsBtn.disabled = true;
+      showStandingsStatus('Stand ophalen van SHL site…');
+      fetch('/api/standings')
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          const standings = data.standings || [];
+          let filled = 0;
+          standings.forEach((s, i) => {
+            if (i >= rankState.length) return;
+            const code = matchCodeByAlias(aliases, s.club);
+            if (!code) return;
+            rankState[i].code = code;
+            rankState[i].p = s.played;
+            rankState[i].pts = s.points;
+            filled++;
+          });
+          if (filled > 0) {
+            buildMatchRows();
+            render();
+            showStandingsStatus(`✓ ${filled} van ${standings.length} teams ingevuld`, 'ok');
+          } else {
+            showStandingsStatus('Geen bijpassende teams gevonden op de site', 'warn');
+          }
+        })
+        .catch(err => showStandingsStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
+        .finally(() => { checkStandingsBtn.disabled = false; });
+    });
+  }
+
   // ---------- Font ----------
   // The full family is registered (not just Bold) so different text
   // elements can pick whichever weight matches the source design. Each
@@ -406,6 +452,8 @@
         matchesLabel.textContent = 'Wedstrijden — vul de scores in';
         checkScoresBtn.hidden = false;
         checkScoresStatus.hidden = true;
+        checkStandingsBtn.hidden = true;
+        checkStandingsStatus.hidden = true;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       }
@@ -616,6 +664,8 @@
         matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
+        checkStandingsBtn.hidden = true;
+        checkStandingsStatus.hidden = true;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
         if (smMatches.length) {
@@ -631,6 +681,7 @@
         matchesLabel.textContent = 'Ranking — vul de stand in';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
+        checkStandingsBtn.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         buildMatchRows();
@@ -640,6 +691,8 @@
         roundSelectLabel.textContent = 'Speelronde';
         matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
         checkScoresBtn.hidden = false;
+        checkStandingsBtn.hidden = true;
+        checkStandingsStatus.hidden = true;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         if (rounds.length) {
@@ -1213,6 +1266,7 @@
         matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
+        checkStandingsBtn.hidden = true;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
       } else if (mode === 'ranking') {
@@ -1220,6 +1274,7 @@
         matchesLabel.textContent = 'Ranking — vul de stand in';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
+        checkStandingsBtn.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       } else {

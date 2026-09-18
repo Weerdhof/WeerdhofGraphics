@@ -119,6 +119,36 @@ def fetch_results():
     return results, debug
 
 
+def fetch_standings():
+    from playwright.sync_api import sync_playwright
+
+    launch_kwargs = {
+        "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"],
+    }
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(**launch_kwargs)
+        try:
+            page = browser.new_page()
+            page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
+            page.wait_for_selector("#standingTable tbody tr", timeout=15000)
+            rows = page.query_selector_all("#standingTable tbody tr")
+            standings = []
+            for row in rows:
+                cells = row.query_selector_all("td")
+                if len(cells) < 4:
+                    continue
+                standings.append({
+                    "club": cells[1].inner_text().strip(),
+                    "played": cells[2].inner_text().strip(),
+                    "points": cells[3].inner_text().strip(),
+                })
+        finally:
+            browser.close()
+
+    return standings
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -126,6 +156,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/results"):
             self.handle_results()
+        elif self.path.startswith("/api/standings"):
+            self.handle_standings()
         elif self.path.startswith("/api/save"):
             self.handle_load_state()
         else:
@@ -180,6 +212,20 @@ class Handler(SimpleHTTPRequestHandler):
             if debug is not None:
                 payload["debug"] = debug
             body = json.dumps(payload).encode("utf-8")
+            self.send_response(200)
+        except Exception as err:
+            body = json.dumps({"error": str(err)}).encode("utf-8")
+            self.send_response(502)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def handle_standings(self):
+        try:
+            standings = fetch_standings()
+            body = json.dumps({"standings": standings}).encode("utf-8")
             self.send_response(200)
         except Exception as err:
             body = json.dumps({"error": str(err)}).encode("utf-8")
