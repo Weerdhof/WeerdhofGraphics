@@ -1,7 +1,0 @@
-providers = ["python"]
-
-[phases.setup]
-nixPkgs = ["python3", "chromium"]
-
-[start]
-cmd = "python3 server.py"

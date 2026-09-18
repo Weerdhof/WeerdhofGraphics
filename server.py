@@ -25,7 +25,6 @@ takes precedence when no command-line argument is given.
 import json
 import os
 import re
-import shutil
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -45,19 +44,16 @@ SAVE_FILE = os.path.join(DATA_DIR, "saved_state.json")
 def fetch_results():
     from playwright.sync_api import sync_playwright
 
-    # On Railway (Nixpacks), we install a system Chromium via nixPkgs instead
-    # of Playwright's own ~300MB browser download, because that download's
-    # shared-library expectations don't match the Nix container and fails to
-    # launch. Nix's chromium build is self-contained, so pointing Playwright
-    # at it (still via Playwright's own driver/protocol) works reliably. On a
-    # normal dev machine there's no system chromium on PATH, so it falls back
-    # to whatever `playwright install chromium` already set up locally.
-    system_chromium = shutil.which("chromium") or shutil.which("chromium-browser")
+    # Deployed via the official mcr.microsoft.com/playwright/python Docker
+    # image, which already bundles a Chromium build that exactly matches the
+    # installed `playwright` pip version. (An earlier attempt pointed
+    # Playwright at a Nix-installed system Chromium instead, to avoid
+    # downloading a browser inside the Nixpacks build — but that version
+    # mismatch made the page load [200 OK, correct title] while silently
+    # failing to execute enough of the site's JS to render any content.)
     launch_kwargs = {
         "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"],
     }
-    if system_chromium:
-        launch_kwargs["executable_path"] = system_chromium
 
     console_errors = []
     page_errors = []
