@@ -137,13 +137,13 @@
   // it's plain manual entry rather than CSV-driven like the other modes.
   const RANK_ROW_TOP = 245, RANK_ROW_BOTTOM = 1601, RANK_ROWS = 14;
   const RANK_ROW_H = (RANK_ROW_BOTTOM - RANK_ROW_TOP) / RANK_ROWS;
-  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 74, RANK_BADGE_PAD = 10;
-  const RANK_NUM_X = 104, RANK_CODE_X = 313, RANK_P_X = 504, RANK_PTS_X = 648, RANK_GD_X = 782;
+  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 58, RANK_BADGE_PAD = 8;
+  const RANK_NUM_X = 104, RANK_CODE_X = 313, RANK_P_X = 504, RANK_PTS_X = 648;
   const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 24;
   const RANK_DATA_FONT = 36;
   const RANK_TEXT_COLOR = '#14142b';
 
-  const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '', gd: '' }));
+  const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' }));
 
   let compKey = 'men';
   const comp = () => COMPETITIONS[compKey];
@@ -876,7 +876,6 @@
       const select = node.querySelector('.rank-team-select');
       const pInput = node.querySelector('.rank-p');
       const ptsInput = node.querySelector('.rank-pts');
-      const gdInput = node.querySelector('.rank-gd');
 
       numEl.textContent = (i + 1) + '.';
 
@@ -895,12 +894,10 @@
 
       pInput.value = row.p;
       ptsInput.value = row.pts;
-      gdInput.value = row.gd;
 
       select.addEventListener('change', () => { row.code = select.value; render(); });
       pInput.addEventListener('input', () => { row.p = pInput.value; render(); });
       ptsInput.addEventListener('input', () => { row.pts = ptsInput.value; render(); });
-      gdInput.addEventListener('input', () => { row.gd = gdInput.value; render(); });
 
       matchesList.appendChild(node);
     });
@@ -1106,7 +1103,6 @@
     ctx.textAlign = 'left';
     ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
     ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
-    ctx.fillText('GD', RANK_GD_X, RANK_HEADER_Y);
 
     rankState.forEach((row, i) => {
       if (!row.code) return;
@@ -1120,7 +1116,6 @@
       ctx.fillText(String(i + 1) + '.', RANK_NUM_X, cy);
       ctx.fillText(row.code, RANK_CODE_X, cy);
       ctx.fillText(row.p, RANK_P_X, cy);
-      ctx.fillText(row.gd, RANK_GD_X, cy);
 
       // PTS is the one column set in Bold — everything else in this
       // template is Medium.
