@@ -96,6 +96,29 @@
     date: '',
     matches: Array.from({ length: 7 }, () => ({ home: '', away: '', homeScore: '', awayScore: '', time: '', played: true, showDate: false, dateLabel: '' })),
   };
+  let currentRoundId = null;
+
+  // ---------- Autosave (survives a page reload) ----------
+  // Plain localStorage — per-browser, not shared between devices, but that's
+  // enough to stop a refresh from wiping out scores you already typed in.
+  const STORAGE_KEY = 'shl-story-generator-v1';
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
+      }));
+    } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
+  }
+
+  function loadSavedState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) { return null; }
+  }
+
+  const savedState = loadSavedState();
 
   // ---------- Font ----------
   const font = new FontFace('ClashDisplay', 'url(fonts/ClashDisplay-Bold.otf)', { weight: '700' });
@@ -186,7 +209,21 @@
       .then(text => {
         rounds = parseCsv(text);
         populateRoundSelect();
-        if (rounds.length) loadRound(rounds[0]);
+        if (!rounds.length) return;
+
+        // Restore a saved round + its scores, but only the first time this
+        // competition loads after a page load — once the user picks a
+        // different round or switches tabs by hand, start fresh from the
+        // CSV like normal instead of re-restoring old data every time.
+        if (savedState && savedState.compKey === compKey && savedState.roundId) {
+          const round = rounds.find(r => r.id === savedState.roundId);
+          if (round) {
+            loadRound(round, savedState.matches);
+            savedState.compKey = null; // consumed
+            return;
+          }
+        }
+        loadRound(rounds[0]);
       })
       .catch(err => console.error('Kon CSV niet laden:', err));
   }
@@ -269,19 +306,23 @@
     if (round) loadRound(round);
   });
 
-  function loadRound(round) {
+  function loadRound(round, restoreMatches) {
+    currentRoundId = round.id;
+    roundSelect.value = round.id;
     state.date = round.datum;
-    state.matches = round.matches.map(m => ({
-      home: m.home, away: m.away,
-      homeScore: '', awayScore: '',
-      time: m.time,
-      // A match auto-flagged as being on the round's other day (see
-      // parseCsv) starts pre-toggled to "nog te spelen" with its date
-      // shown — still fully editable per row afterwards.
-      played: !m.otherDay,
-      showDate: m.otherDay,
-      dateLabel: m.otherDayLabel,
-    }));
+    state.matches = (restoreMatches && restoreMatches.length === round.matches.length)
+      ? restoreMatches
+      : round.matches.map(m => ({
+        home: m.home, away: m.away,
+        homeScore: '', awayScore: '',
+        time: m.time,
+        // A match auto-flagged as being on the round's other day (see
+        // parseCsv) starts pre-toggled to "nog te spelen" with its date
+        // shown — still fully editable per row afterwards.
+        played: !m.otherDay,
+        showDate: m.otherDay,
+        dateLabel: m.otherDayLabel,
+      }));
     buildMatchRows();
     render();
   }
@@ -492,6 +533,8 @@
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
       ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
     }
+
+    saveState();
   }
 
   function drawResultRow(m, cy, fontFamily, C) {
@@ -601,6 +644,22 @@
       URL.revokeObjectURL(url);
     }, 'image/png');
   });
+
+  // Restore the last-used competition/mode before the first load, so a
+  // reload lands back where the user left off (loadCompetition() then picks
+  // up the matching round + scores via savedState above).
+  if (savedState) {
+    if (savedState.compKey && COMPETITIONS[savedState.compKey]) {
+      compKey = savedState.compKey;
+      competitionTabs.forEach(b => b.classList.toggle('active', b.dataset.competition === compKey));
+      appEl.classList.toggle('theme-women', compKey === 'women');
+    }
+    if (savedState.mode === 'results' || savedState.mode === 'schedule') {
+      mode = savedState.mode;
+      modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
+    }
+  }
 
   buildMatchRows();
   loadCompetition();
