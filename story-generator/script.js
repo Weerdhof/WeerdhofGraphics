@@ -92,6 +92,20 @@
     cc.globalCompositeOperation = 'source-in';
     cc.fillStyle = colorHex;
     cc.fillRect(0, 0, c.width, c.height);
+
+    // naturalWidth can report ready before the image is FULLY decoded (seen
+    // in practice: an early render() call — e.g. while other images are
+    // still loading — tints a still-blank frame). Caching that blank result
+    // would then hide the icon/arrow forever, since every later call just
+    // returns the same empty canvas. Verified non-blank before caching, so
+    // a bad early attempt gets retried on the next render instead of stuck.
+    const data = cc.getImageData(0, 0, c.width, c.height).data;
+    let hasContent = false;
+    for (let i = 3; i < data.length; i += 4 * 37) { // sparse scan, plenty for a real image
+      if (data[i] > 10) { hasContent = true; break; }
+    }
+    if (!hasContent) return null;
+
     tintCache.set(key, c);
     return c;
   }
