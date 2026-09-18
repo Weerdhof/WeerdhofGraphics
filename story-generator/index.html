@@ -22,10 +22,12 @@
     <div class="mode-tabs">
       <button class="mode-tab active" data-mode="results">Results</button>
       <button class="mode-tab" data-mode="schedule">Schedule</button>
+      <button class="mode-tab men-only-tab" data-mode="match">Match</button>
+      <button class="mode-tab men-only-tab" data-mode="matchresult">Result</button>
     </div>
 
     <div class="field">
-      <label>Speelronde</label>
+      <label id="roundSelectLabel">Speelronde</label>
       <select id="roundSelect" autocomplete="off"></select>
     </div>
 
@@ -38,6 +40,11 @@
 
     <div class="field-row-label"><label id="matchesLabel">Wedstrijden</label></div>
     <div class="matches" id="matchesList"></div>
+
+    <label class="upcoming-toggle bg-toggle">
+      <input type="checkbox" id="transparentBgToggle">
+      Transparante achtergrond (i.p.v. kleur)
+    </label>
 
     <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
 
@@ -104,6 +111,25 @@
         Andere dag dan hierboven (bv. nog een zondag)
       </label>
       <input type="text" class="date-label-input" placeholder="bv. SUNDAY 21 SEPTEMBER" hidden autocomplete="off">
+    </div>
+  </div>
+</template>
+
+<template id="singleMatchRowTemplate">
+  <div class="match-row">
+    <div class="match-row-line">
+      <div class="team-chip home-chip">
+        <select class="team-select" autocomplete="off"></select>
+      </div>
+      <span class="score-pair single-match-score" hidden>
+        <input type="text" class="score-input home-score" placeholder="0" maxlength="3" inputmode="numeric" autocomplete="off">
+        <span class="vs-label">–</span>
+        <input type="text" class="score-input away-score" placeholder="0" maxlength="3" inputmode="numeric" autocomplete="off">
+      </span>
+      <input type="text" class="time-input single-match-time" placeholder="20:00" inputmode="numeric" autocomplete="off">
+      <div class="team-chip away-chip">
+        <select class="team-select" autocomplete="off"></select>
+      </div>
     </div>
   </div>
 </template>

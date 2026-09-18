@@ -89,6 +89,11 @@ html, body {
   color: #2b0733;
 }
 
+/* Single-match graphics only exist for Mannen for now. */
+.app.theme-women .men-only-tab {
+  display: none;
+}
+
 .field {
   margin-bottom: 16px;
 }
@@ -330,6 +335,12 @@ input.score-input, input.time-input {
 
 .save-status.ok { color: var(--accent); }
 .save-status.warn { color: #ff6b6b; }
+
+.bg-toggle {
+  margin: 14px 0;
+  border-top: none;
+  padding-top: 0;
+}
 
 /* ---------------- PREVIEW ---------------- */
 .preview-wrap {

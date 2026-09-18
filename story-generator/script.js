@@ -91,6 +91,41 @@
     },
   };
 
+  // ---------- Single-match template (Mannen only) ----------
+  // A separate one-off graphic (Instagram feed post, 1080x1350) built from
+  // its own PSD, independent of the per-round COMPETITIONS config above:
+  // each team's own PNG (assets/singlematch/teams/*.png) already has its
+  // color, crest and name baked in as finished art, so there's no separate
+  // teamColors map or tinting step needed here — just crop the matching
+  // half and place it.
+  const SM_CANVAS_W = 1080, SM_CANVAS_H = 1350;
+  // Each half of a team's 1932x510 asset is a self-contained card at 2x
+  // resolution (966x510) — scaling it down UNIFORMLY by 0.5 (to 483x255,
+  // half of the PSD's own 966-wide LINKS/RECHTS bbox) keeps crests round
+  // instead of squashed, and naturally leaves the center gap for the
+  // time/date text that the PSD's own (unreproducible outside Photoshop)
+  // inter-layer clipping otherwise provided.
+  const SM_TEAM_W = 483, SM_TEAM_Y = 904, SM_TEAM_H = 255;
+  const SM_TEAM_LEFT_X = 55, SM_TEAM_RIGHT_X = 1021 - SM_TEAM_W;
+  const SM_MARK = { x: 444, y: 904, w: 181, h: 156 };
+  const SM_FOOTER = { x: 306, y: 1191, w: 478, h: 117 };
+  const SM_TEXT_COLOR = '#14142b';
+  const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
+  const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
+  const SM_CENTER_X = 540;
+
+  const SM_TEAM_NAMES = {
+    SAB: 'Sezoens Achilles Bocholt', IZE: 'Besox HBC Izegem', EUP: 'KTSV Eupen',
+    SPR: 'Sprimont', BEV: 'HUMBY BEVO HC', PEL: 'Derdaele/Sporting Pelt',
+    BWH: 'B&B Healthcare/WHC-Hercules', DFS: 'DFS Arnhem', HUP: 'JD Techniek/Hurry-up',
+    HCV: 'HC Visé BM', HVA: 'RoyalFloraHolland/HVA', HUB: 'HUBO Handbal',
+    VOL: 'KRAS/Volendam', TAC: 'van Mossel/MGTachos/Witte Ster',
+  };
+  const SM_TEAM_CODES = Object.keys(SM_TEAM_NAMES).sort();
+
+  let smMatches = []; // parsed from assets/singlematch/schedule_per_match_all.csv
+  const smState = { id: '', home: '', away: '', time: '', homeScore: '', awayScore: '', dateRound: '' };
+
   let compKey = 'men';
   const comp = () => COMPETITIONS[compKey];
 
@@ -101,9 +136,16 @@
 
   const competitionTabs = document.querySelectorAll('.competition-tab');
   const roundSelect = document.getElementById('roundSelect');
+  const roundSelectLabel = document.getElementById('roundSelectLabel');
   const matchesList = document.getElementById('matchesList');
   const matchesLabel = document.getElementById('matchesLabel');
   const exportBtn = document.getElementById('exportBtn');
+  const transparentBgToggle = document.getElementById('transparentBgToggle');
+  let transparentBg = false;
+  transparentBgToggle.addEventListener('change', () => {
+    transparentBg = transparentBgToggle.checked;
+    render();
+  });
   const modeTabs = document.querySelectorAll('.mode-tab');
   const resultTpl = document.getElementById('resultMatchRowTemplate');
   const scheduleTpl = document.getElementById('scheduleMatchRowTemplate');
@@ -127,6 +169,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
+        sm: smState, transparentBg,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -163,6 +206,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
+          sm: smState, transparentBg,
         }),
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -241,8 +285,20 @@
   }
 
   // ---------- Font ----------
-  const font = new FontFace('ClashDisplay', 'url(fonts/ClashDisplay-Bold.otf)', { weight: '700' });
-  font.load().then(f => { document.fonts.add(f); fontReady = true; render(); }).catch(() => {});
+  // Bold is the only weight actually drawn anywhere right now, but the rest
+  // of the family is registered too so a future design tweak can just
+  // change a font-weight number instead of wiring up new @font-face rules.
+  const FONT_WEIGHTS = {
+    200: 'ClashDisplay-Extralight', 300: 'ClashDisplay-Light', 400: 'ClashDisplay-Regular',
+    500: 'ClashDisplay-Medium', 600: 'ClashDisplay-Semibold', 700: 'ClashDisplay-Bold',
+  };
+  Object.entries(FONT_WEIGHTS).forEach(([weight, file]) => {
+    const face = new FontFace('ClashDisplay', `url(fonts/${file}.otf)`, { weight });
+    face.load().then(f => {
+      document.fonts.add(f);
+      if (weight === '700') { fontReady = true; render(); }
+    }).catch(() => {});
+  });
 
   // ---------- Generic cached image loader ----------
   // Keyed by the literal src string, so men's and women's assets (different
@@ -319,6 +375,18 @@
       compKey = btn.dataset.competition;
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
+      // The single-match graphics only exist for Mannen — bail back to
+      // Results if Vrouwen gets picked while one of those modes is active.
+      if (compKey === 'women' && (mode === 'match' || mode === 'matchresult')) {
+        mode = 'results';
+        modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === 'results'));
+        roundSelectLabel.textContent = 'Speelronde';
+        matchesLabel.textContent = 'Wedstrijden — vul de scores in';
+        checkScoresBtn.hidden = false;
+        checkScoresStatus.hidden = true;
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
+      }
       loadCompetition();
     });
   });
@@ -328,6 +396,7 @@
       .then(r => r.text())
       .then(text => {
         rounds = parseCsv(text);
+        if (mode === 'match' || mode === 'matchresult') return; // single-match UI owns the dropdown right now
         populateRoundSelect();
         if (!rounds.length) return;
 
@@ -346,6 +415,66 @@
         loadRound(rounds[0]);
       })
       .catch(err => console.error('Kon CSV niet laden:', err));
+  }
+
+  // ---------- Single-match data (loaded once, independent of compKey) ----------
+  function parseSingleMatchCsv(text) {
+    const lines = text.trim().split(/\r?\n/);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const cols = line.split(',');
+      const id = cols[0];
+      const dateRound = cols[1];
+      const time = cols[2];
+      const home = (cols[3] || '').replace(/\.png$/i, '');
+      const away = (cols[4] || '').replace(/\.png$/i, '');
+      const roundMatch = /ROUND\s+(\d+)/i.exec(dateRound);
+      rows.push({ id, dateRound, time, home, away, roundNum: roundMatch ? Number(roundMatch[1]) : 0 });
+    }
+    return rows;
+  }
+
+  function populateSingleMatchSelect() {
+    roundSelect.innerHTML = '';
+    smMatches.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = `Ronde ${m.roundNum}: ${m.home} vs ${m.away} — ${m.dateRound.split('|')[0].trim()}`;
+      roundSelect.appendChild(opt);
+    });
+  }
+
+  function loadSingleMatch(m, restore) {
+    smState.id = m.id;
+    smState.home = restore ? restore.home : m.home;
+    smState.away = restore ? restore.away : m.away;
+    smState.time = restore ? restore.time : m.time;
+    smState.homeScore = restore ? restore.homeScore : '';
+    smState.awayScore = restore ? restore.awayScore : '';
+    smState.dateRound = m.dateRound;
+    roundSelect.value = m.id;
+    buildMatchRows();
+    render();
+  }
+
+  function loadSingleMatchData() {
+    fetch('assets/singlematch/schedule_per_match_all.csv')
+      .then(r => r.text())
+      .then(text => {
+        smMatches = parseSingleMatchCsv(text);
+        if (mode !== 'match' && mode !== 'matchresult') return; // round-based UI owns the dropdown right now
+        populateSingleMatchSelect();
+        if (!smMatches.length) return;
+        let restoreMatch = null, restoreSm = null;
+        if (savedState && (savedState.mode === 'match' || savedState.mode === 'matchresult') && savedState.sm && savedState.sm.id) {
+          restoreMatch = smMatches.find(x => x.id === savedState.sm.id);
+          restoreSm = savedState.sm;
+        }
+        loadSingleMatch(restoreMatch || smMatches[0], restoreMatch ? restoreSm : null);
+      })
+      .catch(err => console.error('Kon single-match CSV niet laden:', err));
   }
 
   // ---------- Date helpers ----------
@@ -422,6 +551,11 @@
   }
 
   roundSelect.addEventListener('change', () => {
+    if (mode === 'match' || mode === 'matchresult') {
+      const m = smMatches.find(x => x.id === roundSelect.value);
+      if (m) loadSingleMatch(m);
+      return;
+    }
     const round = rounds.find(r => r.id === roundSelect.value);
     if (round) loadRound(round);
   });
@@ -450,17 +584,50 @@
   // ---------- Mode switching ----------
   modeTabs.forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('men-only-tab') && compKey !== 'men') return; // also hidden via CSS
       mode = btn.dataset.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b === btn));
-      matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
-      buildMatchRows();
-      render();
+
+      if (mode === 'match' || mode === 'matchresult') {
+        roundSelectLabel.textContent = 'Wedstrijd';
+        matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
+        checkScoresBtn.hidden = true;
+        checkScoresStatus.hidden = true;
+        canvas.width = SM_CANVAS_W;
+        canvas.height = SM_CANVAS_H;
+        if (smMatches.length) {
+          populateSingleMatchSelect();
+          const target = smMatches.find(x => x.id === smState.id) || smMatches[0];
+          loadSingleMatch(target, smState.id === target.id ? smState : null);
+        } else {
+          buildMatchRows();
+          render();
+        }
+      } else {
+        roundSelectLabel.textContent = 'Speelronde';
+        matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
+        checkScoresBtn.hidden = false;
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
+        if (rounds.length) {
+          populateRoundSelect();
+          const round = rounds.find(r => r.id === currentRoundId) || rounds[0];
+          loadRound(round, state.matches);
+        } else {
+          buildMatchRows();
+          render();
+        }
+      }
     });
   });
 
   // ---------- Match row UI ----------
   function buildMatchRows() {
     matchesList.innerHTML = '';
+    if (mode === 'match' || mode === 'matchresult') {
+      buildSingleMatchRow();
+      return;
+    }
     const tpl = mode === 'results' ? resultTpl : scheduleTpl;
     const teamCodes = Object.keys(comp().teamColors).sort();
     state.matches.forEach((m, i) => {
@@ -563,6 +730,44 @@
     });
   }
 
+  function buildSingleMatchRow() {
+    const tpl = document.getElementById('singleMatchRowTemplate');
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    const homeSelect = node.querySelector('.home-chip .team-select');
+    const awaySelect = node.querySelector('.away-chip .team-select');
+    const timeInput = node.querySelector('.single-match-time');
+    const scorePair = node.querySelector('.single-match-score');
+    const homeScoreInput = node.querySelector('.home-score');
+    const awayScoreInput = node.querySelector('.away-score');
+
+    function fillSelect(select, code) {
+      select.innerHTML = '';
+      SM_TEAM_CODES.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = `${c} — ${SM_TEAM_NAMES[c]}`;
+        if (c === code) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+    fillSelect(homeSelect, smState.home);
+    fillSelect(awaySelect, smState.away);
+    homeSelect.addEventListener('change', () => { smState.home = homeSelect.value; render(); });
+    awaySelect.addEventListener('change', () => { smState.away = awaySelect.value; render(); });
+
+    timeInput.value = smState.time;
+    timeInput.hidden = mode !== 'match';
+    scorePair.hidden = mode !== 'matchresult';
+    homeScoreInput.value = smState.homeScore;
+    awayScoreInput.value = smState.awayScore;
+
+    timeInput.addEventListener('input', () => { smState.time = timeInput.value; render(); });
+    homeScoreInput.addEventListener('input', () => { smState.homeScore = homeScoreInput.value; render(); });
+    awayScoreInput.addEventListener('input', () => { smState.awayScore = awayScoreInput.value; render(); });
+
+    matchesList.appendChild(node);
+  }
+
   // ---------- Drawing helpers ----------
   function roundedRectPath(c, x, y, w, h, r) {
     if (r <= 0) { c.beginPath(); c.rect(x, y, w, h); return; }
@@ -616,10 +821,13 @@
 
   // ---------- Main render ----------
   function render() {
+    if (mode === 'match' || mode === 'matchresult') { renderSingleMatch(); return; }
     const C = comp();
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    ctx.fillStyle = C.bgColor;
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!transparentBg) {
+      ctx.fillStyle = C.bgColor;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
 
     C.decorations.forEach(d => {
       const img = loadImg(d.src);
@@ -652,6 +860,57 @@
     const footerImg = loadImg(C.footerLogo);
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
       ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
+    }
+
+    saveState();
+  }
+
+  function renderSingleMatch() {
+    ctx.clearRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
+    if (!transparentBg) {
+      ctx.fillStyle = COMPETITIONS.men.bgColor;
+      ctx.fillRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
+    }
+
+    // Each team's own asset (assets/singlematch/teams/<CODE>.png) already
+    // bakes in that team's color, crest and name as finished art, pre-built
+    // for BOTH slots side by side at 2x resolution: the left half is meant
+    // for the left-hand position, the right half for the right-hand one —
+    // so there's no separate tinting step, just crop the matching half.
+    const homeImg = smState.home ? loadImg(`assets/singlematch/teams/${smState.home}.png`) : null;
+    if (homeImg && homeImg.complete && homeImg.naturalWidth) {
+      const halfW = homeImg.naturalWidth / 2;
+      ctx.drawImage(homeImg, 0, 0, halfW, homeImg.naturalHeight, SM_TEAM_LEFT_X, SM_TEAM_Y, SM_TEAM_W, SM_TEAM_H);
+    }
+    const awayImg = smState.away ? loadImg(`assets/singlematch/teams/${smState.away}.png`) : null;
+    if (awayImg && awayImg.complete && awayImg.naturalWidth) {
+      const halfW = awayImg.naturalWidth / 2;
+      ctx.drawImage(awayImg, halfW, 0, halfW, awayImg.naturalHeight, SM_TEAM_RIGHT_X, SM_TEAM_Y, SM_TEAM_W, SM_TEAM_H);
+    }
+
+    const mark = loadImg('assets/singlematch/mark.png');
+    if (mark && mark.complete && mark.naturalWidth) {
+      ctx.drawImage(mark, SM_MARK.x, SM_MARK.y, SM_MARK.w, SM_MARK.h);
+    }
+
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = SM_TEXT_COLOR;
+    ctx.globalAlpha = 1;
+
+    ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
+    const mainText = mode === 'matchresult'
+      ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
+      : (smState.time || '');
+    ctx.fillText(mainText, SM_CENTER_X, SM_TIME_Y);
+
+    ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
+    ctx.fillText(smState.dateRound || '', SM_CENTER_X, SM_DATE_Y);
+
+    const footerImg = loadImg('assets/footer-logo.png');
+    if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+      ctx.drawImage(footerImg, SM_FOOTER.x, SM_FOOTER.y, SM_FOOTER.w, SM_FOOTER.h);
     }
 
     saveState();
@@ -756,7 +1015,8 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const slug = (compKey + '-' + mode + '-' + (state.date || 'story')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const nameBit = (mode === 'match' || mode === 'matchresult') ? (smState.id || 'match') : (state.date || 'story');
+      const slug = (compKey + '-' + mode + '-' + nameBit).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       a.download = `${slug}.png`;
       document.body.appendChild(a);
       a.click();
@@ -769,18 +1029,34 @@
   // reload lands back where the user left off (loadCompetition() then picks
   // up the matching round + scores via savedState above).
   if (savedState) {
+    if (typeof savedState.transparentBg === 'boolean') {
+      transparentBg = savedState.transparentBg;
+      transparentBgToggle.checked = transparentBg;
+    }
     if (savedState.compKey && COMPETITIONS[savedState.compKey]) {
       compKey = savedState.compKey;
       competitionTabs.forEach(b => b.classList.toggle('active', b.dataset.competition === compKey));
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
-    if (savedState.mode === 'results' || savedState.mode === 'schedule') {
+    const canRestoreMode = ['results', 'schedule', 'match', 'matchresult'].includes(savedState.mode)
+      && !(compKey === 'women' && (savedState.mode === 'match' || savedState.mode === 'matchresult'));
+    if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-      matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
+      if (mode === 'match' || mode === 'matchresult') {
+        roundSelectLabel.textContent = 'Wedstrijd';
+        matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
+        checkScoresBtn.hidden = true;
+        checkScoresStatus.hidden = true;
+        canvas.width = SM_CANVAS_W;
+        canvas.height = SM_CANVAS_H;
+      } else {
+        matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
+      }
     }
   }
 
   buildMatchRows();
   loadCompetition();
+  loadSingleMatchData();
 })();
