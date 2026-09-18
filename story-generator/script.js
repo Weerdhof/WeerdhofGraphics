@@ -135,10 +135,10 @@
   // it's plain manual entry rather than CSV-driven like the other modes.
   const RANK_ROW_TOP = 245, RANK_ROW_BOTTOM = 1601, RANK_ROWS = 14;
   const RANK_ROW_H = (RANK_ROW_BOTTOM - RANK_ROW_TOP) / RANK_ROWS;
-  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 110;
+  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 92, RANK_BADGE_PAD = 14;
   const RANK_NUM_X = 104, RANK_CODE_X = 313, RANK_P_X = 504, RANK_PTS_X = 648, RANK_GD_X = 782;
   const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 24;
-  const RANK_DATA_FONT = 40;
+  const RANK_DATA_FONT = 36;
   const RANK_TEXT_COLOR = '#14142b';
 
   const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '', gd: '' }));
@@ -303,9 +303,11 @@
   }
 
   // ---------- Font ----------
-  // Bold is the only weight actually drawn anywhere right now, but the rest
-  // of the family is registered too so a future design tweak can just
-  // change a font-weight number instead of wiring up new @font-face rules.
+  // The full family is registered (not just Bold) so different text
+  // elements can pick whichever weight matches the source design. Each
+  // weight re-renders on its own load so a row drawn before its specific
+  // weight was ready gets redrawn correctly instead of staying on
+  // whatever weight the browser substituted in the meantime.
   const FONT_WEIGHTS = {
     200: 'ClashDisplay-Extralight', 300: 'ClashDisplay-Light', 400: 'ClashDisplay-Regular',
     500: 'ClashDisplay-Medium', 600: 'ClashDisplay-Semibold', 700: 'ClashDisplay-Bold',
@@ -314,7 +316,8 @@
     const face = new FontFace('ClashDisplay', `url(fonts/${file}.otf)`, { weight });
     face.load().then(f => {
       document.fonts.add(f);
-      if (weight === '700') { fontReady = true; render(); }
+      fontReady = true;
+      render();
     }).catch(() => {});
   });
 
@@ -873,8 +876,9 @@
     }
   }
 
-  function drawBadge(c, img, cropX, cx, cy, radius, size) {
+  function drawBadge(c, img, cropX, cx, cy, radius, size, pad) {
     const box = size || BADGE_SIZE;
+    const inner = box - (pad || 0) * 2;
     const x0 = cx - box / 2, y0 = cy - box / 2;
     c.save();
     roundedRectPath(c, x0, y0, box, box, radius);
@@ -882,9 +886,9 @@
     c.fillStyle = '#ffffff';
     c.fillRect(x0, y0, box, box);
     if (img && img.complete && img.naturalWidth) {
-      const scale = Math.min(box / CREST_W, box / CREST_H);
+      const scale = Math.min(inner / CREST_W, inner / CREST_H);
       const dw = CREST_W * scale, dh = CREST_H * scale;
-      const dx = x0 + (box - dw) / 2, dy = y0 + (box - dh) / 2;
+      const dx = cx - dw / 2, dy = cy - dh / 2;
       c.drawImage(img, cropX, CREST_Y, CREST_W, CREST_H, dx, dy, dw, dh);
     }
     c.restore();
@@ -1001,6 +1005,34 @@
     saveState();
   }
 
+  // The template's own badge-card asset (a hidden PSD reference layer) has
+  // a soft drop shadow under each white card — the shadow must be drawn
+  // (and its blur allowed to spread) BEFORE clipping to the rounded-rect,
+  // since clipping the context also clips away the shadow.
+  function drawRankBadge(img, cx, cy) {
+    const box = RANK_BADGE_SIZE, pad = RANK_BADGE_PAD;
+    const x0 = cx - box / 2, y0 = cy - box / 2;
+    ctx.save();
+    ctx.shadowColor = 'rgba(20, 20, 43, 0.25)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    roundedRectPath(ctx, x0, y0, box, box, 10);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+
+    if (img && img.complete && img.naturalWidth) {
+      ctx.save();
+      roundedRectPath(ctx, x0, y0, box, box, 10);
+      ctx.clip();
+      const inner = box - pad * 2;
+      const scale = Math.min(inner / CREST_W, inner / CREST_H);
+      const dw = CREST_W * scale, dh = CREST_H * scale;
+      ctx.drawImage(img, CREST_X_LEFT, CREST_Y, CREST_W, CREST_H, cx - dw / 2, cy - dh / 2, dw, dh);
+      ctx.restore();
+    }
+  }
+
   function renderRanking() {
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!transparentBg) {
@@ -1017,7 +1049,7 @@
     ctx.fillStyle = RANK_TEXT_COLOR;
     ctx.textBaseline = 'middle';
 
-    ctx.font = `700 ${RANK_HEADER_FONT}px "${fontFamily}"`;
+    ctx.font = `500 ${RANK_HEADER_FONT}px "${fontFamily}"`;
     ctx.textAlign = 'left';
     ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
     ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
@@ -1028,15 +1060,19 @@
       const cy = RANK_ROW_TOP + RANK_ROW_H * i + RANK_ROW_H / 2;
 
       const img = row.code ? loadImg(`${COMPETITIONS.men.teamsDir}/${row.code}.png`) : null;
-      drawBadge(ctx, img, CREST_X_LEFT, RANK_BADGE_CX, cy, 10, RANK_BADGE_SIZE);
+      drawRankBadge(img, RANK_BADGE_CX, cy);
 
-      ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
+      ctx.font = `500 ${RANK_DATA_FONT}px "${fontFamily}"`;
       ctx.textAlign = 'left';
       ctx.fillText(String(i + 1) + '.', RANK_NUM_X, cy);
       ctx.fillText(row.code, RANK_CODE_X, cy);
       ctx.fillText(row.p, RANK_P_X, cy);
-      ctx.fillText(row.pts, RANK_PTS_X, cy);
       ctx.fillText(row.gd, RANK_GD_X, cy);
+
+      // PTS is the one column set in Bold — everything else in this
+      // template is Medium.
+      ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
+      ctx.fillText(row.pts, RANK_PTS_X, cy);
     });
 
     saveState();
