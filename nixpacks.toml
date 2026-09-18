@@ -1,7 +1,7 @@
 providers = ["python"]
 
 [phases.setup]
-nixPkgs = ["python3"]
+nixPkgs = ["python3", "chromium"]
 
 [start]
-cmd = "sh -c \"python3 -m http.server $PORT --directory story-generator\""
+cmd = "python3 server.py"

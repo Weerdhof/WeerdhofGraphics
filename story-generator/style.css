@@ -277,6 +277,60 @@ input.score-input, input.time-input {
   margin-top: 14px;
 }
 
+.btn-link {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  margin-bottom: 8px;
+  text-align: center;
+  text-decoration: none;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.paste-field textarea {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 6px;
+}
+
+.paste-field textarea:focus {
+  outline: none;
+  border-color: var(--accent-2);
+}
+
+.paste-status {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.paste-status.ok { color: var(--accent); }
+.paste-status.warn { color: #ffb84f; }
+
+#serverSaveBtn {
+  width: 100%;
+  font: inherit;
+}
+
+.save-status {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: -2px 0 8px;
+}
+
+.save-status.ok { color: var(--accent); }
+.save-status.warn { color: #ff6b6b; }
+
 /* ---------------- PREVIEW ---------------- */
 .preview-wrap {
   flex: 1;

@@ -38,6 +38,26 @@
         HVA: '#edd7aa', IZE: '#7396ba', PEL: '#db7169', SAB: '#5096dc',
         TAC: '#6fac94', VOL: '#fd9652',
       },
+      // Distinctive lowercase substrings to recognize each team in the free-text
+      // results feed from superhandballeague.com (e.g. "Sezoens Achilles
+      // Bocholt HS1") — matched against the whole scraped name, so exact
+      // spelling/suffix differences ("HS1", sponsor prefixes) don't matter.
+      resultAliases: {
+        SAB: ['bocholt'],
+        IZE: ['izegem'],
+        EUP: ['eupen'],
+        HCS: ['sprimont'],
+        BEV: ['bevo'],
+        PEL: ['pelt'],
+        BWH: ['hercules', 'whc'],
+        DFS: ['arnhem'],
+        HUP: ['hurry'],
+        HCV: ['vise', 'visé'],
+        HVA: ['aalsmeer'],
+        HUB: ['hubo'],
+        VOL: ['volendam'],
+        TAC: ['tachos', 'mossel', 'witte ster'],
+      },
     },
     women: {
       label: 'Vrouwen',
@@ -119,6 +139,106 @@
   }
 
   const savedState = loadSavedState();
+
+  // ---------- Server-side save (manual button) ----------
+  // Separate from the automatic localStorage autosave above: this is an
+  // explicit action so scores also survive a cleared browser / different
+  // device, by writing to a JSON file on the server.
+  const serverSaveBtn = document.getElementById('serverSaveBtn');
+  const serverSaveStatus = document.getElementById('serverSaveStatus');
+
+  function showSaveStatus(text, cls) {
+    if (!serverSaveStatus) return;
+    serverSaveStatus.textContent = text;
+    serverSaveStatus.className = 'save-status' + (cls ? ' ' + cls : '');
+    serverSaveStatus.hidden = false;
+  }
+
+  if (serverSaveBtn) {
+    serverSaveBtn.addEventListener('click', () => {
+      serverSaveBtn.disabled = true;
+      showSaveStatus('Opslaan…');
+      fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
+        }),
+      })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(() => showSaveStatus('✓ Opgeslagen op server', 'ok'))
+        .catch(() => showSaveStatus('✗ Opslaan mislukt, probeer opnieuw', 'warn'))
+        .finally(() => { serverSaveBtn.disabled = false; });
+    });
+  }
+
+  // ---------- Check score SHL site (server-side headless fetch) ----------
+  // Only runs when the button is pressed: the server launches a headless
+  // browser on demand, reads the live results feed, and returns them here to
+  // match against the currently loaded round's teams.
+  function normalizeForMatch(s) {
+    return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+
+  function matchCodeByAlias(aliases, name) {
+    const norm = normalizeForMatch(name);
+    for (const code of Object.keys(aliases)) {
+      if (aliases[code].some(alias => norm.includes(alias))) return code;
+    }
+    return null;
+  }
+
+  const checkScoresBtn = document.getElementById('checkScoresBtn');
+  const checkScoresStatus = document.getElementById('checkScoresStatus');
+
+  function showCheckStatus(text, cls) {
+    if (!checkScoresStatus) return;
+    checkScoresStatus.textContent = text;
+    checkScoresStatus.className = 'save-status' + (cls ? ' ' + cls : '');
+    checkScoresStatus.hidden = false;
+  }
+
+  if (checkScoresBtn) {
+    checkScoresBtn.addEventListener('click', () => {
+      const aliases = comp().resultAliases;
+      if (!aliases) {
+        showCheckStatus('Niet beschikbaar voor deze competitie', 'warn');
+        return;
+      }
+      checkScoresBtn.disabled = true;
+      showCheckStatus('Scores ophalen van SHL site…');
+      fetch('/api/results')
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          const scraped = data.results || [];
+          let filled = 0;
+          state.matches.forEach(m => {
+            if (!m.home || !m.away) return;
+            const hit = scraped.find(r => {
+              const a = matchCodeByAlias(aliases, r.teamA);
+              const b = matchCodeByAlias(aliases, r.teamB);
+              return (a === m.home && b === m.away) || (a === m.away && b === m.home);
+            });
+            if (!hit) return;
+            const homeIsA = matchCodeByAlias(aliases, hit.teamA) === m.home;
+            m.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
+            m.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
+            m.played = true;
+            filled++;
+          });
+          if (filled > 0) {
+            buildMatchRows();
+            render();
+            showCheckStatus(`✓ ${filled} van ${state.matches.length} scores ingevuld`, 'ok');
+          } else {
+            showCheckStatus('Geen bijpassende scores gevonden op de site', 'warn');
+          }
+        })
+        .catch(err => showCheckStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
+        .finally(() => { checkScoresBtn.disabled = false; });
+    });
+  }
 
   // ---------- Font ----------
   const font = new FontFace('ClashDisplay', 'url(fonts/ClashDisplay-Bold.otf)', { weight: '700' });
