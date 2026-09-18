@@ -126,6 +126,23 @@
   let smMatches = []; // parsed from assets/singlematch/schedule_per_match_all.csv
   const smState = { id: '', home: '', away: '', time: '', homeScore: '', awayScore: '', dateRound: '' };
 
+  // ---------- Ranking template (Mannen only) ----------
+  // Same 1080x1920 canvas as Results/Schedule, built from its own PSD
+  // (MEN-RANKING.psd): a static background (card, divider lines after
+  // position 8 and 10, decorations, footer) with 14 data rows drawn on top.
+  // Uses the men competition's own team codes/crests/colors — this table
+  // reflects the whole league standing, not a fixed CSV fixture list, so
+  // it's plain manual entry rather than CSV-driven like the other modes.
+  const RANK_ROW_TOP = 245, RANK_ROW_BOTTOM = 1601, RANK_ROWS = 14;
+  const RANK_ROW_H = (RANK_ROW_BOTTOM - RANK_ROW_TOP) / RANK_ROWS;
+  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 110;
+  const RANK_NUM_X = 104, RANK_CODE_X = 313, RANK_P_X = 504, RANK_PTS_X = 648, RANK_GD_X = 782;
+  const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 24;
+  const RANK_DATA_FONT = 40;
+  const RANK_TEXT_COLOR = '#14142b';
+
+  const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '', gd: '' }));
+
   let compKey = 'men';
   const comp = () => COMPETITIONS[compKey];
 
@@ -137,6 +154,7 @@
   const competitionTabs = document.querySelectorAll('.competition-tab');
   const roundSelect = document.getElementById('roundSelect');
   const roundSelectLabel = document.getElementById('roundSelectLabel');
+  const roundSelectField = document.getElementById('roundSelectField');
   const matchesList = document.getElementById('matchesList');
   const matchesLabel = document.getElementById('matchesLabel');
   const exportBtn = document.getElementById('exportBtn');
@@ -169,7 +187,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg,
+        sm: smState, transparentBg, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -206,7 +224,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-          sm: smState, transparentBg,
+          sm: smState, transparentBg, ranking: rankState,
         }),
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -375,11 +393,12 @@
       compKey = btn.dataset.competition;
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
-      // The single-match graphics only exist for Mannen — bail back to
-      // Results if Vrouwen gets picked while one of those modes is active.
-      if (compKey === 'women' && (mode === 'match' || mode === 'matchresult')) {
+      // The single-match and ranking graphics only exist for Mannen — bail
+      // back to Results if Vrouwen gets picked while one of those is active.
+      if (compKey === 'women' && (mode === 'match' || mode === 'matchresult' || mode === 'ranking')) {
         mode = 'results';
         modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === 'results'));
+        roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Speelronde';
         matchesLabel.textContent = 'Wedstrijden — vul de scores in';
         checkScoresBtn.hidden = false;
@@ -589,6 +608,7 @@
       modeTabs.forEach(b => b.classList.toggle('active', b === btn));
 
       if (mode === 'match' || mode === 'matchresult') {
+        roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Wedstrijd';
         matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
         checkScoresBtn.hidden = true;
@@ -603,7 +623,17 @@
           buildMatchRows();
           render();
         }
+      } else if (mode === 'ranking') {
+        roundSelectField.hidden = true;
+        matchesLabel.textContent = 'Ranking — vul de stand in';
+        checkScoresBtn.hidden = true;
+        checkScoresStatus.hidden = true;
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
+        buildMatchRows();
+        render();
       } else {
+        roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Speelronde';
         matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
         checkScoresBtn.hidden = false;
@@ -626,6 +656,10 @@
     matchesList.innerHTML = '';
     if (mode === 'match' || mode === 'matchresult') {
       buildSingleMatchRow();
+      return;
+    }
+    if (mode === 'ranking') {
+      buildRankingRows();
       return;
     }
     const tpl = mode === 'results' ? resultTpl : scheduleTpl;
@@ -739,6 +773,8 @@
     const scorePair = node.querySelector('.single-match-score');
     const homeScoreInput = node.querySelector('.home-score');
     const awayScoreInput = node.querySelector('.away-score');
+    const dateRow = node.querySelector('.single-match-date-row');
+    const dateInput = node.querySelector('.single-match-dateround');
 
     function fillSelect(select, code) {
       select.innerHTML = '';
@@ -765,7 +801,53 @@
     homeScoreInput.addEventListener('input', () => { smState.homeScore = homeScoreInput.value; render(); });
     awayScoreInput.addEventListener('input', () => { smState.awayScore = awayScoreInput.value; render(); });
 
+    // The date/round line is only drawn on the poster in Match mode — a
+    // result graphic doesn't need it — and only Match lets you edit it,
+    // since Matchresult never shows it anyway.
+    dateRow.hidden = mode !== 'match';
+    dateInput.value = smState.dateRound;
+    dateInput.addEventListener('input', () => { smState.dateRound = dateInput.value; render(); });
+
     matchesList.appendChild(node);
+  }
+
+  function buildRankingRows() {
+    const tpl = document.getElementById('rankingRowTemplate');
+    const teamCodes = Object.keys(COMPETITIONS.men.teamColors).sort();
+    rankState.forEach((row, i) => {
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      const numEl = node.querySelector('.rank-num');
+      const select = node.querySelector('.rank-team-select');
+      const pInput = node.querySelector('.rank-p');
+      const ptsInput = node.querySelector('.rank-pts');
+      const gdInput = node.querySelector('.rank-gd');
+
+      numEl.textContent = (i + 1) + '.';
+
+      select.innerHTML = '';
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '—';
+      select.appendChild(emptyOpt);
+      teamCodes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (c === row.code) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      pInput.value = row.p;
+      ptsInput.value = row.pts;
+      gdInput.value = row.gd;
+
+      select.addEventListener('change', () => { row.code = select.value; render(); });
+      pInput.addEventListener('input', () => { row.p = pInput.value; render(); });
+      ptsInput.addEventListener('input', () => { row.pts = ptsInput.value; render(); });
+      gdInput.addEventListener('input', () => { row.gd = gdInput.value; render(); });
+
+      matchesList.appendChild(node);
+    });
   }
 
   // ---------- Drawing helpers ----------
@@ -791,8 +873,8 @@
     }
   }
 
-  function drawBadge(c, img, cropX, cx, cy, radius) {
-    const box = BADGE_SIZE;
+  function drawBadge(c, img, cropX, cx, cy, radius, size) {
+    const box = size || BADGE_SIZE;
     const x0 = cx - box / 2, y0 = cy - box / 2;
     c.save();
     roundedRectPath(c, x0, y0, box, box, radius);
@@ -822,6 +904,7 @@
   // ---------- Main render ----------
   function render() {
     if (mode === 'match' || mode === 'matchresult') { renderSingleMatch(); return; }
+    if (mode === 'ranking') { renderRanking(); return; }
     const C = comp();
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!transparentBg) {
@@ -905,13 +988,56 @@
       : (smState.time || '');
     ctx.fillText(mainText, SM_CENTER_X, SM_TIME_Y);
 
-    ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
-    ctx.fillText(smState.dateRound || '', SM_CENTER_X, SM_DATE_Y);
+    if (mode === 'match') {
+      ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
+      ctx.fillText(smState.dateRound || '', SM_CENTER_X, SM_DATE_Y);
+    }
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
       ctx.drawImage(footerImg, SM_FOOTER.x, SM_FOOTER.y, SM_FOOTER.w, SM_FOOTER.h);
     }
+
+    saveState();
+  }
+
+  function renderRanking() {
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!transparentBg) {
+      ctx.fillStyle = COMPETITIONS.men.bgColor;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    const bg = loadImg('assets/ranking/background.png');
+    if (bg && bg.complete && bg.naturalWidth) {
+      ctx.drawImage(bg, 0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    ctx.fillStyle = RANK_TEXT_COLOR;
+    ctx.textBaseline = 'middle';
+
+    ctx.font = `700 ${RANK_HEADER_FONT}px "${fontFamily}"`;
+    ctx.textAlign = 'left';
+    ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
+    ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
+    ctx.fillText('GD', RANK_GD_X, RANK_HEADER_Y);
+
+    rankState.forEach((row, i) => {
+      if (!row.code) return;
+      const cy = RANK_ROW_TOP + RANK_ROW_H * i + RANK_ROW_H / 2;
+
+      const img = row.code ? loadImg(`${COMPETITIONS.men.teamsDir}/${row.code}.png`) : null;
+      drawBadge(ctx, img, CREST_X_LEFT, RANK_BADGE_CX, cy, 10, RANK_BADGE_SIZE);
+
+      ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
+      ctx.textAlign = 'left';
+      ctx.fillText(String(i + 1) + '.', RANK_NUM_X, cy);
+      ctx.fillText(row.code, RANK_CODE_X, cy);
+      ctx.fillText(row.p, RANK_P_X, cy);
+      ctx.fillText(row.pts, RANK_PTS_X, cy);
+      ctx.fillText(row.gd, RANK_GD_X, cy);
+    });
 
     saveState();
   }
@@ -1015,7 +1141,9 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const nameBit = (mode === 'match' || mode === 'matchresult') ? (smState.id || 'match') : (state.date || 'story');
+      const nameBit = (mode === 'match' || mode === 'matchresult') ? (smState.id || 'match')
+        : mode === 'ranking' ? 'ranking'
+        : (state.date || 'story');
       const slug = (compKey + '-' + mode + '-' + nameBit).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       a.download = `${slug}.png`;
       document.body.appendChild(a);
@@ -1038,8 +1166,9 @@
       competitionTabs.forEach(b => b.classList.toggle('active', b.dataset.competition === compKey));
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
-    const canRestoreMode = ['results', 'schedule', 'match', 'matchresult'].includes(savedState.mode)
-      && !(compKey === 'women' && (savedState.mode === 'match' || savedState.mode === 'matchresult'));
+    const menOnlyMode = savedState.mode === 'match' || savedState.mode === 'matchresult' || savedState.mode === 'ranking';
+    const canRestoreMode = ['results', 'schedule', 'match', 'matchresult', 'ranking'].includes(savedState.mode)
+      && !(compKey === 'women' && menOnlyMode);
     if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
@@ -1050,9 +1179,21 @@
         checkScoresStatus.hidden = true;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
+      } else if (mode === 'ranking') {
+        roundSelectField.hidden = true;
+        matchesLabel.textContent = 'Ranking — vul de stand in';
+        checkScoresBtn.hidden = true;
+        checkScoresStatus.hidden = true;
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
       } else {
         matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
       }
+    }
+    if (Array.isArray(savedState.ranking) && savedState.ranking.length === RANK_ROWS) {
+      savedState.ranking.forEach((row, i) => {
+        if (row && typeof row === 'object') Object.assign(rankState[i], row);
+      });
     }
   }
 

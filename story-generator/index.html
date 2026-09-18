@@ -23,10 +23,11 @@
       <button class="mode-tab active" data-mode="results">Results</button>
       <button class="mode-tab" data-mode="schedule">Schedule</button>
       <button class="mode-tab men-only-tab" data-mode="match">Match</button>
-      <button class="mode-tab men-only-tab" data-mode="matchresult">Result</button>
+      <button class="mode-tab men-only-tab" data-mode="matchresult">Matchresult</button>
+      <button class="mode-tab men-only-tab" data-mode="ranking">Ranking</button>
     </div>
 
-    <div class="field">
+    <div class="field" id="roundSelectField">
       <label id="roundSelectLabel">Speelronde</label>
       <select id="roundSelect" autocomplete="off"></select>
     </div>
@@ -131,6 +132,20 @@
         <select class="team-select" autocomplete="off"></select>
       </div>
     </div>
+    <div class="single-match-date-row">
+      <label>Datum / ronde</label>
+      <input type="text" class="date-label-input single-match-dateround" placeholder="bv. SAT 19-09 | ROUND 3" autocomplete="off">
+    </div>
+  </div>
+</template>
+
+<template id="rankingRowTemplate">
+  <div class="ranking-row">
+    <span class="rank-num"></span>
+    <select class="team-select rank-team-select" autocomplete="off"></select>
+    <input type="text" class="rank-input rank-p" placeholder="P" inputmode="numeric" maxlength="2" autocomplete="off">
+    <input type="text" class="rank-input rank-pts" placeholder="PTS" inputmode="numeric" maxlength="3" autocomplete="off">
+    <input type="text" class="rank-input rank-gd" placeholder="GD" maxlength="4" autocomplete="off">
   </div>
 </template>
 
