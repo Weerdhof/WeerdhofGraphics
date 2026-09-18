@@ -61,8 +61,19 @@ def fetch_results():
         browser = p.chromium.launch(**launch_kwargs)
         try:
             page = browser.new_page()
-            page.goto(SOURCE_URL, wait_until="networkidle", timeout=20000)
-            page.wait_for_selector(".match-card", timeout=10000)
+            page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
+            # The results are injected client-side after load, on a timeline
+            # that isn't reliably captured by "networkidle" alone (seen in
+            # practice: a container behind a different network path can end
+            # up racing the AJAX call). Wait for the actual score text to
+            # show up in the DOM instead of a generic network/selector signal.
+            try:
+                page.wait_for_function(
+                    "() => /\\d{1,3}\\s*[-\\u2013]\\s*\\d{1,3}/.test(document.body.innerText)",
+                    timeout=15000,
+                )
+            except Exception:
+                pass  # fall through and parse whatever is there — diagnosable via the debug field below
             text = page.inner_text("body")
         finally:
             browser.close()
@@ -79,7 +90,11 @@ def fetch_results():
             "scoreB": int(m.group(2)),
             "teamB": lines[i + 1],
         })
-    return results
+
+    debug = None
+    if not results:
+        debug = {"text_length": len(text), "line_count": len(lines), "sample": lines[:20]}
+    return results, debug
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -138,8 +153,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def handle_results(self):
         try:
-            results = fetch_results()
-            body = json.dumps({"results": results}).encode("utf-8")
+            results, debug = fetch_results()
+            payload = {"results": results}
+            if debug is not None:
+                payload["debug"] = debug
+            body = json.dumps(payload).encode("utf-8")
             self.send_response(200)
         except Exception as err:
             body = json.dumps({"error": str(err)}).encode("utf-8")
