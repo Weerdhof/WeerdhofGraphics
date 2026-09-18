@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SHL Story Generator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== CONTROLS ===================== -->
+  <div class="panel">
+    <h1>SHL Story Generator</h1>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="results">Results</button>
+      <button class="mode-tab" data-mode="schedule">Schedule</button>
+    </div>
+
+    <div class="field">
+      <label>Speelronde</label>
+      <select id="roundSelect" autocomplete="off"></select>
+    </div>
+
+    <div class="field-row-label"><label id="matchesLabel">Wedstrijden</label></div>
+    <div class="matches" id="matchesList"></div>
+
+    <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
+
+    <p class="hint">Kies eerst een speelronde — teams (en bij Schedule ook tijden) worden automatisch ingevuld. Scores vul je zelf in bij Results.</p>
+  </div>
+
+  <!-- ===================== PREVIEW / CANVAS ===================== -->
+  <div class="preview-wrap">
+    <div class="canvas-holder" id="canvasHolder">
+      <canvas id="posterCanvas"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<template id="resultMatchRowTemplate">
+  <div class="match-row">
+    <div class="match-row-line">
+      <div class="team-chip home-chip">
+        <span class="team-logo-wrap"><img class="team-logo"></span>
+        <select class="team-select" autocomplete="off"></select>
+      </div>
+      <span class="score-pair">
+        <input type="text" class="score-input home-score" placeholder="0" maxlength="3" inputmode="numeric">
+        <span class="vs-label">–</span>
+        <input type="text" class="score-input away-score" placeholder="0" maxlength="3" inputmode="numeric">
+      </span>
+      <input type="text" class="time-input upcoming-time" placeholder="20:00" inputmode="numeric" hidden autocomplete="off">
+      <div class="team-chip away-chip">
+        <select class="team-select" autocomplete="off"></select>
+        <span class="team-logo-wrap"><img class="team-logo"></span>
+      </div>
+    </div>
+    <label class="upcoming-toggle">
+      <input type="checkbox" class="upcoming-checkbox">
+      Nog te spelen (toont tijd i.p.v. score)
+    </label>
+    <div class="upcoming-date-row" hidden>
+      <label class="upcoming-toggle">
+        <input type="checkbox" class="show-date-checkbox">
+        Andere dag dan hierboven (bv. nog een zondag)
+      </label>
+      <input type="text" class="date-label-input" placeholder="bv. SUNDAY 21 SEPTEMBER" hidden autocomplete="off">
+    </div>
+  </div>
+</template>
+
+<template id="scheduleMatchRowTemplate">
+  <div class="match-row">
+    <div class="match-row-line">
+      <div class="team-chip home-chip">
+        <span class="team-logo-wrap"><img class="team-logo"></span>
+        <select class="team-select" autocomplete="off"></select>
+      </div>
+      <input type="text" class="time-input" placeholder="20:00" inputmode="numeric" autocomplete="off">
+      <div class="team-chip away-chip">
+        <select class="team-select" autocomplete="off"></select>
+        <span class="team-logo-wrap"><img class="team-logo"></span>
+      </div>
+    </div>
+    <div class="upcoming-date-row">
+      <label class="upcoming-toggle">
+        <input type="checkbox" class="show-date-checkbox">
+        Andere dag dan hierboven (bv. nog een zondag)
+      </label>
+      <input type="text" class="date-label-input" placeholder="bv. SUNDAY 21 SEPTEMBER" hidden autocomplete="off">
+    </div>
+  </div>
+</template>
+
+<script src="script.js"></script>
+</body>
+</html>

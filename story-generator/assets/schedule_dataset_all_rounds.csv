@@ -1,0 +1,27 @@
+DATASET,DATUM,TIJD1,LINKS1,RECHTS1,TIJD2,LINKS2,RECHTS2,TIJD3,LINKS3,RECHTS3,TIJD4,LINKS4,RECHTS4,TIJD5,LINKS5,RECHTS5,TIJD6,LINKS6,RECHTS6,TIJD7,LINKS7,RECHTS7
+ronde1_sat,SATURDAY 5 SEPTEMBER,19:00,DFS.png,SAB.png,20:00,HUP.png,HCS.png,20:00,TAC.png,BEV.png,20:15,HCV.png,VOL.png,20:15,HUB.png,EUP.png,20:15,IZE.png,HVA.png,20:15,PEL.png,BWH.png
+ronde2_sat,SATURDAY 12 SEPTEMBER,16:00,HVA.png,HUB.png,19:00,VOL.png,TAC.png,20:00,HUP.png,HCV.png,20:15,BEV.png,PEL.png,20:15,BWH.png,DFS.png,20:15,EUP.png,HCS.png,20:15,SAB.png,IZE.png
+ronde3_satsun,SATURDAY 19 SEPTEMBER,19:00,DFS.png,BEV.png,20:00,HUP.png,VOL.png,20:15,HCV.png,EUP.png,20:15,HUB.png,SAB.png,20:15,IZE.png,BWH.png,20:15,PEL.png,TAC.png,16:00,HCS.png,HVA.png
+ronde4_satsun,SATURDAY 26 SEPTEMBER,19:00,BWH.png,HUB.png,19:00,HVA.png,HCV.png,20:00,HUP.png,EUP.png,20:00,TAC.png,DFS.png,20:15,BEV.png,IZE.png,20:15,SAB.png,HCS.png,14:00,VOL.png,PEL.png
+ronde5_satsun,SATURDAY 3 OCTOBER,19:00,HUP.png,HVA.png,20:15,EUP.png,VOL.png,20:15,HCV.png,SAB.png,20:15,HUB.png,BEV.png,20:15,IZE.png,TAC.png,20:15,PEL.png,DFS.png,14:00,HCS.png,BWH.png
+ronde6_satsun,SATURDAY 10 OCTOBER,19:00,BWH.png,HCV.png,19:00,VOL.png,DFS.png,20:00,TAC.png,HUB.png,20:15,BEV.png,HCS.png,20:15,PEL.png,IZE.png,15:00,HVA.png,EUP.png,15:30,SAB.png,HUP.png
+ronde7_satsun,SATURDAY 17 OCTOBER,19:00,HVA.png,VOL.png,20:00,HUP.png,BWH.png,20:15,EUP.png,SAB.png,20:15,HCV.png,BEV.png,20:15,HUB.png,PEL.png,20:15,IZE.png,DFS.png,16:00,HCS.png,TAC.png
+ronde8_satsun,SATURDAY 24 OCTOBER,19:00,DFS.png,HUB.png,20:00,TAC.png,HCV.png,20:15,BEV.png,HUP.png,20:15,BWH.png,EUP.png,20:15,PEL.png,HCS.png,20:15,SAB.png,HVA.png,14:00,VOL.png,IZE.png
+ronde9_sat,SATURDAY 31 OCTOBER,19:00,HVA.png,BWH.png,20:00,DFS.png,HCS.png,20:00,HUP.png,TAC.png,20:15,EUP.png,BEV.png,20:15,HCV.png,PEL.png,20:15,HUB.png,IZE.png,20:15,SAB.png,VOL.png
+ronde10_sat,SATURDAY 14 NOVEMBER,19:00,DFS.png,HCV.png,20:00,TAC.png,EUP.png,20:15,BEV.png,HVA.png,20:15,HUB.png,VOL.png,20:15,IZE.png,HCS.png,20:15,PEL.png,HUP.png,20:30,BWH.png,SAB.png
+ronde11_tuewedthu,WEDNESDAY 18 NOVEMBER,19:00,HVA.png,TAC.png,20:00,HUP.png,DFS.png,20:15,EUP.png,PEL.png,20:15,HCV.png,IZE.png,20:15,SAB.png,BEV.png,20:00,BWH.png,VOL.png,20:30,HCS.png,HUB.png
+ronde12_sat,SATURDAY 21 NOVEMBER,18:00,HCS.png,VOL.png,19:00,DFS.png,EUP.png,19:00,HUP.png,IZE.png,20:00,TAC.png,SAB.png,20:15,BEV.png,BWH.png,20:15,HUB.png,HCV.png,20:15,PEL.png,HVA.png
+ronde13_satsun,SATURDAY 28 NOVEMBER,19:00,HUP.png,HUB.png,19:00,HVA.png,DFS.png,20:15,BWH.png,TAC.png,20:15,EUP.png,IZE.png,20:15,HCV.png,HCS.png,20:15,SAB.png,PEL.png,14:00,VOL.png,BEV.png
+ronde14_satsun,SATURDAY 5 DECEMBER,18:00,HCS.png,HUP.png,19:00,BWH.png,PEL.png,19:00,HVA.png,IZE.png,20:15,BEV.png,TAC.png,20:15,EUP.png,HUB.png,20:15,SAB.png,DFS.png,14:00,VOL.png,HCV.png
+ronde15_satsun,SATURDAY 12 DECEMBER,19:00,DFS.png,BWH.png,20:00,TAC.png,VOL.png,20:15,HCV.png,HUP.png,20:15,HUB.png,HVA.png,20:15,IZE.png,SAB.png,20:15,PEL.png,BEV.png,16:00,HCS.png,EUP.png
+ronde16_sat,SATURDAY 19 DECEMBER,19:00,HVA.png,HCS.png,19:00,VOL.png,HUP.png,20:00,TAC.png,PEL.png,20:15,BEV.png,DFS.png,20:15,BWH.png,IZE.png,20:15,EUP.png,HCV.png,20:15,SAB.png,HUB.png
+ronde17_sat,SATURDAY 6 FEBRUARY,18:00,HCS.png,SAB.png,19:00,DFS.png,TAC.png,20:15,EUP.png,HUP.png,20:15,HCV.png,HVA.png,20:15,HUB.png,BWH.png,20:15,IZE.png,BEV.png,20:15,PEL.png,VOL.png
+ronde18_satsun,SATURDAY 13 FEBRUARY,19:00,DFS.png,PEL.png,19:00,HVA.png,HUP.png,20:00,BWH.png,HCS.png,20:00,TAC.png,IZE.png,20:15,BEV.png,HUB.png,20:15,SAB.png,HCV.png,14:00,VOL.png,EUP.png
+ronde19_sat,SATURDAY 20 FEBRUARY,18:00,HCS.png,BEV.png,19:00,DFS.png,VOL.png,19:00,HUP.png,SAB.png,20:15,EUP.png,HVA.png,20:15,HCV.png,BWH.png,20:15,HUB.png,TAC.png,20:15,IZE.png,PEL.png
+ronde20_sat,SATURDAY 27 FEBRUARY,18:00,PEL.png,HUB.png,19:00,BWH.png,HUP.png,19:00,DFS.png,IZE.png,19:00,VOL.png,HVA.png,20:00,TAC.png,HCS.png,20:15,BEV.png,HCV.png,20:15,SAB.png,EUP.png
+ronde21_sat,SATURDAY 6 MARCH,18:00,HCS.png,PEL.png,19:00,HVA.png,SAB.png,20:00,HUP.png,BEV.png,20:15,EUP.png,BWH.png,20:15,HCV.png,TAC.png,20:15,HUB.png,DFS.png,20:15,IZE.png,VOL.png
+ronde22_satsun,SATURDAY 20 MARCH,18:00,HCS.png,DFS.png,20:00,TAC.png,HUP.png,20:15,BEV.png,EUP.png,20:15,IZE.png,HUB.png,20:15,PEL.png,HCV.png,20:30,BWH.png,HVA.png,14:00,VOL.png,SAB.png
+ronde23_sat,SATURDAY 3 APRIL,18:00,HCS.png,IZE.png,19:00,HUP.png,PEL.png,19:00,HVA.png,BEV.png,19:00,VOL.png,HUB.png,20:15,EUP.png,TAC.png,20:15,HCV.png,DFS.png,20:15,SAB.png,BWH.png
+ronde24_tuewed,WEDNESDAY 7 APRIL,21:00,DFS.png,HUP.png,19:30,VOL.png,BWH.png,20:00,IZE.png,HCV.png,20:00,PEL.png,EUP.png,20:00,TAC.png,HVA.png,20:15,BEV.png,SAB.png,20:15,HUB.png,HCS.png
+ronde25_sat,SATURDAY 10 APRIL,20:00,BWH.png,BEV.png,20:00,EUP.png,DFS.png,20:00,HCV.png,HUB.png,20:00,HVA.png,PEL.png,20:00,IZE.png,HUP.png,20:00,SAB.png,TAC.png,20:00,VOL.png,HCS.png
+ronde26_sat,SATURDAY 17 APRIL,20:00,BEV.png,VOL.png,20:00,DFS.png,HVA.png,20:00,HCS.png,HCV.png,20:00,HUB.png,HUP.png,20:00,IZE.png,EUP.png,20:00,PEL.png,SAB.png,20:00,TAC.png,BWH.png

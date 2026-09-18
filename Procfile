@@ -1,1 +1,1 @@
-web: python3 transparent-proxy.py
+web: python3 -m http.server $PORT --directory story-generator
