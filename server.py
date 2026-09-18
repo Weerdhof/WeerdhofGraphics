@@ -61,6 +61,8 @@ def fetch_results():
 
     console_errors = []
     page_errors = []
+    failed_requests = []
+    bad_responses = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(**launch_kwargs)
@@ -68,6 +70,10 @@ def fetch_results():
             page = browser.new_page()
             page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
             page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+            page.on("requestfailed", lambda req: failed_requests.append(
+                f"{req.method} {req.url} -> {req.failure}" if req.failure else f"{req.method} {req.url}"
+            ))
+            page.on("response", lambda res: bad_responses.append(f"{res.status} {res.url}") if res.status >= 400 else None)
             response = page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
             # The results are injected client-side after load, on a timeline
             # that isn't reliably captured by "networkidle" alone (seen in
@@ -111,6 +117,8 @@ def fetch_results():
             "raw_sample": text[:400],
             "console_errors": console_errors[:10],
             "page_errors": page_errors[:10],
+            "failed_requests": failed_requests[:15],
+            "bad_responses": bad_responses[:15],
         }
     return results, debug
 
