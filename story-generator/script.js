@@ -419,11 +419,11 @@
         const dh = 200 * scale;
         ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
       }
-    } else {
-      // No winner yet (empty or tied scores) — show the neutral SHL mark
-      // instead of leaving a blank gap between the two sides. It's a thin
-      // outline glyph, so it's sized generously to actually read at a
-      // glance rather than disappearing next to the bold win-chevrons.
+    }
+
+    // The neutral SHL mark always sits in the middle — win or no win —
+    // drawn on top of the chevron (if any) so it stays legible.
+    {
       const tinted = tintImage(vsIcon, 'vs', '#1b2450');
       if (tinted) {
         const ih = ROW_H * 0.48;
