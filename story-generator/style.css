@@ -58,7 +58,7 @@ html, body {
   border-radius: 10px;
 }
 
-.mode-tab {
+.mode-tab, .competition-tab {
   flex: 1;
   padding: 9px 0;
   border: none;
@@ -70,9 +70,19 @@ html, body {
   cursor: pointer;
 }
 
-.mode-tab.active {
+.mode-tab.active, .competition-tab.active {
   background: var(--accent);
   color: #10240a;
+}
+
+/* Purely cosmetic: the panel picks up the competition's own accent color
+   once Vrouwen is selected, just to make the two feel distinct. */
+.app.theme-women {
+  --accent: #e34fff;
+}
+.app.theme-women .mode-tab.active,
+.app.theme-women .competition-tab.active {
+  color: #2b0733;
 }
 
 .field {

@@ -1,0 +1,27 @@
+DATASET,DATUM,TIJD1,LINKS1,RECHTS1,TIJD2,LINKS2,RECHTS2,TIJD3,LINKS3,RECHTS3,TIJD4,LINKS4,RECHTS4,TIJD5,LINKS5,RECHTS5,TIJD6,LINKS6,RECHTS6,TIJD7,LINKS7,RECHTS7
+ronde1_sat,ZATERDAG 5 SEPTEMBER,17:00,VOL.png,E&O.png,19:00,MHV.png,PSV.png,19:00,WPK.png,VZV.png,19:00,VEN.png,VOC.png,19:00,QUI.png,DSVD.png,19:00,SEW.png,KWI.png,19:30,FOR.png,V&L.png
+ronde2_sat,ZATERDAG 12 SEPTEMBER,19:00,E&O.png,MHV.png,19:00,V&L.png,WPK.png,19:00,DSVD.png,VEN.png,19:00,VZV.png,KWI.png,19:00,VOC.png,VOL.png,19:00,SEW.png,QUI.png,21:00,PSV.png,FOR.png
+ronde3_sat,ZATERDAG 19 SEPTEMBER,19:00,WPK.png,PSV.png,19:00,VEN.png,SEW.png,19:00,KWI.png,V&L.png,19:00,QUI.png,VZV.png,19:00,VOC.png,E&O.png,19:00,VOL.png,DSVD.png,19:45,FOR.png,MHV.png
+ronde4_wedsat,ZATERDAG 3 OKTOBER,20:15,PSV.png,KWI.png,19:00,V&L.png,QUI.png,19:00,MHV.png,WPK.png,19:00,DSVD.png,VOC.png,19:00,VZV.png,VEN.png,19:00,SEW.png,VOL.png,21:00,E&O.png,FOR.png
+ronde5_tuesat,ZATERDAG 10 OKTOBER,20:00,KWI.png,MHV.png,19:00,VEN.png,V&L.png,19:00,DSVD.png,E&O.png,19:00,QUI.png,PSV.png,19:00,VOC.png,SEW.png,20:45,FOR.png,WPK.png,21:00,VOL.png,VZV.png
+ronde6_sat,ZATERDAG 17 OKTOBER,19:00,MHV.png,QUI.png,19:00,V&L.png,VOL.png,19:00,VZV.png,VOC.png,19:00,SEW.png,DSVD.png,19:30,FOR.png,KWI.png,19:30,PSV.png,VEN.png,20:00,E&O.png,WPK.png
+ronde7_sat,ZATERDAG 31 OKTOBER,19:00,VEN.png,MHV.png,19:00,DSVD.png,VZV.png,19:00,KWI.png,WPK.png,19:00,QUI.png,FOR.png,19:00,VOC.png,V&L.png,19:00,VOL.png,PSV.png,19:00,SEW.png,E&O.png
+ronde8_satsun,ZATERDAG 7 NOVEMBER,19:00,E&O.png,KWI.png,19:00,MHV.png,VOL.png,19:00,V&L.png,DSVD.png,19:00,VZV.png,SEW.png,20:45,FOR.png,VEN.png,21:00,PSV.png,VOC.png,14:30,WPK.png,QUI.png
+ronde9_satsun,ZATERDAG 14 NOVEMBER,19:00,VEN.png,WPK.png,19:00,DSVD.png,PSV.png,19:00,QUI.png,KWI.png,19:00,VOC.png,MHV.png,19:00,SEW.png,V&L.png,20:45,FOR.png,VOL.png,13:00,VZV.png,E&O.png
+ronde10_sat,ZATERDAG 21 NOVEMBER,19:00,WPK.png,VOL.png,19:00,V&L.png,VZV.png,19:00,KWI.png,VEN.png,20:30,MHV.png,DSVD.png,20:45,FOR.png,VOC.png,21:00,PSV.png,SEW.png,21:00,E&O.png,QUI.png
+ronde11_sat,ZATERDAG 28 NOVEMBER,19:00,VEN.png,QUI.png,19:00,V&L.png,E&O.png,19:00,DSVD.png,FOR.png,19:00,VZV.png,PSV.png,19:00,VOC.png,WPK.png,19:00,VOL.png,KWI.png,19:00,SEW.png,MHV.png
+ronde12_sat,ZATERDAG 5 DECEMBER,19:00,WPK.png,DSVD.png,19:00,VEN.png,E&O.png,19:00,KWI.png,VOC.png,19:00,QUI.png,VOL.png,19:00,SEW.png,FOR.png,20:30,MHV.png,VZV.png,21:00,PSV.png,V&L.png
+ronde13_tuesatsun,ZATERDAG 12 DECEMBER,19:15,VOL.png,VEN.png,19:00,E&O.png,PSV.png,19:00,V&L.png,MHV.png,19:00,DSVD.png,KWI.png,19:00,VOC.png,QUI.png,19:00,SEW.png,WPK.png,15:00,FOR.png,VZV.png
+ronde14_thusat,ZATERDAG 19 DECEMBER,20:30,E&O.png,VOL.png,19:00,V&L.png,FOR.png,19:00,DSVD.png,QUI.png,19:00,VZV.png,WPK.png,19:00,KWI.png,SEW.png,19:00,VOC.png,VEN.png,21:00,PSV.png,MHV.png
+ronde15_satsun,ZATERDAG 9 JANUARI,19:00,VEN.png,DSVD.png,19:00,KWI.png,VZV.png,19:00,QUI.png,SEW.png,19:00,VOL.png,VOC.png,19:30,MHV.png,E&O.png,20:45,FOR.png,PSV.png,14:30,WPK.png,V&L.png
+ronde16_sat,ZATERDAG 16 JANUARI,19:00,V&L.png,KWI.png,19:00,DSVD.png,VOL.png,19:00,VZV.png,QUI.png,19:00,SEW.png,VEN.png,20:50,MHV.png,FOR.png,21:00,PSV.png,WPK.png,21:00,E&O.png,VOC.png
+ronde17_satsun,ZATERDAG 23 JANUARI,19:00,VEN.png,VZV.png,19:00,KWI.png,PSV.png,19:00,QUI.png,V&L.png,19:00,VOC.png,DSVD.png,19:00,VOL.png,SEW.png,20:45,FOR.png,E&O.png,14:30,WPK.png,MHV.png
+ronde18_tuewedthu,DINSDAG 26 JANUARI,20:00,WPK.png,FOR.png,20:00,SEW.png,VOC.png,20:30,MHV.png,KWI.png,20:00,VZV.png,VOL.png,20:00,PSV.png,QUI.png,19:30,V&L.png,VEN.png,20:15,E&O.png,DSVD.png
+ronde19_sat,ZATERDAG 30 JANUARI,19:00,WPK.png,E&O.png,19:00,VEN.png,PSV.png,19:00,DSVD.png,SEW.png,19:00,KWI.png,FOR.png,19:00,QUI.png,MHV.png,19:00,VOC.png,VZV.png,19:00,VOL.png,V&L.png
+ronde20_sat,ZATERDAG 6 FEBRUARI,19:00,PSV.png,VOL.png,19:00,E&O.png,SEW.png,19:00,MHV.png,VEN.png,19:00,WPK.png,KWI.png,19:00,V&L.png,VOC.png,19:00,VZV.png,DSVD.png,20:45,FOR.png,QUI.png
+ronde21_sat,ZATERDAG 13 FEBRUARI,19:00,VEN.png,FOR.png,19:00,DSVD.png,V&L.png,19:00,KWI.png,E&O.png,19:00,QUI.png,WPK.png,19:00,VOC.png,PSV.png,19:00,VOL.png,MHV.png,19:00,SEW.png,VZV.png
+ronde22_sat,ZATERDAG 20 FEBRUARI,19:00,E&O.png,VZV.png,19:00,WPK.png,VEN.png,19:00,V&L.png,SEW.png,19:00,KWI.png,QUI.png,19:00,VOL.png,FOR.png,20:45,MHV.png,VOC.png,21:00,PSV.png,DSVD.png
+ronde23_sat,ZATERDAG 27 FEBRUARI,19:00,VEN.png,KWI.png,19:00,DSVD.png,MHV.png,19:00,VZV.png,V&L.png,19:00,QUI.png,E&O.png,19:00,VOC.png,FOR.png,19:00,SEW.png,PSV.png,21:00,VOL.png,WPK.png
+ronde24_sat,ZATERDAG 13 MAART,19:00,WPK.png,VOC.png,19:00,KWI.png,VOL.png,19:00,QUI.png,VEN.png,20:00,E&O.png,V&L.png,20:30,MHV.png,SEW.png,20:45,FOR.png,DSVD.png,21:00,PSV.png,VZV.png
+ronde25_sat,ZATERDAG 20 MAART,19:00,E&O.png,VEN.png,19:00,V&L.png,PSV.png,19:00,DSVD.png,WPK.png,19:00,VZV.png,MHV.png,19:00,VOC.png,KWI.png,19:00,VOL.png,QUI.png,19:30,FOR.png,SEW.png
+ronde26_sat,ZATERDAG 3 APRIL,19:00,PSV.png,E&O.png,19:00,MHV.png,V&L.png,19:00,WPK.png,SEW.png,19:00,VEN.png,VOL.png,19:00,VZV.png,FOR.png,19:00,KWI.png,DSVD.png,19:00,QUI.png,VOC.png
