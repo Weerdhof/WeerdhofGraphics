@@ -53,15 +53,22 @@ def fetch_results():
     # normal dev machine there's no system chromium on PATH, so it falls back
     # to whatever `playwright install chromium` already set up locally.
     system_chromium = shutil.which("chromium") or shutil.which("chromium-browser")
-    launch_kwargs = {"args": ["--no-sandbox"]}
+    launch_kwargs = {
+        "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"],
+    }
     if system_chromium:
         launch_kwargs["executable_path"] = system_chromium
+
+    console_errors = []
+    page_errors = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(**launch_kwargs)
         try:
             page = browser.new_page()
-            page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
+            page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+            page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+            response = page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
             # The results are injected client-side after load, on a timeline
             # that isn't reliably captured by "networkidle" alone (seen in
             # practice: a container behind a different network path can end
@@ -75,6 +82,9 @@ def fetch_results():
             except Exception:
                 pass  # fall through and parse whatever is there — diagnosable via the debug field below
             text = page.inner_text("body")
+            status = response.status if response else None
+            title = page.title()
+            final_url = page.url
         finally:
             browser.close()
 
@@ -93,7 +103,15 @@ def fetch_results():
 
     debug = None
     if not results:
-        debug = {"text_length": len(text), "line_count": len(lines), "sample": lines[:20]}
+        debug = {
+            "http_status": status,
+            "title": title,
+            "final_url": final_url,
+            "text_length": len(text),
+            "raw_sample": text[:400],
+            "console_errors": console_errors[:10],
+            "page_errors": page_errors[:10],
+        }
     return results, debug
 
 
