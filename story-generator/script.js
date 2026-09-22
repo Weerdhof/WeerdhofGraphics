@@ -173,17 +173,18 @@
   // look (white card, rounded corners, purple/pink accent) and reusing that
   // template's own row margins (100-980) for consistency with those posters.
   const WRANK_CARD_LEFT = 100, WRANK_CARD_RIGHT = 980;
-  const WRANK_CARD_TOP = 260, WRANK_CARD_BOTTOM = 1600;
-  const WRANK_ROW_TOP = 340, WRANK_ROW_H = 90;
-  const WRANK_BADGE_CX = 301, WRANK_BADGE_SIZE = 88, WRANK_BADGE_RADIUS = 18;
-  const WRANK_NUM_X = 149, WRANK_CODE_X = 401, WRANK_P_X = 630, WRANK_PTS_X = 795;
-  const WRANK_HEADER_Y = 300, WRANK_HEADER_FONT = 43, WRANK_DATA_FONT = 72;
+  const WRANK_CARD_TOP = 180, WRANK_CARD_BOTTOM = 1610;
+  const WRANK_ROW_TOP = 258, WRANK_ROW_H = 96.5;
+  const WRANK_BADGE_CX = 296, WRANK_BADGE_SIZE = 82, WRANK_BADGE_RADIUS = 16;
+  const WRANK_NUM_X = 144, WRANK_CODE_X = 390, WRANK_P_X = 668, WRANK_PTS_X = 832;
+  const WRANK_HEADER_Y = 220, WRANK_HEADER_FONT = 38, WRANK_DATA_FONT = 62;
   const WRANK_TEXT_COLOR = '#1a1b38';
   const WRANK_CARD_BG = '#f9f6fb', WRANK_CARD_BORDER = '#e7e0ef', WRANK_CARD_RADIUS = 26;
   const WRANK_DIVIDER_COLOR = '#e34fff';
   const WRANK_DIVIDER_Y = [WRANK_ROW_TOP + 8 * WRANK_ROW_H, WRANK_ROW_TOP + 10 * WRANK_ROW_H];
   const WRANK_DIVIDER_H = 6;
-  const WRANK_MARK = { cx: WRANK_CARD_RIGHT - 60, cy: WRANK_CARD_TOP - 10, size: 130 };
+  const WRANK_MARK = { cx: WRANK_CARD_RIGHT - 45, cy: WRANK_CARD_TOP, size: 100 };
+  const WRANK_CORNER_DECO = { x: -560, y: -420 };
 
   const rankState = {
     men: Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' })),
@@ -1217,6 +1218,13 @@
     if (!transparentBg) {
       ctx.fillStyle = C.bgColor;
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // Same corner decoration used behind Results/Schedule, repositioned so
+    // it fills the space above the card instead of sitting empty.
+    const corner = loadImg(C.decorations[0].src);
+    if (corner && corner.complete && corner.naturalWidth) {
+      ctx.drawImage(corner, WRANK_CORNER_DECO.x, WRANK_CORNER_DECO.y);
     }
 
     fillRow(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
