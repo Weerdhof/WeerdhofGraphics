@@ -1196,15 +1196,6 @@
     // it's fine (and matches the source design) for it to overlap the card.
     const mark = loadImg('assets/ranking/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
-      // In the "no background" export the mark is a light shape that would
-      // otherwise sit on bare transparency above the card — give it its own
-      // white backing (matching the card's own fill) so it stays legible
-      // regardless of what background the exported PNG is placed on.
-      if (rankingNoDecor) {
-        const pad = 14;
-        fillRow(ctx, RANK_MARK.x - pad, RANK_MARK.y - pad,
-          RANK_MARK.w + pad * 2, RANK_MARK.h + pad * 2, 'rgb(250, 250, 255)', 20);
-      }
       ctx.drawImage(mark, RANK_MARK.x, RANK_MARK.y, RANK_MARK.w, RANK_MARK.h);
     }
 
