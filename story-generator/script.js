@@ -168,7 +168,27 @@
   const RANK_DIVIDER_H = 7;
   const RANK_BOTTOM_BAR_Y = 1587, RANK_BOTTOM_BAR_H = 32;
 
-  const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' }));
+  // Women's ranking has no source PSD (unlike men's) — built programmatically
+  // instead of from extracted assets, echoing the Vrouwen results/schedule
+  // look (white card, rounded corners, purple/pink accent) and reusing that
+  // template's own row margins (100-980) for consistency with those posters.
+  const WRANK_CARD_LEFT = 100, WRANK_CARD_RIGHT = 980;
+  const WRANK_CARD_TOP = 260, WRANK_CARD_BOTTOM = 1600;
+  const WRANK_ROW_TOP = 340, WRANK_ROW_H = 90;
+  const WRANK_BADGE_CX = 301, WRANK_BADGE_SIZE = 88, WRANK_BADGE_RADIUS = 18;
+  const WRANK_NUM_X = 149, WRANK_CODE_X = 401, WRANK_P_X = 630, WRANK_PTS_X = 795;
+  const WRANK_HEADER_Y = 300, WRANK_HEADER_FONT = 43, WRANK_DATA_FONT = 72;
+  const WRANK_TEXT_COLOR = '#1a1b38';
+  const WRANK_CARD_BG = '#f9f6fb', WRANK_CARD_BORDER = '#e7e0ef', WRANK_CARD_RADIUS = 26;
+  const WRANK_DIVIDER_COLOR = '#e34fff';
+  const WRANK_DIVIDER_Y = [WRANK_ROW_TOP + 8 * WRANK_ROW_H, WRANK_ROW_TOP + 10 * WRANK_ROW_H];
+  const WRANK_DIVIDER_H = 6;
+  const WRANK_MARK = { cx: WRANK_CARD_RIGHT - 60, cy: WRANK_CARD_TOP - 10, size: 130 };
+
+  const rankState = {
+    men: Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' })),
+    women: Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' })),
+  };
 
   let compKey = 'men';
   const comp = () => COMPETITIONS[compKey];
@@ -352,13 +372,14 @@
           if (data.error) throw new Error(data.error);
           const standings = data.standings || [];
           let filled = 0;
+          const menRanking = rankState.men;
           standings.forEach((s, i) => {
-            if (i >= rankState.length) return;
+            if (i >= menRanking.length) return;
             const code = matchCodeByAlias(aliases, s.club);
             if (!code) return;
-            rankState[i].code = code;
-            rankState[i].p = s.played;
-            rankState[i].pts = s.points;
+            menRanking[i].code = code;
+            menRanking[i].p = s.played;
+            menRanking[i].pts = s.points;
             filled++;
           });
           if (filled > 0) {
@@ -468,9 +489,10 @@
       compKey = btn.dataset.competition;
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
-      // The single-match and ranking graphics only exist for Mannen — bail
-      // back to Results if Vrouwen gets picked while one of those is active.
-      if (compKey === 'women' && (mode === 'match' || mode === 'matchresult' || mode === 'ranking')) {
+      // The single-match graphics only exist for Mannen — bail back to
+      // Results if Vrouwen gets picked while one of those is active.
+      // Ranking exists for both, just styled differently per competition.
+      if (compKey === 'women' && (mode === 'match' || mode === 'matchresult')) {
         mode = 'results';
         modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === 'results'));
         roundSelectField.hidden = false;
@@ -483,6 +505,11 @@
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       }
+      if (mode === 'ranking') {
+        checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        buildMatchRows();
+        render();
+      }
       loadCompetition();
     });
   });
@@ -492,7 +519,7 @@
       .then(r => r.text())
       .then(text => {
         rounds = parseCsv(text);
-        if (mode === 'match' || mode === 'matchresult') return; // single-match UI owns the dropdown right now
+        if (mode === 'match' || mode === 'matchresult' || mode === 'ranking') return; // these UIs own the dropdown right now
         populateRoundSelect();
         if (!rounds.length) return;
 
@@ -707,7 +734,7 @@
         matchesLabel.textContent = 'Ranking — vul de stand in';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
-        checkStandingsBtn.hidden = false;
+        checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         buildMatchRows();
@@ -896,8 +923,10 @@
 
   function buildRankingRows() {
     const tpl = document.getElementById('rankingRowTemplate');
-    const teamCodes = Object.keys(COMPETITIONS.men.teamColors).sort();
-    rankState.forEach((row, i) => {
+    const teamCodes = Object.keys(comp().teamColors).sort();
+    const names = compKey === 'men' ? MEN_TEAM_NAMES : {};
+    const rows = rankState[compKey];
+    rows.forEach((row, i) => {
       const node = tpl.content.firstElementChild.cloneNode(true);
       const numEl = node.querySelector('.rank-num');
       const select = node.querySelector('.rank-team-select');
@@ -914,7 +943,7 @@
       teamCodes.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c;
-        opt.textContent = MEN_TEAM_NAMES[c] ? `${c} — ${MEN_TEAM_NAMES[c]}` : c;
+        opt.textContent = names[c] ? `${c} — ${names[c]}` : c;
         if (c === row.code) opt.selected = true;
         select.appendChild(opt);
       });
@@ -1114,6 +1143,7 @@
   }
 
   function renderRanking() {
+    if (compKey === 'women') { renderWomenRanking(); return; }
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!transparentBg) {
       ctx.fillStyle = COMPETITIONS.men.bgColor;
@@ -1156,7 +1186,7 @@
     ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
     ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
 
-    rankState.forEach((row, i) => {
+    rankState.men.forEach((row, i) => {
       if (!row.code) return;
       const cy = RANK_ROW_TOP + RANK_ROW_H * i + RANK_ROW_H / 2;
 
@@ -1174,6 +1204,68 @@
       ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
       ctx.fillText(row.pts, RANK_PTS_X, cy);
     });
+
+    saveState();
+  }
+
+  // Vrouwen has no source PSD for its ranking — built programmatically to
+  // echo the Vrouwen results/schedule look (white, rounded, purple/pink)
+  // instead of extracted assets, reusing that template's own row margins.
+  function renderWomenRanking() {
+    const C = COMPETITIONS.women;
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!transparentBg) {
+      ctx.fillStyle = C.bgColor;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    fillRow(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
+      WRANK_CARD_BOTTOM - WRANK_CARD_TOP, WRANK_CARD_BG, WRANK_CARD_RADIUS, WRANK_CARD_BORDER);
+
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    ctx.fillStyle = WRANK_TEXT_COLOR;
+    ctx.textBaseline = 'middle';
+
+    ctx.font = `700 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
+    ctx.textAlign = 'left';
+    ctx.fillText('P', WRANK_P_X, WRANK_HEADER_Y);
+    ctx.fillText('PTS', WRANK_PTS_X, WRANK_HEADER_Y);
+
+    ctx.fillStyle = WRANK_DIVIDER_COLOR;
+    WRANK_DIVIDER_Y.forEach(y => {
+      ctx.fillRect(WRANK_CARD_LEFT, y, WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_DIVIDER_H);
+    });
+
+    rankState.women.forEach((row, i) => {
+      if (!row.code) return;
+      const cy = WRANK_ROW_TOP + WRANK_ROW_H * i + WRANK_ROW_H / 2;
+
+      const img = loadImg(`${C.teamsDir}/${row.code}.png`);
+      drawBadge(ctx, img, CREST_X_LEFT, WRANK_BADGE_CX, cy, WRANK_BADGE_RADIUS, WRANK_BADGE_SIZE, 6);
+
+      ctx.fillStyle = WRANK_TEXT_COLOR;
+      ctx.font = `700 ${WRANK_DATA_FONT}px "${fontFamily}"`;
+      ctx.textAlign = 'left';
+      ctx.fillText(String(i + 1) + '.', WRANK_NUM_X, cy);
+      ctx.fillText(row.code, WRANK_CODE_X, cy);
+      ctx.fillText(row.p, WRANK_P_X, cy);
+      ctx.fillText(row.pts, WRANK_PTS_X, cy);
+    });
+
+    // Neutral SHL mark, tinted to this competition's own text color, in the
+    // same "overlapping the card's top-right corner" spot as the Mannen
+    // version's brand mark.
+    const tinted = tintImage(vsIcon, 'wrank-vs', WRANK_TEXT_COLOR);
+    if (tinted) {
+      const ih = WRANK_MARK.size;
+      const iw = ih * (tinted.width / tinted.height);
+      ctx.drawImage(tinted, WRANK_MARK.cx - iw / 2, WRANK_MARK.cy - ih / 2, iw, ih);
+    }
+
+    const footerImg = loadImg(C.footerLogo);
+    if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+      ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
+    }
 
     saveState();
   }
@@ -1321,18 +1413,21 @@
         matchesLabel.textContent = 'Ranking — vul de stand in';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
-        checkStandingsBtn.hidden = false;
+        checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       } else {
         matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
       }
     }
-    if (Array.isArray(savedState.ranking) && savedState.ranking.length === RANK_ROWS) {
-      savedState.ranking.forEach((row, i) => {
-        if (row && typeof row === 'object') Object.assign(rankState[i], row);
-      });
-    }
+    ['men', 'women'].forEach(key => {
+      const saved = savedState.ranking && savedState.ranking[key];
+      if (Array.isArray(saved) && saved.length === RANK_ROWS) {
+        saved.forEach((row, i) => {
+          if (row && typeof row === 'object') Object.assign(rankState[key][i], row);
+        });
+      }
+    });
   }
 
   buildMatchRows();
