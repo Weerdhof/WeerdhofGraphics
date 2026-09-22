@@ -165,23 +165,50 @@
   }
 
   // ---------- Results "pop in" animation ----------
-  // Each row pops in from nothing top to bottom, staggered, with a
-  // heartbeat-like overshoot/settle (modeled after animatie/Pulsesample.mp4:
-  // a damped oscillation — quick overshoot, small undershoot, smaller
-  // overshoot, settle — rather than a plain ease-in).
-  const ANIM_STAGGER_MS = 140, ANIM_POP_MS = 650, ANIM_HOLD_MS = 800;
+  // Each row fades/pops in top to bottom (small, subtle — a fade plus a
+  // slight scale-up, not a bounce), while its center mark icon pulses like
+  // a heartbeat (modeled on animatie/Pulsesample.mp4's own damped
+  // oscillation: quick overshoot, small undershoot, smaller overshoot,
+  // settle) as the "kick" that reveals the score and graphic behind it.
+  const ANIM_STAGGER_MS = 140, ANIM_ROW_FADE_MS = 380, ANIM_ICON_PULSE_MS = 550;
+  // Long hold at the end so the finished result stays readable once
+  // recorded — this is what actually gives the exported clip its length.
+  const ANIM_HOLD_MS = 15000;
   let resultsAnimating = false;
   let animStartTs = null;
   let animRafId = null;
 
-  function pulseScale(t) {
-    if (t <= 0) return 0;
-    if (t >= 1) return 1;
-    return 1 - Math.exp(-6 * t) * Math.cos(9 * t);
+  // Subtle reveal for the row itself: eased fade 0->1 with a very slight
+  // scale-up (0.94 -> 1.0) riding along with it — no bounce/overshoot.
+  function rowReveal(t) {
+    if (t <= 0) return { alpha: 0, scale: 0.94 };
+    if (t >= 1) return { alpha: 1, scale: 1 };
+    const alpha = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    return { alpha, scale: 0.94 + 0.06 * alpha };
+  }
+
+  // Heartbeat pulse for the small center mark icon only, starting and
+  // ending at scale 1 (it's already visible, it just "beats") — hand-tuned
+  // keyframes matching the reference video's rhythm, smoothstepped between.
+  const HEARTBEAT_KEYFRAMES = [
+    [0.00, 1.00], [0.15, 1.16], [0.30, 0.95],
+    [0.45, 1.10], [0.65, 0.99], [1.00, 1.00],
+  ];
+  function heartbeatScale(t) {
+    if (t <= 0 || t >= 1) return 1;
+    for (let i = 0; i < HEARTBEAT_KEYFRAMES.length - 1; i++) {
+      const [t0, v0] = HEARTBEAT_KEYFRAMES[i], [t1, v1] = HEARTBEAT_KEYFRAMES[i + 1];
+      if (t >= t0 && t <= t1) {
+        const local = (t - t0) / (t1 - t0);
+        const eased = 0.5 - 0.5 * Math.cos(Math.PI * local);
+        return v0 + (v1 - v0) * eased;
+      }
+    }
+    return 1;
   }
 
   function animTotalDuration(rowCount) {
-    return Math.max(0, rowCount - 1) * ANIM_STAGGER_MS + ANIM_POP_MS;
+    return Math.max(0, rowCount - 1) * ANIM_STAGGER_MS + Math.max(ANIM_ROW_FADE_MS, ANIM_ICON_PULSE_MS);
   }
 
   function stopResultsAnimationLoop() {
@@ -221,7 +248,7 @@
 
     animStartTs = performance.now();
     recorder.start();
-    const total = animTotalDuration(state.matches.length) + 400;
+    const total = animTotalDuration(state.matches.length) + ANIM_HOLD_MS;
     await new Promise((resolve) => {
       const loop = () => {
         render();
@@ -1371,13 +1398,17 @@
 
     state.matches.forEach((m, i) => {
       const cy = ROW_Y[i];
-      let scale = 1;
+      let alpha = 1, scale = 1, iconScale = 1;
       if (animElapsed != null) {
-        const t = (animElapsed - i * ANIM_STAGGER_MS) / ANIM_POP_MS;
-        if (t <= 0) return; // hasn't popped in yet this pass
-        scale = pulseScale(Math.min(t, 1));
+        const localElapsed = animElapsed - i * ANIM_STAGGER_MS;
+        if (localElapsed <= 0) return; // hasn't popped in yet this pass
+        const reveal = rowReveal(Math.min(localElapsed / ANIM_ROW_FADE_MS, 1));
+        alpha = reveal.alpha;
+        scale = reveal.scale;
+        iconScale = heartbeatScale(Math.min(localElapsed / ANIM_ICON_PULSE_MS, 1));
       }
-      if (scale !== 1) ctx.save();
+      const transformed = scale !== 1 || alpha !== 1;
+      if (transformed) { ctx.save(); ctx.globalAlpha = alpha; }
       try {
         // A round can be partly played: rows the user marked "nog te
         // spelen" render as a schedule row (time) even while the poster's
@@ -1389,11 +1420,11 @@
           ctx.translate(-ROW_CENTER, -cy);
         }
         if (showAsSchedule) drawScheduleRow(m, cy, fontFamily, C);
-        else drawResultRow(m, cy, fontFamily, C);
+        else drawResultRow(m, cy, fontFamily, C, iconScale);
       } catch (err) {
         console.error('Kon wedstrijd niet tekenen:', m, err);
       } finally {
-        if (scale !== 1) ctx.restore();
+        if (transformed) ctx.restore();
       }
     });
 
@@ -1649,7 +1680,7 @@
     saveState();
   }
 
-  function drawResultRow(m, cy, fontFamily, C) {
+  function drawResultRow(m, cy, fontFamily, C, iconScale) {
     fillRow(ctx, ROW_LEFT, cy - ROW_H / 2, ROW_RIGHT - ROW_LEFT, ROW_H, C.resultRowBg, C.cornerRadius, C.rowBorder);
 
     const leftBadgeCx = ROW_LEFT + BADGE_MARGIN + BADGE_SIZE / 2;
@@ -1683,13 +1714,21 @@
     }
 
     // The neutral SHL mark always sits in the middle — win or no win —
-    // drawn on top of the chevron (if any) so it stays legible.
+    // drawn on top of the chevron (if any) so it stays legible. During the
+    // Results reveal animation this is the piece that "beats" like a heart.
     {
       const tinted = tintImage(vsIcon, 'vs', C.textColor);
       if (tinted) {
         const ih = ROW_H * 0.48;
         const iw = ih * (tinted.width / tinted.height);
+        if (iconScale && iconScale !== 1) {
+          ctx.save();
+          ctx.translate(ROW_CENTER, cy);
+          ctx.scale(iconScale, iconScale);
+          ctx.translate(-ROW_CENTER, -cy);
+        }
         ctx.drawImage(tinted, ROW_CENTER - iw / 2, cy - ih / 2, iw, ih);
+        if (iconScale && iconScale !== 1) ctx.restore();
       }
     }
 
