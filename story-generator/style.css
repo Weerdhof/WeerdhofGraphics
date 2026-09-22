@@ -67,6 +67,26 @@ html, body {
   border-radius: 10px;
 }
 
+.mode-tabs-compact {
+  margin-bottom: 10px;
+}
+
+.mode-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 2px 6px;
+}
+
+.mode-group-tag {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0.7;
+}
+
 .mode-tab, .competition-tab {
   flex: 1;
   min-width: 72px;
@@ -101,6 +121,10 @@ html, body {
 
 /* Single-match graphics only exist for Mannen for now. */
 .app.theme-women .men-only-tab {
+  display: none;
+}
+
+.app.theme-women .men-only-group {
   display: none;
 }
 

@@ -207,6 +207,30 @@
   const rankingHeader = document.getElementById('rankingHeader');
   const matchesList = document.getElementById('matchesList');
   const matchesLabel = document.getElementById('matchesLabel');
+  const modeHint = document.getElementById('modeHint');
+
+  // Single source of truth for the label + help text below the entry list,
+  // so switching modes can't leave stale advice showing (e.g. "kies een
+  // speelronde" while in Match mode, which has no speelronde at all).
+  function updateHint() {
+    if (mode === 'match') {
+      matchesLabel.textContent = 'Tijd & teams';
+      modeHint.textContent = 'Kies een wedstrijd — teams en tijd worden automatisch ingevuld, de datum/ronde kun je aanpassen.';
+    } else if (mode === 'matchresult') {
+      matchesLabel.textContent = 'Uitslag & teams';
+      modeHint.textContent = 'Kies een wedstrijd en vul de eindstand in.';
+    } else if (mode === 'ranking') {
+      matchesLabel.textContent = 'Ranking — vul de stand in';
+      modeHint.textContent = 'Vul per positie het team, gespeelde wedstrijden en punten in' +
+        (compKey === 'men' ? ' — of haal de stand automatisch op vanaf de SHL site.' : '.');
+    } else if (mode === 'schedule') {
+      matchesLabel.textContent = 'Wedstrijden — tijd is aanpasbaar';
+      modeHint.textContent = 'Kies eerst een speelronde — teams en tijden worden automatisch ingevuld.';
+    } else {
+      matchesLabel.textContent = 'Wedstrijden — vul de scores in';
+      modeHint.textContent = 'Kies eerst een speelronde — teams worden automatisch ingevuld, scores vul je zelf in.';
+    }
+  }
   const exportBtn = document.getElementById('exportBtn');
   const transparentBgToggle = document.getElementById('transparentBgToggle');
   let transparentBg = false;
@@ -503,7 +527,7 @@
         modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === 'results'));
         roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Speelronde';
-        matchesLabel.textContent = 'Wedstrijden — vul de scores in';
+        updateHint();
         checkScoresBtn.hidden = false;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
@@ -513,6 +537,7 @@
       }
       if (mode === 'ranking') {
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        updateHint();
         buildMatchRows();
         render();
       }
@@ -720,7 +745,7 @@
       if (mode === 'match' || mode === 'matchresult') {
         roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Wedstrijd';
-        matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
+        updateHint();
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
@@ -738,7 +763,7 @@
         }
       } else if (mode === 'ranking') {
         roundSelectField.hidden = true;
-        matchesLabel.textContent = 'Ranking — vul de stand in';
+        updateHint();
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
@@ -750,7 +775,7 @@
       } else {
         roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Speelronde';
-        matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
+        updateHint();
         checkScoresBtn.hidden = false;
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
@@ -1451,7 +1476,6 @@
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
       if (mode === 'match' || mode === 'matchresult') {
         roundSelectLabel.textContent = 'Wedstrijd';
-        matchesLabel.textContent = mode === 'match' ? 'Tijd & teams' : 'Uitslag & teams';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
@@ -1460,15 +1484,12 @@
         canvas.height = SM_CANVAS_H;
       } else if (mode === 'ranking') {
         roundSelectField.hidden = true;
-        matchesLabel.textContent = 'Ranking — vul de stand in';
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
         exportElementBtn.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
-      } else {
-        matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
       }
     }
     ['men', 'women'].forEach(key => {
@@ -1481,6 +1502,7 @@
     });
   }
 
+  updateHint();
   buildMatchRows();
   loadCompetition();
   loadSingleMatchData();

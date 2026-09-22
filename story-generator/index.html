@@ -19,11 +19,22 @@
       <button class="competition-tab" data-competition="women">Vrouwen</button>
     </div>
 
-    <div class="mode-tabs">
+    <div class="mode-group-label">Per speelronde</div>
+    <div class="mode-tabs mode-tabs-compact">
       <button class="mode-tab active" data-mode="results">Results</button>
       <button class="mode-tab" data-mode="schedule">Schedule</button>
-      <button class="mode-tab men-only-tab" data-mode="match">Match</button>
-      <button class="mode-tab men-only-tab" data-mode="matchresult">Matchresult</button>
+    </div>
+
+    <div class="men-only-group">
+      <div class="mode-group-label">Per wedstrijd <span class="mode-group-tag">Mannen</span></div>
+      <div class="mode-tabs mode-tabs-compact">
+        <button class="mode-tab men-only-tab" data-mode="match">Match</button>
+        <button class="mode-tab men-only-tab" data-mode="matchresult">Matchresult</button>
+      </div>
+    </div>
+
+    <div class="mode-group-label">Seizoen</div>
+    <div class="mode-tabs mode-tabs-compact">
       <button class="mode-tab" data-mode="ranking">Ranking</button>
     </div>
 
@@ -58,7 +69,7 @@
     <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
     <button class="btn btn-link" id="exportElementBtn" type="button" hidden>⬇ Exporteer zonder achtergrond</button>
 
-    <p class="hint">Kies eerst een speelronde — teams (en bij Schedule ook tijden) worden automatisch ingevuld. Scores vul je zelf in bij Results.</p>
+    <p class="hint" id="modeHint">Kies eerst een speelronde — teams (en bij Schedule ook tijden) worden automatisch ingevuld. Scores vul je zelf in bij Results.</p>
   </div>
 
   <!-- ===================== PREVIEW / CANVAS ===================== -->
