@@ -135,10 +135,13 @@
   // Uses the men competition's own team codes/crests/colors — this table
   // reflects the whole league standing, not a fixed CSV fixture list, so
   // it's plain manual entry rather than CSV-driven like the other modes.
+  // Measured directly off the current PSD (its own layout was updated since
+  // this was first built), then shifted 48px left so the card sits centered
+  // on the 1080-wide canvas instead of the PSD's own off-center placement.
   const RANK_ROW_TOP = 245, RANK_ROW_BOTTOM = 1601, RANK_ROWS = 14;
   const RANK_ROW_H = (RANK_ROW_BOTTOM - RANK_ROW_TOP) / RANK_ROWS;
-  const RANK_BADGE_CX = 230, RANK_BADGE_SIZE = 58, RANK_BADGE_PAD = 8;
-  const RANK_NUM_X = 104, RANK_CODE_X = 313, RANK_P_X = 504, RANK_PTS_X = 648;
+  const RANK_BADGE_CX = 341, RANK_BADGE_SIZE = 74, RANK_BADGE_PAD = 6;
+  const RANK_NUM_X = 215, RANK_CODE_X = 424, RANK_P_X = 615, RANK_PTS_X = 752;
   const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 24;
   const RANK_DATA_FONT = 36;
   const RANK_TEXT_COLOR = '#14142b';
