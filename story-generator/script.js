@@ -174,7 +174,10 @@
   // look (white card, rounded corners, purple/pink accent) and reusing that
   // template's own row margins (100-980) for consistency with those posters.
   const WRANK_CARD_LEFT = 100, WRANK_CARD_RIGHT = 980;
-  const WRANK_CARD_TOP = 180, WRANK_CARD_BOTTOM = 1610;
+  // Card bottom sits well clear of row 14 + the bottom accent bar's own
+  // height (see WRANK_BOTTOM_ACCENT_H) — the original 1610 left virtually
+  // no room and the last row collided with the bar.
+  const WRANK_CARD_TOP = 180, WRANK_CARD_BOTTOM = 1660;
   const WRANK_ROW_TOP = 258, WRANK_ROW_H = 96.5;
   // Badges are full circles (radius = half the size) per the official
   // SHLW2627templateranking.psd reference, not the rounded squares used
@@ -191,12 +194,12 @@
   const WRANK_DIVIDER_COLOR = 'rgb(211, 82, 252)';
   const WRANK_DIVIDER_Y = [WRANK_ROW_TOP + 8 * WRANK_ROW_H, WRANK_ROW_TOP + 10 * WRANK_ROW_H];
   const WRANK_DIVIDER_H = 6;
-  const WRANK_BOTTOM_ACCENT_H = 30;
+  const WRANK_BOTTOM_ACCENT_H = 32;
   const WRANK_CORNER_DECO = { x: -560, y: -420 };
   // The shared C.footer position (tuned for Results/Schedule) sits almost
   // flush with this card's own bottom edge — give the ranking its own,
   // slightly lower Y so the logo doesn't crowd the card.
-  const WRANK_FOOTER_Y = 1660;
+  const WRANK_FOOTER_Y = 1700;
 
   const rankState = {
     men: Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' })),
@@ -1019,6 +1022,19 @@
     c.closePath();
   }
 
+  // Square top corners, rounded bottom — for a shape flush with another
+  // shape's own bottom edge that should inherit that edge's exact radius
+  // (e.g. an accent bar sitting under a card, rounded to match).
+  function roundedRectBottomPath(c, x, y, w, h, r) {
+    if (r <= 0) { c.beginPath(); c.rect(x, y, w, h); return; }
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + w, y);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.closePath();
+  }
+
   function fillRow(c, x, y, w, h, fillStyle, radius, borderStyle) {
     roundedRectPath(c, x, y, w, h, radius);
     c.fillStyle = fillStyle;
@@ -1283,24 +1299,28 @@
     fillRow(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
       WRANK_CARD_BOTTOM - WRANK_CARD_TOP, WRANK_CARD_BG, WRANK_CARD_RADIUS, WRANK_CARD_BORDER);
 
-    // Flat gradient bar flush with the card's bottom edge, matching the
-    // Mannen ranking's own bottom bar exactly (same construction, sharp
-    // corners) — colors sampled from colormash/WOMENPURPLE.png, this
-    // competition's own brand gradient.
+    // Gradient bar flush with the card's bottom edge — rounded only at the
+    // bottom, with the same radius as the card's own corners, so the
+    // rounding is identical top and bottom instead of the flat/sharp bar
+    // the Mannen version gets away with.
     const wBarGradient = ctx.createLinearGradient(WRANK_CARD_LEFT, 0, WRANK_CARD_RIGHT, 0);
     wBarGradient.addColorStop(0, 'rgb(229, 84, 252)');
     wBarGradient.addColorStop(1, 'rgb(189, 81, 252)');
+    roundedRectBottomPath(ctx, WRANK_CARD_LEFT, WRANK_CARD_BOTTOM - WRANK_BOTTOM_ACCENT_H,
+      WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_BOTTOM_ACCENT_H, WRANK_CARD_RADIUS);
     ctx.fillStyle = wBarGradient;
-    ctx.fillRect(WRANK_CARD_LEFT, WRANK_CARD_BOTTOM - WRANK_BOTTOM_ACCENT_H,
-      WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_BOTTOM_ACCENT_H);
+    ctx.fill();
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     ctx.fillStyle = WRANK_TEXT_COLOR;
     ctx.textBaseline = 'middle';
 
-    ctx.font = `700 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
+    // Same weight split as the Mannen ranking: Medium everywhere, Bold
+    // only for PTS.
+    ctx.font = `500 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
     ctx.textAlign = 'left';
     ctx.fillText('P', WRANK_P_X, WRANK_HEADER_Y);
+    ctx.font = `700 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
     ctx.fillText('PTS', WRANK_PTS_X, WRANK_HEADER_Y);
 
     WRANK_DIVIDER_Y.forEach(y => {
@@ -1316,11 +1336,14 @@
       drawBadge(ctx, img, CREST_X_LEFT, WRANK_BADGE_CX, cy, WRANK_BADGE_RADIUS, WRANK_BADGE_SIZE, 6);
 
       ctx.fillStyle = WRANK_TEXT_COLOR;
-      ctx.font = `700 ${WRANK_DATA_FONT}px "${fontFamily}"`;
+      ctx.font = `500 ${WRANK_DATA_FONT}px "${fontFamily}"`;
       ctx.textAlign = 'left';
       ctx.fillText(String(i + 1) + '.', WRANK_NUM_X, cy);
       ctx.fillText(row.code, WRANK_CODE_X, cy);
       ctx.fillText(row.p, WRANK_P_X, cy);
+
+      // PTS is the one column set in Bold — everything else is Medium.
+      ctx.font = `700 ${WRANK_DATA_FONT}px "${fontFamily}"`;
       ctx.fillText(row.pts, WRANK_PTS_X, cy);
     });
 
