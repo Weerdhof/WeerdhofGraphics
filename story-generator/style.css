@@ -57,6 +57,49 @@ html, body {
   letter-spacing: -0.02em;
 }
 
+/* Numbered sections walk the panel through the actual task order (pick
+   mode -> pick data -> edit -> style -> export) instead of one long
+   undifferentiated list of controls. */
+.panel-step {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-step-last {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.panel-step-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #10240a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app.theme-women .step-num {
+  color: #2b0733;
+}
+
 .mode-tabs {
   display: flex;
   flex-wrap: wrap;

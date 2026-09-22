@@ -14,72 +14,86 @@
   <div class="panel">
     <h1>SHL Story Generator</h1>
 
-    <div class="mode-tabs competition-tabs">
-      <button class="competition-tab active" data-competition="men">Mannen</button>
-      <button class="competition-tab" data-competition="women">Vrouwen</button>
-    </div>
-
-    <div class="mode-group-label">Per speelronde</div>
-    <div class="mode-tabs mode-tabs-compact">
-      <button class="mode-tab active" data-mode="results">Results</button>
-      <button class="mode-tab" data-mode="schedule">Schedule</button>
-    </div>
-
-    <div class="men-only-group">
-      <div class="mode-group-label">Per wedstrijd <span class="mode-group-tag">Mannen</span></div>
-      <div class="mode-tabs mode-tabs-compact">
-        <button class="mode-tab men-only-tab" data-mode="match">Match</button>
-        <button class="mode-tab men-only-tab" data-mode="matchresult">Matchresult</button>
+    <section class="panel-step">
+      <div class="panel-step-title"><span class="step-num">1</span>Wat wil je maken?</div>
+      <div class="mode-tabs competition-tabs">
+        <button class="competition-tab active" data-competition="men">Mannen</button>
+        <button class="competition-tab" data-competition="women">Vrouwen</button>
       </div>
-    </div>
 
-    <div class="mode-group-label">Seizoen</div>
-    <div class="mode-tabs mode-tabs-compact">
-      <button class="mode-tab" data-mode="ranking">Ranking</button>
-    </div>
+      <div class="mode-group-label">Per speelronde</div>
+      <div class="mode-tabs mode-tabs-compact">
+        <button class="mode-tab active" data-mode="results">Results</button>
+        <button class="mode-tab" data-mode="schedule">Schedule</button>
+      </div>
 
-    <div class="field" id="roundSelectField">
-      <label id="roundSelectLabel">Speelronde</label>
-      <select id="roundSelect" autocomplete="off"></select>
-    </div>
+      <div class="men-only-group">
+        <div class="mode-group-label">Per wedstrijd <span class="mode-group-tag">Mannen</span></div>
+        <div class="mode-tabs mode-tabs-compact">
+          <button class="mode-tab men-only-tab" data-mode="match">Match</button>
+          <button class="mode-tab men-only-tab" data-mode="matchresult">Matchresult</button>
+        </div>
+      </div>
 
-    <div class="field">
-      <button class="btn btn-link" id="checkScoresBtn" type="button">🔗 Check score SHL site</button>
-      <p class="save-status" id="checkScoresStatus" hidden></p>
-      <button class="btn btn-link" id="checkStandingsBtn" type="button" hidden>🔗 Vul in vanuit SHL site</button>
-      <p class="save-status" id="checkStandingsStatus" hidden></p>
+      <div class="mode-group-label">Seizoen</div>
+      <div class="mode-tabs mode-tabs-compact">
+        <button class="mode-tab" data-mode="ranking">Ranking</button>
+      </div>
+    </section>
+
+    <section class="panel-step">
+      <div class="panel-step-title"><span class="step-num">2</span>Kies de data</div>
+      <div class="field" id="roundSelectField">
+        <label id="roundSelectLabel">Speelronde</label>
+        <select id="roundSelect" autocomplete="off"></select>
+      </div>
+
+      <div class="field">
+        <button class="btn btn-link" id="checkScoresBtn" type="button">🔗 Check score SHL site</button>
+        <p class="save-status" id="checkScoresStatus" hidden></p>
+        <button class="btn btn-link" id="checkStandingsBtn" type="button" hidden>🔗 Vul in vanuit SHL site</button>
+        <p class="save-status" id="checkStandingsStatus" hidden></p>
+      </div>
+    </section>
+
+    <section class="panel-step">
+      <div class="panel-step-title"><span class="step-num">3</span>Bewerk de gegevens</div>
+      <div class="field-row-label"><label id="matchesLabel">Wedstrijden</label></div>
+      <div class="ranking-header" id="rankingHeader" hidden>
+        <span class="ranking-header-num"></span>
+        <span class="ranking-header-team">Team</span>
+        <span class="ranking-header-col">P</span>
+        <span class="ranking-header-col">PTS</span>
+      </div>
+      <div class="matches" id="matchesList"></div>
+      <p class="hint" id="modeHint">Kies eerst een speelronde — teams (en bij Schedule ook tijden) worden automatisch ingevuld. Scores vul je zelf in bij Results.</p>
+    </section>
+
+    <section class="panel-step">
+      <div class="panel-step-title"><span class="step-num">4</span>Opmaak</div>
+      <label class="upcoming-toggle bg-toggle">
+        <input type="checkbox" id="transparentBgToggle">
+        Transparante achtergrond (i.p.v. kleur)
+      </label>
+
+      <div class="field bg-photo-field" id="bgPhotoField" hidden>
+        <label>Achtergrondfoto (optioneel)</label>
+        <input type="file" id="bgPhotoInput" accept="image/*">
+        <div class="bg-photo-controls" id="bgPhotoControls" hidden>
+          <label class="bg-photo-zoom-label">Zoom<input type="range" id="bgPhotoZoom" min="1" max="3" step="0.01" value="1"></label>
+          <button class="btn btn-link" id="removeBgPhotoBtn" type="button">✕ Verwijder foto</button>
+          <p class="hint">Sleep op de preview om de foto te verschuiven.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-step panel-step-last">
+      <div class="panel-step-title"><span class="step-num">5</span>Opslaan &amp; exporteren</div>
       <button class="btn btn-link" id="serverSaveBtn" type="button">💾 Opslaan op server</button>
       <p class="save-status" id="serverSaveStatus" hidden></p>
-    </div>
-
-    <div class="field-row-label"><label id="matchesLabel">Wedstrijden</label></div>
-    <div class="ranking-header" id="rankingHeader" hidden>
-      <span class="ranking-header-num"></span>
-      <span class="ranking-header-team">Team</span>
-      <span class="ranking-header-col">P</span>
-      <span class="ranking-header-col">PTS</span>
-    </div>
-    <div class="matches" id="matchesList"></div>
-
-    <label class="upcoming-toggle bg-toggle">
-      <input type="checkbox" id="transparentBgToggle">
-      Transparante achtergrond (i.p.v. kleur)
-    </label>
-
-    <div class="field bg-photo-field" id="bgPhotoField" hidden>
-      <label>Achtergrondfoto (optioneel)</label>
-      <input type="file" id="bgPhotoInput" accept="image/*">
-      <div class="bg-photo-controls" id="bgPhotoControls" hidden>
-        <label class="bg-photo-zoom-label">Zoom<input type="range" id="bgPhotoZoom" min="1" max="3" step="0.01" value="1"></label>
-        <button class="btn btn-link" id="removeBgPhotoBtn" type="button">✕ Verwijder foto</button>
-        <p class="hint">Sleep op de preview om de foto te verschuiven.</p>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
-    <button class="btn btn-link" id="exportElementBtn" type="button" hidden>⬇ Exporteer zonder achtergrond</button>
-
-    <p class="hint" id="modeHint">Kies eerst een speelronde — teams (en bij Schedule ook tijden) worden automatisch ingevuld. Scores vul je zelf in bij Results.</p>
+      <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
+      <button class="btn btn-link" id="exportElementBtn" type="button" hidden>⬇ Exporteer zonder achtergrond</button>
+    </section>
   </div>
 
   <!-- ===================== PREVIEW / CANVAS ===================== -->
