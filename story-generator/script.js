@@ -361,6 +361,19 @@
     });
   });
 
+  // Scroll-to-zoom directly on the preview, on top of the slider — feels
+  // more like a native photo editor than a slider-only control.
+  canvas.addEventListener('wheel', (e) => {
+    if (!bgPhotoImg || !(mode === 'match' || mode === 'matchresult')) return;
+    e.preventDefault();
+    const min = parseFloat(bgPhotoZoom.min), max = parseFloat(bgPhotoZoom.max);
+    const step = -e.deltaY * 0.0015;
+    bgPhotoScale = Math.max(min, Math.min(max, bgPhotoScale + step));
+    bgPhotoZoom.value = String(bgPhotoScale);
+    clampBgPhotoOffsets();
+    render();
+  }, { passive: false });
+
   const modeTabs = document.querySelectorAll('.mode-tab');
   const resultTpl = document.getElementById('resultMatchRowTemplate');
   const scheduleTpl = document.getElementById('scheduleMatchRowTemplate');
@@ -1249,12 +1262,14 @@
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
       // A user's own photo can be any brightness — fade to dark navy along
-      // the bottom so the white Coinmerce footer logo stays legible.
-      const footerFade = ctx.createLinearGradient(0, SM_FOOTER.y - 60, 0, SM_CANVAS_H);
+      // the bottom so the white Coinmerce footer logo (and the team band
+      // above it) stays legible.
+      const fadeTop = SM_TEAM_Y - 260;
+      const footerFade = ctx.createLinearGradient(0, fadeTop, 0, SM_CANVAS_H);
       footerFade.addColorStop(0, 'rgba(26, 27, 56, 0)');
-      footerFade.addColorStop(1, 'rgba(26, 27, 56, 0.92)');
+      footerFade.addColorStop(1, 'rgba(26, 27, 56, 0.94)');
       ctx.fillStyle = footerFade;
-      ctx.fillRect(0, SM_FOOTER.y - 60, SM_CANVAS_W, SM_CANVAS_H - (SM_FOOTER.y - 60));
+      ctx.fillRect(0, fadeTop, SM_CANVAS_W, SM_CANVAS_H - fadeTop);
     } else if (!transparentBg) {
       ctx.fillStyle = COMPETITIONS.men.bgColor;
       ctx.fillRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
