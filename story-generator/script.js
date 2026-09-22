@@ -138,13 +138,21 @@
   // Measured directly off the current PSD (its own layout was updated since
   // this was first built), then shifted 48px left so the card sits centered
   // on the 1080-wide canvas instead of the PSD's own off-center placement.
-  const RANK_ROW_TOP = 245, RANK_ROW_BOTTOM = 1601, RANK_ROWS = 14;
-  const RANK_ROW_H = (RANK_ROW_BOTTOM - RANK_ROW_TOP) / RANK_ROWS;
+  // Row top/height are solved from the two divider lines' actual positions
+  // (999-1006 and 1185-1193, i.e. after row 8 and row 10) rather than the
+  // badge asset's own bounding box, which didn't divide evenly into 14
+  // equal rows aligned with those dividers.
+  const RANK_ROWS = 14;
+  const RANK_ROW_H = 93.25, RANK_ROW_TOP = 256.5;
   const RANK_BADGE_CX = 341, RANK_BADGE_SIZE = 74, RANK_BADGE_PAD = 6;
   const RANK_NUM_X = 215, RANK_CODE_X = 424, RANK_P_X = 615, RANK_PTS_X = 752;
-  const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 24;
-  const RANK_DATA_FONT = 36;
+  const RANK_HEADER_Y = 236, RANK_HEADER_FONT = 36;
+  // Calibrated so the rendered cap-height matches the reference (measured
+  // ~40px there): this font's cap-height is ~0.667x its CSS size, so 60px
+  // gets back to a 40px cap-height — the previous 36px was undersized.
+  const RANK_DATA_FONT = 60;
   const RANK_TEXT_COLOR = '#14142b';
+  const RANK_MARK = { x: 907, y: 84, w: 153, h: 176 };
 
   const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' }));
 
@@ -1096,6 +1104,13 @@
     const bg = loadImg('assets/ranking/background.png');
     if (bg && bg.complete && bg.naturalWidth) {
       ctx.drawImage(bg, 0, 0, CANVAS_W, CANVAS_H);
+    }
+
+    // Drawn as its own asset (not baked into the background) so it never
+    // moves or gets clipped when the card underneath is repositioned.
+    const mark = loadImg('assets/ranking/mark.png');
+    if (mark && mark.complete && mark.naturalWidth) {
+      ctx.drawImage(mark, RANK_MARK.x, RANK_MARK.y, RANK_MARK.w, RANK_MARK.h);
     }
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
