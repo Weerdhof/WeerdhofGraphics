@@ -186,13 +186,17 @@
   const WRANK_HEADER_Y = 220, WRANK_HEADER_FONT = 36, WRANK_DATA_FONT = 60;
   const WRANK_TEXT_COLOR = '#1a1b38';
   const WRANK_CARD_BG = '#f9f6fb', WRANK_CARD_BORDER = '#e7e0ef', WRANK_CARD_RADIUS = 26;
-  // Teal divider/accent (matches the reference PSD) instead of the brand
-  // pink, so the card reads distinctly from the pink corner decorations.
-  const WRANK_DIVIDER_COLOR = '#00f9e0';
+  // Sampled from colormash/WOMENPURPLE.png — this competition's own brand
+  // gradient (also used for the bottom accent bar).
+  const WRANK_DIVIDER_COLOR = 'rgb(211, 82, 252)';
   const WRANK_DIVIDER_Y = [WRANK_ROW_TOP + 8 * WRANK_ROW_H, WRANK_ROW_TOP + 10 * WRANK_ROW_H];
   const WRANK_DIVIDER_H = 6;
-  const WRANK_BOTTOM_ACCENT_H = 10;
+  const WRANK_BOTTOM_ACCENT_H = 30;
   const WRANK_CORNER_DECO = { x: -560, y: -420 };
+  // The shared C.footer position (tuned for Results/Schedule) sits almost
+  // flush with this card's own bottom edge — give the ranking its own,
+  // slightly lower Y so the logo doesn't crowd the card.
+  const WRANK_FOOTER_Y = 1660;
 
   const rankState = {
     men: Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' })),
@@ -1015,21 +1019,6 @@
     c.closePath();
   }
 
-  // Rounded top corners, flat bottom — used to let a shape sit "inside"
-  // another rounded shape (e.g. a card fill sitting over a solid-color
-  // base so only a strip of the base peeks out along the bottom edge,
-  // inheriting that edge's own rounded corners).
-  function roundedRectTopPath(c, x, y, w, h, r) {
-    if (r <= 0) { c.beginPath(); c.rect(x, y, w, h); return; }
-    c.beginPath();
-    c.moveTo(x + r, y);
-    c.arcTo(x + w, y, x + w, y + h, r);
-    c.lineTo(x + w, y + h);
-    c.lineTo(x, y + h);
-    c.arcTo(x, y, x + w, y, r);
-    c.closePath();
-  }
-
   function fillRow(c, x, y, w, h, fillStyle, radius, borderStyle) {
     roundedRectPath(c, x, y, w, h, radius);
     c.fillStyle = fillStyle;
@@ -1291,19 +1280,19 @@
       }
     }
 
-    // Teal base the full size of the card, rounded on every corner; the
-    // white card fill on top is rounded only at the top, so a strip of the
-    // teal base peeks out along the bottom edge — inheriting the card's own
-    // corner radius instead of having its own sharp-cornered bar.
     fillRow(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
-      WRANK_CARD_BOTTOM - WRANK_CARD_TOP, WRANK_DIVIDER_COLOR, WRANK_CARD_RADIUS);
-    roundedRectTopPath(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
-      WRANK_CARD_BOTTOM - WRANK_CARD_TOP - WRANK_BOTTOM_ACCENT_H, WRANK_CARD_RADIUS);
-    ctx.fillStyle = WRANK_CARD_BG;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = WRANK_CARD_BORDER;
-    ctx.stroke();
+      WRANK_CARD_BOTTOM - WRANK_CARD_TOP, WRANK_CARD_BG, WRANK_CARD_RADIUS, WRANK_CARD_BORDER);
+
+    // Flat gradient bar flush with the card's bottom edge, matching the
+    // Mannen ranking's own bottom bar exactly (same construction, sharp
+    // corners) — colors sampled from colormash/WOMENPURPLE.png, this
+    // competition's own brand gradient.
+    const wBarGradient = ctx.createLinearGradient(WRANK_CARD_LEFT, 0, WRANK_CARD_RIGHT, 0);
+    wBarGradient.addColorStop(0, 'rgb(229, 84, 252)');
+    wBarGradient.addColorStop(1, 'rgb(189, 81, 252)');
+    ctx.fillStyle = wBarGradient;
+    ctx.fillRect(WRANK_CARD_LEFT, WRANK_CARD_BOTTOM - WRANK_BOTTOM_ACCENT_H,
+      WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_BOTTOM_ACCENT_H);
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     ctx.fillStyle = WRANK_TEXT_COLOR;
@@ -1337,7 +1326,7 @@
 
     const footerImg = loadImg(C.footerLogo);
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
-      ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
+      ctx.drawImage(footerImg, C.footer.x, WRANK_FOOTER_Y, C.footer.w, C.footer.h);
     }
 
     saveState();
