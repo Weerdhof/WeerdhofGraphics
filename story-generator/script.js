@@ -1248,6 +1248,13 @@
     ctx.clearRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
+      // A user's own photo can be any brightness — fade to dark navy along
+      // the bottom so the white Coinmerce footer logo stays legible.
+      const footerFade = ctx.createLinearGradient(0, SM_FOOTER.y - 60, 0, SM_CANVAS_H);
+      footerFade.addColorStop(0, 'rgba(26, 27, 56, 0)');
+      footerFade.addColorStop(1, 'rgba(26, 27, 56, 0.92)');
+      ctx.fillStyle = footerFade;
+      ctx.fillRect(0, SM_FOOTER.y - 60, SM_CANVAS_W, SM_CANVAS_H - (SM_FOOTER.y - 60));
     } else if (!transparentBg) {
       ctx.fillStyle = COMPETITIONS.men.bgColor;
       ctx.fillRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
