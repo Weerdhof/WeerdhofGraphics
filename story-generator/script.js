@@ -164,6 +164,90 @@
     c.drawImage(img, dx, dy, dw, dh);
   }
 
+  // ---------- Results "pop in" animation ----------
+  // Each row pops in from nothing top to bottom, staggered, with a
+  // heartbeat-like overshoot/settle (modeled after animatie/Pulsesample.mp4:
+  // a damped oscillation — quick overshoot, small undershoot, smaller
+  // overshoot, settle — rather than a plain ease-in).
+  const ANIM_STAGGER_MS = 140, ANIM_POP_MS = 650, ANIM_HOLD_MS = 800;
+  let resultsAnimating = false;
+  let animStartTs = null;
+  let animRafId = null;
+
+  function pulseScale(t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return 1 - Math.exp(-6 * t) * Math.cos(9 * t);
+  }
+
+  function animTotalDuration(rowCount) {
+    return Math.max(0, rowCount - 1) * ANIM_STAGGER_MS + ANIM_POP_MS;
+  }
+
+  function stopResultsAnimationLoop() {
+    if (animRafId) cancelAnimationFrame(animRafId);
+    animRafId = null;
+  }
+
+  // Drives the on-screen looping preview (not the recording — see
+  // recordResultsAnimation, which runs its own single, unlooped pass so the
+  // exported clip doesn't restart mid-recording).
+  function startResultsAnimationLoop() {
+    stopResultsAnimationLoop();
+    animStartTs = performance.now();
+    const loop = () => {
+      render();
+      const elapsed = performance.now() - animStartTs;
+      const total = animTotalDuration(state.matches.length) + ANIM_HOLD_MS;
+      if (elapsed >= total) {
+        if (!resultsAnimating) return;
+        animStartTs = performance.now();
+      }
+      animRafId = requestAnimationFrame(loop);
+    };
+    animRafId = requestAnimationFrame(loop);
+  }
+
+  async function recordResultsAnimation() {
+    stopResultsAnimationLoop();
+    let mimeType = 'video/mp4;codecs=avc1';
+    if (!(window.MediaRecorder && MediaRecorder.isTypeSupported(mimeType))) mimeType = 'video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
+
+    animStartTs = performance.now();
+    recorder.start();
+    const total = animTotalDuration(state.matches.length) + 400;
+    await new Promise((resolve) => {
+      const loop = () => {
+        render();
+        if (performance.now() - animStartTs < total) requestAnimationFrame(loop);
+        else resolve();
+      };
+      requestAnimationFrame(loop);
+    });
+    recorder.stop();
+    await stopped;
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${compKey}-results-animatie.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    if (resultsAnimating) startResultsAnimationLoop();
+    else { animStartTs = null; render(); }
+  }
+
   // ---------- Ranking template (Mannen only) ----------
   // Same 1080x1920 canvas as Results/Schedule, built from its own PSD
   // (MEN-RANKING.psd): a static background (card, divider lines after
@@ -373,6 +457,48 @@
     clampBgPhotoOffsets();
     render();
   }, { passive: false });
+
+  // ---------- Results "pop in" animation ----------
+  const resultsAnimField = document.getElementById('resultsAnimField');
+  const resultsAnimateToggle = document.getElementById('resultsAnimateToggle');
+  const downloadMp4Btn = document.getElementById('downloadMp4Btn');
+  const mp4Status = document.getElementById('mp4Status');
+
+  resultsAnimateToggle.addEventListener('change', () => {
+    resultsAnimating = resultsAnimateToggle.checked;
+    downloadMp4Btn.hidden = !resultsAnimating;
+    if (resultsAnimating) startResultsAnimationLoop();
+    else { stopResultsAnimationLoop(); animStartTs = null; render(); }
+  });
+
+  downloadMp4Btn.addEventListener('click', async () => {
+    downloadMp4Btn.disabled = true;
+    mp4Status.hidden = false;
+    mp4Status.textContent = 'Bezig met opnemen…';
+    mp4Status.className = 'save-status';
+    try {
+      await recordResultsAnimation();
+      mp4Status.textContent = '✓ Video gedownload';
+      mp4Status.className = 'save-status ok';
+    } catch (err) {
+      console.error('MP4-opname mislukt:', err);
+      mp4Status.textContent = 'Opname mislukt — probeer het opnieuw.';
+      mp4Status.className = 'save-status warn';
+    }
+    downloadMp4Btn.disabled = false;
+  });
+
+  // Called whenever leaving Results mode (or switching away from it) so a
+  // running/queued animation and its download button don't linger.
+  function resetResultsAnim() {
+    resultsAnimating = false;
+    resultsAnimateToggle.checked = false;
+    stopResultsAnimationLoop();
+    animStartTs = null;
+    resultsAnimField.hidden = true;
+    downloadMp4Btn.hidden = true;
+    mp4Status.hidden = true;
+  }
 
   const modeTabs = document.querySelectorAll('.mode-tab');
   const resultTpl = document.getElementById('resultMatchRowTemplate');
@@ -678,6 +804,7 @@
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         bgPhotoField.hidden = true;
+        resultsAnimField.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       }
@@ -898,6 +1025,7 @@
         checkStandingsStatus.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
+        resetResultsAnim();
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
         if (smMatches.length) {
@@ -916,6 +1044,7 @@
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
         exportElementBtn.hidden = false;
         bgPhotoField.hidden = true;
+        resetResultsAnim();
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         buildMatchRows();
@@ -929,6 +1058,8 @@
         exportElementBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         bgPhotoField.hidden = true;
+        resetResultsAnim();
+        resultsAnimField.hidden = mode !== 'results';
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         if (rounds.length) {
@@ -1235,17 +1366,34 @@
     ctx.font = `700 ${C.titleFontSize}px "${fontFamily}"`;
     ctx.fillText(mode === 'results' ? C.titles.results : C.titles.schedule, CANVAS_W / 2, C.titleY);
 
+    const animElapsed = (mode === 'results' && resultsAnimating && animStartTs != null)
+      ? performance.now() - animStartTs : null;
+
     state.matches.forEach((m, i) => {
       const cy = ROW_Y[i];
+      let scale = 1;
+      if (animElapsed != null) {
+        const t = (animElapsed - i * ANIM_STAGGER_MS) / ANIM_POP_MS;
+        if (t <= 0) return; // hasn't popped in yet this pass
+        scale = pulseScale(Math.min(t, 1));
+      }
+      if (scale !== 1) ctx.save();
       try {
         // A round can be partly played: rows the user marked "nog te
         // spelen" render as a schedule row (time) even while the poster's
         // overall mode is Results, so one story can show a mix of both.
         const showAsSchedule = mode === 'schedule' || m.played === false;
+        if (scale !== 1) {
+          ctx.translate(ROW_CENTER, cy);
+          ctx.scale(scale, scale);
+          ctx.translate(-ROW_CENTER, -cy);
+        }
         if (showAsSchedule) drawScheduleRow(m, cy, fontFamily, C);
         else drawResultRow(m, cy, fontFamily, C);
       } catch (err) {
         console.error('Kon wedstrijd niet tekenen:', m, err);
+      } finally {
+        if (scale !== 1) ctx.restore();
       }
     });
 
@@ -1682,6 +1830,7 @@
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       }
+      resultsAnimField.hidden = mode !== 'results';
     }
     ['men', 'women'].forEach(key => {
       const saved = savedState.ranking && savedState.ranking[key];

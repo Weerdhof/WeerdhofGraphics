@@ -497,6 +497,10 @@ input.rank-input {
   padding-top: 0;
 }
 
+.results-anim-toggle {
+  margin-top: 14px;
+}
+
 .bg-photo-field {
   margin: 14px 0;
 }
