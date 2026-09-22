@@ -125,6 +125,13 @@
   };
   const SM_TEAM_CODES = Object.keys(SM_TEAM_NAMES).sort();
 
+  // The Results/Schedule/Ranking team-code set uses "HCS" for the same club
+  // the single-match/site-scrape data calls "SPR" (Sprimont) — same names
+  // otherwise, so just re-key that one entry rather than keeping a second
+  // full copy of the list.
+  const MEN_TEAM_NAMES = { ...SM_TEAM_NAMES, HCS: SM_TEAM_NAMES.SPR };
+  delete MEN_TEAM_NAMES.SPR;
+
   let smMatches = []; // parsed from assets/singlematch/schedule_per_match_all.csv
   const smState = { id: '', home: '', away: '', time: '', homeScore: '', awayScore: '', dateRound: '' };
 
@@ -175,6 +182,7 @@
   const roundSelect = document.getElementById('roundSelect');
   const roundSelectLabel = document.getElementById('roundSelectLabel');
   const roundSelectField = document.getElementById('roundSelectField');
+  const rankingHeader = document.getElementById('rankingHeader');
   const matchesList = document.getElementById('matchesList');
   const matchesLabel = document.getElementById('matchesLabel');
   const exportBtn = document.getElementById('exportBtn');
@@ -728,6 +736,7 @@
   // ---------- Match row UI ----------
   function buildMatchRows() {
     matchesList.innerHTML = '';
+    rankingHeader.hidden = mode !== 'ranking';
     if (mode === 'match' || mode === 'matchresult') {
       buildSingleMatchRow();
       return;
@@ -905,7 +914,7 @@
       teamCodes.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c;
-        opt.textContent = c;
+        opt.textContent = MEN_TEAM_NAMES[c] ? `${c} — ${MEN_TEAM_NAMES[c]}` : c;
         if (c === row.code) opt.selected = true;
         select.appendChild(opt);
       });
@@ -916,6 +925,9 @@
       select.addEventListener('change', () => { row.code = select.value; render(); });
       pInput.addEventListener('input', () => { row.p = pInput.value; render(); });
       ptsInput.addEventListener('input', () => { row.pts = ptsInput.value; render(); });
+
+      // Echoes the poster's own zone dividers (after position 8 and 10).
+      if (i === 8 || i === 10) node.classList.add('zone-start');
 
       matchesList.appendChild(node);
     });

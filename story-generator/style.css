@@ -346,6 +346,22 @@ input.score-input, input.time-input {
 .save-status.ok { color: var(--accent); }
 .save-status.warn { color: #ff6b6b; }
 
+.ranking-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ranking-header-num { width: 20px; flex-shrink: 0; }
+.ranking-header-team { flex: 1; min-width: 0; }
+.ranking-header-col { width: 38px; flex-shrink: 0; text-align: center; }
+
 .ranking-row {
   display: flex;
   align-items: center;
@@ -353,7 +369,14 @@ input.score-input, input.time-input {
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 6px 8px;
+  padding: 5px 8px;
+}
+
+/* Echoes the poster's own zone dividers (after position 8 and 10), so the
+   entry list visually maps onto what the final graphic will look like. */
+.ranking-row.zone-start {
+  margin-top: 10px;
+  border-top: 2px solid var(--accent-2);
 }
 
 .rank-num {
@@ -373,7 +396,10 @@ input.score-input, input.time-input {
   padding: 6px 3px;
 }
 
-.rank-input {
+/* input[type="text"] (an attribute selector) outranks a bare class in
+   specificity, so .rank-input alone lost the width fight and stretched to
+   the global 100% — qualifying with the element name matches that. */
+input.rank-input {
   width: 38px;
   flex-shrink: 0;
   text-align: center;
