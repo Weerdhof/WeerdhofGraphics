@@ -165,39 +165,59 @@
   }
 
   // ---------- Results "pop in" animation ----------
-  // Each row fades/pops in top to bottom (small, subtle — a fade plus a
-  // slight scale-up, not a bounce), while its center mark icon pulses like
-  // a heartbeat (modeled on animatie/Pulsesample.mp4's own damped
-  // oscillation: quick overshoot, small undershoot, smaller overshoot,
-  // settle) as the "kick" that reveals the score and graphic behind it.
-  const ANIM_STAGGER_MS = 140, ANIM_ROW_FADE_MS = 380, ANIM_ICON_PULSE_MS = 550;
-  // Long hold at the end so the finished result stays readable once
-  // recorded — this is what actually gives the exported clip its length.
-  const ANIM_HOLD_MS = 15000;
+  // Two global stages, not independent per-row sequences:
+  //   Stage A — every row's bar + badges + icon pop in fast, staggered top
+  //     to bottom (STAGE_A_STAGGER_MS apart).
+  //   (a pause once every row has finished Stage A)
+  //   Stage B — only once ALL rows are showing does the score reveal
+  //     begin: the winner-line graphic wipes outward from the center and
+  //     the score numbers cascade in, with more breathing room between
+  //     rows (STAGE_B_STAGGER_MS apart).
+  const STAGE_A_STAGGER_MS = 150, STAGE_B_STAGGER_MS = 500;
+  const PHASE1_MS = 300, PAUSE_MS = 500;
+  const ICON_MS = 550;
+  // Winner-line ("de lijnen") reveal: grows outward from the center, fast
+  // then slow — a plain wipe, no bounce (that read as too wiggly).
+  const ARROW_WIPE_MS = 550;
+  const ELEMENT_STAGGER_MS = 300, ELEMENT_POP_MS = 280;
+  // The whole clip (reveal + hold) is exactly this long — the hold is
+  // whatever's left over after the reveal cascade finishes, not extra
+  // time added on top of it.
+  const ANIM_TOTAL_TARGET_MS = 15000;
   let resultsAnimating = false;
   let animStartTs = null;
   let animRafId = null;
 
-  // Subtle reveal for the row itself: eased fade 0->1 with a very slight
-  // scale-up (0.94 -> 1.0) riding along with it — no bounce/overshoot.
-  function rowReveal(t) {
-    if (t <= 0) return { alpha: 0, scale: 0.94 };
-    if (t >= 1) return { alpha: 1, scale: 1 };
-    const alpha = 1 - Math.pow(1 - t, 3); // easeOutCubic
-    return { alpha, scale: 0.94 + 0.06 * alpha };
+  // Stage A finishes once the LAST row's own bar has fully popped in.
+  function stageATotalMs(rowCount) {
+    return Math.max(0, rowCount - 1) * STAGE_A_STAGGER_MS + PHASE1_MS;
+  }
+  // Stage B (scores) starts only after Stage A is fully done for every
+  // row, plus the pause.
+  function stageBStartMs(rowCount) {
+    return stageATotalMs(rowCount) + PAUSE_MS;
   }
 
-  // Heartbeat pulse for the small center mark icon only, starting and
-  // ending at scale 1 (it's already visible, it just "beats") — hand-tuned
-  // keyframes matching the reference video's rhythm, smoothstepped between.
+  // Subtle reveal for a row element: eased fade 0->1 with a very slight
+  // scale-up (0.94 -> 1.0) riding along with it — no bounce/overshoot.
+  function rowReveal(t) {
+    if (t <= 0) return { alpha: 0, scale: 0.97 };
+    if (t >= 1) return { alpha: 1, scale: 1 };
+    const alpha = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    return { alpha, scale: 0.97 + 0.03 * alpha };
+  }
+
+  // Heartbeat pop for the center mark icon: pops in from nothing on the
+  // first beat, then keeps beating — hand-tuned keyframes matching the
+  // reference video's rhythm (quick overshoot, small undershoot, smaller
+  // overshoot, settle), smoothstepped between.
   const HEARTBEAT_KEYFRAMES = [
-    [0.00, 1.00], [0.15, 1.16], [0.30, 0.95],
-    [0.45, 1.10], [0.65, 0.99], [1.00, 1.00],
+    [0.00, 0.00], [0.10, 1.16], [0.30, 0.95],
+    [0.48, 1.10], [0.68, 0.99], [1.00, 1.00],
   ];
-  function heartbeatScale(t) {
-    if (t <= 0 || t >= 1) return 1;
-    for (let i = 0; i < HEARTBEAT_KEYFRAMES.length - 1; i++) {
-      const [t0, v0] = HEARTBEAT_KEYFRAMES[i], [t1, v1] = HEARTBEAT_KEYFRAMES[i + 1];
+  function keyframeScale(t, keyframes) {
+    for (let i = 0; i < keyframes.length - 1; i++) {
+      const [t0, v0] = keyframes[i], [t1, v1] = keyframes[i + 1];
       if (t >= t0 && t <= t1) {
         const local = (t - t0) / (t1 - t0);
         const eased = 0.5 - 0.5 * Math.cos(Math.PI * local);
@@ -206,9 +226,65 @@
     }
     return 1;
   }
+  function heartbeatScale(t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return keyframeScale(t, HEARTBEAT_KEYFRAMES);
+  }
+
+
+  // Winner-line wipe: grows outward from the row's center, fast until it
+  // reaches the icon's own edge, then slow the rest of the way out —
+  // returns a 0..1 fraction of the total half-row distance to reveal.
+  function arrowWipeProgress(t, fastFraction) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    const fastTimeFrac = 0.35;
+    if (t <= fastTimeFrac) {
+      const local = t / fastTimeFrac;
+      return fastFraction * (1 - Math.pow(1 - local, 2));
+    }
+    const local = (t - fastTimeFrac) / (1 - fastTimeFrac);
+    return fastFraction + (1 - fastFraction) * (1 - Math.pow(1 - local, 2));
+  }
+
+  // Full per-row animation state. `globalElapsed` is ms since the whole
+  // animation started; `i`/`rowCount` place this row within Stage A (bar)
+  // and Stage B (scores), which run on separate global clocks. Returns
+  // null before this row's own bar starts popping in.
+  function resultRowAnimState(globalElapsed, i, rowCount) {
+    const barLocal = globalElapsed - i * STAGE_A_STAGGER_MS;
+    if (barLocal <= 0) return null;
+    const bar = rowReveal(Math.min(barLocal / PHASE1_MS, 1));
+    // Icon pops in together with the bar/badges (not after the pause) so
+    // there's no empty gap sitting in its spot while waiting.
+    const iconScale = heartbeatScale(Math.min(Math.max(barLocal, 0) / ICON_MS, 1));
+    // Stage B (scores) only starts once every row has finished Stage A,
+    // then cascades per row with its own (slower) stagger.
+    const e2 = globalElapsed - stageBStartMs(rowCount) - i * STAGE_B_STAGGER_MS;
+    const arrowT = Math.min(Math.max(e2, 0) / ARROW_WIPE_MS, 1);
+    const home = rowReveal(Math.min(Math.max(e2, 0) / ELEMENT_POP_MS, 1));
+    const away = rowReveal(Math.min(Math.max(e2 - ELEMENT_STAGGER_MS, 0) / ELEMENT_POP_MS, 1));
+    return {
+      bar,
+      iconScale,
+      arrowT: e2 > 0 ? arrowT : 0,
+      home: e2 > 0 ? home : { alpha: 0, scale: 0.97 },
+      away: e2 - ELEMENT_STAGGER_MS > 0 ? away : { alpha: 0, scale: 0.97 },
+    };
+  }
 
   function animTotalDuration(rowCount) {
-    return Math.max(0, rowCount - 1) * ANIM_STAGGER_MS + Math.max(ANIM_ROW_FADE_MS, ANIM_ICON_PULSE_MS);
+    const lastRowScoreDone = Math.max(0, rowCount - 1) * STAGE_B_STAGGER_MS
+      + Math.max(ARROW_WIPE_MS, ELEMENT_STAGGER_MS + ELEMENT_POP_MS);
+    return stageBStartMs(rowCount) + lastRowScoreDone;
+  }
+
+  // Full clip length: the reveal cascade, then whatever's left of the 15s
+  // target as a hold (never shorter than the reveal itself, for rounds
+  // with enough matches that the cascade alone runs past 15s).
+  function animClipDuration(rowCount) {
+    return Math.max(animTotalDuration(rowCount), ANIM_TOTAL_TARGET_MS);
   }
 
   function stopResultsAnimationLoop() {
@@ -225,7 +301,7 @@
     const loop = () => {
       render();
       const elapsed = performance.now() - animStartTs;
-      const total = animTotalDuration(state.matches.length) + ANIM_HOLD_MS;
+      const total = animClipDuration(state.matches.length);
       if (elapsed >= total) {
         if (!resultsAnimating) return;
         animStartTs = performance.now();
@@ -248,7 +324,7 @@
 
     animStartTs = performance.now();
     recorder.start();
-    const total = animTotalDuration(state.matches.length) + ANIM_HOLD_MS;
+    const total = animClipDuration(state.matches.length);
     await new Promise((resolve) => {
       const loop = () => {
         render();
@@ -1398,29 +1474,30 @@
 
     state.matches.forEach((m, i) => {
       const cy = ROW_Y[i];
-      let alpha = 1, scale = 1, iconScale = 1;
+      let anim = null;
       if (animElapsed != null) {
-        const localElapsed = animElapsed - i * ANIM_STAGGER_MS;
-        if (localElapsed <= 0) return; // hasn't popped in yet this pass
-        const reveal = rowReveal(Math.min(localElapsed / ANIM_ROW_FADE_MS, 1));
-        alpha = reveal.alpha;
-        scale = reveal.scale;
-        iconScale = heartbeatScale(Math.min(localElapsed / ANIM_ICON_PULSE_MS, 1));
+        anim = resultRowAnimState(animElapsed, i, state.matches.length);
+        if (!anim) return; // hasn't popped in yet this pass
       }
-      const transformed = scale !== 1 || alpha !== 1;
-      if (transformed) { ctx.save(); ctx.globalAlpha = alpha; }
+      const bar = anim ? anim.bar : { alpha: 1, scale: 1 };
+      // Only the (very slight) scale rides on the outer transform — the
+      // card's own background is always drawn fully solid (never faded
+      // via alpha), since fading a large flat shape against the dark page
+      // looks patchy/uneven; only the badges/icon/score content fades in.
+      const transformed = bar.scale !== 1;
+      if (transformed) ctx.save();
       try {
         // A round can be partly played: rows the user marked "nog te
         // spelen" render as a schedule row (time) even while the poster's
         // overall mode is Results, so one story can show a mix of both.
         const showAsSchedule = mode === 'schedule' || m.played === false;
-        if (scale !== 1) {
+        if (transformed) {
           ctx.translate(ROW_CENTER, cy);
-          ctx.scale(scale, scale);
+          ctx.scale(bar.scale, bar.scale);
           ctx.translate(-ROW_CENTER, -cy);
         }
         if (showAsSchedule) drawScheduleRow(m, cy, fontFamily, C);
-        else drawResultRow(m, cy, fontFamily, C, iconScale);
+        else drawResultRow(m, cy, fontFamily, C, anim);
       } catch (err) {
         console.error('Kon wedstrijd niet tekenen:', m, err);
       } finally {
@@ -1680,13 +1757,18 @@
     saveState();
   }
 
-  function drawResultRow(m, cy, fontFamily, C, iconScale) {
+  function drawResultRow(m, cy, fontFamily, C, anim) {
+    // Card background is always drawn fully solid — see the render() loop
+    // for why alpha-fading a large flat shape isn't used here.
     fillRow(ctx, ROW_LEFT, cy - ROW_H / 2, ROW_RIGHT - ROW_LEFT, ROW_H, C.resultRowBg, C.cornerRadius, C.rowBorder);
 
+    const barAlpha = anim ? anim.bar.alpha : 1;
+    if (barAlpha !== 1) { ctx.save(); ctx.globalAlpha = barAlpha; }
     const leftBadgeCx = ROW_LEFT + BADGE_MARGIN + BADGE_SIZE / 2;
     const rightBadgeCx = ROW_RIGHT - BADGE_MARGIN - BADGE_SIZE / 2;
     drawBadge(ctx, teamImg(m.home), CREST_X_LEFT, leftBadgeCx, cy, C.badgeRadius);
     drawBadge(ctx, teamImg(m.away), CREST_X_RIGHT, rightBadgeCx, cy, C.badgeRadius);
+    if (barAlpha !== 1) ctx.restore();
 
     const homeNum = parseFloat(m.homeScore);
     const awayNum = parseFloat(m.awayScore);
@@ -1699,9 +1781,10 @@
     }
 
     if (winner) {
-      // Win-arrow overlay, positioned exactly like a team strip: full row
-      // width, same 1200:rowWidth scale — the chevron art already sits at
-      // the right spot within that 1200x200 frame.
+      // Win-arrow overlay ("de lijnen"), positioned exactly like a team
+      // strip: full row width, same 1200:rowWidth scale. During the reveal
+      // animation this wipes outward from the row's center toward the
+      // winning side instead of appearing all at once.
       const winnerCode = winner === 'home' ? m.home : m.away;
       const tintColor = C.teamColors[winnerCode] || '#caff1c';
       const arrowImg = winner === 'home' ? winArrowLeft : winArrowRight;
@@ -1709,7 +1792,29 @@
       if (tinted) {
         const scale = (ROW_RIGHT - ROW_LEFT) / 1200;
         const dh = 200 * scale;
-        ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
+        const arrowT = anim ? anim.arrowT : 1;
+        if (arrowT > 0) {
+          if (arrowT < 1) {
+            // Fast-then-slow growth: fastFraction is however much of the
+            // half-row distance the icon's own half-width already covers.
+            const iconImg = tintImage(vsIcon, 'vs', C.textColor);
+            const ih = ROW_H * 0.48;
+            const iw = iconImg ? ih * (iconImg.width / iconImg.height) : ih;
+            const maxDist = (ROW_RIGHT - ROW_LEFT) / 2;
+            const fastFraction = Math.min(0.9, (iw / 2) / maxDist);
+            const dist = arrowWipeProgress(arrowT, fastFraction) * maxDist;
+            const clipX0 = winner === 'home' ? ROW_CENTER - dist : ROW_CENTER;
+            const clipX1 = winner === 'home' ? ROW_CENTER : ROW_CENTER + dist;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(clipX0, cy - dh, clipX1 - clipX0, dh * 2);
+            ctx.clip();
+            ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
+            ctx.restore();
+          } else {
+            ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
+          }
+        }
       }
     }
 
@@ -1718,17 +1823,18 @@
     // Results reveal animation this is the piece that "beats" like a heart.
     {
       const tinted = tintImage(vsIcon, 'vs', C.textColor);
-      if (tinted) {
+      const iconScale = anim ? anim.iconScale : 1;
+      if (tinted && iconScale > 0) {
         const ih = ROW_H * 0.48;
         const iw = ih * (tinted.width / tinted.height);
-        if (iconScale && iconScale !== 1) {
+        if (iconScale !== 1) {
           ctx.save();
           ctx.translate(ROW_CENTER, cy);
           ctx.scale(iconScale, iconScale);
           ctx.translate(-ROW_CENTER, -cy);
         }
         ctx.drawImage(tinted, ROW_CENTER - iw / 2, cy - ih / 2, iw, ih);
-        if (iconScale && iconScale !== 1) ctx.restore();
+        if (iconScale !== 1) ctx.restore();
       }
     }
 
@@ -1736,15 +1842,31 @@
     const gap = fontSize * 0.62;
     ctx.font = `700 ${fontSize}px "${fontFamily}"`;
     ctx.fillStyle = C.textColor;
-    if (m.homeScore !== '') {
-      ctx.globalAlpha = homeAlpha;
+    const homeReveal = anim ? anim.home : { alpha: 1, scale: 1 };
+    const awayReveal = anim ? anim.away : { alpha: 1, scale: 1 };
+    if (m.homeScore !== '' && homeReveal.alpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = homeAlpha * homeReveal.alpha;
       ctx.textAlign = 'right';
+      if (homeReveal.scale !== 1) {
+        ctx.translate(ROW_CENTER - gap, cy);
+        ctx.scale(homeReveal.scale, homeReveal.scale);
+        ctx.translate(-(ROW_CENTER - gap), -cy);
+      }
       ctx.fillText(m.homeScore, ROW_CENTER - gap, cy);
+      ctx.restore();
     }
-    if (m.awayScore !== '') {
-      ctx.globalAlpha = awayAlpha;
+    if (m.awayScore !== '' && awayReveal.alpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = awayAlpha * awayReveal.alpha;
       ctx.textAlign = 'left';
+      if (awayReveal.scale !== 1) {
+        ctx.translate(ROW_CENTER + gap, cy);
+        ctx.scale(awayReveal.scale, awayReveal.scale);
+        ctx.translate(-(ROW_CENTER + gap), -cy);
+      }
       ctx.fillText(m.awayScore, ROW_CENTER + gap, cy);
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
   }
