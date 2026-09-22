@@ -163,6 +163,7 @@
   // relationship of overlapping the card's top-right corner.
   const RANK_MARK = { x: 844, y: 84, w: 153, h: 176 };
   const RANK_CARD_LEFT = 174, RANK_CARD_RIGHT = 906;
+  const RANK_CARD_TOP = 170, RANK_CARD_BOTTOM = 1619;
   const RANK_DIVIDER_COLOR = 'rgb(243, 85, 122)';
   const RANK_DIVIDER_Y = [999, 1185]; // after position 8 and position 10
   const RANK_DIVIDER_H = 7;
@@ -720,6 +721,7 @@
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
+        exportElementBtn.hidden = true;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
         if (smMatches.length) {
@@ -736,6 +738,7 @@
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        exportElementBtn.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         buildMatchRows();
@@ -746,6 +749,7 @@
         matchesLabel.textContent = mode === 'results' ? 'Wedstrijden — vul de scores in' : 'Wedstrijden — tijd is aanpasbaar';
         checkScoresBtn.hidden = false;
         checkStandingsBtn.hidden = true;
+        exportElementBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
@@ -1389,6 +1393,33 @@
     }, 'image/png');
   });
 
+  // Ranking-only: exports just the table (badges/rows/dividers), cropped
+  // out of the already-rendered poster — no background photo/decorations,
+  // mark or footer logo — for pasting onto a custom background elsewhere.
+  const exportElementBtn = document.getElementById('exportElementBtn');
+  if (exportElementBtn) {
+    exportElementBtn.addEventListener('click', () => {
+      const bounds = compKey === 'women'
+        ? { left: WRANK_CARD_LEFT, top: WRANK_CARD_TOP, right: WRANK_CARD_RIGHT, bottom: WRANK_CARD_BOTTOM }
+        : { left: RANK_CARD_LEFT, top: RANK_CARD_TOP, right: RANK_CARD_RIGHT, bottom: RANK_CARD_BOTTOM };
+      const w = bounds.right - bounds.left, h = bounds.bottom - bounds.top;
+      const crop = document.createElement('canvas');
+      crop.width = w;
+      crop.height = h;
+      crop.getContext('2d').drawImage(canvas, bounds.left, bounds.top, w, h, 0, 0, w, h);
+      crop.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${compKey}-ranking-tabel.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    });
+  }
+
   // Restore the last-used competition/mode before the first load, so a
   // reload lands back where the user left off (loadCompetition() then picks
   // up the matching round + scores via savedState above).
@@ -1402,7 +1433,7 @@
       competitionTabs.forEach(b => b.classList.toggle('active', b.dataset.competition === compKey));
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
-    const menOnlyMode = savedState.mode === 'match' || savedState.mode === 'matchresult' || savedState.mode === 'ranking';
+    const menOnlyMode = savedState.mode === 'match' || savedState.mode === 'matchresult';
     const canRestoreMode = ['results', 'schedule', 'match', 'matchresult', 'ranking'].includes(savedState.mode)
       && !(compKey === 'women' && menOnlyMode);
     if (canRestoreMode) {
@@ -1414,6 +1445,7 @@
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
+        exportElementBtn.hidden = true;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
       } else if (mode === 'ranking') {
@@ -1422,6 +1454,7 @@
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        exportElementBtn.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       } else {
