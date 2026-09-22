@@ -454,6 +454,45 @@ input.rank-input {
   padding-top: 0;
 }
 
+.bg-photo-field {
+  margin: 14px 0;
+}
+
+.bg-photo-field input[type="file"] {
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.bg-photo-controls {
+  margin-top: 10px;
+}
+
+.bg-photo-zoom-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.bg-photo-zoom-label input[type="range"] {
+  flex: 1;
+}
+
+.bg-photo-controls .hint {
+  margin: 6px 0 0;
+}
+
+/* Cursor affordance while a background photo is loaded and draggable. */
+#posterCanvas.bg-photo-draggable {
+  cursor: grab;
+}
+#posterCanvas.bg-photo-dragging {
+  cursor: grabbing;
+}
+
 /* ---------------- PREVIEW ---------------- */
 .preview-wrap {
   flex: 1;

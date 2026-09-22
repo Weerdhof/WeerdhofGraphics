@@ -135,6 +135,35 @@
   let smMatches = []; // parsed from assets/singlematch/schedule_per_match_all.csv
   const smState = { id: '', home: '', away: '', time: '', homeScore: '', awayScore: '', dateRound: '' };
 
+  // Optional user-uploaded photo behind the single-match graphic (Mannen
+  // Match/Matchresult only). In-memory only — not persisted via saveState,
+  // since it's a large per-session convenience, not fixture data.
+  let bgPhotoImg = null;
+  let bgPhotoScale = 1; // user zoom on top of the auto "cover" fit
+  let bgPhotoOffsetX = 0, bgPhotoOffsetY = 0; // pan, in canvas pixels
+
+  function bgPhotoCoverScale(img) {
+    return Math.max(SM_CANVAS_W / img.naturalWidth, SM_CANVAS_H / img.naturalHeight);
+  }
+
+  function clampBgPhotoOffsets() {
+    if (!bgPhotoImg) return;
+    const s = bgPhotoCoverScale(bgPhotoImg) * bgPhotoScale;
+    const dw = bgPhotoImg.naturalWidth * s, dh = bgPhotoImg.naturalHeight * s;
+    const maxX = Math.max(0, (dw - SM_CANVAS_W) / 2);
+    const maxY = Math.max(0, (dh - SM_CANVAS_H) / 2);
+    bgPhotoOffsetX = Math.max(-maxX, Math.min(maxX, bgPhotoOffsetX));
+    bgPhotoOffsetY = Math.max(-maxY, Math.min(maxY, bgPhotoOffsetY));
+  }
+
+  function drawBgPhotoCover(c, img) {
+    const s = bgPhotoCoverScale(img) * bgPhotoScale;
+    const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+    const dx = (SM_CANVAS_W - dw) / 2 + bgPhotoOffsetX;
+    const dy = (SM_CANVAS_H - dh) / 2 + bgPhotoOffsetY;
+    c.drawImage(img, dx, dy, dw, dh);
+  }
+
   // ---------- Ranking template (Mannen only) ----------
   // Same 1080x1920 canvas as Results/Schedule, built from its own PSD
   // (MEN-RANKING.psd): a static background (card, divider lines after
@@ -256,6 +285,82 @@
     transparentBg = transparentBgToggle.checked;
     render();
   });
+
+  // ---------- Background photo (Mannen Match/Matchresult only) ----------
+  const bgPhotoField = document.getElementById('bgPhotoField');
+  const bgPhotoInput = document.getElementById('bgPhotoInput');
+  const bgPhotoControls = document.getElementById('bgPhotoControls');
+  const bgPhotoZoom = document.getElementById('bgPhotoZoom');
+  const removeBgPhotoBtn = document.getElementById('removeBgPhotoBtn');
+
+  bgPhotoInput.addEventListener('change', () => {
+    const file = bgPhotoInput.files && bgPhotoInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        bgPhotoImg = img;
+        bgPhotoScale = 1;
+        bgPhotoOffsetX = 0;
+        bgPhotoOffsetY = 0;
+        bgPhotoZoom.value = '1';
+        bgPhotoControls.hidden = false;
+        canvas.classList.add('bg-photo-draggable');
+        render();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  bgPhotoZoom.addEventListener('input', () => {
+    bgPhotoScale = parseFloat(bgPhotoZoom.value) || 1;
+    clampBgPhotoOffsets();
+    render();
+  });
+
+  removeBgPhotoBtn.addEventListener('click', () => {
+    bgPhotoImg = null;
+    bgPhotoInput.value = '';
+    bgPhotoControls.hidden = true;
+    canvas.classList.remove('bg-photo-draggable');
+    render();
+  });
+
+  // Drag-to-pan directly on the preview. Pointer events cover mouse + touch
+  // uniformly; delta is scaled from displayed (CSS) pixels to actual canvas
+  // pixels since the preview is shown scaled down.
+  let bgPhotoDragging = false;
+  let bgPhotoDragStart = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!bgPhotoImg || !(mode === 'match' || mode === 'matchresult')) return;
+    bgPhotoDragging = true;
+    canvas.classList.add('bg-photo-dragging');
+    canvas.setPointerCapture(e.pointerId);
+    bgPhotoDragStart = {
+      x: e.clientX, y: e.clientY,
+      offX: bgPhotoOffsetX, offY: bgPhotoOffsetY,
+    };
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!bgPhotoDragging || !bgPhotoDragStart) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+    bgPhotoOffsetX = bgPhotoDragStart.offX + (e.clientX - bgPhotoDragStart.x) * scaleX;
+    bgPhotoOffsetY = bgPhotoDragStart.offY + (e.clientY - bgPhotoDragStart.y) * scaleY;
+    clampBgPhotoOffsets();
+    render();
+  });
+  ['pointerup', 'pointercancel'].forEach(evt => {
+    canvas.addEventListener(evt, (e) => {
+      if (!bgPhotoDragging) return;
+      bgPhotoDragging = false;
+      canvas.classList.remove('bg-photo-dragging');
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+    });
+  });
+
   const modeTabs = document.querySelectorAll('.mode-tab');
   const resultTpl = document.getElementById('resultMatchRowTemplate');
   const scheduleTpl = document.getElementById('scheduleMatchRowTemplate');
@@ -559,6 +664,7 @@
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
+        bgPhotoField.hidden = true;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
       }
@@ -778,6 +884,7 @@
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         exportElementBtn.hidden = true;
+        bgPhotoField.hidden = false;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
         if (smMatches.length) {
@@ -795,6 +902,7 @@
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
         exportElementBtn.hidden = false;
+        bgPhotoField.hidden = true;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         buildMatchRows();
@@ -807,6 +915,7 @@
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
         checkStandingsStatus.hidden = true;
+        bgPhotoField.hidden = true;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         if (rounds.length) {
@@ -1137,7 +1246,9 @@
 
   function renderSingleMatch() {
     ctx.clearRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
-    if (!transparentBg) {
+    if (bgPhotoImg) {
+      drawBgPhotoCover(ctx, bgPhotoImg);
+    } else if (!transparentBg) {
       ctx.fillStyle = COMPETITIONS.men.bgColor;
       ctx.fillRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
     }
@@ -1537,6 +1648,7 @@
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
+        bgPhotoField.hidden = false;
         canvas.width = SM_CANVAS_W;
         canvas.height = SM_CANVAS_H;
       } else if (mode === 'ranking') {
