@@ -1185,10 +1185,14 @@
     }
 
     // rankingNoDecor swaps in a version with just the card/bottom bar/footer
-    // (no navy fill or diagonal lines baked in) for the "element only" export.
+    // (no navy fill or diagonal lines baked in) for the "element only" export,
+    // drawn at 80% opacity so it reads as a translucent white block rather
+    // than a fully solid one on whatever background it gets pasted onto.
     const bg = loadImg(rankingNoDecor ? 'assets/ranking/card-only.png' : 'assets/ranking/background.png');
     if (bg && bg.complete && bg.naturalWidth) {
+      if (rankingNoDecor) ctx.globalAlpha = 0.8;
       ctx.drawImage(bg, 0, 0, CANVAS_W, CANVAS_H);
+      ctx.globalAlpha = 1;
     }
 
     // Drawn as its own asset (not baked into the background) so it never
