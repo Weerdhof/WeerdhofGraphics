@@ -152,7 +152,14 @@
   // gets back to a 40px cap-height — the previous 36px was undersized.
   const RANK_DATA_FONT = 60;
   const RANK_TEXT_COLOR = '#14142b';
-  const RANK_MARK = { x: 907, y: 84, w: 153, h: 176 };
+  // Shifted the same -48px as the card, so the mark keeps its original
+  // relationship of overlapping the card's top-right corner.
+  const RANK_MARK = { x: 844, y: 84, w: 153, h: 176 };
+  const RANK_CARD_LEFT = 174, RANK_CARD_RIGHT = 906;
+  const RANK_DIVIDER_COLOR = 'rgb(243, 85, 122)';
+  const RANK_DIVIDER_Y = [999, 1185]; // after position 8 and position 10
+  const RANK_DIVIDER_H = 7;
+  const RANK_BOTTOM_BAR_Y = 1587, RANK_BOTTOM_BAR_H = 32;
 
   const rankState = Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' }));
 
@@ -1068,8 +1075,8 @@
 
   // The template's own badge-card asset (a hidden PSD reference layer) has
   // a soft drop shadow under each white card — the shadow must be drawn
-  // (and its blur allowed to spread) BEFORE clipping to the rounded-rect,
-  // since clipping the context also clips away the shadow.
+  // BEFORE clipping to the box, since clipping the context also clips away
+  // the shadow. Square corners (no radius) per the reference design.
   function drawRankBadge(img, cx, cy) {
     const box = RANK_BADGE_SIZE, pad = RANK_BADGE_PAD;
     const x0 = cx - box / 2, y0 = cy - box / 2;
@@ -1077,14 +1084,14 @@
     ctx.shadowColor = 'rgba(20, 20, 43, 0.25)';
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 4;
-    roundedRectPath(ctx, x0, y0, box, box, 10);
     ctx.fillStyle = '#ffffff';
-    ctx.fill();
+    ctx.fillRect(x0, y0, box, box);
     ctx.restore();
 
     if (img && img.complete && img.naturalWidth) {
       ctx.save();
-      roundedRectPath(ctx, x0, y0, box, box, 10);
+      ctx.beginPath();
+      ctx.rect(x0, y0, box, box);
       ctx.clip();
       const inner = box - pad * 2;
       const scale = Math.min(inner / CREST_W, inner / CREST_H);
@@ -1107,11 +1114,26 @@
     }
 
     // Drawn as its own asset (not baked into the background) so it never
-    // moves or gets clipped when the card underneath is repositioned.
+    // moves or gets clipped when the card underneath is repositioned —
+    // it's fine (and matches the source design) for it to overlap the card.
     const mark = loadImg('assets/ranking/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
       ctx.drawImage(mark, RANK_MARK.x, RANK_MARK.y, RANK_MARK.w, RANK_MARK.h);
     }
+
+    // Divider lines and the bottom gradient bar are drawn fresh, spanning
+    // the card's own edges exactly — the PSD's originals (baked into the
+    // background) were narrower than the card and stopped short of it.
+    ctx.fillStyle = RANK_DIVIDER_COLOR;
+    RANK_DIVIDER_Y.forEach(y => {
+      ctx.fillRect(RANK_CARD_LEFT, y, RANK_CARD_RIGHT - RANK_CARD_LEFT, RANK_DIVIDER_H);
+    });
+
+    const barGradient = ctx.createLinearGradient(RANK_CARD_LEFT, 0, RANK_CARD_RIGHT, 0);
+    barGradient.addColorStop(0, 'rgb(252, 119, 69)');
+    barGradient.addColorStop(1, 'rgb(243, 85, 121)');
+    ctx.fillStyle = barGradient;
+    ctx.fillRect(RANK_CARD_LEFT, RANK_BOTTOM_BAR_Y, RANK_CARD_RIGHT - RANK_CARD_LEFT, RANK_BOTTOM_BAR_H);
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     ctx.fillStyle = RANK_TEXT_COLOR;
