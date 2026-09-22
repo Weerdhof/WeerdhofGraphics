@@ -472,6 +472,19 @@
     return img;
   }
 
+  // Waits for an image requested via loadImg to actually finish loading —
+  // needed before capturing an export whose assets (e.g. card-only.png)
+  // might be requested here for the first time and not yet ready when the
+  // canvas is captured a moment later.
+  function preloadImg(src) {
+    return new Promise(resolve => {
+      const img = loadImg(src);
+      if (!img || (img.complete && img.naturalWidth)) { resolve(img); return; }
+      img.addEventListener('load', () => resolve(img), { once: true });
+      img.addEventListener('error', () => resolve(img), { once: true });
+    });
+  }
+
   function teamImg(code) {
     if (!code) return null;
     return loadImg(`${comp().teamsDir}/${code}.png`);
@@ -1473,10 +1486,15 @@
   // the normal export.
   const exportElementBtn = document.getElementById('exportElementBtn');
   if (exportElementBtn) {
-    exportElementBtn.addEventListener('click', () => {
+    exportElementBtn.addEventListener('click', async () => {
       const prevTransparentBg = transparentBg;
       rankingNoDecor = true;
       transparentBg = true;
+      // card-only.png (and the mark) may be requested here for the first
+      // time in this session — wait for them so the export isn't captured
+      // mid-load, which produced a blank/transparent card.
+      await preloadImg('assets/ranking/card-only.png');
+      await preloadImg('assets/ranking/mark.png');
       render();
       canvas.toBlob(blob => {
         const url = URL.createObjectURL(blob);
