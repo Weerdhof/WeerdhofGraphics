@@ -181,7 +181,9 @@
   // elsewhere in the app.
   const WRANK_BADGE_CX = 296, WRANK_BADGE_SIZE = 74, WRANK_BADGE_RADIUS = WRANK_BADGE_SIZE / 2;
   const WRANK_NUM_X = 144, WRANK_CODE_X = 390, WRANK_P_X = 668, WRANK_PTS_X = 832;
-  const WRANK_HEADER_Y = 220, WRANK_HEADER_FONT = 38, WRANK_DATA_FONT = 62;
+  // Same font sizes as the Mannen ranking (calibrated against ClashDisplay's
+  // actual cap-height, not just the PSD's raw FontSize value).
+  const WRANK_HEADER_Y = 220, WRANK_HEADER_FONT = 36, WRANK_DATA_FONT = 60;
   const WRANK_TEXT_COLOR = '#1a1b38';
   const WRANK_CARD_BG = '#f9f6fb', WRANK_CARD_BORDER = '#e7e0ef', WRANK_CARD_RADIUS = 26;
   // Teal divider/accent (matches the reference PSD) instead of the brand
@@ -190,7 +192,6 @@
   const WRANK_DIVIDER_Y = [WRANK_ROW_TOP + 8 * WRANK_ROW_H, WRANK_ROW_TOP + 10 * WRANK_ROW_H];
   const WRANK_DIVIDER_H = 6;
   const WRANK_BOTTOM_ACCENT_H = 10;
-  const WRANK_MARK = { cx: WRANK_CARD_RIGHT - 45, cy: WRANK_CARD_TOP, size: 100 };
   const WRANK_CORNER_DECO = { x: -560, y: -420 };
 
   const rankState = {
@@ -1014,6 +1015,21 @@
     c.closePath();
   }
 
+  // Rounded top corners, flat bottom — used to let a shape sit "inside"
+  // another rounded shape (e.g. a card fill sitting over a solid-color
+  // base so only a strip of the base peeks out along the bottom edge,
+  // inheriting that edge's own rounded corners).
+  function roundedRectTopPath(c, x, y, w, h, r) {
+    if (r <= 0) { c.beginPath(); c.rect(x, y, w, h); return; }
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.lineTo(x + w, y + h);
+    c.lineTo(x, y + h);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
   function fillRow(c, x, y, w, h, fillStyle, radius, borderStyle) {
     roundedRectPath(c, x, y, w, h, radius);
     c.fillStyle = fillStyle;
@@ -1275,13 +1291,19 @@
       }
     }
 
+    // Teal base the full size of the card, rounded on every corner; the
+    // white card fill on top is rounded only at the top, so a strip of the
+    // teal base peeks out along the bottom edge — inheriting the card's own
+    // corner radius instead of having its own sharp-cornered bar.
     fillRow(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
-      WRANK_CARD_BOTTOM - WRANK_CARD_TOP, WRANK_CARD_BG, WRANK_CARD_RADIUS, WRANK_CARD_BORDER);
-
-    // Teal accent flush with the card's own bottom edge (reference PSD).
-    ctx.fillStyle = WRANK_DIVIDER_COLOR;
-    ctx.fillRect(WRANK_CARD_LEFT, WRANK_CARD_BOTTOM - WRANK_BOTTOM_ACCENT_H,
-      WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_BOTTOM_ACCENT_H);
+      WRANK_CARD_BOTTOM - WRANK_CARD_TOP, WRANK_DIVIDER_COLOR, WRANK_CARD_RADIUS);
+    roundedRectTopPath(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
+      WRANK_CARD_BOTTOM - WRANK_CARD_TOP - WRANK_BOTTOM_ACCENT_H, WRANK_CARD_RADIUS);
+    ctx.fillStyle = WRANK_CARD_BG;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = WRANK_CARD_BORDER;
+    ctx.stroke();
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     ctx.fillStyle = WRANK_TEXT_COLOR;
@@ -1292,9 +1314,9 @@
     ctx.fillText('P', WRANK_P_X, WRANK_HEADER_Y);
     ctx.fillText('PTS', WRANK_PTS_X, WRANK_HEADER_Y);
 
-    ctx.fillStyle = WRANK_DIVIDER_COLOR;
     WRANK_DIVIDER_Y.forEach(y => {
-      ctx.fillRect(WRANK_CARD_LEFT, y, WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_DIVIDER_H);
+      fillRow(ctx, WRANK_CARD_LEFT, y, WRANK_CARD_RIGHT - WRANK_CARD_LEFT, WRANK_DIVIDER_H,
+        WRANK_DIVIDER_COLOR, WRANK_DIVIDER_H / 2);
     });
 
     rankState.women.forEach((row, i) => {
@@ -1312,16 +1334,6 @@
       ctx.fillText(row.p, WRANK_P_X, cy);
       ctx.fillText(row.pts, WRANK_PTS_X, cy);
     });
-
-    // Neutral SHL mark, tinted to this competition's own text color, in the
-    // same "overlapping the card's top-right corner" spot as the Mannen
-    // version's brand mark.
-    const tinted = tintImage(vsIcon, 'wrank-vs', WRANK_TEXT_COLOR);
-    if (tinted) {
-      const ih = WRANK_MARK.size;
-      const iw = ih * (tinted.width / tinted.height);
-      ctx.drawImage(tinted, WRANK_MARK.cx - iw / 2, WRANK_MARK.cy - ih / 2, iw, ih);
-    }
 
     const footerImg = loadImg(C.footerLogo);
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
