@@ -210,6 +210,10 @@
   const exportBtn = document.getElementById('exportBtn');
   const transparentBgToggle = document.getElementById('transparentBgToggle');
   let transparentBg = false;
+  // Only ever set true transiently, during the "element only" export click
+  // below — never toggled by the visible UI — so the on-screen preview
+  // always shows the full decorated poster.
+  let rankingNoDecor = false;
   transparentBgToggle.addEventListener('change', () => {
     transparentBg = transparentBgToggle.checked;
     render();
@@ -1155,7 +1159,9 @@
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
-    const bg = loadImg('assets/ranking/background.png');
+    // rankingNoDecor swaps in a version with just the card/bottom bar/footer
+    // (no navy fill or diagonal lines baked in) for the "element only" export.
+    const bg = loadImg(rankingNoDecor ? 'assets/ranking/card-only.png' : 'assets/ranking/background.png');
     if (bg && bg.complete && bg.naturalWidth) {
       ctx.drawImage(bg, 0, 0, CANVAS_W, CANVAS_H);
     }
@@ -1225,10 +1231,13 @@
     }
 
     // Same corner decoration used behind Results/Schedule, repositioned so
-    // it fills the space above the card instead of sitting empty.
-    const corner = loadImg(C.decorations[0].src);
-    if (corner && corner.complete && corner.naturalWidth) {
-      ctx.drawImage(corner, WRANK_CORNER_DECO.x, WRANK_CORNER_DECO.y);
+    // it fills the space above the card instead of sitting empty. Skipped
+    // for the "element only" export (rankingNoDecor).
+    if (!rankingNoDecor) {
+      const corner = loadImg(C.decorations[0].src);
+      if (corner && corner.complete && corner.naturalWidth) {
+        ctx.drawImage(corner, WRANK_CORNER_DECO.x, WRANK_CORNER_DECO.y);
+      }
     }
 
     fillRow(ctx, WRANK_CARD_LEFT, WRANK_CARD_TOP, WRANK_CARD_RIGHT - WRANK_CARD_LEFT,
@@ -1393,29 +1402,30 @@
     }, 'image/png');
   });
 
-  // Ranking-only: exports just the table (badges/rows/dividers), cropped
-  // out of the already-rendered poster — no background photo/decorations,
-  // mark or footer logo — for pasting onto a custom background elsewhere.
+  // Ranking-only: exports the full-size poster with the decorative
+  // background (navy/photo, diagonal lines) removed — card, rows, mark
+  // icon and footer logo stay exactly where they are — so it can be laid
+  // over a custom background elsewhere. Not a crop: same canvas size as
+  // the normal export.
   const exportElementBtn = document.getElementById('exportElementBtn');
   if (exportElementBtn) {
     exportElementBtn.addEventListener('click', () => {
-      const bounds = compKey === 'women'
-        ? { left: WRANK_CARD_LEFT, top: WRANK_CARD_TOP, right: WRANK_CARD_RIGHT, bottom: WRANK_CARD_BOTTOM }
-        : { left: RANK_CARD_LEFT, top: RANK_CARD_TOP, right: RANK_CARD_RIGHT, bottom: RANK_CARD_BOTTOM };
-      const w = bounds.right - bounds.left, h = bounds.bottom - bounds.top;
-      const crop = document.createElement('canvas');
-      crop.width = w;
-      crop.height = h;
-      crop.getContext('2d').drawImage(canvas, bounds.left, bounds.top, w, h, 0, 0, w, h);
-      crop.toBlob(blob => {
+      const prevTransparentBg = transparentBg;
+      rankingNoDecor = true;
+      transparentBg = true;
+      render();
+      canvas.toBlob(blob => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${compKey}-ranking-tabel.png`;
+        a.download = `${compKey}-ranking-zonder-achtergrond.png`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+        rankingNoDecor = false;
+        transparentBg = prevTransparentBg;
+        render();
       }, 'image/png');
     });
   }
