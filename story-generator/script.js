@@ -314,24 +314,21 @@
     return beatIdx === 0 ? heartbeatScale(localT) : keyframeScale(localT, REPEAT_BEAT_KEYFRAMES);
   }
 
-  // Chevron exit/return, no scaling and not a repeating bounce: on the
-  // 1st beat it gets pushed straight out (slides until fully off its own
-  // clip, so it's not visible at all), it stays gone through the 2nd beat,
-  // then on the 3rd beat it fades back in at rest (no slide back in).
-  // Returns { slide: 0..1 (0 = home, 1 = fully pushed out), opacity: 0..1 }.
-  function chevronSlideFade(elapsed, beatMs) {
-    if (elapsed == null || elapsed <= 0) return { slide: 0, opacity: 1 };
-    const totalMs = beatMs * 3;
-    if (elapsed >= totalMs) return { slide: 0, opacity: 1 };
-    if (elapsed < beatMs) {
-      const t = elapsed / beatMs;
-      return { slide: 1 - Math.pow(1 - t, 3), opacity: 1 }; // quick push out, settles
-    }
-    if (elapsed < beatMs * 2) {
-      return { slide: 1, opacity: 1 }; // fully gone, holds
-    }
-    const t = (elapsed - beatMs * 2) / beatMs;
-    return { slide: 0, opacity: t * t }; // back at rest, softly fading in
+  // Chevron "grow in" reveal, based on the reference clip + the actual AE
+  // project (SHLPULSE): each nested chevron line is its own layer scaling
+  // in with a slight stagger. We only have one flattened mask asset, but a
+  // wipe that grows from the inner edge (next to the mark icon) outward to
+  // the bar's outer corner reveals those nested lines in almost the same
+  // order on its own (the innermost/smallest line's tip sits closest to
+  // the icon, so it's uncovered first) — no separate layers needed. Grows
+  // once, then stays fully revealed. Returns 0 (hidden) .. 1 (fully grown).
+  const CHEVRON_GROW_MS = 850;
+  function chevronGrowProgress(elapsed) {
+    if (elapsed == null) return 1;
+    if (elapsed <= 0) return 0;
+    if (elapsed >= CHEVRON_GROW_MS) return 1;
+    const t = elapsed / CHEVRON_GROW_MS;
+    return 1 - Math.pow(1 - t, 3); // easeOutCubic — quick start, settles
   }
 
 
@@ -1867,35 +1864,35 @@
     // Chevron accent behind the cards — home team's color on the left half,
     // away team's on the right, both tinted from the same plain (white)
     // shape mask so this stays in sync with whichever teams are selected.
-    // Gets pushed fully out of view on the icon's 1st beat, stays gone
-    // through the 2nd, then fades back in at rest on the 3rd.
+    // Grows in from the inner edge (next to the mark icon) outward to the
+    // bar's outer corner, once, then stays fully revealed.
     const smElapsed = smAnimElapsed();
-    const { slide: chevronSlide, opacity: chevronOpacity } = chevronSlideFade(smElapsed, ICON_MS);
-    const chevronShift = chevronSlide * (L.bar.w + 40);
+    const chevronGrow = chevronGrowProgress(smElapsed);
+    const chevronRevealW = chevronGrow * (L.bar.w / 2);
     const chevronMask = loadImg('assets/women/singlematch/chevron-mask.png');
-    if (chevronMask && chevronMask.complete && chevronMask.naturalWidth) {
+    if (chevronMask && chevronMask.complete && chevronMask.naturalWidth && chevronRevealW > 0) {
       const homeColor = SMW_TEAM_COLORS[smState.home] || SMW_TEXT_COLOR;
       const awayColor = SMW_TEAM_COLORS[smState.away] || SMW_TEXT_COLOR;
       const homeTinted = tintImage(chevronMask, 'smw-chevron', homeColor);
       const awayTinted = tintImage(chevronMask, 'smw-chevron', awayColor);
-      ctx.globalAlpha = chevronOpacity;
       if (homeTinted) {
         ctx.save();
         ctx.beginPath();
-        ctx.rect(L.bar.x, L.bar.y, L.bar.w / 2, L.bar.h);
+        // Inner edge is the right side of the home half (next to center/icon).
+        ctx.rect(L.bar.x + L.bar.w / 2 - chevronRevealW, L.bar.y, chevronRevealW, L.bar.h);
         ctx.clip();
-        ctx.drawImage(homeTinted, L.bar.x - chevronShift, L.bar.y, L.bar.w, L.bar.h);
+        ctx.drawImage(homeTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
       if (awayTinted) {
         ctx.save();
         ctx.beginPath();
-        ctx.rect(L.bar.x + L.bar.w / 2, L.bar.y, L.bar.w / 2, L.bar.h);
+        // Inner edge is the left side of the away half (next to center/icon).
+        ctx.rect(L.bar.x + L.bar.w / 2, L.bar.y, chevronRevealW, L.bar.h);
         ctx.clip();
-        ctx.drawImage(awayTinted, L.bar.x + chevronShift, L.bar.y, L.bar.w, L.bar.h);
+        ctx.drawImage(awayTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
-      ctx.globalAlpha = 1;
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
