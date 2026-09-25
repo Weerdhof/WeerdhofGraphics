@@ -115,6 +115,10 @@
   const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
   const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
   const SM_CENTER_X = 540;
+  // The score (matchresult mode only) sits a bit lower than the time text,
+  // and is noticeably bigger — same size for Mannen and Vrouwen.
+  const SM_SCORE_Y_OFFSET = 18;
+  const SM_SCORE_FONT = 78;
 
   const SM_TEAM_NAMES = {
     SAB: 'Sezoens Achilles Bocholt', IZE: 'Besox HBC Izegem', EUP: 'KTSV Eupen',
@@ -468,6 +472,7 @@
   const SM_CHEVRON_100PCT_MS = 1300;
   const SM_CHEVRON_GROW_MS = 1820;
   const SM_CHEVRON_FADE_MS = 200;
+  const SM_CHEVRON_FADE_IN_MS = 180; // soft start instead of a hard pop-in
   const SM_CHEVRON_KEYFRAMES = [
     [0, 0.90], [SM_CHEVRON_100PCT_MS / SM_CHEVRON_GROW_MS, 1.00], [1, 1.13],
   ];
@@ -481,6 +486,10 @@
     if (t > fadeStart) {
       const ft = (t - fadeStart) / (1 - fadeStart);
       opacity = Math.pow(1 - ft, 3); // fast-then-trailing, matches the reference
+    } else if (elapsed < SM_CHEVRON_FADE_IN_MS) {
+      // Soft fade in instead of a hard pop-in.
+      const fit = elapsed / SM_CHEVRON_FADE_IN_MS;
+      opacity = 0.5 - 0.5 * Math.cos(Math.PI * fit);
     }
     return { scale, opacity };
   }
@@ -496,6 +505,14 @@
   function smAnimElapsed() {
     return (mode === 'match' || mode === 'matchresult') && smAnimating && smAnimStartTs != null
       ? performance.now() - smAnimStartTs : null;
+  }
+
+  // The icon+chevron animation loops once every 3s throughout the whole
+  // clip, instead of playing once and holding static for the rest of it.
+  const SM_LOOP_CYCLE_MS = 3000;
+  function smCycleElapsed() {
+    const elapsed = smAnimElapsed();
+    return elapsed == null ? null : elapsed % SM_LOOP_CYCLE_MS;
   }
 
   function stopSmAnimationLoop() {
@@ -1824,7 +1841,7 @@
 
     const mark = loadImg('assets/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
-      const smElapsed = smAnimElapsed();
+      const smElapsed = smCycleElapsed();
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = SM_MARK.x + SM_MARK.w / 2, mcy = SM_MARK.y + SM_MARK.h / 2;
       if (iconScale !== 1) {
@@ -1843,11 +1860,11 @@
     ctx.fillStyle = SM_TEXT_COLOR;
     ctx.globalAlpha = 1;
 
-    ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
+    ctx.font = `700 ${mode === 'matchresult' ? SM_SCORE_FONT : SM_TIME_FONT}px "${fontFamily}"`;
     const mainText = mode === 'matchresult'
       ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
       : (smState.time || '');
-    ctx.fillText(mainText, SM_CENTER_X, SM_TIME_Y);
+    ctx.fillText(mainText, SM_CENTER_X, SM_TIME_Y + (mode === 'matchresult' ? SM_SCORE_Y_OFFSET : 0));
 
     if (mode === 'match') {
       ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
@@ -1892,7 +1909,7 @@
     // Scales up from its own center (90% -> 113%, see smChevronState) and
     // fades out fast right at the end — same universal curve as the icon
     // uses, not a direction-specific reveal.
-    const smElapsed = smAnimElapsed();
+    const smElapsed = smCycleElapsed();
     const { scale: chevronScale, opacity: chevronOpacity } = smChevronState(smElapsed);
     const chevronMask = loadImg('assets/women/singlematch/chevron-mask.png');
     if (chevronMask && chevronMask.complete && chevronMask.naturalWidth && chevronOpacity > 0) {
@@ -1948,11 +1965,11 @@
     ctx.fillStyle = SMW_TEXT_COLOR;
     ctx.globalAlpha = 1;
 
-    ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
+    ctx.font = `700 ${mode === 'matchresult' ? SM_SCORE_FONT : L.timeFont}px "${fontFamily}"`;
     const mainText = mode === 'matchresult'
       ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
       : (smState.time || '');
-    ctx.fillText(mainText, L.centerX, L.timeY);
+    ctx.fillText(mainText, L.centerX, L.timeY + (mode === 'matchresult' ? SM_SCORE_Y_OFFSET : 0));
 
     if (mode === 'match') {
       ctx.font = `500 ${L.dateFont}px "${fontFamily}"`;
