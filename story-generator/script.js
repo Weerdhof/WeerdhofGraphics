@@ -296,6 +296,43 @@
     return keyframeScale(t, HEARTBEAT_KEYFRAMES);
   }
 
+  // A gentler bounce (no pop-in-from-zero) for repeat beats after the first,
+  // once the element is already fully visible.
+  const REPEAT_BEAT_KEYFRAMES = [
+    [0.00, 1.00], [0.20, 1.15], [0.50, 0.92], [0.80, 1.08], [1.00, 1.00],
+  ];
+  // Plays the heartbeat `beats` times over `beatMs` each: the first beat
+  // pops in from nothing (scale 0), the rest are gentler bounces around 1 —
+  // then holds at 1 once all beats are done.
+  function repeatingHeartbeatScale(elapsed, beats, beatMs) {
+    if (elapsed == null) return 1;
+    if (elapsed <= 0) return 0;
+    const totalMs = beatMs * beats;
+    if (elapsed >= totalMs) return 1;
+    const beatIdx = Math.min(beats - 1, Math.floor(elapsed / beatMs));
+    const localT = (elapsed - beatIdx * beatMs) / beatMs;
+    return beatIdx === 0 ? heartbeatScale(localT) : keyframeScale(localT, REPEAT_BEAT_KEYFRAMES);
+  }
+
+  // Simple synced treatment for the chevron accent: no scaling (that read as
+  // too exaggerated) — just a soft fade + slight horizontal drift on each
+  // icon beat, home drifting left and away drifting right. Returns 0..1,
+  // where 0 = neutral (full opacity, no offset) and 1 = peak of the beat.
+  const CHEVRON_PULSE_KEYFRAMES = [
+    [0.00, 0], [0.15, 1], [0.40, 0.1], [0.60, 0.8], [0.80, 0.15], [1.00, 0],
+  ];
+  const CHEVRON_SHIFT_PX = 14;
+  const CHEVRON_MIN_OPACITY = 0.55;
+  function chevronPulse(elapsed, beats, beatMs) {
+    if (elapsed == null || elapsed <= 0) return 0;
+    const totalMs = beatMs * beats;
+    if (elapsed >= totalMs) return 0;
+    const beatIdx = Math.min(beats - 1, Math.floor(elapsed / beatMs));
+    const localT = (elapsed - beatIdx * beatMs) / beatMs;
+    return keyframeScale(localT, CHEVRON_PULSE_KEYFRAMES);
+  }
+
+
 
   // Winner-line wipe: grows outward from the row's center, fast until it
   // reaches the icon's own edge, then slow the rest of the way out —
@@ -413,6 +450,88 @@
 
     if (resultsAnimating) startResultsAnimationLoop();
     else { animStartTs = null; render(); }
+  }
+
+  // ---------- Single-match "pop in" animation ----------
+  // Much simpler than the Results one: everything (cards, bar, text) is
+  // static/visible immediately — only the mark icon and, for Vrouwen, the
+  // chevron line accent actually animate, on the same beat, a few times.
+  // The icon bounces (scale); the chevron does NOT scale (that read as too
+  // exaggerated) — it just fades and drifts slightly on the horizontal axis,
+  // still clipped to the bar's own shape. Same 15s total clip convention as
+  // Results.
+  const SM_BEATS = 3;
+  let smAnimating = false;
+  let smAnimStartTs = null;
+  let smAnimRafId = null;
+
+  function smAnimClipDuration() {
+    return Math.max(ICON_MS * SM_BEATS, ANIM_TOTAL_TARGET_MS);
+  }
+
+  function smAnimElapsed() {
+    return (mode === 'match' || mode === 'matchresult') && smAnimating && smAnimStartTs != null
+      ? performance.now() - smAnimStartTs : null;
+  }
+
+  function stopSmAnimationLoop() {
+    if (smAnimRafId) cancelAnimationFrame(smAnimRafId);
+    smAnimRafId = null;
+  }
+
+  function startSmAnimationLoop() {
+    stopSmAnimationLoop();
+    smAnimStartTs = performance.now();
+    const loop = () => {
+      render();
+      const elapsed = performance.now() - smAnimStartTs;
+      if (elapsed >= smAnimClipDuration()) {
+        if (!smAnimating) return;
+        smAnimStartTs = performance.now();
+      }
+      smAnimRafId = requestAnimationFrame(loop);
+    };
+    smAnimRafId = requestAnimationFrame(loop);
+  }
+
+  async function recordSmAnimation() {
+    stopSmAnimationLoop();
+    let mimeType = 'video/mp4;codecs=avc1';
+    if (!(window.MediaRecorder && MediaRecorder.isTypeSupported(mimeType))) mimeType = 'video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
+
+    smAnimStartTs = performance.now();
+    recorder.start();
+    const total = smAnimClipDuration();
+    await new Promise((resolve) => {
+      const loop = () => {
+        render();
+        if (performance.now() - smAnimStartTs < total) requestAnimationFrame(loop);
+        else resolve();
+      };
+      requestAnimationFrame(loop);
+    });
+    recorder.stop();
+    await stopped;
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${compKey}-${mode}-animatie.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    if (smAnimating) startSmAnimationLoop();
+    else { smAnimStartTs = null; render(); }
   }
 
   // ---------- Ranking template (Mannen only) ----------
@@ -680,6 +799,48 @@
     resultsAnimField.hidden = true;
     downloadMp4Btn.hidden = true;
     mp4Status.hidden = true;
+  }
+
+  // ---------- Single-match "pop in" animation ----------
+  const smAnimField = document.getElementById('smAnimField');
+  const smAnimateToggle = document.getElementById('smAnimateToggle');
+  const smDownloadMp4Btn = document.getElementById('smDownloadMp4Btn');
+  const smMp4Status = document.getElementById('smMp4Status');
+
+  smAnimateToggle.addEventListener('change', () => {
+    smAnimating = smAnimateToggle.checked;
+    smDownloadMp4Btn.hidden = !smAnimating;
+    if (smAnimating) startSmAnimationLoop();
+    else { stopSmAnimationLoop(); smAnimStartTs = null; render(); }
+  });
+
+  smDownloadMp4Btn.addEventListener('click', async () => {
+    smDownloadMp4Btn.disabled = true;
+    smMp4Status.hidden = false;
+    smMp4Status.textContent = 'Bezig met opnemen…';
+    smMp4Status.className = 'save-status';
+    try {
+      await recordSmAnimation();
+      smMp4Status.textContent = '✓ Video gedownload';
+      smMp4Status.className = 'save-status ok';
+    } catch (err) {
+      console.error('MP4-opname mislukt:', err);
+      smMp4Status.textContent = 'Opname mislukt — probeer het opnieuw.';
+      smMp4Status.className = 'save-status warn';
+    }
+    smDownloadMp4Btn.disabled = false;
+  });
+
+  // Called whenever leaving Match/Matchresult mode so a running/queued
+  // animation and its download button don't linger.
+  function resetSmAnim() {
+    smAnimating = false;
+    smAnimateToggle.checked = false;
+    stopSmAnimationLoop();
+    smAnimStartTs = null;
+    smAnimField.hidden = true;
+    smDownloadMp4Btn.hidden = true;
+    smMp4Status.hidden = true;
   }
 
   const modeTabs = document.querySelectorAll('.mode-tab');
@@ -977,6 +1138,7 @@
       // bailing back to Results.
       if (mode === 'match' || mode === 'matchresult') {
         smwFormatField.hidden = compKey !== 'women';
+        resetSmAnim();
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
         loadSingleMatchData();
       }
@@ -1208,6 +1370,7 @@
         bgPhotoField.hidden = false;
         smwFormatField.hidden = compKey !== 'women'; // Post/Story choice only applies to Vrouwen
         resetResultsAnim();
+        smAnimField.hidden = false;
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
         if (smMatches.length && smMatchesCompKey === compKey) {
           populateSingleMatchSelect();
@@ -1226,6 +1389,7 @@
         bgPhotoField.hidden = true;
         smwFormatField.hidden = true;
         resetResultsAnim();
+        resetSmAnim();
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
         buildMatchRows();
@@ -1241,6 +1405,7 @@
         bgPhotoField.hidden = true;
         smwFormatField.hidden = true;
         resetResultsAnim();
+        resetSmAnim();
         resultsAnimField.hidden = mode !== 'results';
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
@@ -1635,7 +1800,17 @@
 
     const mark = loadImg('assets/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
+      const smElapsed = smAnimElapsed();
+      const iconScale = repeatingHeartbeatScale(smElapsed, SM_BEATS, ICON_MS);
+      const mcx = SM_MARK.x + SM_MARK.w / 2, mcy = SM_MARK.y + SM_MARK.h / 2;
+      if (iconScale !== 1) {
+        ctx.save();
+        ctx.translate(mcx, mcy);
+        ctx.scale(iconScale, iconScale);
+        ctx.translate(-mcx, -mcy);
+      }
       ctx.drawImage(mark, SM_MARK.x, SM_MARK.y, SM_MARK.w, SM_MARK.h);
+      if (iconScale !== 1) ctx.restore();
     }
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
@@ -1690,18 +1865,26 @@
     // Chevron accent behind the cards — home team's color on the left half,
     // away team's on the right, both tinted from the same plain (white)
     // shape mask so this stays in sync with whichever teams are selected.
+    // On each icon beat it fades slightly and drifts a few px on the
+    // horizontal axis (home left, away right) — no scaling, so it always
+    // stays clipped to the bar's own shape.
+    const smElapsed = smAnimElapsed();
+    const chevronBeat = chevronPulse(smElapsed, SM_BEATS, ICON_MS);
+    const chevronOpacity = 1 - chevronBeat * (1 - CHEVRON_MIN_OPACITY);
+    const chevronShift = chevronBeat * CHEVRON_SHIFT_PX;
     const chevronMask = loadImg('assets/women/singlematch/chevron-mask.png');
     if (chevronMask && chevronMask.complete && chevronMask.naturalWidth) {
       const homeColor = SMW_TEAM_COLORS[smState.home] || SMW_TEXT_COLOR;
       const awayColor = SMW_TEAM_COLORS[smState.away] || SMW_TEXT_COLOR;
       const homeTinted = tintImage(chevronMask, 'smw-chevron', homeColor);
       const awayTinted = tintImage(chevronMask, 'smw-chevron', awayColor);
+      ctx.globalAlpha = chevronOpacity;
       if (homeTinted) {
         ctx.save();
         ctx.beginPath();
         ctx.rect(L.bar.x, L.bar.y, L.bar.w / 2, L.bar.h);
         ctx.clip();
-        ctx.drawImage(homeTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+        ctx.drawImage(homeTinted, L.bar.x - chevronShift, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
       if (awayTinted) {
@@ -1709,14 +1892,24 @@
         ctx.beginPath();
         ctx.rect(L.bar.x + L.bar.w / 2, L.bar.y, L.bar.w / 2, L.bar.h);
         ctx.clip();
-        ctx.drawImage(awayTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+        ctx.drawImage(awayTinted, L.bar.x + chevronShift, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
+      ctx.globalAlpha = 1;
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
+      const iconScale = repeatingHeartbeatScale(smElapsed, SM_BEATS, ICON_MS);
+      const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
+      if (iconScale !== 1) {
+        ctx.save();
+        ctx.translate(mcx, mcy);
+        ctx.scale(iconScale, iconScale);
+        ctx.translate(-mcx, -mcy);
+      }
       ctx.drawImage(mark, L.mark.x, L.mark.y, L.mark.w, L.mark.h);
+      if (iconScale !== 1) ctx.restore();
     }
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
@@ -2158,6 +2351,7 @@
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
+        smAnimField.hidden = false;
         smwFormatField.hidden = compKey !== 'women';
         smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === smFormat));
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
