@@ -150,7 +150,7 @@
       mark: { x: 475, y: 1160, w: 126, h: 145 },
       bar: { x: 55, y: 1233, w: 967, h: 179 },
       footer: { x: 222, y: 1660, w: 637, h: 134 },
-      centerX: 540, timeY: 1340, timeFont: 61, dateY: 1400, dateFont: 32,
+      centerX: 540, timeY: 1315, timeFont: 61, dateY: 1375, dateFont: 32,
     },
     post: {
       canvasW: 1080, canvasH: 1350,
@@ -159,7 +159,7 @@
       mark: { x: 475, y: 910, w: 126, h: 145 },
       bar: { x: 55, y: 983, w: 967, h: 179 },
       footer: { x: 315, y: 1191, w: 450, h: 95 },
-      centerX: 540, timeY: 1090, timeFont: 61, dateY: 1150, dateFont: 32,
+      centerX: 540, timeY: 1065, timeFont: 61, dateY: 1125, dateFont: 32,
     },
   };
 
