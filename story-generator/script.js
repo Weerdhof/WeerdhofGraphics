@@ -239,7 +239,7 @@
   //     rows (STAGE_B_STAGGER_MS apart).
   const STAGE_A_STAGGER_MS = 150, STAGE_B_STAGGER_MS = 500;
   const PHASE1_MS = 300, PAUSE_MS = 500;
-  const ICON_MS = 550;
+  const ICON_MS = 520; // 13 frames @ 25fps — exact AE keyframe export
   // Winner-line ("de lijnen") reveal: grows outward from the center, fast
   // then slow — a plain wipe, no bounce (that read as too wiggly).
   const ARROW_WIPE_MS = 550;
@@ -314,22 +314,6 @@
     return beatIdx === 0 ? heartbeatScale(localT) : keyframeScale(localT, REPEAT_BEAT_KEYFRAMES);
   }
 
-  // Chevron "grow in" reveal, based on the reference clip + the actual AE
-  // project (SHLPULSE): each nested chevron line is its own layer scaling
-  // in with a slight stagger. We only have one flattened mask asset, but a
-  // wipe that grows from the inner edge (next to the mark icon) outward to
-  // the bar's outer corner reveals those nested lines in almost the same
-  // order on its own (the innermost/smallest line's tip sits closest to
-  // the icon, so it's uncovered first) — no separate layers needed. Grows
-  // once, then stays fully revealed. Returns 0 (hidden) .. 1 (fully grown).
-  const CHEVRON_GROW_MS = 850;
-  function chevronGrowProgress(elapsed) {
-    if (elapsed == null) return 1;
-    if (elapsed <= 0) return 0;
-    if (elapsed >= CHEVRON_GROW_MS) return 1;
-    const t = elapsed / CHEVRON_GROW_MS;
-    return 1 - Math.pow(1 - t, 3); // easeOutCubic — quick start, settles
-  }
 
 
 
@@ -452,14 +436,55 @@
   }
 
   // ---------- Single-match "pop in" animation ----------
-  // Much simpler than the Results one: everything (cards, bar, text) is
-  // static/visible immediately — only the mark icon and, for Vrouwen, the
-  // chevron line accent actually animate, on the same beat, a few times.
-  // The icon bounces (scale); the chevron does NOT scale (that read as too
-  // exaggerated) — it just fades and drifts slightly on the horizontal axis,
-  // still clipped to the bar's own shape. Same 15s total clip convention as
-  // Results.
-  const SM_BEATS = 3;
+  // Everything (cards, bar, text) is static/visible immediately — only the
+  // mark icon, and for Vrouwen the chevron accent, actually animate.
+  //
+  // Icon: exact AE keyframe export (25fps, one beat = 13 frames = 520ms):
+  // frame 0=100%, 3=118%, 6=93%, 9=110%, 13=100%. It's ALWAYS visible at
+  // rest (never pops in from 0) and repeats this same bounce every beat —
+  // unlike the Results system's heartbeatScale above, which pops in from 0
+  // (a different, already-tuned feature; left untouched).
+  const SM_BEATS = 1;
+  const SM_ICON_BEAT_KEYFRAMES = [
+    [0 / 13, 1.00], [3 / 13, 1.18], [6 / 13, 0.93], [9 / 13, 1.10], [13 / 13, 1.00],
+  ];
+  function smRepeatingIconScale(elapsed, beats, beatMs) {
+    if (elapsed == null) return 1;
+    if (elapsed <= 0) return 1;
+    const totalMs = beatMs * beats;
+    if (elapsed >= totalMs) return 1;
+    const beatIdx = Math.min(beats - 1, Math.floor(elapsed / beatMs));
+    const localT = (elapsed - beatIdx * beatMs) / beatMs;
+    return keyframeScale(localT, SM_ICON_BEAT_KEYFRAMES);
+  }
+
+  // Vrouwen chevron accent: one continuous eased curve — hard-appears at
+  // the start (matching the reference clip), grows 90% -> 100% (at 1300ms)
+  // -> 113% (at 1820ms) without ever freezing, then fades out fast (200ms,
+  // cubic ease-out) right at the end — all measured directly off the AE
+  // project's own keyframes plus the reference video's per-frame pixel
+  // area. Settles back to its normal (unscaled, fully hidden) state for
+  // the remainder of the clip, same as the reference.
+  const SM_CHEVRON_100PCT_MS = 1300;
+  const SM_CHEVRON_GROW_MS = 1820;
+  const SM_CHEVRON_FADE_MS = 200;
+  const SM_CHEVRON_KEYFRAMES = [
+    [0, 0.90], [SM_CHEVRON_100PCT_MS / SM_CHEVRON_GROW_MS, 1.00], [1, 1.13],
+  ];
+  function smChevronState(elapsed) {
+    if (elapsed == null) return { scale: 1, opacity: 1 };
+    if (elapsed <= 0) return { scale: SM_CHEVRON_KEYFRAMES[0][1], opacity: 0 };
+    const t = Math.min(1, elapsed / SM_CHEVRON_GROW_MS);
+    const scale = keyframeScale(t, SM_CHEVRON_KEYFRAMES);
+    const fadeStart = (SM_CHEVRON_GROW_MS - SM_CHEVRON_FADE_MS) / SM_CHEVRON_GROW_MS;
+    let opacity = 1;
+    if (t > fadeStart) {
+      const ft = (t - fadeStart) / (1 - fadeStart);
+      opacity = Math.pow(1 - ft, 3); // fast-then-trailing, matches the reference
+    }
+    return { scale, opacity };
+  }
+
   let smAnimating = false;
   let smAnimStartTs = null;
   let smAnimRafId = null;
@@ -1800,7 +1825,7 @@
     const mark = loadImg('assets/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
       const smElapsed = smAnimElapsed();
-      const iconScale = repeatingHeartbeatScale(smElapsed, SM_BEATS, ICON_MS);
+      const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = SM_MARK.x + SM_MARK.w / 2, mcy = SM_MARK.y + SM_MARK.h / 2;
       if (iconScale !== 1) {
         ctx.save();
@@ -1864,40 +1889,48 @@
     // Chevron accent behind the cards — home team's color on the left half,
     // away team's on the right, both tinted from the same plain (white)
     // shape mask so this stays in sync with whichever teams are selected.
-    // Grows in from the inner edge (next to the mark icon) outward to the
-    // bar's outer corner, once, then stays fully revealed.
+    // Scales up from its own center (90% -> 113%, see smChevronState) and
+    // fades out fast right at the end — same universal curve as the icon
+    // uses, not a direction-specific reveal.
     const smElapsed = smAnimElapsed();
-    const chevronGrow = chevronGrowProgress(smElapsed);
-    const chevronRevealW = chevronGrow * (L.bar.w / 2);
+    const { scale: chevronScale, opacity: chevronOpacity } = smChevronState(smElapsed);
     const chevronMask = loadImg('assets/women/singlematch/chevron-mask.png');
-    if (chevronMask && chevronMask.complete && chevronMask.naturalWidth && chevronRevealW > 0) {
+    if (chevronMask && chevronMask.complete && chevronMask.naturalWidth && chevronOpacity > 0) {
       const homeColor = SMW_TEAM_COLORS[smState.home] || SMW_TEXT_COLOR;
       const awayColor = SMW_TEAM_COLORS[smState.away] || SMW_TEXT_COLOR;
       const homeTinted = tintImage(chevronMask, 'smw-chevron', homeColor);
       const awayTinted = tintImage(chevronMask, 'smw-chevron', awayColor);
+      ctx.globalAlpha = chevronOpacity;
       if (homeTinted) {
         ctx.save();
         ctx.beginPath();
-        // Inner edge is the right side of the home half (next to center/icon).
-        ctx.rect(L.bar.x + L.bar.w / 2 - chevronRevealW, L.bar.y, chevronRevealW, L.bar.h);
+        ctx.rect(L.bar.x, L.bar.y, L.bar.w / 2, L.bar.h);
         ctx.clip();
+        const cx = L.bar.x + L.bar.w / 4, cy = L.bar.y + L.bar.h / 2;
+        ctx.translate(cx, cy);
+        ctx.scale(chevronScale, chevronScale);
+        ctx.translate(-cx, -cy);
         ctx.drawImage(homeTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
       if (awayTinted) {
         ctx.save();
         ctx.beginPath();
-        // Inner edge is the left side of the away half (next to center/icon).
-        ctx.rect(L.bar.x + L.bar.w / 2, L.bar.y, chevronRevealW, L.bar.h);
+        ctx.rect(L.bar.x + L.bar.w / 2, L.bar.y, L.bar.w / 2, L.bar.h);
         ctx.clip();
+        const cx = L.bar.x + (3 * L.bar.w) / 4, cy = L.bar.y + L.bar.h / 2;
+        ctx.translate(cx, cy);
+        ctx.scale(chevronScale, chevronScale);
+        ctx.translate(-cx, -cy);
         ctx.drawImage(awayTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
+      ctx.globalAlpha = 1;
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
-      const iconScale = repeatingHeartbeatScale(smElapsed, SM_BEATS, ICON_MS);
+      const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
       if (iconScale !== 1) {
         ctx.save();
