@@ -314,22 +314,24 @@
     return beatIdx === 0 ? heartbeatScale(localT) : keyframeScale(localT, REPEAT_BEAT_KEYFRAMES);
   }
 
-  // Simple synced treatment for the chevron accent: no scaling (that read as
-  // too exaggerated) — just a soft fade + slight horizontal drift on each
-  // icon beat, home drifting left and away drifting right. Returns 0..1,
-  // where 0 = neutral (full opacity, no offset) and 1 = peak of the beat.
-  const CHEVRON_PULSE_KEYFRAMES = [
-    [0.00, 0], [0.15, 1], [0.40, 0.1], [0.60, 0.8], [0.80, 0.15], [1.00, 0],
-  ];
-  const CHEVRON_SHIFT_PX = 14;
-  const CHEVRON_MIN_OPACITY = 0.55;
-  function chevronPulse(elapsed, beats, beatMs) {
-    if (elapsed == null || elapsed <= 0) return 0;
-    const totalMs = beatMs * beats;
-    if (elapsed >= totalMs) return 0;
-    const beatIdx = Math.min(beats - 1, Math.floor(elapsed / beatMs));
-    const localT = (elapsed - beatIdx * beatMs) / beatMs;
-    return keyframeScale(localT, CHEVRON_PULSE_KEYFRAMES);
+  // Chevron exit/return, no scaling and not a repeating bounce: on the
+  // 1st beat it gets pushed straight out (slides until fully off its own
+  // clip, so it's not visible at all), it stays gone through the 2nd beat,
+  // then on the 3rd beat it fades back in at rest (no slide back in).
+  // Returns { slide: 0..1 (0 = home, 1 = fully pushed out), opacity: 0..1 }.
+  function chevronSlideFade(elapsed, beatMs) {
+    if (elapsed == null || elapsed <= 0) return { slide: 0, opacity: 1 };
+    const totalMs = beatMs * 3;
+    if (elapsed >= totalMs) return { slide: 0, opacity: 1 };
+    if (elapsed < beatMs) {
+      const t = elapsed / beatMs;
+      return { slide: 1 - Math.pow(1 - t, 3), opacity: 1 }; // quick push out, settles
+    }
+    if (elapsed < beatMs * 2) {
+      return { slide: 1, opacity: 1 }; // fully gone, holds
+    }
+    const t = (elapsed - beatMs * 2) / beatMs;
+    return { slide: 0, opacity: t * t }; // back at rest, softly fading in
   }
 
 
@@ -1865,13 +1867,11 @@
     // Chevron accent behind the cards — home team's color on the left half,
     // away team's on the right, both tinted from the same plain (white)
     // shape mask so this stays in sync with whichever teams are selected.
-    // On each icon beat it fades slightly and drifts a few px on the
-    // horizontal axis (home left, away right) — no scaling, so it always
-    // stays clipped to the bar's own shape.
+    // Gets pushed fully out of view on the icon's 1st beat, stays gone
+    // through the 2nd, then fades back in at rest on the 3rd.
     const smElapsed = smAnimElapsed();
-    const chevronBeat = chevronPulse(smElapsed, SM_BEATS, ICON_MS);
-    const chevronOpacity = 1 - chevronBeat * (1 - CHEVRON_MIN_OPACITY);
-    const chevronShift = chevronBeat * CHEVRON_SHIFT_PX;
+    const { slide: chevronSlide, opacity: chevronOpacity } = chevronSlideFade(smElapsed, ICON_MS);
+    const chevronShift = chevronSlide * (L.bar.w + 40);
     const chevronMask = loadImg('assets/women/singlematch/chevron-mask.png');
     if (chevronMask && chevronMask.complete && chevronMask.naturalWidth) {
       const homeColor = SMW_TEAM_COLORS[smState.home] || SMW_TEXT_COLOR;
