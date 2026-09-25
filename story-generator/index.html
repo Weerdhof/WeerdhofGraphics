@@ -27,12 +27,10 @@
         <button class="mode-tab" data-mode="schedule">Schedule</button>
       </div>
 
-      <div class="men-only-group">
-        <div class="mode-group-label">Per wedstrijd <span class="mode-group-tag">Mannen</span></div>
-        <div class="mode-tabs mode-tabs-compact">
-          <button class="mode-tab men-only-tab" data-mode="match">Match</button>
-          <button class="mode-tab men-only-tab" data-mode="matchresult">Matchresult</button>
-        </div>
+      <div class="mode-group-label">Per wedstrijd</div>
+      <div class="mode-tabs mode-tabs-compact">
+        <button class="mode-tab" data-mode="match">Match</button>
+        <button class="mode-tab" data-mode="matchresult">Matchresult</button>
       </div>
 
       <div class="mode-group-label">Seizoen</div>
@@ -71,6 +69,14 @@
 
     <section class="panel-step">
       <div class="panel-step-title"><span class="step-num">4</span>Opmaak</div>
+      <div class="field smw-format-field" id="smwFormatField" hidden>
+        <label>Formaat</label>
+        <div class="mode-tabs mode-tabs-compact">
+          <button class="smw-format-tab active" data-smw-format="story" type="button">Story</button>
+          <button class="smw-format-tab" data-smw-format="post" type="button">Post</button>
+        </div>
+      </div>
+
       <label class="upcoming-toggle bg-toggle">
         <input type="checkbox" id="transparentBgToggle">
         Transparante achtergrond (i.p.v. kleur)

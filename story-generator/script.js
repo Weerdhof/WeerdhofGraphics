@@ -132,7 +132,68 @@
   const MEN_TEAM_NAMES = { ...SM_TEAM_NAMES, HCS: SM_TEAM_NAMES.SPR };
   delete MEN_TEAM_NAMES.SPR;
 
-  let smMatches = []; // parsed from assets/singlematch/schedule_per_match_all.csv
+  // ---------- Single-match template (Vrouwen) ----------
+  // Own PSD (WOMENmatch/Wedstrijdaankondigingen.psd) has two artboards for
+  // this same design — "STORY-SHLW" (a full Story canvas, 1080x1920) and
+  // "POST-SHLW" (an Instagram post, 1080x1350, matching the Mannen
+  // template's own canvas) — same art (bar/mark/chevrons/footer), just
+  // repositioned for the shorter canvas, so both reuse the same assets.
+  // Each team's own PNG already bakes in its white card, crest, name and
+  // drop shadow as finished art, same "just place it" approach.
+  const SMW_TEXT_COLOR = '#14142b';
+  let smFormat = 'story'; // 'story' | 'post'
+  const SMW_LAYOUTS = {
+    story: {
+      canvasW: 1080, canvasH: 1920,
+      teamLeft: { x: 82, y: 1132, w: 242, h: 258 },
+      teamRight: { x: 755, y: 1133, w: 243, h: 260 },
+      mark: { x: 475, y: 1160, w: 126, h: 145 },
+      bar: { x: 55, y: 1233, w: 967, h: 179 },
+      footer: { x: 222, y: 1660, w: 637, h: 134 },
+      centerX: 540, timeY: 1340, timeFont: 61, dateY: 1400, dateFont: 32,
+    },
+    post: {
+      canvasW: 1080, canvasH: 1350,
+      teamLeft: { x: 79, y: 881, w: 242, h: 258 },
+      teamRight: { x: 752, y: 882, w: 243, h: 260 },
+      mark: { x: 475, y: 910, w: 126, h: 145 },
+      bar: { x: 55, y: 983, w: 967, h: 179 },
+      footer: { x: 315, y: 1191, w: 450, h: 95 },
+      centerX: 540, timeY: 1090, timeFont: 61, dateY: 1150, dateFont: 32,
+    },
+  };
+
+  // Canvas size for whichever competition/format combination is active —
+  // Mannen only has the one (post) size; Vrouwen toggles between the two.
+  function smCanvasSize() {
+    if (compKey === 'women') {
+      const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
+      return { w: L.canvasW, h: L.canvasH };
+    }
+    return { w: SM_CANVAS_W, h: SM_CANVAS_H };
+  }
+
+  // Names aren't known for every club — fall back to the bare code (same
+  // pattern as the Ranking team dropdown) rather than keeping a partial,
+  // misleading map.
+  const SMW_TEAM_NAMES = {
+    FORV: 'Cabooter Fortes Venlo', SEW: 'Westfriesland/SEW',
+  };
+  const SMW_TEAM_CODES = [
+    'DSVD', 'ENO', 'FORE', 'FORV', 'KWI', 'MHV', 'PSV',
+    'QUI', 'SEW', 'VEL', 'VOC', 'VOL', 'VZV', 'WPK',
+  ].sort();
+  // Sampled from each team's own crest — tints the chevron accent behind
+  // the cards (home color on the left, away color on the right).
+  const SMW_TEAM_COLORS = {
+    DSVD: '#d0332e', ENO: '#1a9b4d', FORE: '#1a2a6e', FORV: '#142864',
+    KWI: '#e8383a', MHV: '#1f7a4c', PSV: '#db3b3a', QUI: '#1a8a3d',
+    SEW: '#14225e', VEL: '#1a5ba0', VOC: '#2d7a3d', VOL: '#ee7212',
+    VZV: '#e0332e', WPK: '#3ca815',
+  };
+
+  let smMatches = []; // parsed from assets/(women/)singlematch/schedule_per_match_all.csv
+  let smMatchesCompKey = null; // which competition's data is currently in smMatches
   const smState = { id: '', home: '', away: '', time: '', homeScore: '', awayScore: '', dateRound: '' };
 
   // Optional user-uploaded photo behind the single-match graphic (Mannen
@@ -142,16 +203,19 @@
   let bgPhotoScale = 1; // user zoom on top of the auto "cover" fit
   let bgPhotoOffsetX = 0, bgPhotoOffsetY = 0; // pan, in canvas pixels
 
+  // Uses the canvas's own CURRENT dimensions (not a hardcoded constant) so
+  // this works for both the Mannen (post, 1080x1350) and Vrouwen (story,
+  // 1080x1920) single-match canvas sizes.
   function bgPhotoCoverScale(img) {
-    return Math.max(SM_CANVAS_W / img.naturalWidth, SM_CANVAS_H / img.naturalHeight);
+    return Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
   }
 
   function clampBgPhotoOffsets() {
     if (!bgPhotoImg) return;
     const s = bgPhotoCoverScale(bgPhotoImg) * bgPhotoScale;
     const dw = bgPhotoImg.naturalWidth * s, dh = bgPhotoImg.naturalHeight * s;
-    const maxX = Math.max(0, (dw - SM_CANVAS_W) / 2);
-    const maxY = Math.max(0, (dh - SM_CANVAS_H) / 2);
+    const maxX = Math.max(0, (dw - canvas.width) / 2);
+    const maxY = Math.max(0, (dh - canvas.height) / 2);
     bgPhotoOffsetX = Math.max(-maxX, Math.min(maxX, bgPhotoOffsetX));
     bgPhotoOffsetY = Math.max(-maxY, Math.min(maxY, bgPhotoOffsetY));
   }
@@ -159,8 +223,8 @@
   function drawBgPhotoCover(c, img) {
     const s = bgPhotoCoverScale(img) * bgPhotoScale;
     const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
-    const dx = (SM_CANVAS_W - dw) / 2 + bgPhotoOffsetX;
-    const dy = (SM_CANVAS_H - dh) / 2 + bgPhotoOffsetY;
+    const dx = (canvas.width - dw) / 2 + bgPhotoOffsetX;
+    const dy = (canvas.height - dh) / 2 + bgPhotoOffsetY;
     c.drawImage(img, dx, dy, dw, dh);
   }
 
@@ -473,7 +537,22 @@
     render();
   });
 
-  // ---------- Background photo (Mannen Match/Matchresult only) ----------
+  // ---------- Vrouwen single-match format toggle (Story / Post) ----------
+  const smwFormatField = document.getElementById('smwFormatField');
+  const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
+  smwFormatBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      smFormat = btn.dataset.smwFormat;
+      smwFormatBtns.forEach(b => b.classList.toggle('active', b === btn));
+      const sz = smCanvasSize();
+      canvas.width = sz.w;
+      canvas.height = sz.h;
+      clampBgPhotoOffsets();
+      render();
+    });
+  });
+
+  // ---------- Background photo (Match/Matchresult, both competitions) ----------
   const bgPhotoField = document.getElementById('bgPhotoField');
   const bgPhotoInput = document.getElementById('bgPhotoInput');
   const bgPhotoControls = document.getElementById('bgPhotoControls');
@@ -893,23 +972,13 @@
       compKey = btn.dataset.competition;
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
-      // The single-match graphics only exist for Mannen — bail back to
-      // Results if Vrouwen gets picked while one of those is active.
-      // Ranking exists for both, just styled differently per competition.
-      if (compKey === 'women' && (mode === 'match' || mode === 'matchresult')) {
-        mode = 'results';
-        modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === 'results'));
-        roundSelectField.hidden = false;
-        roundSelectLabel.textContent = 'Speelronde';
-        updateHint();
-        checkScoresBtn.hidden = false;
-        checkScoresStatus.hidden = true;
-        checkStandingsBtn.hidden = true;
-        checkStandingsStatus.hidden = true;
-        bgPhotoField.hidden = true;
-        resultsAnimField.hidden = false;
-        canvas.width = CANVAS_W;
-        canvas.height = CANVAS_H;
+      // Match/Matchresult exist for both competitions now, each with its
+      // own canvas size and fixture list — resize and reload rather than
+      // bailing back to Results.
+      if (mode === 'match' || mode === 'matchresult') {
+        smwFormatField.hidden = compKey !== 'women';
+        { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
+        loadSingleMatchData();
       }
       if (mode === 'ranking') {
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
@@ -960,7 +1029,7 @@
       const time = cols[2];
       const home = (cols[3] || '').replace(/\.png$/i, '');
       const away = (cols[4] || '').replace(/\.png$/i, '');
-      const roundMatch = /ROUND\s+(\d+)/i.exec(dateRound);
+      const roundMatch = /(?:ROUND|RONDE)\s+(\d+)/i.exec(dateRound);
       rows.push({ id, dateRound, time, home, away, roundNum: roundMatch ? Number(roundMatch[1]) : 0 });
     }
     return rows;
@@ -989,8 +1058,17 @@
     render();
   }
 
+  function singleMatchCsvPath() {
+    return compKey === 'women'
+      ? 'assets/women/singlematch/schedule_per_match_all.csv'
+      : 'assets/singlematch/schedule_per_match_all.csv';
+  }
+
+  // Re-fetched whenever compKey changes while in Match/Matchresult mode —
+  // each competition has its own fixture list.
   function loadSingleMatchData() {
-    fetch('assets/singlematch/schedule_per_match_all.csv')
+    smMatchesCompKey = compKey;
+    fetch(singleMatchCsvPath())
       .then(r => r.text())
       .then(text => {
         smMatches = parseSingleMatchCsv(text);
@@ -1128,16 +1206,15 @@
         checkStandingsStatus.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
+        smwFormatField.hidden = compKey !== 'women'; // Post/Story choice only applies to Vrouwen
         resetResultsAnim();
-        canvas.width = SM_CANVAS_W;
-        canvas.height = SM_CANVAS_H;
-        if (smMatches.length) {
+        { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
+        if (smMatches.length && smMatchesCompKey === compKey) {
           populateSingleMatchSelect();
           const target = smMatches.find(x => x.id === smState.id) || smMatches[0];
           loadSingleMatch(target, smState.id === target.id ? smState : null);
         } else {
-          buildMatchRows();
-          render();
+          loadSingleMatchData();
         }
       } else if (mode === 'ranking') {
         roundSelectField.hidden = true;
@@ -1147,6 +1224,7 @@
         checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
         exportElementBtn.hidden = false;
         bgPhotoField.hidden = true;
+        smwFormatField.hidden = true;
         resetResultsAnim();
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
@@ -1161,6 +1239,7 @@
         exportElementBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         bgPhotoField.hidden = true;
+        smwFormatField.hidden = true;
         resetResultsAnim();
         resultsAnimField.hidden = mode !== 'results';
         canvas.width = CANVAS_W;
@@ -1303,12 +1382,14 @@
     const dateRow = node.querySelector('.single-match-date-row');
     const dateInput = node.querySelector('.single-match-dateround');
 
+    const smCodes = compKey === 'women' ? SMW_TEAM_CODES : SM_TEAM_CODES;
+    const smNames = compKey === 'women' ? SMW_TEAM_NAMES : SM_TEAM_NAMES;
     function fillSelect(select, code) {
       select.innerHTML = '';
-      SM_TEAM_CODES.forEach(c => {
+      smCodes.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c;
-        opt.textContent = `${c} — ${SM_TEAM_NAMES[c]}`;
+        opt.textContent = smNames[c] ? `${c} — ${smNames[c]}` : c;
         if (c === code) opt.selected = true;
         select.appendChild(opt);
       });
@@ -1514,6 +1595,11 @@
   }
 
   function renderSingleMatch() {
+    if (compKey === 'women') { renderWomenSingleMatch(); return; }
+    renderMenSingleMatch();
+  }
+
+  function renderMenSingleMatch() {
     ctx.clearRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
@@ -1572,6 +1658,100 @@
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
       ctx.drawImage(footerImg, SM_FOOTER.x, SM_FOOTER.y, SM_FOOTER.w, SM_FOOTER.h);
+    }
+
+    saveState();
+  }
+
+  function renderWomenSingleMatch() {
+    const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
+    ctx.clearRect(0, 0, L.canvasW, L.canvasH);
+    if (bgPhotoImg) {
+      drawBgPhotoCover(ctx, bgPhotoImg);
+      // Same reasoning as the Mannen version: a user's own photo can be any
+      // brightness, so fade to dark navy along the bottom to keep the
+      // white footer logo (and the card row above it) legible.
+      const fadeTop = L.teamLeft.y - 260;
+      const footerFade = ctx.createLinearGradient(0, fadeTop, 0, L.canvasH);
+      footerFade.addColorStop(0, 'rgba(26, 27, 56, 0)');
+      footerFade.addColorStop(1, 'rgba(26, 27, 56, 0.94)');
+      ctx.fillStyle = footerFade;
+      ctx.fillRect(0, fadeTop, L.canvasW, L.canvasH - fadeTop);
+    } else if (!transparentBg) {
+      ctx.fillStyle = SMW_TEXT_COLOR;
+      ctx.fillRect(0, 0, L.canvasW, L.canvasH);
+    }
+
+    const bar = loadImg('assets/women/singlematch/bar.png');
+    if (bar && bar.complete && bar.naturalWidth) {
+      ctx.drawImage(bar, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+    }
+
+    // Chevron accent behind the cards — home team's color on the left half,
+    // away team's on the right, both tinted from the same plain (white)
+    // shape mask so this stays in sync with whichever teams are selected.
+    const chevronMask = loadImg('assets/women/singlematch/chevron-mask.png');
+    if (chevronMask && chevronMask.complete && chevronMask.naturalWidth) {
+      const homeColor = SMW_TEAM_COLORS[smState.home] || SMW_TEXT_COLOR;
+      const awayColor = SMW_TEAM_COLORS[smState.away] || SMW_TEXT_COLOR;
+      const homeTinted = tintImage(chevronMask, 'smw-chevron', homeColor);
+      const awayTinted = tintImage(chevronMask, 'smw-chevron', awayColor);
+      if (homeTinted) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(L.bar.x, L.bar.y, L.bar.w / 2, L.bar.h);
+        ctx.clip();
+        ctx.drawImage(homeTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+        ctx.restore();
+      }
+      if (awayTinted) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(L.bar.x + L.bar.w / 2, L.bar.y, L.bar.w / 2, L.bar.h);
+        ctx.clip();
+        ctx.drawImage(awayTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+        ctx.restore();
+      }
+    }
+
+    const mark = loadImg('assets/women/singlematch/mark.png');
+    if (mark && mark.complete && mark.naturalWidth) {
+      ctx.drawImage(mark, L.mark.x, L.mark.y, L.mark.w, L.mark.h);
+    }
+
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = SMW_TEXT_COLOR;
+    ctx.globalAlpha = 1;
+
+    ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
+    const mainText = mode === 'matchresult'
+      ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
+      : (smState.time || '');
+    ctx.fillText(mainText, L.centerX, L.timeY);
+
+    if (mode === 'match') {
+      ctx.font = `500 ${L.dateFont}px "${fontFamily}"`;
+      ctx.fillText(smState.dateRound || '', L.centerX, L.dateY);
+    }
+
+    // Each team's own PNG (assets/women/singlematch/teams/<CODE>.png) is
+    // already a finished card — white background, crest, name and drop
+    // shadow all baked in — so it's just placed, drawn after the bar so
+    // its own shadow falls naturally onto it.
+    const homeImg = smState.home ? loadImg(`assets/women/singlematch/teams/${smState.home}.png`) : null;
+    if (homeImg && homeImg.complete && homeImg.naturalWidth) {
+      ctx.drawImage(homeImg, L.teamLeft.x, L.teamLeft.y, L.teamLeft.w, L.teamLeft.h);
+    }
+    const awayImg = smState.away ? loadImg(`assets/women/singlematch/teams/${smState.away}.png`) : null;
+    if (awayImg && awayImg.complete && awayImg.naturalWidth) {
+      ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
+    }
+
+    const footerImg = loadImg('assets/women/singlematch/footer-white.png');
+    if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+      ctx.drawImage(footerImg, L.footer.x, L.footer.y, L.footer.w, L.footer.h);
     }
 
     saveState();
@@ -1967,9 +2147,7 @@
       competitionTabs.forEach(b => b.classList.toggle('active', b.dataset.competition === compKey));
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
-    const menOnlyMode = savedState.mode === 'match' || savedState.mode === 'matchresult';
-    const canRestoreMode = ['results', 'schedule', 'match', 'matchresult', 'ranking'].includes(savedState.mode)
-      && !(compKey === 'women' && menOnlyMode);
+    const canRestoreMode = ['results', 'schedule', 'match', 'matchresult', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
@@ -1980,8 +2158,9 @@
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
-        canvas.width = SM_CANVAS_W;
-        canvas.height = SM_CANVAS_H;
+        smwFormatField.hidden = compKey !== 'women';
+        smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === smFormat));
+        { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
       } else if (mode === 'ranking') {
         roundSelectField.hidden = true;
         checkScoresBtn.hidden = true;

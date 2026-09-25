@@ -130,7 +130,7 @@ html, body {
   opacity: 0.7;
 }
 
-.mode-tab, .competition-tab {
+.mode-tab, .competition-tab, .smw-format-tab {
   flex: 1;
   min-width: 72px;
   padding: 9px 0;
@@ -147,7 +147,7 @@ html, body {
   z-index: 1;
 }
 
-.mode-tab.active, .competition-tab.active {
+.mode-tab.active, .competition-tab.active, .smw-format-tab.active {
   background: var(--accent);
   color: #10240a;
 }
@@ -158,17 +158,9 @@ html, body {
   --accent: #e34fff;
 }
 .app.theme-women .mode-tab.active,
-.app.theme-women .competition-tab.active {
+.app.theme-women .competition-tab.active,
+.app.theme-women .smw-format-tab.active {
   color: #2b0733;
-}
-
-/* Single-match graphics only exist for Mannen for now. */
-.app.theme-women .men-only-tab {
-  display: none;
-}
-
-.app.theme-women .men-only-group {
-  display: none;
 }
 
 .field {
