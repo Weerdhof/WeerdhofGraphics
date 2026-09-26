@@ -110,11 +110,30 @@
   const SM_TEAM_W = 483, SM_TEAM_Y = 904, SM_TEAM_H = 255;
   const SM_TEAM_LEFT_X = 55, SM_TEAM_RIGHT_X = 1021 - SM_TEAM_W;
   const SM_MARK = { x: 444, y: 904, w: 181, h: 156 };
-  const SM_FOOTER = { x: 306, y: 1191, w: 478, h: 117 };
+  const SM_FOOTER = { x: 230, y: 1191, w: 621, h: 152 }; // bigger, still centered
   const SM_TEXT_COLOR = '#14142b';
   const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
   const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
   const SM_CENTER_X = 540;
+  // Post (the original, only size) vs Story — same horizontal layout, the
+  // Story canvas is just taller (1920 vs 1350) so everything shifts down
+  // by the same amount used for the Vrouwen Post->Story shift (+250 for
+  // the team cards/mark/time/date, +469 for the footer logo, which sits
+  // right at the bottom).
+  const SM_LAYOUTS = {
+    post: {
+      canvasW: SM_CANVAS_W, canvasH: SM_CANVAS_H,
+      teamY: SM_TEAM_Y, mark: SM_MARK, footer: SM_FOOTER,
+      timeY: SM_TIME_Y, dateY: SM_DATE_Y,
+    },
+    story: {
+      canvasW: 1080, canvasH: 1920,
+      teamY: SM_TEAM_Y + 250,
+      mark: { x: SM_MARK.x, y: SM_MARK.y + 250, w: SM_MARK.w, h: SM_MARK.h },
+      footer: { x: SM_FOOTER.x, y: SM_FOOTER.y + 469, w: SM_FOOTER.w, h: SM_FOOTER.h },
+      timeY: SM_TIME_Y + 250, dateY: SM_DATE_Y + 250,
+    },
+  };
   // The score (matchresult mode only) sits a bit lower than the time text,
   // and is noticeably bigger — same size for Mannen and Vrouwen.
   const SM_SCORE_Y_OFFSET = 18;
@@ -168,13 +187,14 @@
   };
 
   // Canvas size for whichever competition/format combination is active —
-  // Mannen only has the one (post) size; Vrouwen toggles between the two.
+  // both Mannen and Vrouwen toggle between Post and Story.
   function smCanvasSize() {
     if (compKey === 'women') {
       const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
       return { w: L.canvasW, h: L.canvasH };
     }
-    return { w: SM_CANVAS_W, h: SM_CANVAS_H };
+    const L = SM_LAYOUTS[smFormat] || SM_LAYOUTS.post;
+    return { w: L.canvasW, h: L.canvasH };
   }
 
   // Names aren't known for every club — fall back to the bare code (same
@@ -1178,7 +1198,7 @@
       // own canvas size and fixture list — resize and reload rather than
       // bailing back to Results.
       if (mode === 'match' || mode === 'matchresult') {
-        smwFormatField.hidden = compKey !== 'women';
+        smwFormatField.hidden = false; // Post/Story choice now applies to both competitions
         resetSmAnim();
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
         loadSingleMatchData();
@@ -1409,7 +1429,7 @@
         checkStandingsStatus.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
-        smwFormatField.hidden = compKey !== 'women'; // Post/Story choice only applies to Vrouwen
+        smwFormatField.hidden = false; // Post/Story choice now applies to both competitions
         resetResultsAnim();
         smAnimField.hidden = false;
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
@@ -1806,21 +1826,22 @@
   }
 
   function renderMenSingleMatch() {
-    ctx.clearRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
+    const L = SM_LAYOUTS[smFormat] || SM_LAYOUTS.post;
+    ctx.clearRect(0, 0, L.canvasW, L.canvasH);
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
       // A user's own photo can be any brightness — fade to dark navy along
       // the bottom so the white Coinmerce footer logo (and the team band
       // above it) stays legible.
-      const fadeTop = SM_TEAM_Y - 260;
-      const footerFade = ctx.createLinearGradient(0, fadeTop, 0, SM_CANVAS_H);
+      const fadeTop = L.teamY - 260;
+      const footerFade = ctx.createLinearGradient(0, fadeTop, 0, L.canvasH);
       footerFade.addColorStop(0, 'rgba(26, 27, 56, 0)');
       footerFade.addColorStop(1, 'rgba(26, 27, 56, 0.94)');
       ctx.fillStyle = footerFade;
-      ctx.fillRect(0, fadeTop, SM_CANVAS_W, SM_CANVAS_H - fadeTop);
+      ctx.fillRect(0, fadeTop, L.canvasW, L.canvasH - fadeTop);
     } else if (!transparentBg) {
       ctx.fillStyle = COMPETITIONS.men.bgColor;
-      ctx.fillRect(0, 0, SM_CANVAS_W, SM_CANVAS_H);
+      ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
     // Each team's own asset (assets/singlematch/teams/<CODE>.png) already
@@ -1831,26 +1852,26 @@
     const homeImg = smState.home ? loadImg(`assets/singlematch/teams/${smState.home}.png`) : null;
     if (homeImg && homeImg.complete && homeImg.naturalWidth) {
       const halfW = homeImg.naturalWidth / 2;
-      ctx.drawImage(homeImg, 0, 0, halfW, homeImg.naturalHeight, SM_TEAM_LEFT_X, SM_TEAM_Y, SM_TEAM_W, SM_TEAM_H);
+      ctx.drawImage(homeImg, 0, 0, halfW, homeImg.naturalHeight, SM_TEAM_LEFT_X, L.teamY, SM_TEAM_W, SM_TEAM_H);
     }
     const awayImg = smState.away ? loadImg(`assets/singlematch/teams/${smState.away}.png`) : null;
     if (awayImg && awayImg.complete && awayImg.naturalWidth) {
       const halfW = awayImg.naturalWidth / 2;
-      ctx.drawImage(awayImg, halfW, 0, halfW, awayImg.naturalHeight, SM_TEAM_RIGHT_X, SM_TEAM_Y, SM_TEAM_W, SM_TEAM_H);
+      ctx.drawImage(awayImg, halfW, 0, halfW, awayImg.naturalHeight, SM_TEAM_RIGHT_X, L.teamY, SM_TEAM_W, SM_TEAM_H);
     }
 
     const mark = loadImg('assets/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
       const smElapsed = smCycleElapsed();
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
-      const mcx = SM_MARK.x + SM_MARK.w / 2, mcy = SM_MARK.y + SM_MARK.h / 2;
+      const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
       if (iconScale !== 1) {
         ctx.save();
         ctx.translate(mcx, mcy);
         ctx.scale(iconScale, iconScale);
         ctx.translate(-mcx, -mcy);
       }
-      ctx.drawImage(mark, SM_MARK.x, SM_MARK.y, SM_MARK.w, SM_MARK.h);
+      ctx.drawImage(mark, L.mark.x, L.mark.y, L.mark.w, L.mark.h);
       if (iconScale !== 1) ctx.restore();
     }
 
@@ -1864,16 +1885,16 @@
     const mainText = mode === 'matchresult'
       ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
       : (smState.time || '');
-    ctx.fillText(mainText, SM_CENTER_X, SM_TIME_Y + (mode === 'matchresult' ? SM_SCORE_Y_OFFSET : 0));
+    ctx.fillText(mainText, SM_CENTER_X, L.timeY + (mode === 'matchresult' ? SM_SCORE_Y_OFFSET : 0));
 
     if (mode === 'match') {
       ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
-      ctx.fillText(smState.dateRound || '', SM_CENTER_X, SM_DATE_Y);
+      ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
     }
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
-      ctx.drawImage(footerImg, SM_FOOTER.x, SM_FOOTER.y, SM_FOOTER.w, SM_FOOTER.h);
+      ctx.drawImage(footerImg, L.footer.x, L.footer.y, L.footer.w, L.footer.h);
     }
 
     saveState();
@@ -2399,7 +2420,7 @@
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
         smAnimField.hidden = false;
-        smwFormatField.hidden = compKey !== 'women';
+        smwFormatField.hidden = false;
         smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === smFormat));
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
       } else if (mode === 'ranking') {
