@@ -219,14 +219,15 @@
     SEW: '#14225e', VEL: '#1a5ba0', VOC: '#2d7a3d', VOL: '#ee7212',
     VZV: '#e0332e', WPK: '#3ca815',
   };
-  // Sampled from each Mannen team's own card asset (the flat color band
-  // behind the crest), then saturated/darkened a bit so it reads well as
-  // a chevron accent rather than the pastel tint it is on the card itself.
+  // Sampled directly from each Mannen team's own card asset — specifically
+  // the solid design element the team name/subtitle text sits on, which is
+  // consistent across every card (unlike the earlier attempt, which
+  // sampled a washed-out background patch and guessed at a correction).
   const SM_TEAM_COLORS = {
-    BEV: '#e2a905', BWH: '#1b4ab9', DFS: '#3164e8', EUP: '#f22400',
-    HCV: '#0497ff', HUB: '#181ec6', HUP: '#fd8500', HVA: '#ffaf17',
-    IZE: '#1d69c4', PEL: '#d31000', SAB: '#0076c4', SPR: '#e5a400',
-    TAC: '#259b74', VOL: '#f26600',
+    BEV: '#ffd54d', BWH: '#496aae', DFS: '#d2ddf2', EUP: '#ff5e4c',
+    HCV: '#4ea4d6', HUB: '#5253ad', HUP: '#ffab49', HVA: '#e7c682',
+    IZE: '#4c82ad', PEL: '#dc482f', SAB: '#007ad3', SPR: '#f7bd23',
+    TAC: '#2d8761', VOL: '#ff7e15',
   };
   // The 4 nested-chevron-line paths (traced from the real SHLPULSE.ai
   // vector art), used as one small animated accent behind each team card
