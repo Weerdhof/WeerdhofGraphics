@@ -125,13 +125,17 @@
       canvasW: SM_CANVAS_W, canvasH: SM_CANVAS_H,
       teamY: SM_TEAM_Y, mark: SM_MARK, footer: SM_FOOTER,
       timeY: SM_TIME_Y, dateY: SM_DATE_Y,
+      cardChevronYExtra: 0, cardChevronScale: 1,
     },
     story: {
       canvasW: 1080, canvasH: 1920,
       teamY: SM_TEAM_Y + 250,
       mark: { x: SM_MARK.x, y: SM_MARK.y + 250, w: SM_MARK.w, h: SM_MARK.h },
-      footer: { x: SM_FOOTER.x, y: SM_FOOTER.y + 469, w: SM_FOOTER.w, h: SM_FOOTER.h },
+      // Story has a lot more room below the cards, so the footer logo can
+      // be a good deal bigger here than the Post floor allows.
+      footer: { x: 193, y: SM_FOOTER.y + 469, w: 694, h: 170 },
       timeY: SM_TIME_Y + 250, dateY: SM_DATE_Y + 250,
+      cardChevronYExtra: 250, cardChevronScale: 1.35,
     },
   };
   // The score (matchresult mode only) sits a bit lower than the time text,
@@ -1892,14 +1896,15 @@
     // the Coinmerce footer logo, which always stays on top).
     const smChevronElapsed = smCycleElapsed();
     const smChevronNow = smChevronState(smChevronElapsed);
-    const cardChevronCy = L.teamY + SM_TEAM_H + 101;
+    const cardChevronCy = L.teamY + SM_TEAM_H + 101 + (L.cardChevronYExtra || 0);
+    const cardChevronScale = smChevronNow.scale * (L.cardChevronScale || 1);
     if (smState.home) {
       drawSmCardChevron(ctx, 140, cardChevronCy, true,
-        SM_TEAM_COLORS[smState.home] || SM_TEXT_COLOR, smChevronNow.scale, smChevronNow.opacity);
+        SM_TEAM_COLORS[smState.home] || SM_TEXT_COLOR, cardChevronScale, smChevronNow.opacity);
     }
     if (smState.away) {
       drawSmCardChevron(ctx, L.canvasW - 140, cardChevronCy, false,
-        SM_TEAM_COLORS[smState.away] || SM_TEXT_COLOR, smChevronNow.scale, smChevronNow.opacity);
+        SM_TEAM_COLORS[smState.away] || SM_TEXT_COLOR, cardChevronScale, smChevronNow.opacity);
     }
 
     // Each team's own asset (assets/singlematch/teams/<CODE>.png) already
