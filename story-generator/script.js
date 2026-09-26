@@ -575,14 +575,18 @@
       ? performance.now() - smAnimStartTs : null;
   }
 
-  // The card itself fades in first; only once that's done does the
-  // icon+chevron beat loop start (instead of both starting at once).
-  const SM_CARD_FADE_MS = 450;
-  function smCardFadeAlpha() {
+  // Only the score itself waits, then fades in — everything else (badges,
+  // mark, footer) is there immediately. The icon+chevron beat loop starts
+  // only once the score has finished appearing.
+  const SM_SCORE_DELAY_MS = 500;
+  const SM_SCORE_FADE_MS = 200;
+  const SM_SCORE_REVEAL_MS = SM_SCORE_DELAY_MS + SM_SCORE_FADE_MS;
+  function smScoreRevealAlpha() {
     const elapsed = smAnimElapsed();
     if (elapsed == null) return 1;
-    if (elapsed >= SM_CARD_FADE_MS) return 1;
-    const t = Math.max(0, elapsed) / SM_CARD_FADE_MS;
+    if (elapsed <= SM_SCORE_DELAY_MS) return 0;
+    if (elapsed >= SM_SCORE_REVEAL_MS) return 1;
+    const t = (elapsed - SM_SCORE_DELAY_MS) / SM_SCORE_FADE_MS;
     return 1 - Math.pow(1 - t, 3);
   }
 
@@ -592,7 +596,7 @@
   function smCycleElapsed() {
     const elapsed = smAnimElapsed();
     if (elapsed == null) return null;
-    const shifted = elapsed - SM_CARD_FADE_MS;
+    const shifted = elapsed - SM_SCORE_REVEAL_MS;
     return shifted < 0 ? null : shifted % SM_LOOP_CYCLE_MS;
   }
 
@@ -1905,12 +1909,6 @@
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
-    // The card content (badges, mark, score, footer) fades in as one group
-    // before the icon/chevron beat loop starts — see SM_CARD_FADE_MS.
-    const cardFadeAlpha = smCardFadeAlpha();
-    ctx.save();
-    ctx.globalAlpha = cardFadeAlpha;
-
     // Once a result is in (Matchresult mode), the winning side is tracked
     // for both the card-chevron accent below and the score-text dimming
     // further down — same win/loss convention as the Results list.
@@ -1994,29 +1992,32 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = SM_TEXT_COLOR;
-    ctx.globalAlpha = cardFadeAlpha;
+    ctx.globalAlpha = 1;
 
     if (mode === 'matchresult') {
       ctx.font = `700 ${SM_SCORE_FONT}px "${fontFamily}"`;
       const scoreY = L.timeY + SM_SCORE_Y_OFFSET;
       if (smState.homeScore !== '' || smState.awayScore !== '') {
-        // Losing side's number is dimmed, same convention as the Results
+        // The score itself waits, then fades in — see SM_SCORE_DELAY_MS —
+        // while everything else on the card is there immediately. Losing
+        // side's number is also dimmed, same convention as the Results
         // list — drawn as three separate pieces (home, dash, away) so only
         // the loser's alpha changes, still centered as one group.
-        const homeAlpha = winner === 'away' ? 0.35 : 1;
-        const awayAlpha = winner === 'home' ? 0.35 : 1;
+        const scoreReveal = smScoreRevealAlpha();
+        const homeAlpha = (winner === 'away' ? 0.35 : 1) * scoreReveal;
+        const awayAlpha = (winner === 'home' ? 0.35 : 1) * scoreReveal;
         const gap = SM_SCORE_FONT * 0.45;
         ctx.textAlign = 'right';
-        ctx.globalAlpha = homeAlpha * cardFadeAlpha;
+        ctx.globalAlpha = homeAlpha;
         ctx.fillText(String(smState.homeScore || 0), SM_CENTER_X - gap, scoreY);
         ctx.textAlign = 'center';
-        ctx.globalAlpha = cardFadeAlpha;
+        ctx.globalAlpha = scoreReveal;
         ctx.fillText('-', SM_CENTER_X, scoreY);
         ctx.textAlign = 'left';
-        ctx.globalAlpha = awayAlpha * cardFadeAlpha;
+        ctx.globalAlpha = awayAlpha;
         ctx.fillText(String(smState.awayScore || 0), SM_CENTER_X + gap, scoreY);
         ctx.textAlign = 'center';
-        ctx.globalAlpha = cardFadeAlpha;
+        ctx.globalAlpha = 1;
       }
     } else {
       ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
@@ -2038,7 +2039,6 @@
       ctx.restore();
     }
 
-    ctx.restore();
     saveState();
   }
 
@@ -2061,12 +2061,6 @@
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
-    // The card content (bar, chevron, badges, mark, score) fades in as one
-    // group before the icon/chevron beat loop starts — see SM_CARD_FADE_MS.
-    const cardFadeAlpha = smCardFadeAlpha();
-    ctx.save();
-    ctx.globalAlpha = cardFadeAlpha;
-
     const bar = loadImg('assets/women/singlematch/bar.png');
     if (bar && bar.complete && bar.naturalWidth) {
       ctx.drawImage(bar, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
@@ -2086,7 +2080,7 @@
       const awayColor = SMW_TEAM_COLORS[smState.away] || SMW_TEXT_COLOR;
       const homeTinted = tintImage(chevronMask, 'smw-chevron', homeColor);
       const awayTinted = tintImage(chevronMask, 'smw-chevron', awayColor);
-      ctx.globalAlpha = chevronOpacity * cardFadeAlpha;
+      ctx.globalAlpha = chevronOpacity;
       if (homeTinted) {
         ctx.save();
         ctx.beginPath();
@@ -2111,7 +2105,7 @@
         ctx.drawImage(awayTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
-      ctx.globalAlpha = cardFadeAlpha;
+      ctx.globalAlpha = 1;
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
@@ -2132,7 +2126,7 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = SMW_TEXT_COLOR;
-    ctx.globalAlpha = cardFadeAlpha;
+    ctx.globalAlpha = 1;
 
     if (mode === 'matchresult') {
       let winner = null;
@@ -2145,21 +2139,23 @@
       ctx.font = `700 ${SM_SCORE_FONT}px "${fontFamily}"`;
       const scoreY = L.timeY + SM_SCORE_Y_OFFSET;
       if (smState.homeScore !== '' || smState.awayScore !== '') {
-        // Losing side's number is dimmed, same convention as the Results list.
-        const homeAlpha = winner === 'away' ? 0.35 : 1;
-        const awayAlpha = winner === 'home' ? 0.35 : 1;
+        // The score itself waits, then fades in — see SM_SCORE_DELAY_MS.
+        // Losing side's number is also dimmed, same convention as Results.
+        const scoreReveal = smScoreRevealAlpha();
+        const homeAlpha = (winner === 'away' ? 0.35 : 1) * scoreReveal;
+        const awayAlpha = (winner === 'home' ? 0.35 : 1) * scoreReveal;
         const gap = SM_SCORE_FONT * 0.45;
         ctx.textAlign = 'right';
-        ctx.globalAlpha = homeAlpha * cardFadeAlpha;
+        ctx.globalAlpha = homeAlpha;
         ctx.fillText(String(smState.homeScore || 0), L.centerX - gap, scoreY);
         ctx.textAlign = 'center';
-        ctx.globalAlpha = cardFadeAlpha;
+        ctx.globalAlpha = scoreReveal;
         ctx.fillText('-', L.centerX, scoreY);
         ctx.textAlign = 'left';
-        ctx.globalAlpha = awayAlpha * cardFadeAlpha;
+        ctx.globalAlpha = awayAlpha;
         ctx.fillText(String(smState.awayScore || 0), L.centerX + gap, scoreY);
         ctx.textAlign = 'center';
-        ctx.globalAlpha = cardFadeAlpha;
+        ctx.globalAlpha = 1;
       }
     } else {
       ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
@@ -2194,7 +2190,6 @@
       ctx.restore();
     }
 
-    ctx.restore();
     saveState();
   }
 
