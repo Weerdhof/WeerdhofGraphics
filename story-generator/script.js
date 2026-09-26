@@ -1894,17 +1894,22 @@
     // grow/fade curve as the Vrouwen bar chevron, anchored at the outer
     // corner and tilted outward. Drawn BEFORE the cards (and well before
     // the Coinmerce footer logo, which always stays on top).
+    // Unlike the Vrouwen bar chevron (a permanent brand element), this
+    // accent is purely part of the animation — it doesn't show at all
+    // unless "Animeer" is on.
     const smChevronElapsed = smCycleElapsed();
-    const smChevronNow = smChevronState(smChevronElapsed);
-    const cardChevronCy = L.teamY + SM_TEAM_H + 101 + (L.cardChevronYExtra || 0);
-    const cardChevronScale = smChevronNow.scale * (L.cardChevronScale || 1);
-    if (smState.home) {
-      drawSmCardChevron(ctx, 140, cardChevronCy, true,
-        SM_TEAM_COLORS[smState.home] || SM_TEXT_COLOR, cardChevronScale, smChevronNow.opacity);
-    }
-    if (smState.away) {
-      drawSmCardChevron(ctx, L.canvasW - 140, cardChevronCy, false,
-        SM_TEAM_COLORS[smState.away] || SM_TEXT_COLOR, cardChevronScale, smChevronNow.opacity);
+    if (smChevronElapsed != null) {
+      const smChevronNow = smChevronState(smChevronElapsed);
+      const cardChevronCy = L.teamY + SM_TEAM_H + 101 + (L.cardChevronYExtra || 0);
+      const cardChevronScale = smChevronNow.scale * (L.cardChevronScale || 1);
+      if (smState.home) {
+        drawSmCardChevron(ctx, 140, cardChevronCy, true,
+          SM_TEAM_COLORS[smState.home] || SM_TEXT_COLOR, cardChevronScale, smChevronNow.opacity);
+      }
+      if (smState.away) {
+        drawSmCardChevron(ctx, L.canvasW - 140, cardChevronCy, false,
+          SM_TEAM_COLORS[smState.away] || SM_TEXT_COLOR, cardChevronScale, smChevronNow.opacity);
+      }
     }
 
     // Each team's own asset (assets/singlematch/teams/<CODE>.png) already
