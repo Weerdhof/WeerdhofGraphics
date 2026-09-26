@@ -110,7 +110,7 @@
   const SM_TEAM_W = 483, SM_TEAM_Y = 904, SM_TEAM_H = 255;
   const SM_TEAM_LEFT_X = 55, SM_TEAM_RIGHT_X = 1021 - SM_TEAM_W;
   const SM_MARK = { x: 444, y: 904, w: 181, h: 156 };
-  const SM_FOOTER = { x: 230, y: 1191, w: 621, h: 152 }; // bigger, still centered
+  const SM_FOOTER = { x: 295, y: 1191, w: 490, h: 120 }; // min height (was crowding the Post edge at 152)
   const SM_TEXT_COLOR = '#14142b';
   const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
   const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
@@ -215,6 +215,48 @@
     SEW: '#14225e', VEL: '#1a5ba0', VOC: '#2d7a3d', VOL: '#ee7212',
     VZV: '#e0332e', WPK: '#3ca815',
   };
+  // Sampled from each Mannen team's own card asset (the flat color band
+  // behind the crest), then saturated/darkened a bit so it reads well as
+  // a chevron accent rather than the pastel tint it is on the card itself.
+  const SM_TEAM_COLORS = {
+    BEV: '#e2a905', BWH: '#1b4ab9', DFS: '#3164e8', EUP: '#f22400',
+    HCV: '#0497ff', HUB: '#181ec6', HUP: '#fd8500', HVA: '#ffaf17',
+    IZE: '#1d69c4', PEL: '#d31000', SAB: '#0076c4', SPR: '#e5a400',
+    TAC: '#259b74', VOL: '#f26600',
+  };
+  // The 4 nested-chevron-line paths (traced from the real SHLPULSE.ai
+  // vector art), used as one small animated accent behind each team card
+  // — see smChevronState() for the shared grow/fade timing.
+  const SM_CARD_CHEVRON_D = [
+    'M -9.21 171.38 L -123.83 -29.64 L 219.48 -132.99 L 220.86 -128.40 L -116.69 -26.79 L -5.05 169.01 Z M -120.84 -28.45 L -8.47 168.65 L -7.78 168.26 L -119.67 -27.98 L 218.37 -129.74 L 218.14 -130.49 Z M -9.96 174.11 L -126.81 -30.83 L 220.82 -135.48 L 223.35 -127.06 L 221.44 -126.49 L -113.71 -25.60 L -2.32 169.76 Z',
+    'M -45.47 156.33 L -159.34 -43.39 L 182.53 -146.30 L 183.22 -144.01 L -155.77 -41.97 L -43.39 155.14 Z M -46.03 158.37 L -161.57 -44.29 L 183.53 -148.17 L 185.09 -143.01 L 183.65 -142.57 L -153.53 -41.07 L -41.34 155.70 Z',
+    'M -79.84 141.52 L -193.34 -57.55 L -192.62 -57.76 L 147.81 -160.24 L 148.16 -159.09 L -191.55 -56.83 L -78.80 140.93 Z M -80.21 142.88 L -194.83 -58.14 L -192.91 -58.72 L 148.48 -161.49 L 149.40 -158.43 L 148.45 -158.14 L -190.06 -56.24 L -77.43 141.30 Z',
+    'M -109.86 127.65 L -223.35 -71.42 L -222.63 -71.63 L 117.80 -174.11 L 118.14 -172.97 L -221.57 -70.70 L -108.82 127.05 Z',
+  ];
+  let smCardChevronPaths = null; // lazily built Path2D[], see drawSmCardChevron()
+  // The viewBox is 507 wide; this is the unit scale that makes it render
+  // at roughly the same size validated in the animatie/ prototype.
+  const SM_CARD_CHEVRON_UNIT_SCALE = 490 / 507;
+  const SM_CARD_CHEVRON_TILT_DEG = 18;
+
+  // Draws one small animated chevron accent behind a team card, anchored
+  // at (cx, cy) — mirror=true for the home/left side (its own tip plants
+  // at the left edge), mirror=false for away/right (mirrors the other
+  // way automatically since it isn't flipped).
+  function drawSmCardChevron(ctx, cx, cy, mirror, color, scale, opacity) {
+    if (opacity <= 0) return;
+    if (!smCardChevronPaths) smCardChevronPaths = SM_CARD_CHEVRON_D.map((d) => new Path2D(d));
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = color;
+    ctx.translate(cx, cy);
+    if (mirror) ctx.scale(-1, 1);
+    ctx.rotate((SM_CARD_CHEVRON_TILT_DEG * Math.PI) / 180);
+    const s = SM_CARD_CHEVRON_UNIT_SCALE * scale;
+    ctx.scale(s, s);
+    smCardChevronPaths.forEach((p) => ctx.fill(p));
+    ctx.restore();
+  }
 
   let smMatches = []; // parsed from assets/(women/)singlematch/schedule_per_match_all.csv
   let smMatchesCompKey = null; // which competition's data is currently in smMatches
@@ -1842,6 +1884,22 @@
     } else if (!transparentBg) {
       ctx.fillStyle = COMPETITIONS.men.bgColor;
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
+    }
+
+    // Small animated chevron accent behind each team card — same shared
+    // grow/fade curve as the Vrouwen bar chevron, anchored at the outer
+    // corner and tilted outward. Drawn BEFORE the cards (and well before
+    // the Coinmerce footer logo, which always stays on top).
+    const smChevronElapsed = smCycleElapsed();
+    const smChevronNow = smChevronState(smChevronElapsed);
+    const cardChevronCy = L.teamY + SM_TEAM_H + 101;
+    if (smState.home) {
+      drawSmCardChevron(ctx, 140, cardChevronCy, true,
+        SM_TEAM_COLORS[smState.home] || SM_TEXT_COLOR, smChevronNow.scale, smChevronNow.opacity);
+    }
+    if (smState.away) {
+      drawSmCardChevron(ctx, L.canvasW - 140, cardChevronCy, false,
+        SM_TEAM_COLORS[smState.away] || SM_TEXT_COLOR, smChevronNow.scale, smChevronNow.opacity);
     }
 
     // Each team's own asset (assets/singlematch/teams/<CODE>.png) already
