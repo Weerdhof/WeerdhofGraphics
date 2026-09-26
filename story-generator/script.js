@@ -575,12 +575,25 @@
       ? performance.now() - smAnimStartTs : null;
   }
 
+  // The card itself fades in first; only once that's done does the
+  // icon+chevron beat loop start (instead of both starting at once).
+  const SM_CARD_FADE_MS = 450;
+  function smCardFadeAlpha() {
+    const elapsed = smAnimElapsed();
+    if (elapsed == null) return 1;
+    if (elapsed >= SM_CARD_FADE_MS) return 1;
+    const t = Math.max(0, elapsed) / SM_CARD_FADE_MS;
+    return 1 - Math.pow(1 - t, 3);
+  }
+
   // The icon+chevron animation loops once every 3s throughout the whole
   // clip, instead of playing once and holding static for the rest of it.
   const SM_LOOP_CYCLE_MS = 3000;
   function smCycleElapsed() {
     const elapsed = smAnimElapsed();
-    return elapsed == null ? null : elapsed % SM_LOOP_CYCLE_MS;
+    if (elapsed == null) return null;
+    const shifted = elapsed - SM_CARD_FADE_MS;
+    return shifted < 0 ? null : shifted % SM_LOOP_CYCLE_MS;
   }
 
   function stopSmAnimationLoop() {
@@ -1892,6 +1905,25 @@
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
+    // The card content (badges, mark, score, footer) fades in as one group
+    // before the icon/chevron beat loop starts — see SM_CARD_FADE_MS.
+    const cardFadeAlpha = smCardFadeAlpha();
+    ctx.save();
+    ctx.globalAlpha = cardFadeAlpha;
+
+    // Once a result is in (Matchresult mode), the winning side is tracked
+    // for both the card-chevron accent below and the score-text dimming
+    // further down — same win/loss convention as the Results list.
+    let winner = null;
+    if (mode === 'matchresult') {
+      const homeNum = parseFloat(smState.homeScore);
+      const awayNum = parseFloat(smState.awayScore);
+      if (!isNaN(homeNum) && !isNaN(awayNum)) {
+        if (homeNum > awayNum) winner = 'home';
+        else if (awayNum > homeNum) winner = 'away';
+      }
+    }
+
     // Small animated chevron accent behind each team card — same shared
     // grow/fade curve as the Vrouwen bar chevron, anchored at the outer
     // corner and tilted outward. Drawn BEFORE the cards (and well before
@@ -1904,19 +1936,10 @@
       const smChevronNow = smChevronState(smChevronElapsed);
       const cardChevronCy = L.teamY + SM_TEAM_H + 101 + (L.cardChevronYExtra || 0);
       const baseChevronScale = smChevronNow.scale * (L.cardChevronScale || 1);
-      // Once a result is in (Matchresult mode), only the winner's chevron
-      // shows — at double size — instead of both sides pulsing equally.
-      let winner = null;
-      if (mode === 'matchresult') {
-        const homeNum = parseFloat(smState.homeScore);
-        const awayNum = parseFloat(smState.awayScore);
-        if (!isNaN(homeNum) && !isNaN(awayNum)) {
-          if (homeNum > awayNum) winner = 'home';
-          else if (awayNum > homeNum) winner = 'away';
-        }
-      }
+      // Only the winner's chevron shows — much bigger — instead of both
+      // sides pulsing equally.
       if (winner) {
-        const winnerScale = baseChevronScale * 2;
+        const winnerScale = baseChevronScale * 3;
         if (winner === 'home' && smState.home) {
           drawSmCardChevron(ctx, 140, cardChevronCy, true,
             SM_TEAM_COLORS[smState.home] || SM_TEXT_COLOR, winnerScale, smChevronNow.opacity);
@@ -1971,13 +1994,34 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = SM_TEXT_COLOR;
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = cardFadeAlpha;
 
-    ctx.font = `700 ${mode === 'matchresult' ? SM_SCORE_FONT : SM_TIME_FONT}px "${fontFamily}"`;
-    const mainText = mode === 'matchresult'
-      ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
-      : (smState.time || '');
-    ctx.fillText(mainText, SM_CENTER_X, L.timeY + (mode === 'matchresult' ? SM_SCORE_Y_OFFSET : 0));
+    if (mode === 'matchresult') {
+      ctx.font = `700 ${SM_SCORE_FONT}px "${fontFamily}"`;
+      const scoreY = L.timeY + SM_SCORE_Y_OFFSET;
+      if (smState.homeScore !== '' || smState.awayScore !== '') {
+        // Losing side's number is dimmed, same convention as the Results
+        // list — drawn as three separate pieces (home, dash, away) so only
+        // the loser's alpha changes, still centered as one group.
+        const homeAlpha = winner === 'away' ? 0.35 : 1;
+        const awayAlpha = winner === 'home' ? 0.35 : 1;
+        const gap = SM_SCORE_FONT * 0.45;
+        ctx.textAlign = 'right';
+        ctx.globalAlpha = homeAlpha * cardFadeAlpha;
+        ctx.fillText(String(smState.homeScore || 0), SM_CENTER_X - gap, scoreY);
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = cardFadeAlpha;
+        ctx.fillText('-', SM_CENTER_X, scoreY);
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = awayAlpha * cardFadeAlpha;
+        ctx.fillText(String(smState.awayScore || 0), SM_CENTER_X + gap, scoreY);
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = cardFadeAlpha;
+      }
+    } else {
+      ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
+      ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
+    }
 
     if (mode === 'match') {
       ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
@@ -1986,9 +2030,15 @@
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 3;
       ctx.drawImage(footerImg, L.footer.x, L.footer.y, L.footer.w, L.footer.h);
+      ctx.restore();
     }
 
+    ctx.restore();
     saveState();
   }
 
@@ -2011,6 +2061,12 @@
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
+    // The card content (bar, chevron, badges, mark, score) fades in as one
+    // group before the icon/chevron beat loop starts — see SM_CARD_FADE_MS.
+    const cardFadeAlpha = smCardFadeAlpha();
+    ctx.save();
+    ctx.globalAlpha = cardFadeAlpha;
+
     const bar = loadImg('assets/women/singlematch/bar.png');
     if (bar && bar.complete && bar.naturalWidth) {
       ctx.drawImage(bar, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
@@ -2030,7 +2086,7 @@
       const awayColor = SMW_TEAM_COLORS[smState.away] || SMW_TEXT_COLOR;
       const homeTinted = tintImage(chevronMask, 'smw-chevron', homeColor);
       const awayTinted = tintImage(chevronMask, 'smw-chevron', awayColor);
-      ctx.globalAlpha = chevronOpacity;
+      ctx.globalAlpha = chevronOpacity * cardFadeAlpha;
       if (homeTinted) {
         ctx.save();
         ctx.beginPath();
@@ -2055,7 +2111,7 @@
         ctx.drawImage(awayTinted, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
         ctx.restore();
       }
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = cardFadeAlpha;
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
@@ -2076,13 +2132,39 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = SMW_TEXT_COLOR;
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = cardFadeAlpha;
 
-    ctx.font = `700 ${mode === 'matchresult' ? SM_SCORE_FONT : L.timeFont}px "${fontFamily}"`;
-    const mainText = mode === 'matchresult'
-      ? (smState.homeScore !== '' || smState.awayScore !== '' ? `${smState.homeScore || 0} - ${smState.awayScore || 0}` : '')
-      : (smState.time || '');
-    ctx.fillText(mainText, L.centerX, L.timeY + (mode === 'matchresult' ? SM_SCORE_Y_OFFSET : 0));
+    if (mode === 'matchresult') {
+      let winner = null;
+      const homeNum = parseFloat(smState.homeScore);
+      const awayNum = parseFloat(smState.awayScore);
+      if (!isNaN(homeNum) && !isNaN(awayNum)) {
+        if (homeNum > awayNum) winner = 'home';
+        else if (awayNum > homeNum) winner = 'away';
+      }
+      ctx.font = `700 ${SM_SCORE_FONT}px "${fontFamily}"`;
+      const scoreY = L.timeY + SM_SCORE_Y_OFFSET;
+      if (smState.homeScore !== '' || smState.awayScore !== '') {
+        // Losing side's number is dimmed, same convention as the Results list.
+        const homeAlpha = winner === 'away' ? 0.35 : 1;
+        const awayAlpha = winner === 'home' ? 0.35 : 1;
+        const gap = SM_SCORE_FONT * 0.45;
+        ctx.textAlign = 'right';
+        ctx.globalAlpha = homeAlpha * cardFadeAlpha;
+        ctx.fillText(String(smState.homeScore || 0), L.centerX - gap, scoreY);
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = cardFadeAlpha;
+        ctx.fillText('-', L.centerX, scoreY);
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = awayAlpha * cardFadeAlpha;
+        ctx.fillText(String(smState.awayScore || 0), L.centerX + gap, scoreY);
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = cardFadeAlpha;
+      }
+    } else {
+      ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
+      ctx.fillText(smState.time || '', L.centerX, L.timeY);
+    }
 
     if (mode === 'match') {
       ctx.font = `500 ${L.dateFont}px "${fontFamily}"`;
@@ -2104,9 +2186,15 @@
 
     const footerImg = loadImg('assets/women/singlematch/footer-white.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 3;
       ctx.drawImage(footerImg, L.footer.x, L.footer.y, L.footer.w, L.footer.h);
+      ctx.restore();
     }
 
+    ctx.restore();
     saveState();
   }
 
