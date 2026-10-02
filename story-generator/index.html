@@ -31,6 +31,7 @@
       <div class="mode-tabs mode-tabs-compact">
         <button class="mode-tab" data-mode="match">Match</button>
         <button class="mode-tab" data-mode="matchresult">Matchresult</button>
+        <button class="mode-tab men-only-tab" data-mode="topscorer">Top scorer</button>
       </div>
 
       <div class="mode-group-label">Seizoen</div>
@@ -202,6 +203,20 @@
       <input type="text" class="time-input single-match-time" placeholder="20:00" inputmode="numeric" autocomplete="off">
       <div class="team-chip away-chip">
         <select class="team-select" autocomplete="off"></select>
+      </div>
+    </div>
+    <div class="topscorer-fields" hidden>
+      <div class="ts-row">
+        <label>Speler speelt voor</label>
+        <select class="ts-side" autocomplete="off">
+          <option value="home">Thuisteam</option>
+          <option value="away">Uitteam</option>
+        </select>
+      </div>
+      <div class="ts-row">
+        <input type="text" class="ts-first" placeholder="Voornaam" autocomplete="off">
+        <input type="text" class="ts-last" placeholder="Achternaam" autocomplete="off">
+        <input type="text" class="score-input ts-goals" placeholder="Goals" maxlength="2" inputmode="numeric" autocomplete="off">
       </div>
     </div>
     <div class="single-match-date-row">

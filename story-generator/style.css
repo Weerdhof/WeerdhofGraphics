@@ -584,3 +584,14 @@ input.rank-input {
 }
 
 .match-row.row-hidden .match-row-line { opacity: 0.4; }
+
+.theme-women .men-only-tab { display: none; }
+.topscorer-fields { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.topscorer-fields[hidden] { display: none; }
+.topscorer-fields .ts-row { display: flex; gap: 8px; align-items: center; }
+.topscorer-fields .ts-row label { font-size: 12px; opacity: .7; flex: 0 0 auto; }
+.topscorer-fields input[type=text], .topscorer-fields select {
+  flex: 1 1 0; min-width: 0; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: #0f1024; color: #fff; font: inherit;
+}
+.topscorer-fields .ts-goals { flex: 0 0 72px; text-align: center; }
