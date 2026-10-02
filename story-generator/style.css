@@ -491,6 +491,26 @@ input.rank-input {
 
 .results-anim-toggle {
   margin-top: 14px;
+  padding: 14px 16px;
+  gap: 12px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.results-anim-toggle input {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.results-anim-toggle:has(input:checked) {
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel-2));
 }
 
 .bg-photo-field {
