@@ -2037,17 +2037,16 @@
       restAlpha = rt <= 0 ? 0 : rt >= 1 ? 1 : 1 - Math.pow(1 - rt, 3);
     }
 
-    // photo (top area) is there from the start; only its navy fade-out joins the rest
+    // The photo is there from the start and runs full-bleed (no hard edge); the
+    // navy fade-out that confines it to the top area joins the later fade-in.
     const photoH = 820;
     if (bgPhotoImg) {
-      ctx.save();
-      ctx.beginPath(); ctx.rect(0, 0, W, photoH); ctx.clip();
       drawBgPhotoCover(ctx, bgPhotoImg);
-      ctx.restore();
     } else {
       const g = ctx.createLinearGradient(0, 0, 0, photoH);
       g.addColorStop(0, '#3a3c6e'); g.addColorStop(1, '#14152e');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, photoH);
+      ctx.fillStyle = '#14152e'; ctx.fillRect(0, photoH, W, H - photoH);
       ctx.save();
       ctx.font = `500 28px "${fontFamily}"`; ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.35;
       ctx.textAlign = 'center'; ctx.fillText('SPELERSFOTO', W / 2, 60);
@@ -2060,6 +2059,10 @@
     ctx.globalAlpha = restAlpha;
     ctx.fillStyle = fade;
     ctx.fillRect(0, 470, W, photoH - 470);
+    if (!transparentBg) {
+      ctx.fillStyle = COMPETITIONS.men.bgColor;
+      ctx.fillRect(0, photoH, W, H - photoH);
+    }
     ctx.restore();
 
     // big chevron out of the bottom-left corner, behind everything else
