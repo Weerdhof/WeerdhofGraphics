@@ -2091,7 +2091,15 @@
     }
 
     // goals tile + the player's club
-    const ty = 765, th = 150, pad = 36, tw = 360;
+    const ty = 765, th = 150, pad = 36;
+    // the goals frame grows with the number of digits so "13" never touches "GOALS"
+    ctx.save();
+    ctx.font = `700 130px "${fontFamily}"`;
+    const numW = ctx.measureText(String(goalsN)).width;
+    ctx.font = `700 44px "${fontFamily}"`;
+    const labelW = ctx.measureText('GOALS').width;
+    ctx.restore();
+    const tw = Math.max(360, Math.ceil(pad + numW + 36 + labelW + pad));
     ctx.fillStyle = '#fff'; ctx.fillRect(L, ty, tw, th);
     // chevron inside the white frame, masked to it; the color fill below
     // then covers it (same color), so it reads as the chevron flooding the tile
