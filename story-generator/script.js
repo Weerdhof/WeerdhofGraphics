@@ -2037,8 +2037,7 @@
       restAlpha = rt <= 0 ? 0 : rt >= 1 ? 1 : 1 - Math.pow(1 - rt, 3);
     }
 
-    ctx.save(); ctx.globalAlpha = restAlpha;
-    // photo (top area), faded into the navy background
+    // photo (top area) is there from the start; only its navy fade-out joins the rest
     const photoH = 820;
     if (bgPhotoImg) {
       ctx.save();
@@ -2057,6 +2056,8 @@
     const fade = ctx.createLinearGradient(0, 470, 0, photoH);
     fade.addColorStop(0, 'rgba(26, 27, 56, 0)');
     fade.addColorStop(1, 'rgba(26, 27, 56, 1)');
+    ctx.save();
+    ctx.globalAlpha = restAlpha;
     ctx.fillStyle = fade;
     ctx.fillRect(0, 470, W, photoH - 470);
     ctx.restore();
