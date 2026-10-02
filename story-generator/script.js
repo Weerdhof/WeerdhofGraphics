@@ -1943,6 +1943,11 @@
   // ---------- Top scorer of the match (Mannen, Post) ----------
   const TS_W = 1080, TS_H = 1350;
   const TS_MARGIN = 70;
+  const TS_COUNT_START_MS = 500;   // wait before the goal counter starts ticking
+  const TS_TICK_MS = 260;          // time per goal (shortened for high counts)
+  const TS_COUNT_MAX_MS = 2400;    // the whole count never takes longer than this
+  const TS_CHEVRON_STATIC = 1.6;   // static end-state chevron size
+  const TS_CHEVRON_ANIM = 3.0;     // looping chevron during the animation
 
   // Draws text so its visible ink edge (not the glyph's side bearing) sits
   // exactly on x — keeps the left/right margins optically aligned.
@@ -2019,12 +2024,38 @@
     ctx.fillStyle = fade;
     ctx.fillRect(0, 470, W, photoH - 470);
 
+    // Animation timeline (only when "Animeer" is on): the goals tick up in a
+    // white frame; once the counter reaches its final number the frame turns
+    // the club color and the big chevron starts looping. Static = end state.
+    const goalsN = Math.max(0, parseInt(smState.tsGoals, 10) || 0);
+    const elapsed = smAnimElapsed();
+    let shownGoals = goalsN, slide = 0, prevGoals = goalsN, tileMix = 1, chevElapsed = null;
+    if (elapsed != null) {
+      const tick = goalsN > 0 ? Math.min(TS_TICK_MS, TS_COUNT_MAX_MS / goalsN) : 0;
+      const countMs = goalsN * tick;
+      const tc = elapsed - TS_COUNT_START_MS;
+      if (tc < 0) { shownGoals = 0; prevGoals = 0; }
+      else if (tc < countMs) {
+        const idx = Math.floor(tc / tick);
+        const local = (tc - idx * tick) / tick;
+        prevGoals = idx; shownGoals = idx + 1;
+        slide = 1 - Math.pow(1 - Math.min(1, local / 0.7), 3); // quick roll, then a short rest
+      }
+      const endT = TS_COUNT_START_MS + countMs;
+      const after = elapsed - endT;
+      tileMix = after <= 0 ? 0 : Math.min(1, after / 300);
+      tileMix = tileMix * tileMix * (3 - 2 * tileMix);
+      chevElapsed = after >= 0 ? after % SM_LOOP_CYCLE_MS : null;
+    }
+
     // big chevron out of the bottom-left corner, behind everything else
-    // (the logo always stays on top). Static by default; loops with the
-    // shared curve when "Animeer" is on.
-    const chevElapsed = smCycleElapsed();
-    const chev = chevElapsed == null ? { scale: 1, opacity: 1 } : smChevronState(chevElapsed);
-    drawSmCardChevron(ctx, 40, 1290, true, col, 1.6 * chev.scale, 0.9 * chev.opacity);
+    // (the logo always stays on top).
+    if (elapsed == null) {
+      drawSmCardChevron(ctx, 40, 1290, true, col, TS_CHEVRON_STATIC, 0.9);
+    } else if (chevElapsed != null) {
+      const chev = smChevronState(chevElapsed);
+      drawSmCardChevron(ctx, 40, 1290, true, col, TS_CHEVRON_ANIM * chev.scale, 0.9 * chev.opacity);
+    }
 
     // label
     ctx.fillStyle = col; ctx.fillRect(L, 95, 10, 78);
@@ -2042,10 +2073,22 @@
 
     // goals tile + the player's club
     const ty = 765, th = 150, pad = 36, tw = 360;
-    ctx.fillStyle = col; ctx.fillRect(L, ty, tw, th);
-    const goals = smState.tsGoals === '' ? '0' : String(smState.tsGoals);
-    tsInkText(goals, L + pad, ty + 120, `700 130px "${fontFamily}"`, ink);
-    tsInkText('GOALS', L + tw - pad, ty + 94, `700 44px "${fontFamily}"`, ink, 'right');
+    ctx.fillStyle = '#fff'; ctx.fillRect(L, ty, tw, th);
+    if (tileMix > 0) {
+      ctx.save(); ctx.globalAlpha = tileMix; ctx.fillStyle = col; ctx.fillRect(L, ty, tw, th); ctx.restore();
+    }
+    const tileInk = tileMix > 0.5 ? ink : navyInk;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(L, ty, tw, th); ctx.clip();
+    const goalFont = `700 130px "${fontFamily}"`;
+    if (slide > 0 && prevGoals !== shownGoals) {
+      tsInkText(String(prevGoals), L + pad, ty + 120 - slide * th, goalFont, tileInk);
+      tsInkText(String(shownGoals), L + pad, ty + 120 + (1 - slide) * th, goalFont, tileInk);
+    } else {
+      tsInkText(String(shownGoals), L + pad, ty + 120, goalFont, tileInk);
+    }
+    tsInkText('GOALS', L + tw - pad, ty + 94, `700 44px "${fontFamily}"`, tileInk, 'right');
+    ctx.restore();
     const clubX = L + tw + 24;
     ctx.fillStyle = '#fff'; ctx.fillRect(clubX, ty, th, th);
     tsDrawCrest(code ? loadImg(`assets/teams/${code}.png`) : null, clubX + th / 2, ty + th / 2, 112);
