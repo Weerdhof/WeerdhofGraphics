@@ -1944,8 +1944,9 @@
   const TS_W = 1080, TS_H = 1350;
   const TS_MARGIN = 70;
   const TS_COUNT_START_MS = 250;   // wait before the goal counter starts ticking
-  const TS_TICK_MS = 150;          // time per goal (shortened for high counts)
-  const TS_COUNT_MAX_MS = 1400;    // the whole count never takes longer than this
+  const TS_COUNT_MIN_MS = 500;     // slot-machine roll: base duration ...
+  const TS_COUNT_PER_GOAL_MS = 120; // ... plus this per goal ...
+  const TS_COUNT_MAX_MS = 1500;    // ... never longer than this
   const TS_CHEVRON_STATIC = 1.6;   // static end-state chevron size
   const TS_CHEVRON_ANIM = 3.0;     // looping chevron during the animation
 
@@ -2029,17 +2030,17 @@
     // the club color and the big chevron starts looping. Static = end state.
     const goalsN = Math.max(0, parseInt(smState.tsGoals, 10) || 0);
     const elapsed = smAnimElapsed();
-    let shownGoals = goalsN, slide = 0, prevGoals = goalsN, tileMix = 1, chevElapsed = null;
+    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null;
     if (elapsed != null) {
-      const tick = goalsN > 0 ? Math.min(TS_TICK_MS, TS_COUNT_MAX_MS / goalsN) : 0;
-      const countMs = goalsN * tick;
+      // One continuous slot-machine roll: the reel spins up fast and
+      // decelerates smoothly until it lands on the final number.
+      const countMs = goalsN > 0 ? Math.min(TS_COUNT_MAX_MS, TS_COUNT_MIN_MS + goalsN * TS_COUNT_PER_GOAL_MS) : 0;
       const tc = elapsed - TS_COUNT_START_MS;
-      if (tc < 0) { shownGoals = 0; prevGoals = 0; }
+      if (tc <= 0) reelPos = 0;
       else if (tc < countMs) {
-        const idx = Math.floor(tc / tick);
-        const local = (tc - idx * tick) / tick;
-        prevGoals = idx; shownGoals = idx + 1;
-        slide = 1 - Math.pow(1 - Math.min(1, local / 0.7), 3); // quick roll, then a short rest
+        const t = tc / countMs;
+        reelPos = goalsN * (1 - Math.pow(1 - t, 4));
+        reelSpeed = goalsN * 4 * Math.pow(1 - t, 3) / countMs * 1000; // goals per second
       }
       const endT = TS_COUNT_START_MS + countMs;
       const after = elapsed - endT;
@@ -2081,11 +2082,18 @@
     ctx.save();
     ctx.beginPath(); ctx.rect(L, ty, tw, th); ctx.clip();
     const goalFont = `700 130px "${fontFamily}"`;
-    if (slide > 0 && prevGoals !== shownGoals) {
-      tsInkText(String(prevGoals), L + pad, ty + 120 - slide * th, goalFont, tileInk);
-      tsInkText(String(shownGoals), L + pad, ty + 120 + (1 - slide) * th, goalFont, tileInk);
-    } else {
-      tsInkText(String(shownGoals), L + pad, ty + 120, goalFont, tileInk);
+    // Reel: number k sits at (k - reelPos) rows from the resting position.
+    // While it's moving fast, faint ghost copies above/below fake motion blur.
+    const blur = Math.min(26, reelSpeed * 2.2);
+    for (let k = Math.max(0, Math.floor(reelPos) - 1); k <= Math.min(goalsN, Math.floor(reelPos) + 2); k++) {
+      const y = ty + 120 + (k - reelPos) * th;
+      if (blur > 3) {
+        ctx.save(); ctx.globalAlpha = 0.28;
+        tsInkText(String(k), L + pad, y - blur, goalFont, tileInk);
+        tsInkText(String(k), L + pad, y + blur, goalFont, tileInk);
+        ctx.restore();
+      }
+      tsInkText(String(k), L + pad, y, goalFont, tileInk);
     }
     tsInkText('GOALS', L + tw - pad, ty + 94, `700 44px "${fontFamily}"`, tileInk, 'right');
     ctx.restore();
