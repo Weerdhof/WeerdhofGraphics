@@ -3,6 +3,11 @@
   const CANVAS_W = 1080, CANVAS_H = 1920;
   const ROW_H = 148;
   const ROW_Y = [468, 634, 800, 966, 1132, 1298, 1464];
+  // Rows the user unticked ("Toon deze wedstrijd") are skipped; the rest stay
+  // centered inside the same 7-slot area.
+  const ROW_PITCH = ROW_Y[1] - ROW_Y[0];
+  function visibleMatches() { return state.matches.filter(m => !m.hidden); }
+  function visibleRowY(vi, count) { return ROW_Y[0] + (ROW_Y.length - count) * ROW_PITCH / 2 + vi * ROW_PITCH; }
   const ROW_LEFT = 100, ROW_RIGHT = 980, ROW_CENTER = (ROW_LEFT + ROW_RIGHT) / 2; // 540
   const BADGE_SIZE = 130, BADGE_MARGIN = 15;
 
@@ -457,7 +462,7 @@
     const loop = () => {
       render();
       const elapsed = performance.now() - animStartTs;
-      const total = animClipDuration(state.matches.length);
+      const total = animClipDuration(visibleMatches().length);
       if (elapsed >= total) {
         if (!resultsAnimating) return;
         animStartTs = performance.now();
@@ -480,7 +485,7 @@
 
     animStartTs = performance.now();
     recorder.start();
-    const total = animClipDuration(state.matches.length);
+    const total = animClipDuration(visibleMatches().length);
     await new Promise((resolve) => {
       const loop = () => {
         render();
@@ -1591,6 +1596,15 @@
       awayLogo.src = m.away ? `${comp().teamsDir}/${m.away}.png` : '';
       awayLogo.style.left = '-141px';
 
+      const showRowCheckbox = node.querySelector('.show-row-checkbox');
+      showRowCheckbox.checked = !m.hidden;
+      showRowCheckbox.addEventListener('change', () => {
+        m.hidden = !showRowCheckbox.checked;
+        node.classList.toggle('row-hidden', m.hidden);
+        render();
+      });
+      node.classList.toggle('row-hidden', !!m.hidden);
+
       homeSelect.addEventListener('change', () => {
         m.home = homeSelect.value;
         homeLogo.src = `${comp().teamsDir}/${m.home}.png`;
@@ -1845,11 +1859,12 @@
     const animElapsed = (mode === 'results' && resultsAnimating && animStartTs != null)
       ? performance.now() - animStartTs : null;
 
-    state.matches.forEach((m, i) => {
-      const cy = ROW_Y[i];
+    const shownMatches = visibleMatches();
+    shownMatches.forEach((m, i) => {
+      const cy = visibleRowY(i, shownMatches.length);
       let anim = null;
       if (animElapsed != null) {
-        anim = resultRowAnimState(animElapsed, i, state.matches.length);
+        anim = resultRowAnimState(animElapsed, i, shownMatches.length);
         if (!anim) return; // hasn't popped in yet this pass
       }
       const bar = anim ? anim.bar : { alpha: 1, scale: 1 };

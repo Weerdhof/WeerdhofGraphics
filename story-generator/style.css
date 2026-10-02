@@ -582,3 +582,5 @@ input.rank-input {
     max-height: 60vh;
   }
 }
+
+.match-row.row-hidden .match-row-line { opacity: 0.4; }
