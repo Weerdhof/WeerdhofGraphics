@@ -1943,9 +1943,9 @@
   // ---------- Top scorer of the match (Mannen, Post) ----------
   const TS_W = 1080, TS_H = 1350;
   const TS_MARGIN = 70;
-  const TS_COUNT_START_MS = 500;   // wait before the goal counter starts ticking
-  const TS_TICK_MS = 260;          // time per goal (shortened for high counts)
-  const TS_COUNT_MAX_MS = 2400;    // the whole count never takes longer than this
+  const TS_COUNT_START_MS = 250;   // wait before the goal counter starts ticking
+  const TS_TICK_MS = 150;          // time per goal (shortened for high counts)
+  const TS_COUNT_MAX_MS = 1400;    // the whole count never takes longer than this
   const TS_CHEVRON_STATIC = 1.6;   // static end-state chevron size
   const TS_CHEVRON_ANIM = 3.0;     // looping chevron during the animation
 
@@ -2043,7 +2043,7 @@
       }
       const endT = TS_COUNT_START_MS + countMs;
       const after = elapsed - endT;
-      tileMix = after <= 0 ? 0 : Math.min(1, after / 300);
+      tileMix = after <= 0 ? 0 : Math.min(1, after / 200);
       tileMix = tileMix * tileMix * (3 - 2 * tileMix);
       chevElapsed = after >= 0 ? after % SM_LOOP_CYCLE_MS : null;
     }
