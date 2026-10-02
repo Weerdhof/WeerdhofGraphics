@@ -1265,6 +1265,7 @@
       if (mode === 'match' || mode === 'matchresult') {
         smwFormatField.hidden = false; // Post/Story choice now applies to both competitions
         resetSmAnim();
+        smAnimField.hidden = false; // resetSmAnim hides it; still in Match/Matchresult
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
         loadSingleMatchData();
       }
