@@ -1949,6 +1949,8 @@
   const TS_COUNT_MAX_MS = 1500;    // ... never longer than this
   const TS_CHEVRON_STATIC = 1.6;   // static end-state chevron size
   const TS_FILL_DELAY_MS = 200;    // masked tile chevron shows this long before the color fades in
+  const TS_REST_DELAY_MS = 380;    // rest fades in after the goals frame is fully colored
+  const TS_REST_FADE_MS = 450;
   const TS_TILE_CHEVRON = 2.4;     // size of the chevron masked inside the goals frame
   const TS_CHEVRON_ANIM = 3.0;     // looping chevron during the animation
 
@@ -2005,6 +2007,37 @@
     const ink = tsInkFor(col);
     const navyInk = '#1b2450';
 
+    // Animation timeline (only when "Animeer" is on): the goals tick up in a
+    // white frame; once the counter reaches its final number the frame turns
+    // the club color and the big chevron starts looping. Static = end state.
+    const goalsN = Math.max(0, parseInt(smState.tsGoals, 10) || 0);
+    const elapsed = smAnimElapsed();
+    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null, tileAfter = -1, restAlpha = 1;
+    if (elapsed != null) {
+      // One continuous slot-machine roll: the reel spins up fast and
+      // decelerates smoothly until it lands on the final number.
+      const countMs = goalsN > 0 ? Math.min(TS_COUNT_MAX_MS, TS_COUNT_MIN_MS + goalsN * TS_COUNT_PER_GOAL_MS) : 0;
+      const tc = elapsed - TS_COUNT_START_MS;
+      if (tc <= 0) reelPos = 0;
+      else if (tc < countMs) {
+        const t = tc / countMs;
+        reelPos = goalsN * (1 - Math.pow(1 - t, 4));
+        reelSpeed = goalsN * 4 * Math.pow(1 - t, 3) / countMs * 1000; // goals per second
+      }
+      const endT = TS_COUNT_START_MS + countMs;
+      const after = elapsed - endT;
+      tileAfter = after;
+      // the club color floods in almost at once, right after the masked chevron appears
+      tileMix = after <= TS_FILL_DELAY_MS ? 0 : Math.min(1, (after - TS_FILL_DELAY_MS) / 180);
+      tileMix = tileMix * tileMix * (3 - 2 * tileMix);
+      chevElapsed = after >= 0 ? after % SM_LOOP_CYCLE_MS : null;
+      // everything except the name, goals frame and Coinmerce logo fades in
+      // once the goals animation (roll, chevron, color) has finished
+      const rt = (after - TS_REST_DELAY_MS) / TS_REST_FADE_MS;
+      restAlpha = rt <= 0 ? 0 : rt >= 1 ? 1 : 1 - Math.pow(1 - rt, 3);
+    }
+
+    ctx.save(); ctx.globalAlpha = restAlpha;
     // photo (top area), faded into the navy background
     const photoH = 820;
     if (bgPhotoImg) {
@@ -2026,32 +2059,7 @@
     fade.addColorStop(1, 'rgba(26, 27, 56, 1)');
     ctx.fillStyle = fade;
     ctx.fillRect(0, 470, W, photoH - 470);
-
-    // Animation timeline (only when "Animeer" is on): the goals tick up in a
-    // white frame; once the counter reaches its final number the frame turns
-    // the club color and the big chevron starts looping. Static = end state.
-    const goalsN = Math.max(0, parseInt(smState.tsGoals, 10) || 0);
-    const elapsed = smAnimElapsed();
-    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null, tileAfter = -1;
-    if (elapsed != null) {
-      // One continuous slot-machine roll: the reel spins up fast and
-      // decelerates smoothly until it lands on the final number.
-      const countMs = goalsN > 0 ? Math.min(TS_COUNT_MAX_MS, TS_COUNT_MIN_MS + goalsN * TS_COUNT_PER_GOAL_MS) : 0;
-      const tc = elapsed - TS_COUNT_START_MS;
-      if (tc <= 0) reelPos = 0;
-      else if (tc < countMs) {
-        const t = tc / countMs;
-        reelPos = goalsN * (1 - Math.pow(1 - t, 4));
-        reelSpeed = goalsN * 4 * Math.pow(1 - t, 3) / countMs * 1000; // goals per second
-      }
-      const endT = TS_COUNT_START_MS + countMs;
-      const after = elapsed - endT;
-      tileAfter = after;
-      // the club color floods in almost at once, right after the masked chevron appears
-      tileMix = after <= TS_FILL_DELAY_MS ? 0 : Math.min(1, (after - TS_FILL_DELAY_MS) / 180);
-      tileMix = tileMix * tileMix * (3 - 2 * tileMix);
-      chevElapsed = after >= 0 ? after % SM_LOOP_CYCLE_MS : null;
-    }
+    ctx.restore();
 
     // big chevron out of the bottom-left corner, behind everything else
     // (the logo always stays on top).
@@ -2063,9 +2071,11 @@
     }
 
     // label
+    ctx.save(); ctx.globalAlpha = restAlpha;
     ctx.fillStyle = col; ctx.fillRect(L, 95, 10, 78);
     tsInkText('TOP SCORER', L + 34, 130, `700 44px "${fontFamily}"`, '#fff');
     tsInkText('OF THE MATCH', L + 34, 168, `500 30px "${fontFamily}"`, '#fff', 'left', 0.8);
+    ctx.restore();
 
     // player name
     const first = (smState.tsFirst || '').toUpperCase();
@@ -2110,6 +2120,7 @@
     }
     tsInkText('GOALS', L + tw - pad, ty + 94, `700 44px "${fontFamily}"`, tileInk, 'right');
     ctx.restore();
+    ctx.save(); ctx.globalAlpha = restAlpha;
     const clubX = L + tw + 24;
     ctx.fillStyle = '#fff'; ctx.fillRect(clubX, ty, th, th);
     tsDrawCrest(code ? loadImg(`assets/teams/${code}.png`) : null, clubX + th / 2, ty + th / 2, 112);
@@ -2121,19 +2132,22 @@
       const px = tsFitFont(full || ' ', 500, 34, textMaxW, fontFamily);
       if (full) tsInkText(full, textX, ty + 118, `500 ${px}px "${fontFamily}"`, '#fff', 'left', 0.8);
     }
+    ctx.restore();
 
+    ctx.save(); ctx.globalAlpha = restAlpha;
     // match strip on the same margins
     ctx.fillStyle = '#fff'; ctx.fillRect(L, 955, R - L, 110);
     tsDrawCrest(smState.home ? loadImg(`assets/teams/${smState.home}.png`) : null, L + 75, 1010, 76);
     tsDrawCrest(smState.away ? loadImg(`assets/teams/${smState.away}.png`) : null, R - 75, 1010, 76);
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = navyInk;
-    ctx.font = `600 22px "${fontFamily}"`; ctx.globalAlpha = 0.55;
+    ctx.font = `600 22px "${fontFamily}"`; ctx.globalAlpha = 0.55 * restAlpha;
     ctx.fillText(`${smState.home || ''}  vs  ${smState.away || ''}`, W / 2, 986);
     if (smState.homeScore !== '' || smState.awayScore !== '') {
-      ctx.font = `700 64px "${fontFamily}"`; ctx.globalAlpha = smScoreRevealAlpha();
+      ctx.font = `700 64px "${fontFamily}"`; ctx.globalAlpha = restAlpha;
       ctx.fillText(`${smState.homeScore || 0} – ${smState.awayScore || 0}`, W / 2, 1044);
     }
+    ctx.restore();
     ctx.restore();
 
     // Coinmerce logo: bigger, centered in the clear space under the strip
