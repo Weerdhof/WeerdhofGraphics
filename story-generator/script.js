@@ -1948,6 +1948,8 @@
   const TS_COUNT_PER_GOAL_MS = 120; // ... plus this per goal ...
   const TS_COUNT_MAX_MS = 1500;    // ... never longer than this
   const TS_CHEVRON_STATIC = 1.6;   // static end-state chevron size
+  const TS_FILL_DELAY_MS = 200;    // masked tile chevron shows this long before the color fades in
+  const TS_TILE_CHEVRON = 2.4;     // size of the chevron masked inside the goals frame
   const TS_CHEVRON_ANIM = 3.0;     // looping chevron during the animation
 
   // Draws text so its visible ink edge (not the glyph's side bearing) sits
@@ -2030,7 +2032,7 @@
     // the club color and the big chevron starts looping. Static = end state.
     const goalsN = Math.max(0, parseInt(smState.tsGoals, 10) || 0);
     const elapsed = smAnimElapsed();
-    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null;
+    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null, tileAfter = -1;
     if (elapsed != null) {
       // One continuous slot-machine roll: the reel spins up fast and
       // decelerates smoothly until it lands on the final number.
@@ -2044,7 +2046,9 @@
       }
       const endT = TS_COUNT_START_MS + countMs;
       const after = elapsed - endT;
-      tileMix = after <= 0 ? 0 : Math.min(1, after / 200);
+      tileAfter = after;
+      // the club color floods in almost at once, right after the masked chevron appears
+      tileMix = after <= TS_FILL_DELAY_MS ? 0 : Math.min(1, (after - TS_FILL_DELAY_MS) / 180);
       tileMix = tileMix * tileMix * (3 - 2 * tileMix);
       chevElapsed = after >= 0 ? after % SM_LOOP_CYCLE_MS : null;
     }
@@ -2075,6 +2079,15 @@
     // goals tile + the player's club
     const ty = 765, th = 150, pad = 36, tw = 360;
     ctx.fillStyle = '#fff'; ctx.fillRect(L, ty, tw, th);
+    // chevron inside the white frame, masked to it; the color fill below
+    // then covers it (same color), so it reads as the chevron flooding the tile
+    if (tileAfter >= 0 && tileMix < 1) {
+      const mini = smChevronState(tileAfter * 3);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(L, ty, tw, th); ctx.clip();
+      drawSmCardChevron(ctx, L + 20, ty + th * 1.05, true, col, TS_TILE_CHEVRON * mini.scale, mini.opacity);
+      ctx.restore();
+    }
     if (tileMix > 0) {
       ctx.save(); ctx.globalAlpha = tileMix; ctx.fillStyle = col; ctx.fillRect(L, ty, tw, th); ctx.restore();
     }
