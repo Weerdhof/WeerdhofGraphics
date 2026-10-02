@@ -1994,6 +1994,30 @@
     return px;
   }
 
+  // Largest font (<= 60px) at which `full` fits `maxW` on one line, else on two
+  // lines (split at a space or slash, choosing the most balanced break).
+  function tsFitClubName(full, maxW, family) {
+    ctx.save();
+    const breaks = [];
+    for (let i = 1; i < full.length - 1; i++) {
+      if (full[i] === ' ') breaks.push([full.slice(0, i), full.slice(i + 1)]);
+      else if (full[i] === '/') breaks.push([full.slice(0, i + 1), full.slice(i + 1)]);
+    }
+    let result = null;
+    for (let px = 60; px >= 20; px -= 2) {
+      ctx.font = `700 ${px}px "${family}"`;
+      if (ctx.measureText(full).width <= maxW) { result = { px, rows: [full] }; break; }
+      let best = null;
+      breaks.forEach(([a, b]) => {
+        const w = Math.max(ctx.measureText(a).width, ctx.measureText(b).width);
+        if (w <= maxW && (!best || w < best.w)) best = { w, rows: [a, b] };
+      });
+      if (best) { result = { px, rows: best.rows }; break; }
+    }
+    ctx.restore();
+    return result || { px: 20, rows: [full] };
+  }
+
   function renderTopScorer() {
     const W = TS_W, H = TS_H, L = TS_MARGIN, R = W - TS_MARGIN;
     ctx.clearRect(0, 0, W, H);
@@ -2138,11 +2162,12 @@
     tsDrawCrest(code ? loadImg(`assets/teams/${code}.png`) : null, clubX + th / 2, ty + th / 2, 112);
     const textX = clubX + th + 28, textMaxW = R - textX;
     if (code) {
-      let full = (SM_TEAM_NAMES[code] || '').toUpperCase();
-      if (full.startsWith(code + ' ')) full = full.slice(code.length + 1);
-      tsInkText(code, textX, ty + 78, `700 60px "${fontFamily}"`, '#fff');
-      const px = tsFitFont(full || ' ', 500, 34, textMaxW, fontFamily);
-      if (full) tsInkText(full, textX, ty + 118, `500 ${px}px "${fontFamily}"`, '#fff', 'left', 0.8);
+      // Club name only (no code), as big as fits; wraps onto two lines when too long.
+      const full = (SM_TEAM_NAMES[code] || code).toUpperCase();
+      const lines = tsFitClubName(full, textMaxW, fontFamily);
+      const lh = lines.px * 1.08;
+      const first = ty + th / 2 - ((lines.rows.length - 1) * lh) / 2 + lines.px * 0.35;
+      lines.rows.forEach((row, i) => tsInkText(row, textX, first + i * lh, `700 ${lines.px}px "${fontFamily}"`, '#fff'));
     }
     ctx.restore();
 
