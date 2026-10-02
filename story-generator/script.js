@@ -152,7 +152,7 @@
     SAB: 'Sezoens Achilles Bocholt', IZE: 'Besox HBC Izegem', EUP: 'KTSV Eupen',
     SPR: 'Sprimont', BEV: 'HUMBY BEVO HC', PEL: 'Derdaele/Sporting Pelt',
     BWH: 'B&B Healthcare/WHC-Hercules', DFS: 'DFS Arnhem', HUP: 'JD Techniek/Hurry-up',
-    HCV: 'HC Visé BM', HVA: 'RoyalFloraHolland/HVA', HUB: 'HUBO Handbal',
+    HCV: 'HC Visé BM', HVA: 'HV Aalsmeer', HUB: 'HUBO Handbal',
     VOL: 'KRAS/Volendam', TAC: 'van Mossel/MGTachos/Witte Ster',
   };
   const SM_TEAM_CODES = Object.keys(SM_TEAM_NAMES).sort();
