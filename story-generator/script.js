@@ -1951,6 +1951,8 @@
   const TS_FILL_DELAY_MS = 200;    // masked tile chevron shows this long before the color fades in
   const TS_REST_DELAY_MS = 380;    // rest fades in after the goals frame is fully colored
   const TS_REST_FADE_MS = 450;
+  const TS_CREST_REVEAL_MS = 700;   // club crest: sweep of the mirrored chevron, then crossfade to the full crest
+  const TS_CREST_CHEVRON = 1.3;
   const TS_TILE_CHEVRON = 2.4;     // size of the chevron masked inside the goals frame
   const TS_CHEVRON_ANIM = 3.0;     // looping chevron during the animation
 
@@ -1979,6 +1981,44 @@
   function tsDrawCrest(img, cx, cy, size) {
     if (!img || !img.complete || !img.naturalWidth) return;
     ctx.drawImage(img, CREST_X_LEFT, CREST_Y, CREST_W, CREST_H, cx - size / 2, cy - size / 2, size, size * CREST_H / CREST_W);
+  }
+
+  // Club crest in its white square. Static = just the crest. In the animation
+  // the crest is revealed by the chevron mirrored from the goals frame's: its
+  // thick strips mask the crest in while they sweep in from the right edge,
+  // then the full crest fades in as the strips fade out.
+  let tsCrestMask = null;
+  function tsDrawClubCrest(img, bx, by, size, color, t) {
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const cx = bx + size / 2, cy = by + size / 2;
+    if (t >= TS_CREST_REVEAL_MS) { tsDrawCrest(img, cx, cy, 112); return; }
+    if (t < 0) return;
+    const p = t / TS_CREST_REVEAL_MS;
+    const ease = 1 - Math.pow(1 - p, 3);
+    const full = Math.max(0, Math.min(1, (p - 0.5) / 0.5));
+    const scale = TS_CREST_CHEVRON * (0.55 + 0.45 * ease);
+    if (!smCardChevronPaths) smCardChevronPaths = SM_CARD_CHEVRON_D.map((d) => new Path2D(d));
+    if (!tsCrestMask) { tsCrestMask = document.createElement('canvas'); tsCrestMask.width = tsCrestMask.height = size; }
+    const m = tsCrestMask.getContext('2d');
+    m.clearRect(0, 0, size, size);
+    // the crest itself, then keep only what the chevron strips cover
+    m.drawImage(img, CREST_X_LEFT, CREST_Y, CREST_W, CREST_H, (size - 112) / 2, (size - 112 * CREST_H / CREST_W) / 2, 112, 112 * CREST_H / CREST_W);
+    m.save();
+    m.globalCompositeOperation = 'destination-in';
+    m.translate(size - 20, size * 0.9);
+    m.rotate((SM_CARD_CHEVRON_TILT_DEG * Math.PI) / 180);
+    const s = SM_CARD_CHEVRON_UNIT_SCALE * scale;
+    m.scale(s, s);
+    m.fillStyle = '#fff'; m.strokeStyle = '#fff'; m.lineWidth = 120 / s; m.lineJoin = 'round';
+    smCardChevronPaths.forEach((pp) => { m.fill(pp); m.stroke(pp); });
+    m.restore();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(bx, by, size, size); ctx.clip();
+    // visible chevron lines (mirrored of the goals frame's), fading out with the reveal
+    drawSmCardChevron(ctx, bx + size - 20, by + size * 0.9, false, color, scale, 1 - full);
+    ctx.drawImage(tsCrestMask, bx, by);
+    if (full > 0) { ctx.globalAlpha *= full; tsDrawCrest(img, cx, cy, 112); }
+    ctx.restore();
   }
 
   // Shrinks the font until `str` fits `maxW`.
@@ -2036,7 +2076,7 @@
     // the club color and the big chevron starts looping. Static = end state.
     const goalsN = Math.max(0, parseInt(smState.tsGoals, 10) || 0);
     const elapsed = smAnimElapsed();
-    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null, tileAfter = -1, restAlpha = 1;
+    let reelPos = goalsN, reelSpeed = 0, tileMix = 1, chevElapsed = null, tileAfter = -1, restAlpha = 1, clubT = Infinity;
     if (elapsed != null) {
       // One continuous slot-machine roll: the reel spins up fast and
       // decelerates smoothly until it lands on the final number.
@@ -2057,6 +2097,7 @@
       chevElapsed = after >= 0 ? after % SM_LOOP_CYCLE_MS : null;
       // everything except the name, goals frame and Coinmerce logo fades in
       // once the goals animation (roll, chevron, color) has finished
+      clubT = after - TS_REST_DELAY_MS;
       const rt = (after - TS_REST_DELAY_MS) / TS_REST_FADE_MS;
       restAlpha = rt <= 0 ? 0 : rt >= 1 ? 1 : 1 - Math.pow(1 - rt, 3);
     }
@@ -2159,7 +2200,7 @@
     ctx.save(); ctx.globalAlpha = restAlpha;
     const clubX = L + tw + 24;
     ctx.fillStyle = '#fff'; ctx.fillRect(clubX, ty, th, th);
-    tsDrawCrest(code ? loadImg(`assets/teams/${code}.png`) : null, clubX + th / 2, ty + th / 2, 112);
+    tsDrawClubCrest(code ? loadImg(`assets/teams/${code}.png`) : null, clubX, ty, th, col, clubT);
     const textX = clubX + th + 28, textMaxW = R - textX;
     if (code) {
       // Club name only (no code), as big as fits; wraps onto two lines when too long.
