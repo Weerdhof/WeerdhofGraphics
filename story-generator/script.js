@@ -350,6 +350,8 @@
   // Winner-line ("de lijnen") reveal: grows outward from the center, fast
   // then slow — a plain wipe, no bounce (that read as too wiggly).
   const ARROW_WIPE_MS = 550;
+  const WINNER_PULSE_PERIOD_MS = 1500; // the winner's lines beat once per period...
+  const WINNER_PULSE_GAIN = 1.4;       // ...with the icon's beat amplitude times this
   const ELEMENT_STAGGER_MS = 300, ELEMENT_POP_MS = 280;
   // The whole clip (reveal + hold) is exactly this long — the hold is
   // whatever's left over after the reveal cascade finishes, not extra
@@ -3481,7 +3483,29 @@
             ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
             ctx.restore();
           } else {
-            ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
+            // Once drawn in, the winner's lines pulse with the icon's heartbeat (animation
+            // only): the beat curve every 1.5s, a bit bolder, kept inside the row.
+            let pulse = 1;
+            if (anim && anim.winnerElapsed != null) {
+              const t = anim.winnerElapsed - ARROW_WIPE_MS;
+              if (t > 0) {
+                const local = t % WINNER_PULSE_PERIOD_MS;
+                if (local < ICON_MS) pulse = 1 + (keyframeScale(local / ICON_MS, SM_ICON_BEAT_KEYFRAMES) - 1) * WINNER_PULSE_GAIN;
+              }
+            }
+            if (pulse !== 1) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(ROW_LEFT, cy - ROW_H / 2, ROW_RIGHT - ROW_LEFT, ROW_H);
+              ctx.clip();
+              ctx.translate(ROW_CENTER, cy);
+              ctx.scale(pulse, pulse);
+              ctx.translate(-ROW_CENTER, -cy);
+              ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
+              ctx.restore();
+            } else {
+              ctx.drawImage(tinted, ROW_LEFT, cy - dh / 2, ROW_RIGHT - ROW_LEFT, dh);
+            }
           }
         }
       }
