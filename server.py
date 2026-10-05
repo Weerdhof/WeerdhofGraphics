@@ -22,10 +22,13 @@ what Railway and most other hosting platforms do automatically), which
 takes precedence when no command-line argument is given.
 """
 
+import html
 import json
 import os
 import re
 import sys
+import urllib.request
+from urllib.parse import parse_qs, urlparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "story-generator")
@@ -149,6 +152,60 @@ def fetch_standings():
     return standings
 
 
+WOMEN_BASE_URL = "https://shlw.nl"
+
+
+def _fetch_html(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (WeerdhofGraphics)"})
+    with urllib.request.urlopen(req, timeout=15) as res:
+        return res.read().decode("utf-8", errors="replace")
+
+
+def _clean(text):
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", text))).strip()
+
+
+def parse_women_results(page):
+    """shlw.nl/results is plain server-rendered HTML: one <a class="match"> per
+    played match with two team <span>s and two score <span>s."""
+    results = []
+    for block in re.findall(r'<a class="match".*?</a>', page, re.S):
+        teams = re.search(r'<div class="teams">(.*?)</div>', block, re.S)
+        score = re.search(r'<div class="score">(.*?)</div>', block, re.S)
+        if not teams or not score:
+            continue
+        names = [_clean(t) for t in re.findall(r"<span[^>]*>(.*?)</span>", teams.group(1), re.S)]
+        scores = [_clean(t) for t in re.findall(r"<span[^>]*>(.*?)</span>", score.group(1), re.S)]
+        if len(names) != 2 or len(scores) != 2 or not all(x.isdigit() for x in scores):
+            continue
+        date = re.search(r'<div class="date">(.*?)</div>', block, re.S)
+        results.append({
+            "teamA": names[0], "teamB": names[1],
+            "scoreA": int(scores[0]), "scoreB": int(scores[1]),
+            "date": _clean(date.group(1)) if date else "",
+        })
+    return results
+
+
+def parse_women_standings(page):
+    rows = []
+    for tr in re.findall(r"<tr>\s*<td class=\"ranking.*?</tr>", page, re.S):
+        name = re.search(r'<span class="hide-for-small">(.*?)</span>', tr, re.S)
+        cells = re.findall(r'<td class="text-center(?: points)?">(.*?)</td>', tr, re.S)
+        if not name or len(cells) < 2:
+            continue
+        rows.append({"club": _clean(name.group(1)), "played": _clean(cells[0]), "points": _clean(cells[1])})
+    return rows
+
+
+def fetch_women_results():
+    return parse_women_results(_fetch_html(WOMEN_BASE_URL + "/results"))
+
+
+def fetch_women_standings():
+    return parse_women_standings(_fetch_html(WOMEN_BASE_URL + "/standings"))
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -168,6 +225,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_save_state()
         else:
             self.send_error(404)
+
+    def wants_women(self):
+        return parse_qs(urlparse(self.path).query).get("comp", [""])[0] == "women"
 
     def handle_save_state(self):
         try:
@@ -207,7 +267,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def handle_results(self):
         try:
-            results, debug = fetch_results()
+            if self.wants_women():
+                results, debug = fetch_women_results(), None
+            else:
+                results, debug = fetch_results()
             payload = {"results": results}
             if debug is not None:
                 payload["debug"] = debug
@@ -224,7 +287,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def handle_standings(self):
         try:
-            standings = fetch_standings()
+            standings = fetch_women_standings() if self.wants_women() else fetch_standings()
             body = json.dumps({"standings": standings}).encode("utf-8")
             self.send_response(200)
         except Exception as err:

@@ -95,8 +95,17 @@
         'V&L': '#005ba2', VEN: '#193676', VOC: '#4c8d40', VOL: '#f78823',
         VZV: '#ee2b07', WPK: '#3ca815',
       },
+      // Distinctive lowercase substrings of the club names as shown on
+      // shlw.nl (results + standings pages). Order matters: first match wins.
+      resultAliases: {
+        DSVD: ['dsvd', 'aqqo'], 'E&O': ['misker'], FOR: ['foreholte'], KWI: ['kwiek'],
+        MHV: ['m.h.v'], PSV: ['hypotheekvisie', 'eindhoven'], QUI: ['quintus'],
+        SEW: ['westfriesland'], 'V&L': ['geonius'], VEN: ['venlo', 'cabooter'],
+        VOC: ['ruitenheer'], VOL: ['volendam'], VZV: ['juro'], WPK: ['westlandia'],
+      },
     },
   };
+  const SITE_LABEL = { men: 'SHL site', women: 'shlw.nl' };
 
   // ---------- Single-match template (Mannen only) ----------
   // A separate one-off graphic (Instagram feed post, 1080x1350) built from
@@ -1087,8 +1096,8 @@
         return;
       }
       checkScoresBtn.disabled = true;
-      showCheckStatus('Scores ophalen van SHL site…');
-      fetch('/api/results')
+      showCheckStatus(`Scores ophalen van ${SITE_LABEL[compKey]}…`);
+      fetch('/api/results?comp=' + compKey)
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
           if (data.error) throw new Error(data.error);
@@ -1096,11 +1105,22 @@
           let filled = 0;
           state.matches.forEach(m => {
             if (!m.home || !m.away) return;
-            const hit = scraped.find(r => {
+            const pair = scraped.filter(r => {
               const a = matchCodeByAlias(aliases, r.teamA);
               const b = matchCodeByAlias(aliases, r.teamB);
               return (a === m.home && b === m.away) || (a === m.away && b === m.home);
             });
+            // The same pairing can be on the site twice (home and away leg):
+            // prefer the one played on this round's day (or the day after).
+            const dm = /(\d+)\s+([A-Za-z]+)/.exec(state.date || '');
+            const sameDay = dm ? pair.find(r => {
+              const sm = /(\d+)\s+([A-Za-z]{3})/.exec(r.date || '');
+              if (!sm) return false;
+              const day = parseInt(dm[1], 10);
+              return sm[2].toLowerCase() === dm[2].slice(0, 3).toLowerCase()
+                && (parseInt(sm[1], 10) === day || parseInt(sm[1], 10) === day + 1);
+            }) : null;
+            const hit = sameDay || pair[0];
             if (!hit) return;
             const homeIsA = matchCodeByAlias(aliases, hit.teamA) === m.home;
             m.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
@@ -1113,7 +1133,7 @@
             render();
             showCheckStatus(`✓ ${filled} van ${state.matches.length} scores ingevuld`, 'ok');
           } else {
-            showCheckStatus('Geen bijpassende scores gevonden op de site', 'warn');
+            showCheckStatus(`Geen bijpassende scores gevonden op ${SITE_LABEL[compKey]}`, 'warn');
           }
         })
         .catch(err => showCheckStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
@@ -1134,16 +1154,16 @@
 
   if (checkStandingsBtn) {
     checkStandingsBtn.addEventListener('click', () => {
-      const aliases = COMPETITIONS.men.resultAliases;
+      const aliases = comp().resultAliases;
       checkStandingsBtn.disabled = true;
-      showStandingsStatus('Stand ophalen van SHL site…');
-      fetch('/api/standings')
+      showStandingsStatus(`Stand ophalen van ${SITE_LABEL[compKey]}…`);
+      fetch('/api/standings?comp=' + compKey)
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
           if (data.error) throw new Error(data.error);
           const standings = data.standings || [];
           let filled = 0;
-          const menRanking = rankState.men;
+          const menRanking = rankState[compKey];
           standings.forEach((s, i) => {
             if (i >= menRanking.length) return;
             const code = matchCodeByAlias(aliases, s.club);
@@ -1158,12 +1178,18 @@
             render();
             showStandingsStatus(`✓ ${filled} van ${standings.length} teams ingevuld`, 'ok');
           } else {
-            showStandingsStatus('Geen bijpassende teams gevonden op de site', 'warn');
+            showStandingsStatus(`Geen bijpassende teams gevonden op ${SITE_LABEL[compKey]}`, 'warn');
           }
         })
         .catch(err => showStandingsStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
         .finally(() => { checkStandingsBtn.disabled = false; });
     });
+  }
+
+  function refreshCheckButtonLabels() {
+    const label = SITE_LABEL[compKey] || 'SHL site';
+    if (checkScoresBtn) checkScoresBtn.textContent = `\u{1F517} Check score ${label}`;
+    if (checkStandingsBtn) checkStandingsBtn.textContent = `\u{1F517} Vul in vanuit ${label}`;
   }
 
   // ---------- Font ----------
@@ -1273,6 +1299,7 @@
       compKey = btn.dataset.competition;
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
+      refreshCheckButtonLabels();
       // Top scorer only exists for Mannen — fall back to Matchresult.
       if (compKey === 'women' && mode === 'topscorer') {
         mode = 'matchresult';
@@ -1290,7 +1317,7 @@
         loadSingleMatchData();
       }
       if (mode === 'ranking') {
-        checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        checkStandingsBtn.hidden = false;
         updateHint();
         buildMatchRows();
         render();
@@ -1535,7 +1562,7 @@
         updateHint();
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
-        checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        checkStandingsBtn.hidden = false;
         exportElementBtn.hidden = false;
         bgPhotoField.hidden = true;
         smwFormatField.hidden = true;
@@ -2936,6 +2963,7 @@
       competitionTabs.forEach(b => b.classList.toggle('active', b.dataset.competition === compKey));
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
+    refreshCheckButtonLabels();
     if (savedState.mode === 'topscorer' && compKey !== 'men') savedState.mode = 'matchresult';
     const canRestoreMode = ['results', 'schedule', 'match', 'matchresult', 'topscorer', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
@@ -2956,7 +2984,7 @@
         roundSelectField.hidden = true;
         checkScoresBtn.hidden = true;
         checkScoresStatus.hidden = true;
-        checkStandingsBtn.hidden = compKey !== 'men'; // site scrape is men-only
+        checkStandingsBtn.hidden = false;
         exportElementBtn.hidden = false;
         canvas.width = CANVAS_W;
         canvas.height = CANVAS_H;
