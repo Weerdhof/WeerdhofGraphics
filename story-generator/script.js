@@ -350,8 +350,6 @@
   // Winner-line ("de lijnen") reveal: grows outward from the center, fast
   // then slow — a plain wipe, no bounce (that read as too wiggly).
   const ARROW_WIPE_MS = 550;
-  const DECOR_PULSE_PERIOD_MS = 1500; // the design-element lines beat once per period...
-  const DECOR_PULSE_GAIN = 1.5;       // ...with the icon's beat amplitude times this
   const ELEMENT_STAGGER_MS = 300, ELEMENT_POP_MS = 280;
   // The whole clip (reveal + hold) is exactly this long — the hold is
   // whatever's left over after the reveal cascade finishes, not extra
@@ -2482,23 +2480,18 @@
   let postDecorCanvas = null;
   function drawPostDecor() {
     if (!postDecor) return;
-    // With "Animeer" on the lines pulse with the icon's heartbeat, each line 40ms after
-    // the previous one, starting at the outermost; otherwise they just sit there.
+    // With "Animeer" on the lines play the same chevron animation as Matchresult: the
+    // shared curve (90% -> 113% with a soft fade in and out), looping every 3s, all
+    // lines together. Otherwise they just sit there.
     const el = (mode === 'results' && resultsAnimating && animStartTs != null)
-      ? performance.now() - animStartTs : null;
-    const lineState = (i) => {
-      if (el == null) return { scale: 1, opacity: 1 };
-      const t = el - (3 - i) * 40; // outermost (thin) line first, rippling inwards
-      const local = t > 0 ? t % DECOR_PULSE_PERIOD_MS : DECOR_PULSE_PERIOD_MS;
-      const beat = local < ICON_MS ? keyframeScale(local / ICON_MS, SM_ICON_BEAT_KEYFRAMES) : 1;
-      return { scale: 1 + (beat - 1) * DECOR_PULSE_GAIN, opacity: 1 };
-    };
+      ? (performance.now() - animStartTs) % SM_LOOP_CYCLE_MS : null;
+    const lineState = () => el == null ? { scale: 1, opacity: 1 } : smChevronState(el);
 
     if (compKey === 'women') {
       const d = COMPETITIONS.women.decorations[0];
       const img = loadImg(d.src);
       if (img && img.complete && img.naturalWidth) {
-        const st = lineState(0);
+        const st = lineState();
         if (st.opacity > 0) {
           ctx.save();
           ctx.globalAlpha = st.opacity;
@@ -2516,15 +2509,14 @@
     if (!postDecorCanvas) { postDecorCanvas = document.createElement('canvas'); postDecorCanvas.width = 600; postDecorCanvas.height = 500; }
     const d = postDecorCanvas.getContext('2d');
     d.clearRect(0, 0, 600, 500);
-    smCardChevronPaths.forEach((p, i) => {
-      const st = lineState(i);
+    smCardChevronPaths.forEach((p) => {
+      const st = lineState();
       if (st.opacity <= 0) return;
       d.save();
       d.globalAlpha = st.opacity;
-      d.translate(425, 405); d.scale(st.scale, st.scale); d.translate(-425, -405); // grow from the outer corner
       d.translate(-85, 71);
       d.rotate(195.5 * Math.PI / 180);
-      d.scale(2.6, 2.6);
+      d.scale(2.6 * st.scale, 2.6 * st.scale); // scales about the chevron's own centre, like Matchresult
       d.fillStyle = '#fff';
       d.fill(p);
       d.restore();
