@@ -83,11 +83,6 @@
         Transparante achtergrond (i.p.v. kleur)
       </label>
 
-      <label class="upcoming-toggle bg-toggle" id="showDateField" hidden>
-        <input type="checkbox" id="showDateToggle">
-        Toon datum onder de titel
-      </label>
-
       <div class="field bg-photo-field" id="bgPhotoField" hidden>
         <label>Achtergrondfoto (optioneel)</label>
         <input type="file" id="bgPhotoInput" accept="image/*">
@@ -157,6 +152,13 @@
       <input type="checkbox" class="upcoming-checkbox">
       Nog te spelen (toont tijd i.p.v. score)
     </label>
+    <div class="result-date-row">
+      <label class="upcoming-toggle">
+        <input type="checkbox" class="show-row-date-checkbox">
+        Toon datum bij deze uitslag
+      </label>
+      <input type="text" class="date-label-input row-date-input" placeholder="bv. SAT 3 OCT" hidden autocomplete="off">
+    </div>
     <div class="upcoming-date-row" hidden>
       <label class="upcoming-toggle">
         <input type="checkbox" class="show-date-checkbox">

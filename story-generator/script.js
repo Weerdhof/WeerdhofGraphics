@@ -805,15 +805,6 @@
     render();
   });
 
-  // Results / Schedule: optionally print the round's date under the title.
-  const showDateField = document.getElementById('showDateField');
-  const showDateToggle = document.getElementById('showDateToggle');
-  let showRoundDate = false;
-  showDateToggle.addEventListener('change', () => {
-    showRoundDate = showDateToggle.checked;
-    render();
-  });
-
   // ---------- Vrouwen single-match format toggle (Story / Post) ----------
   const smwFormatField = document.getElementById('smwFormatField');
   const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
@@ -1024,7 +1015,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg, showRoundDate, ranking: rankState,
+        sm: smState, transparentBg, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -1061,7 +1052,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-          sm: smState, transparentBg, showRoundDate, ranking: rankState,
+          sm: smState, transparentBg, ranking: rankState,
         }),
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -1180,6 +1171,7 @@
             m.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
             m.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
             m.played = true;
+            if (hit.date) m.rowDate = hit.date.toUpperCase();
             filled++;
           });
           if (filled > 0) {
@@ -1654,6 +1646,14 @@
   });
 
   // ---------- Match row UI ----------
+  // "SATURDAY 5 SEPTEMBER" / "ZATERDAG 5 SEPTEMBER" -> "SAT 5 SEP" / "ZAT 5 SEP"
+  // (the match's own other-day label wins when it has one).
+  function defaultRowDate(m) {
+    if (m.dateLabel) return m.dateLabel;
+    const d = /^([A-Za-z]+)\s+(\d+)\s+([A-Za-z]+)/.exec((state.date || '').trim());
+    return d ? `${d[1].slice(0, 3)} ${d[2]} ${d[3].slice(0, 3)}`.toUpperCase() : '';
+  }
+
   function buildMatchRows() {
     matchesList.innerHTML = '';
     rankingHeader.hidden = mode !== 'ranking';
@@ -1740,11 +1740,29 @@
         homeInput.addEventListener('input', () => { m.homeScore = homeInput.value; render(); });
         awayInput.addEventListener('input', () => { m.awayScore = awayInput.value; render(); });
         upcomingTime.addEventListener('input', () => { m.time = upcomingTime.value; render(); });
+        // Per-result date (results can span several days): a short, editable
+        // label like "SAT 3 OCT" printed under the middle icon of this row.
+        const resultDateRow = node.querySelector('.result-date-row');
+        const showRowDate = node.querySelector('.show-row-date-checkbox');
+        const rowDateInput = node.querySelector('.row-date-input');
+        resultDateRow.hidden = !m.played;
+        showRowDate.checked = !!m.showRowDate;
+        rowDateInput.value = m.rowDate || '';
+        rowDateInput.hidden = !m.showRowDate;
+        showRowDate.addEventListener('change', () => {
+          m.showRowDate = showRowDate.checked;
+          if (m.showRowDate && !m.rowDate) { m.rowDate = defaultRowDate(m); rowDateInput.value = m.rowDate; }
+          rowDateInput.hidden = !m.showRowDate;
+          render();
+        });
+        rowDateInput.addEventListener('input', () => { m.rowDate = rowDateInput.value; render(); });
+
         upcomingCheckbox.addEventListener('change', () => {
           m.played = !upcomingCheckbox.checked;
           scorePair.hidden = !m.played;
           upcomingTime.hidden = m.played;
           dateRow.hidden = m.played;
+          resultDateRow.hidden = !m.played;
           render();
         });
         showDateCheckbox.addEventListener('change', () => {
@@ -1946,11 +1964,9 @@
 
   // ---------- Main render ----------
   function render() {
-    showDateField.hidden = true;
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { renderRanking(); return; }
     const C = comp();
-    showDateField.hidden = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!transparentBg) {
       ctx.fillStyle = C.bgColor;
@@ -1970,12 +1986,6 @@
     ctx.fillStyle = C.titleColor;
     ctx.font = `700 ${C.titleFontSize}px "${fontFamily}"`;
     ctx.fillText(mode === 'results' ? C.titles.results : C.titles.schedule, CANVAS_W / 2, C.titleY);
-    if (showRoundDate && state.date) {
-      ctx.font = `500 34px "${fontFamily}"`;
-      ctx.globalAlpha = 0.85;
-      ctx.fillText(String(state.date).toUpperCase(), CANVAS_W / 2, C.titleY + 70);
-      ctx.globalAlpha = 1;
-    }
 
     const animElapsed = (mode === 'results' && resultsAnimating && animStartTs != null)
       ? performance.now() - animStartTs : null;
@@ -2826,6 +2836,16 @@
     const rightBadgeCx = ROW_RIGHT - BADGE_MARGIN - BADGE_SIZE / 2;
     drawBadge(ctx, teamImg(m.home), CREST_X_LEFT, leftBadgeCx, cy, C.badgeRadius);
     drawBadge(ctx, teamImg(m.away), CREST_X_RIGHT, rightBadgeCx, cy, C.badgeRadius);
+    if (m.showRowDate && m.rowDate) {
+      ctx.save();
+      ctx.globalAlpha = barAlpha * 0.65;
+      ctx.fillStyle = C.textColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `600 22px "${fontFamily}"`;
+      ctx.fillText(String(m.rowDate).toUpperCase(), ROW_CENTER, cy + 56);
+      ctx.restore();
+    }
     if (barAlpha !== 1) ctx.restore();
 
     const homeNum = parseFloat(m.homeScore);
@@ -3016,10 +3036,6 @@
   // reload lands back where the user left off (loadCompetition() then picks
   // up the matching round + scores via savedState above).
   if (savedState) {
-    if (typeof savedState.showRoundDate === 'boolean') {
-      showRoundDate = savedState.showRoundDate;
-      showDateToggle.checked = showRoundDate;
-    }
     if (typeof savedState.transparentBg === 'boolean') {
       transparentBg = savedState.transparentBg;
       transparentBgToggle.checked = transparentBg;
