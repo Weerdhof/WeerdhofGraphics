@@ -943,13 +943,40 @@
     render();
   });
 
+  // Where a background photo can be used: every single-match graphic, Results/Schedule
+  // (drawn into Story; shown only as a preview behind the transparent Post) and the
+  // Ranking Post (preview only).
+  function photoModeActive() {
+    return isSingleMode() || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
+  }
+  // Post formats stay transparent in the export, so their photo is only a CSS backdrop
+  // behind the canvas (positioned like drawBgPhotoCover would), never part of the pixels.
+  function updatePhotoPreview() {
+    const css = bgPhotoImg && isListMode() && resultsFormat === 'post' && photoModeActive();
+    if (!css) {
+      canvas.style.backgroundImage = ''; canvas.style.backgroundSize = ''; canvas.style.backgroundPosition = ''; canvas.style.backgroundRepeat = '';
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;
+    const k = rect.width / canvas.width;
+    const sc = bgPhotoCoverScale(bgPhotoImg) * bgPhotoScale;
+    const dw = bgPhotoImg.naturalWidth * sc, dh = bgPhotoImg.naturalHeight * sc;
+    const dx = (canvas.width - dw) / 2 + bgPhotoOffsetX, dy = (bgPhotoAreaH() - dh) / 2 + bgPhotoOffsetY;
+    canvas.style.backgroundImage = `url(${bgPhotoImg.src})`;
+    canvas.style.backgroundRepeat = 'no-repeat';
+    canvas.style.backgroundSize = `${dw * k}px ${dh * k}px`;
+    canvas.style.backgroundPosition = `${dx * k}px ${dy * k}px`;
+  }
+  window.addEventListener('resize', () => { if (bgPhotoImg) updatePhotoPreview(); });
+
   // Drag-to-pan directly on the preview. Pointer events cover mouse + touch
   // uniformly; delta is scaled from displayed (CSS) pixels to actual canvas
   // pixels since the preview is shown scaled down.
   let bgPhotoDragging = false;
   let bgPhotoDragStart = null;
   canvas.addEventListener('pointerdown', (e) => {
-    if (!bgPhotoImg || !(isSingleMode())) return;
+    if (!bgPhotoImg || !photoModeActive()) return;
     bgPhotoDragging = true;
     canvas.classList.add('bg-photo-dragging');
     canvas.setPointerCapture(e.pointerId);
@@ -979,7 +1006,7 @@
   // Scroll-to-zoom directly on the preview, on top of the slider — feels
   // more like a native photo editor than a slider-only control.
   canvas.addEventListener('wheel', (e) => {
-    if (!bgPhotoImg || !(isSingleMode())) return;
+    if (!bgPhotoImg || !photoModeActive()) return;
     e.preventDefault();
     const min = parseFloat(bgPhotoZoom.min), max = parseFloat(bgPhotoZoom.max);
     const step = -e.deltaY * 0.0015;
@@ -2227,6 +2254,8 @@
     canvas.classList.toggle('canvas-checker',
       transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post'));
     postDecorField.hidden = !(mode === 'results' && resultsFormat === 'post');
+    bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
+    updatePhotoPreview();
     showDateField.hidden = true;
     checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
     if (isSingleMode()) { renderSingleMatch(); return; }
@@ -2243,6 +2272,7 @@
       ctx.fillStyle = C.bgColor;
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
+    if (!post && bgPhotoImg) drawBgPhotoCover(ctx, bgPhotoImg);
 
     if (post && mode === 'results') drawPostDecor();
     if (!post) C.decorations.forEach(d => {
