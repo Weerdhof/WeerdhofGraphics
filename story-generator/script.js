@@ -1353,6 +1353,51 @@
   }
   if (checkScheduleBtn) checkScheduleBtn.addEventListener('click', checkSchedule);
 
+  // ---------- Jump to the date closest to today ----------
+  // Results / Matchresult / Top scorer: the most recent round or match (already played).
+  // Schedule / Match: the next one coming up. Falls back to whichever exists.
+  function jumpToNearestDate() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const seasonYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    const toTime = (day, month) => new Date(month >= 7 ? seasonYear : seasonYear + 1, month - 1, day).getTime();
+    const wantsPast = mode === 'results' || mode === 'matchresult' || mode === 'topscorer';
+    let items;
+    if (isSingleMode()) {
+      items = smMatches.map(m => {
+        const d = /(\d+)-(\d+)/.exec(m.dateRound || '');
+        return d ? { id: m.id, t: toTime(parseInt(d[1], 10), parseInt(d[2], 10)), label: `Ronde ${m.roundNum}: ${m.home} vs ${m.away}` } : null;
+      });
+    } else {
+      items = rounds.map(r => {
+        const d = parseDayMonth(r.datum);
+        return d ? { id: r.id, t: toTime(d.day, d.month), label: `Ronde ${r.roundNum} — ${r.datum}` } : null;
+      });
+    }
+    items = items.filter(Boolean);
+    if (!items.length) return;
+    const past = items.filter(i => i.t <= today).sort((a, b) => b.t - a.t)[0];
+    const next = items.filter(i => i.t >= today).sort((a, b) => a.t - b.t)[0];
+    const pick = wantsPast ? (past || next) : (next || past);
+    roundSelect.value = pick.id;
+    roundSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // Runs automatically whenever an asset is opened: waits for its data to load, then
+  // jumps to the nearest date — unless the round/match on screen already has typed data.
+  function hasTypedData() {
+    if (isSingleMode()) {
+      return !!(smState.homeScore || smState.awayScore || smState.tsGoals || smState.tsLast || smState.pwName);
+    }
+    return state.matches.some(m => m.homeScore !== '' || m.awayScore !== '');
+  }
+  function jumpWhenReady(attempt = 0) {
+    if (mode === 'ranking' || mode === 'playerweek') return;
+    const ready = isSingleMode() ? (smMatches.length > 0 && smLoadedKey === compKey) : rounds.length > 0 && roundsCompKey === compKey && state.matches.length > 0;
+    if (!ready) { if (attempt < 25) setTimeout(() => jumpWhenReady(attempt + 1), 150); return; }
+    if (!hasTypedData()) jumpToNearestDate();
+  }
+
   // ---------- Check standings SHL site (ranking mode) ----------
   const checkStandingsBtn = document.getElementById('checkStandingsBtn');
   const checkStandingsStatus = document.getElementById('checkStandingsStatus');
@@ -1540,11 +1585,14 @@
     });
   });
 
+  let roundsCompKey = null; // which competition `rounds` currently holds
   function loadCompetition() {
+    const requestedComp = compKey;
     fetch(comp().csvPath)
       .then(r => r.text())
       .then(text => {
         rounds = parseCsv(text);
+        roundsCompKey = requestedComp;
         if (isSingleMode() || mode === 'ranking') return; // these UIs own the dropdown right now
         populateRoundSelect();
         if (!rounds.length) return;
@@ -1621,12 +1669,15 @@
 
   // Re-fetched whenever compKey changes while in Match/Matchresult mode —
   // each competition has its own fixture list.
+  let smLoadedKey = null; // which competition `smMatches` actually holds (set once parsed)
   function loadSingleMatchData() {
     smMatchesCompKey = compKey;
+    const requestedComp = compKey;
     fetch(singleMatchCsvPath())
       .then(r => r.text())
       .then(text => {
         smMatches = parseSingleMatchCsv(text);
+        smLoadedKey = requestedComp;
         if (!isSingleMode()) return; // round-based UI owns the dropdown right now
         populateSingleMatchSelect();
         if (!smMatches.length) return;
@@ -3608,6 +3659,7 @@
     document.querySelector(`[data-mode="${assetMode}"]`).click();
     document.body.classList.remove('menu-open');
     updateEditorBar();
+    jumpWhenReady();
     window.scrollTo(0, 0);
     if (fromMenu) history.pushState({ editor: true }, '');
   }
