@@ -206,6 +206,82 @@ def fetch_women_standings():
     return parse_women_standings(_fetch_html(WOMEN_BASE_URL + "/standings"))
 
 
+# ---------- Schedule (fixtures with date + time), used by the "Check schema" button ----------
+NL_MONTHS = {"januari": 1, "februari": 2, "maart": 3, "april": 4, "mei": 5, "juni": 6, "juli": 7, "augustus": 8,
+             "september": 9, "oktober": 10, "november": 11, "december": 12}
+EN_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+MEN_API = "https://api.superhandballeague.com/general/api/sportsuite"
+MEN_COMPETITION_ID_FALLBACK = "42272"
+
+
+def _fetch_json(url):
+    return json.loads(_fetch_html(url))
+
+
+def _men_competition_id():
+    # the id sits in the page's own API calls (match-result/ALL/<id>)
+    try:
+        m = re.search(r"match-result/ALL/(\d+)", _fetch_html(SOURCE_URL))
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return MEN_COMPETITION_ID_FALLBACK
+
+
+def fetch_men_schedule():
+    cid = _men_competition_id()
+    fixtures = []
+    for endpoint, played in (("match-result/ALL", True), ("match-program/ALL", False)):
+        for x in _fetch_json(f"{MEN_API}/{endpoint}/{cid}").get("data", []):
+            d = re.match(r"\s*\w*\s*(\d+)\s+([a-z]+)", (x.get("date") or "").lower())
+            if not d or d.group(2) not in NL_MONTHS:
+                continue
+            fixtures.append({
+                "home": x.get("home_team_short") or x.get("home_team") or "",
+                "away": x.get("away_team_short") or x.get("away_team") or "",
+                "day": int(d.group(1)), "month": NL_MONTHS[d.group(2)],
+                "time": x.get("match_time") or "", "played": played, "round": x.get("round"),
+            })
+    return fixtures
+
+
+def _en_day_month(text):
+    m = re.search(r"(\d+)\s+([A-Za-z]{3})", text or "")
+    if not m or m.group(2).lower() not in EN_MONTHS:
+        return None, None
+    return int(m.group(1)), EN_MONTHS[m.group(2).lower()]
+
+
+def parse_women_matches(page):
+    """shlw.nl/matches: upcoming fixtures with date, time and team names."""
+    out = []
+    for block in re.findall(r'<a class="match".*?</a>', page, re.S):
+        date = re.search(r'<span class="date">(.*?)</span>', block, re.S)
+        time = re.search(r'<span class="time">(.*?)</span>', block, re.S)
+        names = [_clean(n) for n in re.findall(r'<span class="hide-for-small">(.*?)</span>', block, re.S)]
+        if not date or len(names) != 2:
+            continue
+        day, month = _en_day_month(_clean(date.group(1)))
+        if day is None:
+            continue
+        out.append({"home": names[0], "away": names[1], "day": day, "month": month,
+                    "time": _clean(time.group(1)) if time else "", "played": False})
+    return out
+
+
+def fetch_women_schedule():
+    upcoming = parse_women_matches(_fetch_html(WOMEN_BASE_URL + "/matches"))
+    played = []
+    for r in parse_women_results(_fetch_html(WOMEN_BASE_URL + "/results")):
+        day, month = _en_day_month(r.get("date"))
+        if day is None:
+            continue
+        # the results page has no kickoff time — the client keeps the existing one
+        played.append({"home": r["teamA"], "away": r["teamB"], "day": day, "month": month, "time": "", "played": True})
+    return played + upcoming
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -215,6 +291,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_results()
         elif self.path.startswith("/api/standings"):
             self.handle_standings()
+        elif self.path.startswith("/api/schedule"):
+            self.handle_schedule()
         elif self.path.startswith("/api/save"):
             self.handle_load_state()
         else:
@@ -275,6 +353,20 @@ class Handler(SimpleHTTPRequestHandler):
             if debug is not None:
                 payload["debug"] = debug
             body = json.dumps(payload).encode("utf-8")
+            self.send_response(200)
+        except Exception as err:
+            body = json.dumps({"error": str(err)}).encode("utf-8")
+            self.send_response(502)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def handle_schedule(self):
+        try:
+            fixtures = fetch_women_schedule() if self.wants_women() else fetch_men_schedule()
+            body = json.dumps({"fixtures": fixtures}).encode("utf-8")
             self.send_response(200)
         except Exception as err:
             body = json.dumps({"error": str(err)}).encode("utf-8")

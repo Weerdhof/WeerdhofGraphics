@@ -1264,6 +1264,95 @@
     });
   }
 
+  // ---------- Check schedule against the site ----------
+  // The CSVs can go stale (kickoff moved, match shifted to another day). This
+  // pulls the site's fixtures and updates time + day for every match it finds:
+  // all rounds (Results/Schedule), the loaded round, and the single-match list.
+  const checkScheduleBtn = document.getElementById('checkScheduleBtn');
+
+  function parseDayMonth(datum) {
+    const m = /(\d+)\s+([A-Za-z]+)/.exec(datum || '');
+    const month = m ? MONTHS[m[2].toUpperCase()] : undefined;
+    return m && month !== undefined ? { day: parseInt(m[1], 10), month: month + 1 } : null;
+  }
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  function checkSchedule() {
+    const aliases = comp().resultAliases;
+    const toCode = (name) => matchCodeByAlias(aliases, name);
+    const toSingle = (c) => (SINGLE_CODE[compKey] && SINGLE_CODE[compKey][c]) || c;
+    checkScheduleBtn.disabled = true;
+    showCheckStatus(`Schema ophalen van ${SITE_LABEL[compKey]}…`);
+    fetch('/api/schedule?comp=' + compKey)
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        const byPair = new Map();
+        (data.fixtures || []).forEach(f => byPair.set(`${toCode(f.home)}|${toCode(f.away)}`, f));
+        const changes = [];
+
+        // 1. every round of the CSV (Results/Schedule)
+        rounds.forEach(r => {
+          const rd = parseDayMonth(r.datum);
+          if (!rd) return;
+          r.matches.forEach(m => {
+            const f = byPair.get(`${m.home}|${m.away}`);
+            if (!f) return;
+            const otherDay = f.day !== rd.day || f.month !== rd.month;
+            const label = otherDay ? `${pad2(f.day)}-${pad2(f.month)}` : '';
+            if (f.time && m.time !== f.time) { changes.push(`${m.home}–${m.away}: ${m.time} → ${f.time}`); m.time = f.time; }
+            if (m.otherDay !== otherDay || m.otherDayLabel !== label) {
+              if (otherDay || m.otherDay) changes.push(`${m.home}–${m.away}: dag ${otherDay ? label : 'ronde-dag'}`);
+              m.otherDay = otherDay; m.otherDayLabel = label;
+            }
+          });
+        });
+        // the round currently on screen keeps its typed scores — update time/day in place
+        const cur = rounds.find(r => r.id === currentRoundId);
+        const rdCur = cur ? parseDayMonth(cur.datum) : null;
+        if (rdCur) state.matches.forEach(m => {
+          const f = byPair.get(`${m.home}|${m.away}`);
+          if (!f) return;
+          if (f.time) m.time = f.time;
+          const otherDay = f.day !== rdCur.day || f.month !== rdCur.month;
+          m.showDate = otherDay; m.dateLabel = otherDay ? `${pad2(f.day)}-${pad2(f.month)}` : '';
+        });
+
+        // 2. the single-match list (Match / Matchresult)
+        const now = new Date();
+        const seasonYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+        smMatches.forEach(sm => {
+          const f = byPair.get(`${[...Object.keys(SINGLE_CODE[compKey] || {})].find(k => SINGLE_CODE[compKey][k] === sm.home) || sm.home}|${[...Object.keys(SINGLE_CODE[compKey] || {})].find(k => SINGLE_CODE[compKey][k] === sm.away) || sm.away}`);
+          if (!f) return;
+          const dt = new Date(f.month >= 7 ? seasonYear : seasonYear + 1, f.month - 1, f.day);
+          const weekday = compKey === 'women'
+            ? dt.toLocaleDateString('nl-NL', { weekday: 'long' }).toUpperCase()
+            : dt.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase();
+          const newDateRound = sm.dateRound.replace(/^\S+\s+\d+-\d+/, `${weekday} ${pad2(f.day)}-${pad2(f.month)}`);
+          const newTime = f.time || sm.time;
+          if (newDateRound !== sm.dateRound || newTime !== sm.time) {
+            changes.push(`${sm.home}–${sm.away}: ${sm.dateRound.split('|')[0].trim()} ${sm.time} → ${newDateRound.split('|')[0].trim()} ${newTime}`);
+            sm.dateRound = newDateRound; sm.time = newTime;
+          }
+          if (smState.id === sm.id) { smState.time = sm.time; smState.dateRound = sm.dateRound; }
+        });
+
+        const keep = roundSelect.value;
+        if (isSingleMode()) { populateSingleMatchSelect(); roundSelect.value = keep; }
+        buildMatchRows();
+        render();
+        if (changes.length) {
+          const uniq = [...new Set(changes)];
+          showCheckStatus(`✓ ${uniq.length} wijziging${uniq.length === 1 ? '' : 'en'} t.o.v. de CSV: ${uniq.slice(0, 4).join(' · ')}${uniq.length > 4 ? ' …' : ''}`, 'ok');
+        } else {
+          showCheckStatus(`✓ Schema klopt met ${SITE_LABEL[compKey]}`, 'ok');
+        }
+      })
+      .catch(err => showCheckStatus('✗ Schema ophalen mislukt: ' + err.message, 'warn'))
+      .finally(() => { checkScheduleBtn.disabled = false; });
+  }
+  if (checkScheduleBtn) checkScheduleBtn.addEventListener('click', checkSchedule);
+
   // ---------- Check standings SHL site (ranking mode) ----------
   const checkStandingsBtn = document.getElementById('checkStandingsBtn');
   const checkStandingsStatus = document.getElementById('checkStandingsStatus');
@@ -1313,6 +1402,8 @@
     const label = SITE_LABEL[compKey] || 'SHL site';
     if (checkScoresBtn) checkScoresBtn.textContent = `\u{1F517} Check score ${label}`;
     if (checkStandingsBtn) checkStandingsBtn.textContent = `\u{1F517} Vul in vanuit ${label}`;
+    const sb = document.getElementById('checkScheduleBtn');
+    if (sb) sb.textContent = `\u{1F517} Check schema ${label}`;
   }
 
   // ---------- Font ----------
@@ -2076,7 +2167,12 @@
 
   // ---------- Main render ----------
   function render() {
+    // Transparent output is shown on a checkerboard in the preview only (CSS behind
+    // the canvas) — the canvas pixels, and so the PNG/MP4 export, stay transparent.
+    canvas.classList.toggle('canvas-checker',
+      transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post'));
     showDateField.hidden = true;
+    checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
     const C = comp();
