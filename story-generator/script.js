@@ -2483,12 +2483,12 @@
   function drawPostDecor() {
     if (!postDecor) return;
     // With "Animeer" on the lines pulse with the icon's heartbeat, each line 40ms after
-    // the previous one (a ripple outwards); otherwise they just sit there.
+    // the previous one, starting at the outermost; otherwise they just sit there.
     const el = (mode === 'results' && resultsAnimating && animStartTs != null)
       ? performance.now() - animStartTs : null;
     const lineState = (i) => {
       if (el == null) return { scale: 1, opacity: 1 };
-      const t = el - i * 40;
+      const t = el - (3 - i) * 40; // outermost (thin) line first, rippling inwards
       const local = t > 0 ? t % DECOR_PULSE_PERIOD_MS : DECOR_PULSE_PERIOD_MS;
       const beat = local < ICON_MS ? keyframeScale(local / ICON_MS, SM_ICON_BEAT_KEYFRAMES) : 1;
       return { scale: 1 + (beat - 1) * DECOR_PULSE_GAIN, opacity: 1 };
