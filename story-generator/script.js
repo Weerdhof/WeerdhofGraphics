@@ -944,31 +944,23 @@
   });
 
   // Where a background photo can be used: every single-match graphic, Results/Schedule
-  // (drawn into Story; shown only as a preview behind the transparent Post) and the
-  // Ranking Post (preview only).
+  // (Story and Post) and the Ranking Post.
   function photoModeActive() {
     return isSingleMode() || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
   }
-  // Post formats stay transparent in the export, so their photo is only a CSS backdrop
-  // behind the canvas (positioned like drawBgPhotoCover would), never part of the pixels.
-  function updatePhotoPreview() {
-    const css = bgPhotoImg && isListMode() && resultsFormat === 'post' && photoModeActive();
-    if (!css) {
-      canvas.style.backgroundImage = ''; canvas.style.backgroundSize = ''; canvas.style.backgroundPosition = ''; canvas.style.backgroundRepeat = '';
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width) return;
-    const k = rect.width / canvas.width;
-    const sc = bgPhotoCoverScale(bgPhotoImg) * bgPhotoScale;
-    const dw = bgPhotoImg.naturalWidth * sc, dh = bgPhotoImg.naturalHeight * sc;
-    const dx = (canvas.width - dw) / 2 + bgPhotoOffsetX, dy = (bgPhotoAreaH() - dh) / 2 + bgPhotoOffsetY;
-    canvas.style.backgroundImage = `url(${bgPhotoImg.src})`;
-    canvas.style.backgroundRepeat = 'no-repeat';
-    canvas.style.backgroundSize = `${dw * k}px ${dh * k}px`;
-    canvas.style.backgroundPosition = `${dx * k}px ${dy * k}px`;
+  // In the Post formats the photo is drawn into the canvas (so PNG and MP4 contain it) with
+  // a subtle navy gradient on the side the block sits on, keeping the rows readable.
+  // Without a photo the Post stays fully transparent.
+  function drawPostPhoto(side) {
+    if (!bgPhotoImg) return;
+    drawBgPhotoCover(ctx, bgPhotoImg);
+    const W = canvas.width;
+    const g = side === 'right' ? ctx.createLinearGradient(W * 0.3, 0, W, 0) : ctx.createLinearGradient(W * 0.7, 0, 0, 0);
+    g.addColorStop(0, 'rgba(26, 27, 56, 0)');
+    g.addColorStop(1, 'rgba(26, 27, 56, 0.8)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, canvas.height);
   }
-  window.addEventListener('resize', () => { if (bgPhotoImg) updatePhotoPreview(); });
 
   // Drag-to-pan directly on the preview. Pointer events cover mouse + touch
   // uniformly; delta is scaled from displayed (CSS) pixels to actual canvas
@@ -2251,11 +2243,11 @@
   function render() {
     // Transparent output is shown on a checkerboard in the preview only (CSS behind
     // the canvas) — the canvas pixels, and so the PNG/MP4 export, stay transparent.
+    // (A photo, when present, is drawn into the canvas and covers it.)
     canvas.classList.toggle('canvas-checker',
-      transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post'));
+      !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
     postDecorField.hidden = !(mode === 'results' && resultsFormat === 'post');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
-    updatePhotoPreview();
     showDateField.hidden = true;
     checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
     if (isSingleMode()) { renderSingleMatch(); return; }
@@ -2274,7 +2266,7 @@
     }
     if (!post && bgPhotoImg) drawBgPhotoCover(ctx, bgPhotoImg);
 
-    if (post && mode === 'results') drawPostDecor();
+    if (post && mode === 'results') { drawPostPhoto('right'); drawPostDecor(); }
     if (!post) C.decorations.forEach(d => {
       const img = loadImg(d.src);
       if (img && img.complete && img.naturalWidth) {
@@ -2392,6 +2384,7 @@
   }
 
   function renderSchedulePost(C, fontFamily) {
+    drawPostPhoto('right');
     const shown = visibleMatches();
     const infos = shown.map(scheduleDateInfo);
     const keys = [...new Set(infos.map(i => i.key))];
@@ -2450,6 +2443,7 @@
     const colRank = 144, colCrest = 226, colCode = 282, colP = 422, colPts = 525;
     const divider = women ? '#00c9b7' : '#e8527a';
     ctx.clearRect(0, 0, W, H);
+    drawPostPhoto('left');
 
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     ctx.fillRect(px, py, pw, ph);
