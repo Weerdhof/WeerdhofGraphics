@@ -805,6 +805,15 @@
     render();
   });
 
+  // Results / Schedule: optionally print the round's date under the title.
+  const showDateField = document.getElementById('showDateField');
+  const showDateToggle = document.getElementById('showDateToggle');
+  let showRoundDate = false;
+  showDateToggle.addEventListener('change', () => {
+    showRoundDate = showDateToggle.checked;
+    render();
+  });
+
   // ---------- Vrouwen single-match format toggle (Story / Post) ----------
   const smwFormatField = document.getElementById('smwFormatField');
   const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
@@ -1015,7 +1024,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg, ranking: rankState,
+        sm: smState, transparentBg, showRoundDate, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -1052,7 +1061,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-          sm: smState, transparentBg, ranking: rankState,
+          sm: smState, transparentBg, showRoundDate, ranking: rankState,
         }),
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -1937,9 +1946,11 @@
 
   // ---------- Main render ----------
   function render() {
+    showDateField.hidden = true;
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { renderRanking(); return; }
     const C = comp();
+    showDateField.hidden = false;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!transparentBg) {
       ctx.fillStyle = C.bgColor;
@@ -1959,6 +1970,12 @@
     ctx.fillStyle = C.titleColor;
     ctx.font = `700 ${C.titleFontSize}px "${fontFamily}"`;
     ctx.fillText(mode === 'results' ? C.titles.results : C.titles.schedule, CANVAS_W / 2, C.titleY);
+    if (showRoundDate && state.date) {
+      ctx.font = `500 34px "${fontFamily}"`;
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(String(state.date).toUpperCase(), CANVAS_W / 2, C.titleY + 70);
+      ctx.globalAlpha = 1;
+    }
 
     const animElapsed = (mode === 'results' && resultsAnimating && animStartTs != null)
       ? performance.now() - animStartTs : null;
@@ -2999,6 +3016,10 @@
   // reload lands back where the user left off (loadCompetition() then picks
   // up the matching round + scores via savedState above).
   if (savedState) {
+    if (typeof savedState.showRoundDate === 'boolean') {
+      showRoundDate = savedState.showRoundDate;
+      showDateToggle.checked = showRoundDate;
+    }
     if (typeof savedState.transparentBg === 'boolean') {
       transparentBg = savedState.transparentBg;
       transparentBgToggle.checked = transparentBg;
