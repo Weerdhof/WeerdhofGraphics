@@ -59,6 +59,16 @@
       </button>
     </div>
 
+    <h2 class="home-group">Per speler</h2>
+    <div class="home-cards">
+      <button class="menu-card" data-go-mode="playerweek" type="button">
+        <span class="menu-icon">⭐</span>
+        <span class="menu-title">Speler van de week</span>
+        <span class="menu-desc">Spelersfoto met naam en club, in de huisstijl</span>
+        <span class="menu-tags"><i>Post</i><i>Animatie</i></span>
+      </button>
+    </div>
+
     <h2 class="home-group">Seizoen</h2>
     <div class="home-cards">
       <button class="menu-card" data-go-mode="ranking" type="button">
@@ -102,6 +112,7 @@
         <button class="mode-tab" data-mode="match">Match</button>
         <button class="mode-tab" data-mode="matchresult">Matchresult</button>
         <button class="mode-tab men-only-tab" data-mode="topscorer">Top scorer</button>
+        <button class="mode-tab" data-mode="playerweek">Speler van de week</button>
       </div>
 
       <div class="mode-group-label">Seizoen</div>
@@ -263,6 +274,19 @@
         Andere dag dan hierboven (bv. nog een zondag)
       </label>
       <input type="text" class="date-label-input" placeholder="bv. SUNDAY 21 SEPTEMBER" hidden autocomplete="off">
+    </div>
+  </div>
+</template>
+
+<template id="playerWeekRowTemplate">
+  <div class="match-row">
+    <div class="field">
+      <label>Club</label>
+      <select class="pw-team" autocomplete="off"></select>
+    </div>
+    <div class="field">
+      <label>Naam</label>
+      <input type="text" class="pw-name" placeholder="bv. Lennert Ceyssens" autocomplete="off">
     </div>
   </div>
 </template>
