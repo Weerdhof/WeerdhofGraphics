@@ -2480,10 +2480,26 @@
   let postDecorCanvas = null;
   function drawPostDecor() {
     if (!postDecor) return;
+    // With "Animeer" on, the lines play the shared chevron curve (grow + fade, looping),
+    // each line starting 40ms after the previous one; otherwise they just sit there.
+    const el = (mode === 'results' && resultsAnimating && animStartTs != null)
+      ? (performance.now() - animStartTs) % SM_LOOP_CYCLE_MS : null;
+    const lineState = (i) => el == null ? { scale: 1, opacity: 1 } : smChevronState(el - i * 40);
+
     if (compKey === 'women') {
       const d = COMPETITIONS.women.decorations[0];
       const img = loadImg(d.src);
-      if (img && img.complete && img.naturalWidth) ctx.drawImage(img, d.x, d.y);
+      if (img && img.complete && img.naturalWidth) {
+        const st = lineState(0);
+        if (st.opacity > 0) {
+          ctx.save();
+          ctx.globalAlpha = st.opacity;
+          const ax = d.x + img.naturalWidth, ay = d.y + img.naturalHeight; // grows out from its lower-right corner
+          ctx.translate(ax, ay); ctx.scale(st.scale, st.scale); ctx.translate(-ax, -ay);
+          ctx.drawImage(img, d.x, d.y);
+          ctx.restore();
+        }
+      }
       return;
     }
     if (!smCardChevronPaths) smCardChevronPaths = SM_CARD_CHEVRON_D.map((p) => new Path2D(p));
@@ -2492,13 +2508,19 @@
     if (!postDecorCanvas) { postDecorCanvas = document.createElement('canvas'); postDecorCanvas.width = 600; postDecorCanvas.height = 500; }
     const d = postDecorCanvas.getContext('2d');
     d.clearRect(0, 0, 600, 500);
-    d.save();
-    d.translate(-85, 71);
-    d.rotate(195.5 * Math.PI / 180);
-    d.scale(2.6, 2.6);
-    d.fillStyle = '#fff';
-    smCardChevronPaths.forEach((p) => d.fill(p));
-    d.restore();
+    smCardChevronPaths.forEach((p, i) => {
+      const st = lineState(i);
+      if (st.opacity <= 0) return;
+      d.save();
+      d.globalAlpha = st.opacity;
+      d.translate(425, 405); d.scale(st.scale, st.scale); d.translate(-425, -405); // grow from the outer corner
+      d.translate(-85, 71);
+      d.rotate(195.5 * Math.PI / 180);
+      d.scale(2.6, 2.6);
+      d.fillStyle = '#fff';
+      d.fill(p);
+      d.restore();
+    });
     d.globalCompositeOperation = 'source-in';
     const g = d.createLinearGradient(0, 0, 0, 430);
     g.addColorStop(0, '#fb718b'); g.addColorStop(0.55, '#fb7582'); g.addColorStop(1, '#f39760');
