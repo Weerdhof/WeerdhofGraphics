@@ -215,7 +215,7 @@
   // Canvas size for whichever competition/format combination is active —
   // both Mannen and Vrouwen toggle between Post and Story.
   function smCanvasSize() {
-    if (mode === 'results' || mode === 'schedule') return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
+    if (isListMode()) return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
     if (mode === 'topscorer' || mode === 'playerweek') return { w: TS_W, h: TS_H };
     if (compKey === 'women') {
       const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
@@ -296,6 +296,8 @@
     // Player of the week: the player's club and name.
     pwTeam: '', pwName: '',
   };
+  // Results / Schedule / Ranking share the Story-or-Post choice (Post = left or right aligned, transparent).
+  function isListMode() { return mode === 'results' || mode === 'schedule' || mode === 'ranking'; }
   function isSingleMode() { return mode === 'match' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
 
   // Optional user-uploaded photo behind the single-match graphic (Mannen
@@ -879,12 +881,12 @@
   const smwFormatField = document.getElementById('smwFormatField');
   const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
   function syncFormatButtons() {
-    const current = (mode === 'results' || mode === 'schedule') ? resultsFormat : smFormat;
+    const current = isListMode() ? resultsFormat : smFormat;
     smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === current));
   }
   smwFormatBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      if (mode === 'results' || mode === 'schedule') resultsFormat = btn.dataset.smwFormat;
+      if (isListMode()) resultsFormat = btn.dataset.smwFormat;
       else smFormat = btn.dataset.smwFormat;
       syncFormatButtons();
       const sz = smCanvasSize();
@@ -1688,11 +1690,11 @@
         checkStandingsBtn.hidden = false;
         exportElementBtn.hidden = false;
         bgPhotoField.hidden = true;
-        smwFormatField.hidden = true;
+        smwFormatField.hidden = false;
+        syncFormatButtons();
         resetResultsAnim();
         resetSmAnim();
-        canvas.width = CANVAS_W;
-        canvas.height = CANVAS_H;
+        { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
         buildMatchRows();
         render();
       } else {
@@ -2076,7 +2078,7 @@
   function render() {
     showDateField.hidden = true;
     if (isSingleMode()) { renderSingleMatch(); return; }
-    if (mode === 'ranking') { renderRanking(); return; }
+    if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
     const C = comp();
     showDateField.hidden = mode !== 'results' && mode !== 'schedule';
     const dateInfo = computeResultDateMode();
@@ -2248,6 +2250,71 @@
     if (logo && logo.complete && logo.naturalWidth) {
       const lw = 485, lh = lw * logo.naturalHeight / logo.naturalWidth;
       ctx.drawImage(logo, 480, bottom + 108 - lh / 2, lw, lh);
+    }
+    saveState();
+  }
+
+  // ---------- Ranking Post (left-aligned, transparent) ----------
+  // A semi-transparent white panel on the left with all 14 positions, so the
+  // right side stays free for a player photo in the external template.
+  function renderRankingPost() {
+    const W = RP_W, H = RP_H;
+    const women = compKey === 'women';
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const navy = '#1b2450';
+    const px = 112, pw = 492, py = 115, ph = 961;           // panel
+    const firstY = 200, pitch = 62.2;                        // row centers
+    const colRank = 144, colCrest = 226, colCode = 282, colP = 422, colPts = 525;
+    const divider = women ? '#00c9b7' : '#e8527a';
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.fillRect(px, py, pw, ph);
+    // accent bar along the bottom edge of the panel
+    const g = ctx.createLinearGradient(px, 0, px + pw, 0);
+    if (women) { g.addColorStop(0, '#00f2e2'); g.addColorStop(1, '#00e5b1'); }
+    else { g.addColorStop(0, '#f47987'); g.addColorStop(1, '#f1913d'); }
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py + ph - 20, pw, 20);
+
+    // column headers
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(27,36,80,0.55)';
+    ctx.font = `600 22px "${fontFamily}"`;
+    ctx.fillText('P', colP, 154);
+    ctx.fillText('PTS', colPts, 154);
+
+    // zone dividers after position 8 and 10
+    ctx.fillStyle = divider;
+    [8, 10].forEach(n => ctx.fillRect(px, firstY + (n - 0.5) * pitch - 1.5, pw, 3));
+
+    const rows = rankState[compKey];
+    rows.forEach((row, i) => {
+      const cy = firstY + i * pitch;
+      ctx.fillStyle = navy;
+      ctx.textAlign = 'left';
+      ctx.font = `600 28px "${fontFamily}"`;
+      ctx.fillText(`${i + 1}.`, colRank - 8, cy);
+      if (!row.code) return;
+      tsDrawCrest(loadImg(`${comp().teamsDir}/${row.code}.png`), colCrest, cy, 50);
+      ctx.fillStyle = navy;
+      ctx.textAlign = 'left';
+      ctx.font = `600 28px "${fontFamily}"`;
+      ctx.fillText(row.code, colCode, cy);
+      ctx.textAlign = 'center';
+      ctx.font = `500 28px "${fontFamily}"`;
+      ctx.fillText(String(row.p), colP, cy);
+      ctx.font = `700 32px "${fontFamily}"`;
+      ctx.fillText(String(row.pts), colPts, cy);
+    });
+
+    // SHL mark on the panel's top-right corner, white logo under the panel
+    const mark = loadImg(women ? 'assets/women/singlematch/mark.png' : 'assets/singlematch/mark.png');
+    if (mark && mark.complete && mark.naturalWidth) ctx.drawImage(mark, 566, 56, 96, 96 * mark.naturalHeight / mark.naturalWidth);
+    const logo = loadImg(women ? 'assets/women/singlematch/footer-white.png' : 'assets/footer-logo.png');
+    if (logo && logo.complete && logo.naturalWidth) {
+      const lh = 118, lw = lh * logo.naturalWidth / logo.naturalHeight;
+      ctx.drawImage(logo, 100, 1100, lw, lh);
     }
     saveState();
   }
@@ -3392,7 +3459,7 @@
         canvas.height = CANVAS_H;
       }
       resultsAnimField.hidden = mode !== 'results';
-      if (mode === 'results' || mode === 'schedule') {
+      if (isListMode()) {
         smwFormatField.hidden = false;
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
       }
