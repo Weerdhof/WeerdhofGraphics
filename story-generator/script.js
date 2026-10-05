@@ -12,6 +12,7 @@
   // the right half of a 1080x1350 canvas (matches the posted examples).
   const RP_W = 1080, RP_H = 1350;
   const RP_SCALE = 600 / 880, RP_CX = 725, RP_Y0 = 363;
+  const RP_NO_BAR_SHIFT = 58;
   const ROW_LEFT = 100, ROW_RIGHT = 980, ROW_CENTER = (ROW_LEFT + ROW_RIGHT) / 2; // 540
   const BADGE_SIZE = 130, BADGE_MARGIN = 15;
 
@@ -214,7 +215,7 @@
   // Canvas size for whichever competition/format combination is active —
   // both Mannen and Vrouwen toggle between Post and Story.
   function smCanvasSize() {
-    if (mode === 'results') return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
+    if (mode === 'results' || mode === 'schedule') return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
     if (mode === 'topscorer') return { w: TS_W, h: TS_H };
     if (compKey === 'women') {
       const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
@@ -836,6 +837,25 @@
   function resultDates() {
     return visibleMatches().filter(m => m.played !== false).map(m => m.rowDate || defaultRowDate(m));
   }
+
+  // ---- Schedule dates: one entry per match (round date, or its own other-day date) ----
+  function shortFromFull(full) {
+    const d = /^([A-Z]+)\s+(\d+)\s+([A-Z]+)/.exec(full || '');
+    if (!d) return full || '';
+    return `${d[1].slice(0, 3)} ${d[2]} ${/^MAART/.test(d[3]) ? 'MRT' : d[3].slice(0, 3)}`;
+  }
+  function scheduleDateInfo(m) {
+    let full = String(state.date || '').toUpperCase();
+    const dm = m.showDate && m.dateLabel ? /(\d+)-(\d+)/.exec(m.dateLabel) : null;
+    if (dm) {
+      const now = new Date();
+      const seasonYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+      const mon = parseInt(dm[2], 10);
+      const dt = new Date(mon >= 7 ? seasonYear : seasonYear + 1, mon - 1, parseInt(dm[1], 10));
+      full = dt.toLocaleDateString(compKey === 'women' ? 'nl-NL' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+    }
+    return { key: dateKey(full), full, short: shortFromFull(full) };
+  }
   function computeResultDateMode() {
     if (!showDates || mode !== 'results') return { mode: 'none' };
     const dates = resultDates().filter(Boolean);
@@ -851,12 +871,12 @@
   const smwFormatField = document.getElementById('smwFormatField');
   const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
   function syncFormatButtons() {
-    const current = mode === 'results' ? resultsFormat : smFormat;
+    const current = (mode === 'results' || mode === 'schedule') ? resultsFormat : smFormat;
     smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === current));
   }
   smwFormatBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      if (mode === 'results') resultsFormat = btn.dataset.smwFormat;
+      if (mode === 'results' || mode === 'schedule') resultsFormat = btn.dataset.smwFormat;
       else smFormat = btn.dataset.smwFormat;
       syncFormatButtons();
       const sz = smCanvasSize();
@@ -1675,12 +1695,12 @@
         exportElementBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         bgPhotoField.hidden = true;
-        smwFormatField.hidden = mode !== 'results';
+        smwFormatField.hidden = mode !== 'results' && mode !== 'schedule';
         syncFormatButtons();
         resetResultsAnim();
         resetSmAnim();
         resultsAnimField.hidden = mode !== 'results';
-        { const sz = mode === 'results' ? smCanvasSize() : { w: CANVAS_W, h: CANVAS_H }; canvas.width = sz.w; canvas.height = sz.h; }
+        { const sz = (mode === 'results' || mode === 'schedule') ? smCanvasSize() : { w: CANVAS_W, h: CANVAS_H }; canvas.width = sz.w; canvas.height = sz.h; }
         if (rounds.length) {
           populateRoundSelect();
           const round = rounds.find(r => r.id === currentRoundId) || rounds[0];
@@ -2018,10 +2038,12 @@
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { renderRanking(); return; }
     const C = comp();
-    showDateField.hidden = mode !== 'results';
+    showDateField.hidden = mode !== 'results' && mode !== 'schedule';
     const dateInfo = computeResultDateMode();
     resultDateMode = dateInfo.mode;
-    const post = mode === 'results' && resultsFormat === 'post';
+    const post = (mode === 'results' || mode === 'schedule') && resultsFormat === 'post';
+    // Without the colored date bar the rows (and logo) sit higher, closing its gap.
+    const rpShift = post && dateInfo.mode !== 'header' ? -RP_NO_BAR_SHIFT : 0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!post && !transparentBg) {
       ctx.fillStyle = C.bgColor;
@@ -2036,6 +2058,7 @@
     });
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    if (post && mode === 'schedule') { renderSchedulePost(C, fontFamily); return; }
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     if (post) {
@@ -2071,7 +2094,7 @@
     const shownMatches = visibleMatches();
     if (post) {
       ctx.save();
-      ctx.translate(RP_CX - ROW_CENTER * RP_SCALE, RP_Y0 - ROW_Y[0] * RP_SCALE);
+      ctx.translate(RP_CX - ROW_CENTER * RP_SCALE, RP_Y0 + rpShift - ROW_Y[0] * RP_SCALE);
       ctx.scale(RP_SCALE, RP_SCALE);
     }
     shownMatches.forEach((m, i) => {
@@ -2114,7 +2137,7 @@
       const logo = loadImg(compKey === 'women' ? 'assets/women/singlematch/footer-white.png' : C.footerLogo);
       if (logo && logo.complete && logo.naturalWidth) {
         const lw = 485, lh = lw * logo.naturalHeight / logo.naturalWidth;
-        ctx.drawImage(logo, 480, 1203 - lh / 2, lw, lh);
+        ctx.drawImage(logo, 480, 1203 + rpShift - lh / 2, lw, lh);
       }
     } else {
       const footerImg = loadImg(C.footerLogo);
@@ -2123,6 +2146,69 @@
       }
     }
 
+    saveState();
+  }
+
+
+  // Schedule Post (right-aligned, transparent): one colored date bar per day when
+  // there are one or two days; with more days the date sits above each time instead.
+  function drawDateBar(x, y, w, h, text, idx, fontFamily) {
+    const g = ctx.createLinearGradient(x, 0, x + w, 0);
+    const palettes = compKey === 'women'
+      ? [['#00f2e2', '#00e5b1'], ['#b87cff', '#e45cff']]
+      : [['#c7f23a', '#5fe39a'], ['#f47987', '#f1913d']];
+    const [a, b] = palettes[idx % palettes.length];
+    g.addColorStop(0, a); g.addColorStop(1, b);
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#14142b';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 28px "${fontFamily}"`;
+    ctx.fillText(text, x + w / 2, y + h / 2 + 1);
+  }
+
+  function renderSchedulePost(C, fontFamily) {
+    const shown = visibleMatches();
+    const infos = shown.map(scheduleDateInfo);
+    const keys = [...new Set(infos.map(i => i.key))];
+    const bars = showDates && keys.length > 0 && keys.length <= 2;
+    const rowDates = showDates && keys.length > 2;
+    const groups = bars
+      ? keys.map(k => shown.map((m, i) => ({ m, info: infos[i] })).filter(x => x.info.key === k))
+      : [shown.map((m, i) => ({ m, info: infos[i] }))];
+    const BAR_H = 53, BAR_GAP = 14, ROW_PX = ROW_H * RP_SCALE, PITCH = (ROW_Y[1] - ROW_Y[0]) * RP_SCALE, GROUP_GAP = 21;
+    // dry run for the stack height, then anchor the stack's bottom edge
+    let h = 0;
+    groups.forEach((g, gi) => {
+      if (bars) h += BAR_H + BAR_GAP;
+      h += g.length ? (g.length - 1) * PITCH + ROW_PX : 0;
+      if (gi < groups.length - 1) h += GROUP_GAP;
+    });
+    const bottom = 1105;
+    let y = bottom - h;
+    const top = y;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.round(C.titleFontSize * 0.8)}px "${fontFamily}"`;
+    ctx.fillText(C.titles.schedule, RP_CX - 1, top - (bars ? 55 : 73));
+    groups.forEach((g, gi) => {
+      if (bars) { drawDateBar(463, y, 522, BAR_H, g[0] ? g[0].info.full : '', gi, fontFamily); y += BAR_H + BAR_GAP; }
+      g.forEach((x, ri) => {
+        const cyPost = y + ROW_PX / 2;
+        ctx.save();
+        ctx.translate(RP_CX - ROW_CENTER * RP_SCALE, cyPost - ROW_Y[0] * RP_SCALE);
+        ctx.scale(RP_SCALE, RP_SCALE);
+        try { drawScheduleRow(x.m, ROW_Y[0], fontFamily, C, bars ? false : (rowDates ? x.info.short : null)); }
+        catch (err) { console.error('Kon wedstrijd niet tekenen:', x.m, err); }
+        ctx.restore();
+        y += ri < g.length - 1 ? PITCH : ROW_PX;
+      });
+      if (gi < groups.length - 1) y += GROUP_GAP;
+    });
+    const logo = loadImg(compKey === 'women' ? 'assets/women/singlematch/footer-white.png' : C.footerLogo);
+    if (logo && logo.complete && logo.naturalWidth) {
+      const lw = 485, lh = lw * logo.naturalHeight / logo.naturalWidth;
+      ctx.drawImage(logo, 480, bottom + 108 - lh / 2, lw, lh);
+    }
     saveState();
   }
 
@@ -3043,7 +3129,7 @@
     ctx.globalAlpha = 1;
   }
 
-  function drawScheduleRow(m, cy, fontFamily, C) {
+  function drawScheduleRow(m, cy, fontFamily, C, dateOverride) {
     // Matches the pale background baked into the team strip art itself
     // (assets/teams/*.png), so the drawn strip has no visible seam against
     // the row behind it.
@@ -3058,14 +3144,15 @@
     ctx.textAlign = 'center';
     ctx.globalAlpha = 1;
 
-    if (m.showDate && m.dateLabel) {
+    const rowDateText = dateOverride === false ? '' : (dateOverride || (m.showDate && m.dateLabel ? m.dateLabel : ''));
+    if (rowDateText) {
       // Still-to-play match on a different day than the poster's main date
       // (e.g. one Sunday game amid a Saturday result round) — show both,
       // day on top of the time, so it isn't mistaken for the round's date.
       const dateFontSize = ROW_H * 0.16;
       const timeFontSize = ROW_H * 0.3;
       ctx.font = `700 ${dateFontSize}px "${fontFamily}"`;
-      ctx.fillText(m.dateLabel, ROW_CENTER, cy - timeFontSize * 0.45);
+      ctx.fillText(rowDateText, ROW_CENTER, cy - timeFontSize * 0.45);
       ctx.font = `700 ${timeFontSize}px "${fontFamily}"`;
       ctx.fillText(m.time || '', ROW_CENTER, cy + dateFontSize * 0.55);
     } else {
@@ -3171,7 +3258,7 @@
         canvas.height = CANVAS_H;
       }
       resultsAnimField.hidden = mode !== 'results';
-      if (mode === 'results') {
+      if (mode === 'results' || mode === 'schedule') {
         smwFormatField.hidden = false;
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
       }
