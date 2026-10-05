@@ -3278,4 +3278,55 @@
   buildMatchRows();
   loadCompetition();
   loadSingleMatchData();
+
+  // ---------- Home menu (start page) ----------
+  const homeMenu = document.getElementById('homeMenu');
+  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', matchresult: 'Matchresult', topscorer: 'Top scorer', ranking: 'Ranking' };
+  let menuComp = compKey;
+
+  function syncMenuComp() {
+    homeMenu.classList.toggle('theme-women', menuComp === 'women');
+    homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
+    homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
+  }
+
+  function showMenu() {
+    resetResultsAnim();
+    resetSmAnim();
+    menuComp = compKey;
+    syncMenuComp();
+    document.body.classList.add('menu-open');
+    window.scrollTo(0, 0);
+    homeMenu.scrollTop = 0;
+  }
+
+  function updateEditorBar() {
+    document.getElementById('editorAssetName').textContent = ASSET_NAMES[mode] || '';
+    document.getElementById('editorCompName').textContent = COMPETITIONS[compKey].label;
+    document.getElementById('editorSwitchBtn').textContent = compKey === 'men' ? '⇄ Vrouwen' : '⇄ Mannen';
+  }
+
+  function openAsset(comp, assetMode, fromMenu) {
+    document.querySelector(`[data-competition="${comp}"]`).click();
+    document.querySelector(`[data-mode="${assetMode}"]`).click();
+    document.body.classList.remove('menu-open');
+    updateEditorBar();
+    window.scrollTo(0, 0);
+    if (fromMenu) history.pushState({ editor: true }, '');
+  }
+
+  homeMenu.querySelectorAll('[data-home-comp]').forEach(btn => {
+    btn.addEventListener('click', () => { menuComp = btn.dataset.homeComp; syncMenuComp(); });
+  });
+  homeMenu.querySelectorAll('.menu-card').forEach(card => {
+    card.addEventListener('click', () => openAsset(menuComp, card.dataset.goMode, true));
+  });
+  document.getElementById('backToMenuBtn').addEventListener('click', () => {
+    if (history.state && history.state.editor) history.back(); else showMenu();
+  });
+  document.getElementById('editorSwitchBtn').addEventListener('click', () => {
+    openAsset(compKey === 'men' ? 'women' : 'men', mode, false);
+  });
+  window.addEventListener('popstate', () => showMenu());
+  syncMenuComp();
 })();

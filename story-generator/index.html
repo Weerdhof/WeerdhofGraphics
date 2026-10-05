@@ -6,15 +6,85 @@
 <title>SHL Story Generator</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="menu-open">
+
+<!-- ===================== HOME MENU ===================== -->
+<div class="home-menu" id="homeMenu">
+  <div class="home-inner">
+    <div class="home-head">
+      <h1>SHL Story Generator</h1>
+      <p>Wat wil je maken?</p>
+    </div>
+
+    <div class="home-comp" role="tablist">
+      <button class="home-comp-tab active" data-home-comp="men" type="button">Mannen</button>
+      <button class="home-comp-tab" data-home-comp="women" type="button">Vrouwen</button>
+    </div>
+
+    <h2 class="home-group">Per speelronde</h2>
+    <div class="home-cards">
+      <button class="menu-card" data-go-mode="results" type="button">
+        <span class="menu-icon">🏆</span>
+        <span class="menu-title">Results</span>
+        <span class="menu-desc">Alle uitslagen van een speelronde</span>
+        <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
+      </button>
+      <button class="menu-card" data-go-mode="schedule" type="button">
+        <span class="menu-icon">📅</span>
+        <span class="menu-title">Schedule</span>
+        <span class="menu-desc">Het programma van een speelronde</span>
+        <span class="menu-tags"><i>Story</i><i>Post</i></span>
+      </button>
+    </div>
+
+    <h2 class="home-group">Per wedstrijd</h2>
+    <div class="home-cards">
+      <button class="menu-card" data-go-mode="match" type="button">
+        <span class="menu-icon">⚡</span>
+        <span class="menu-title">Match</span>
+        <span class="menu-desc">Aankondiging: teams, tijd en datum</span>
+        <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
+      </button>
+      <button class="menu-card" data-go-mode="matchresult" type="button">
+        <span class="menu-icon">🎯</span>
+        <span class="menu-title">Matchresult</span>
+        <span class="menu-desc">De eindstand met winnaar-chevron</span>
+        <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
+      </button>
+      <button class="menu-card" data-go-mode="topscorer" type="button">
+        <span class="menu-icon">🥅</span>
+        <span class="menu-title">Top scorer</span>
+        <span class="menu-desc">Topscorer van de wedstrijd met foto en goals</span>
+        <span class="menu-tags"><i>Post</i><i>Animatie</i><i class="menu-men-only">Alleen Mannen</i></span>
+      </button>
+    </div>
+
+    <h2 class="home-group">Seizoen</h2>
+    <div class="home-cards">
+      <button class="menu-card" data-go-mode="ranking" type="button">
+        <span class="menu-icon">📈</span>
+        <span class="menu-title">Ranking</span>
+        <span class="menu-desc">De stand van de competitie, ophaalbaar van de site</span>
+        <span class="menu-tags"><i>Story</i></span>
+      </button>
+    </div>
+  </div>
+</div>
 
 <div class="app">
 
   <!-- ===================== CONTROLS ===================== -->
   <div class="panel">
-    <h1>SHL Story Generator</h1>
+    <div class="editor-topbar">
+      <button class="btn btn-link editor-back" id="backToMenuBtn" type="button">← Menu</button>
+      <div class="editor-asset">
+        <strong id="editorAssetName">Results</strong>
+        <span id="editorCompName">Mannen</span>
+      </div>
+      <button class="btn btn-link editor-switch" id="editorSwitchBtn" type="button">⇄ Vrouwen</button>
+    </div>
 
-    <section class="panel-step">
+    <section class="panel-step panel-step-nav">
       <div class="panel-step-title"><span class="step-num">1</span>Wat wil je maken?</div>
       <div class="mode-tabs competition-tabs">
         <button class="competition-tab active" data-competition="men">Mannen</button>
@@ -41,7 +111,7 @@
     </section>
 
     <section class="panel-step">
-      <div class="panel-step-title"><span class="step-num">2</span>Kies de data</div>
+      <div class="panel-step-title"><span class="step-num">1</span>Kies de data</div>
       <div class="field" id="roundSelectField">
         <label id="roundSelectLabel">Speelronde</label>
         <select id="roundSelect" autocomplete="off"></select>
@@ -56,7 +126,7 @@
     </section>
 
     <section class="panel-step">
-      <div class="panel-step-title"><span class="step-num">3</span>Bewerk de gegevens</div>
+      <div class="panel-step-title"><span class="step-num">2</span>Bewerk de gegevens</div>
       <div class="field-row-label"><label id="matchesLabel">Wedstrijden</label></div>
       <div class="ranking-header" id="rankingHeader" hidden>
         <span class="ranking-header-num"></span>
@@ -69,7 +139,7 @@
     </section>
 
     <section class="panel-step">
-      <div class="panel-step-title"><span class="step-num">4</span>Opmaak</div>
+      <div class="panel-step-title"><span class="step-num">3</span>Opmaak</div>
       <div class="field smw-format-field" id="smwFormatField" hidden>
         <label>Formaat</label>
         <div class="mode-tabs mode-tabs-compact">
@@ -110,7 +180,7 @@
     </section>
 
     <section class="panel-step panel-step-last">
-      <div class="panel-step-title"><span class="step-num">5</span>Opslaan &amp; exporteren</div>
+      <div class="panel-step-title"><span class="step-num">4</span>Opslaan &amp; exporteren</div>
       <button class="btn btn-link" id="serverSaveBtn" type="button">💾 Opslaan op server</button>
       <p class="save-status" id="serverSaveStatus" hidden></p>
       <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
