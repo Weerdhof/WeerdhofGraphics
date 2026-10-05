@@ -805,6 +805,40 @@
     render();
   });
 
+  // Results: show the date(s). One shared date goes under the title when all
+  // played results are on the same day; with several days, each result gets
+  // its own date under its middle icon.
+  const showDateField = document.getElementById('showDateField');
+  const showDateToggle = document.getElementById('showDateToggle');
+  let showDates = false;
+  let resultDateMode = 'none'; // 'none' | 'header' | 'rows' — recomputed on every render
+  showDateToggle.addEventListener('change', () => {
+    showDates = showDateToggle.checked;
+    buildMatchRows();
+    render();
+  });
+  // Comparable key for "SAT 5 SEP" / "ZATERDAG 5 SEPTEMBER" / "ZAT 5 SEP": day + month.
+  function dateKey(str) {
+    const d = /(\d+)\s+([A-Za-z]+)/.exec(str || '');
+    if (!d) return (str || '').trim().toUpperCase();
+    const abbr = d[2].toUpperCase();
+    const month = Object.keys(MONTHS).find(k => k.startsWith(abbr.slice(0, 3)));
+    return `${parseInt(d[1], 10)}-${month ? MONTHS[month] : abbr}`;
+  }
+  function resultDates() {
+    return visibleMatches().filter(m => m.played !== false).map(m => m.rowDate || defaultRowDate(m));
+  }
+  function computeResultDateMode() {
+    if (!showDates || mode !== 'results') return { mode: 'none' };
+    const dates = resultDates().filter(Boolean);
+    if (!dates.length) return { mode: 'none' };
+    const keys = new Set(dates.map(dateKey));
+    if (keys.size > 1) return { mode: 'rows' };
+    // all on one day: full round date when nobody overrides it, else the shared label
+    const overridden = visibleMatches().some(m => m.played !== false && m.rowDate && dateKey(m.rowDate) !== dateKey(defaultRowDate({})));
+    return { mode: 'header', text: (!overridden && state.date ? state.date : dates[0]).toUpperCase() };
+  }
+
   // ---------- Vrouwen single-match format toggle (Story / Post) ----------
   const smwFormatField = document.getElementById('smwFormatField');
   const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
@@ -1015,7 +1049,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg, ranking: rankState,
+        sm: smState, transparentBg, showDates, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -1052,7 +1086,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-          sm: smState, transparentBg, ranking: rankState,
+          sm: smState, transparentBg, showDates, ranking: rankState,
         }),
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -1171,7 +1205,7 @@
             m.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
             m.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
             m.played = true;
-            if (hit.date) m.rowDate = hit.date.toUpperCase();
+            if (hit.date) m.rowDate = localizeSiteDate(hit.date);
             filled++;
           });
           if (filled > 0) {
@@ -1651,7 +1685,19 @@
   function defaultRowDate(m) {
     if (m.dateLabel) return m.dateLabel;
     const d = /^([A-Za-z]+)\s+(\d+)\s+([A-Za-z]+)/.exec((state.date || '').trim());
-    return d ? `${d[1].slice(0, 3)} ${d[2]} ${d[3].slice(0, 3)}`.toUpperCase() : '';
+    if (!d) return '';
+    const month = /^maart/i.test(d[3]) ? 'MRT' : d[3].slice(0, 3);
+    return `${d[1].slice(0, 3)} ${d[2]} ${month}`.toUpperCase();
+  }
+
+  // shlw.nl shows English dates ("Sat 3 Oct"); the Vrouwen graphics are Dutch
+  // ("ZAT 3 OKT"), the Mannen ones English.
+  const NL_DAYS = { MON: 'MAA', TUE: 'DIN', WED: 'WOE', THU: 'DON', FRI: 'VRI', SAT: 'ZAT', SUN: 'ZON' };
+  const NL_MONTHS = { MAR: 'MRT', MAY: 'MEI', OCT: 'OKT' };
+  function localizeSiteDate(str) {
+    const up = String(str || '').toUpperCase();
+    if (compKey !== 'women') return up;
+    return up.replace(/[A-Z]+/g, (w) => NL_DAYS[w] || NL_MONTHS[w] || w);
   }
 
   function buildMatchRows() {
@@ -1740,21 +1786,11 @@
         homeInput.addEventListener('input', () => { m.homeScore = homeInput.value; render(); });
         awayInput.addEventListener('input', () => { m.awayScore = awayInput.value; render(); });
         upcomingTime.addEventListener('input', () => { m.time = upcomingTime.value; render(); });
-        // Per-result date (results can span several days): a short, editable
-        // label like "SAT 3 OCT" printed under the middle icon of this row.
+        // Editable per-result date label (only shown while "Toon datum" is on).
         const resultDateRow = node.querySelector('.result-date-row');
-        const showRowDate = node.querySelector('.show-row-date-checkbox');
         const rowDateInput = node.querySelector('.row-date-input');
-        resultDateRow.hidden = !m.played;
-        showRowDate.checked = !!m.showRowDate;
-        rowDateInput.value = m.rowDate || '';
-        rowDateInput.hidden = !m.showRowDate;
-        showRowDate.addEventListener('change', () => {
-          m.showRowDate = showRowDate.checked;
-          if (m.showRowDate && !m.rowDate) { m.rowDate = defaultRowDate(m); rowDateInput.value = m.rowDate; }
-          rowDateInput.hidden = !m.showRowDate;
-          render();
-        });
+        resultDateRow.hidden = !(showDates && m.played);
+        rowDateInput.value = m.rowDate || defaultRowDate(m);
         rowDateInput.addEventListener('input', () => { m.rowDate = rowDateInput.value; render(); });
 
         upcomingCheckbox.addEventListener('change', () => {
@@ -1762,7 +1798,7 @@
           scorePair.hidden = !m.played;
           upcomingTime.hidden = m.played;
           dateRow.hidden = m.played;
-          resultDateRow.hidden = !m.played;
+          resultDateRow.hidden = !(showDates && m.played);
           render();
         });
         showDateCheckbox.addEventListener('change', () => {
@@ -1964,9 +2000,13 @@
 
   // ---------- Main render ----------
   function render() {
+    showDateField.hidden = true;
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { renderRanking(); return; }
     const C = comp();
+    showDateField.hidden = mode !== 'results';
+    const dateInfo = computeResultDateMode();
+    resultDateMode = dateInfo.mode;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!transparentBg) {
       ctx.fillStyle = C.bgColor;
@@ -1986,6 +2026,12 @@
     ctx.fillStyle = C.titleColor;
     ctx.font = `700 ${C.titleFontSize}px "${fontFamily}"`;
     ctx.fillText(mode === 'results' ? C.titles.results : C.titles.schedule, CANVAS_W / 2, C.titleY);
+    if (dateInfo.mode === 'header') {
+      ctx.font = `500 34px "${fontFamily}"`;
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(dateInfo.text, CANVAS_W / 2, C.titleY + 70);
+      ctx.globalAlpha = 1;
+    }
 
     const animElapsed = (mode === 'results' && resultsAnimating && animStartTs != null)
       ? performance.now() - animStartTs : null;
@@ -2836,14 +2882,14 @@
     const rightBadgeCx = ROW_RIGHT - BADGE_MARGIN - BADGE_SIZE / 2;
     drawBadge(ctx, teamImg(m.home), CREST_X_LEFT, leftBadgeCx, cy, C.badgeRadius);
     drawBadge(ctx, teamImg(m.away), CREST_X_RIGHT, rightBadgeCx, cy, C.badgeRadius);
-    if (m.showRowDate && m.rowDate) {
+    if (resultDateMode === 'rows' && m.played !== false && (m.rowDate || defaultRowDate(m))) {
       ctx.save();
       ctx.globalAlpha = barAlpha * 0.65;
       ctx.fillStyle = C.textColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `600 22px "${fontFamily}"`;
-      ctx.fillText(String(m.rowDate).toUpperCase(), ROW_CENTER, cy + 56);
+      ctx.fillText(String(m.rowDate || defaultRowDate(m)).toUpperCase(), ROW_CENTER, cy + 56);
       ctx.restore();
     }
     if (barAlpha !== 1) ctx.restore();
@@ -3036,6 +3082,10 @@
   // reload lands back where the user left off (loadCompetition() then picks
   // up the matching round + scores via savedState above).
   if (savedState) {
+    if (typeof savedState.showDates === 'boolean') {
+      showDates = savedState.showDates;
+      showDateToggle.checked = showDates;
+    }
     if (typeof savedState.transparentBg === 'boolean') {
       transparentBg = savedState.transparentBg;
       transparentBgToggle.checked = transparentBg;
