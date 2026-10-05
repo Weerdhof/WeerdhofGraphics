@@ -1088,8 +1088,53 @@
     checkScoresStatus.hidden = false;
   }
 
+  // Single-match (Matchresult / Top scorer): fill the score of the selected
+  // match. The site's team names resolve to the Results-style codes; the
+  // single-match templates use a few different codes for the same clubs.
+  const SINGLE_CODE = {
+    men: { HCS: 'SPR' },
+    women: { 'E&O': 'ENO', FOR: 'FORE', VEN: 'FORV', 'V&L': 'VEL' },
+  };
+  const MONTH_ABBR = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+  function checkSingleMatchScore() {
+    const aliases = comp().resultAliases;
+    const toSingle = (name) => {
+      const c = matchCodeByAlias(aliases, name);
+      return (SINGLE_CODE[compKey] && SINGLE_CODE[compKey][c]) || c;
+    };
+    checkScoresBtn.disabled = true;
+    showCheckStatus(`Score ophalen van ${SITE_LABEL[compKey]}…`);
+    fetch('/api/results?comp=' + compKey)
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        const pair = (data.results || []).filter(r => {
+          const a = toSingle(r.teamA), b = toSingle(r.teamB);
+          return (a === smState.home && b === smState.away) || (a === smState.away && b === smState.home);
+        });
+        // same pairing can appear twice (home and away leg): prefer this fixture's day
+        const dm = /(\d+)-(\d+)/.exec(smState.dateRound || '');
+        const sameDay = dm ? pair.find(r => {
+          const sm = /(\d+)\s+([A-Za-z]{3})/.exec(r.date || '');
+          return sm && MONTH_ABBR[sm[2].toLowerCase()] === parseInt(dm[2], 10)
+            && (parseInt(sm[1], 10) === parseInt(dm[1], 10) || parseInt(sm[1], 10) === parseInt(dm[1], 10) + 1);
+        }) : null;
+        const hit = sameDay || pair[0];
+        if (!hit) { showCheckStatus(`Nog geen uitslag gevonden op ${SITE_LABEL[compKey]}`, 'warn'); return; }
+        const homeIsA = toSingle(hit.teamA) === smState.home;
+        smState.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
+        smState.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
+        buildMatchRows();
+        render();
+        showCheckStatus(`✓ Uitslag ingevuld: ${smState.homeScore} – ${smState.awayScore}`, 'ok');
+      })
+      .catch(err => showCheckStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
+      .finally(() => { checkScoresBtn.disabled = false; });
+  }
+
   if (checkScoresBtn) {
     checkScoresBtn.addEventListener('click', () => {
+      if (isSingleMode()) { checkSingleMatchScore(); return; }
       const aliases = comp().resultAliases;
       if (!aliases) {
         showCheckStatus('Niet beschikbaar voor deze competitie', 'warn');
@@ -1540,7 +1585,7 @@
         roundSelectField.hidden = false;
         roundSelectLabel.textContent = 'Wedstrijd';
         updateHint();
-        checkScoresBtn.hidden = true;
+        checkScoresBtn.hidden = mode === 'match'; // no score to fetch before the game
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
@@ -2971,7 +3016,7 @@
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
       if (isSingleMode()) {
         roundSelectLabel.textContent = 'Wedstrijd';
-        checkScoresBtn.hidden = true;
+        checkScoresBtn.hidden = mode === 'match';
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
