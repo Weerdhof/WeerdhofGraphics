@@ -824,6 +824,10 @@
     render();
   });
 
+  const postDecorField = document.getElementById('postDecorField');
+  const postDecorToggle = document.getElementById('postDecorToggle');
+  postDecorToggle.addEventListener('change', () => { postDecor = postDecorToggle.checked; render(); });
+
   // Results: show the date(s). One shared date goes under the title when all
   // played results are on the same day; with several days, each result gets
   // its own date under its middle icon.
@@ -1092,7 +1096,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg, showDates, resultsFormat, ranking: rankState,
+        sm: smState, transparentBg, showDates, resultsFormat, postDecor, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -2222,6 +2226,7 @@
     // the canvas) — the canvas pixels, and so the PNG/MP4 export, stay transparent.
     canvas.classList.toggle('canvas-checker',
       transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post'));
+    postDecorField.hidden = !(mode === 'results' && resultsFormat === 'post');
     showDateField.hidden = true;
     checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
     if (isSingleMode()) { renderSingleMatch(); return; }
@@ -2239,6 +2244,7 @@
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
+    if (post && mode === 'results') drawPostDecor();
     if (!post) C.decorations.forEach(d => {
       const img = loadImg(d.src);
       if (img && img.complete && img.naturalWidth) {
@@ -2464,6 +2470,42 @@
       ctx.drawImage(logo, 100, 1100, lw, lh);
     }
     saveState();
+  }
+
+  // ---------- Post design elements ----------
+  // The decorative lines from the results examples, top-left (Results Post only). Vrouwen use their
+  // own asset (corner-lines-women.png); Mannen get the corner chevron flipped so its
+  // steep arms run up off the top edge. Optional, so the Post can still be pasted bare.
+  let postDecor = true;
+  let postDecorCanvas = null;
+  function drawPostDecor() {
+    if (!postDecor) return;
+    if (compKey === 'women') {
+      const d = COMPETITIONS.women.decorations[0];
+      const img = loadImg(d.src);
+      if (img && img.complete && img.naturalWidth) ctx.drawImage(img, d.x, d.y);
+      return;
+    }
+    if (!smCardChevronPaths) smCardChevronPaths = SM_CARD_CHEVRON_D.map((p) => new Path2D(p));
+    // Drawn to a scratch canvas first so the pink-to-orange "colormash" gradient can be
+    // applied in canvas pixels: pink at the top edge, warming to orange further down.
+    if (!postDecorCanvas) { postDecorCanvas = document.createElement('canvas'); postDecorCanvas.width = 600; postDecorCanvas.height = 500; }
+    const d = postDecorCanvas.getContext('2d');
+    d.clearRect(0, 0, 600, 500);
+    d.save();
+    d.translate(-85, 71);
+    d.rotate(195.5 * Math.PI / 180);
+    d.scale(2.6, 2.6);
+    d.fillStyle = '#fff';
+    smCardChevronPaths.forEach((p) => d.fill(p));
+    d.restore();
+    d.globalCompositeOperation = 'source-in';
+    const g = d.createLinearGradient(0, 0, 0, 430);
+    g.addColorStop(0, '#fb718b'); g.addColorStop(0.55, '#fb7582'); g.addColorStop(1, '#f39760');
+    d.fillStyle = g;
+    d.fillRect(0, 0, 600, 500);
+    d.globalCompositeOperation = 'source-over';
+    ctx.drawImage(postDecorCanvas, 0, 0);
   }
 
   function renderSingleMatch() {
@@ -3565,6 +3607,7 @@
   // up the matching round + scores via savedState above).
   if (savedState) {
     if (savedState.resultsFormat === 'post' || savedState.resultsFormat === 'story') resultsFormat = savedState.resultsFormat;
+    if (typeof savedState.postDecor === 'boolean') { postDecor = savedState.postDecor; postDecorToggle.checked = postDecor; }
     if (typeof savedState.showDates === 'boolean') {
       showDates = savedState.showDates;
       showDateToggle.checked = showDates;
