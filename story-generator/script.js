@@ -8,6 +8,10 @@
   const ROW_PITCH = ROW_Y[1] - ROW_Y[0];
   function visibleMatches() { return state.matches.filter(m => !m.hidden); }
   function visibleRowY(vi, count) { return ROW_Y[0] + (ROW_Y.length - count) * ROW_PITCH / 2 + vi * ROW_PITCH; }
+  // Results "Post": the story layout scaled to 600px-wide rows and pinned to
+  // the right half of a 1080x1350 canvas (matches the posted examples).
+  const RP_W = 1080, RP_H = 1350;
+  const RP_SCALE = 600 / 880, RP_CX = 725, RP_Y0 = 363;
   const ROW_LEFT = 100, ROW_RIGHT = 980, ROW_CENTER = (ROW_LEFT + ROW_RIGHT) / 2; // 540
   const BADGE_SIZE = 130, BADGE_MARGIN = 15;
 
@@ -183,6 +187,9 @@
   // drop shadow as finished art, same "just place it" approach.
   const SMW_TEXT_COLOR = '#14142b';
   let smFormat = 'story'; // 'story' | 'post'
+  // Results has its own Story/Post choice: Post is a right-aligned, transparent
+  // 1080x1350 block meant to be pasted over a photo in an external template.
+  let resultsFormat = 'story';
   const SMW_LAYOUTS = {
     story: {
       canvasW: 1080, canvasH: 1920,
@@ -207,6 +214,7 @@
   // Canvas size for whichever competition/format combination is active —
   // both Mannen and Vrouwen toggle between Post and Story.
   function smCanvasSize() {
+    if (mode === 'results') return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
     if (mode === 'topscorer') return { w: TS_W, h: TS_H };
     if (compKey === 'women') {
       const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
@@ -842,10 +850,15 @@
   // ---------- Vrouwen single-match format toggle (Story / Post) ----------
   const smwFormatField = document.getElementById('smwFormatField');
   const smwFormatBtns = document.querySelectorAll('[data-smw-format]');
+  function syncFormatButtons() {
+    const current = mode === 'results' ? resultsFormat : smFormat;
+    smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === current));
+  }
   smwFormatBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      smFormat = btn.dataset.smwFormat;
-      smwFormatBtns.forEach(b => b.classList.toggle('active', b === btn));
+      if (mode === 'results') resultsFormat = btn.dataset.smwFormat;
+      else smFormat = btn.dataset.smwFormat;
+      syncFormatButtons();
       const sz = smCanvasSize();
       canvas.width = sz.w;
       canvas.height = sz.h;
@@ -1049,7 +1062,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg, showDates, ranking: rankState,
+        sm: smState, transparentBg, showDates, resultsFormat, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
   }
@@ -1086,7 +1099,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-          sm: smState, transparentBg, showDates, ranking: rankState,
+          sm: smState, transparentBg, showDates, resultsFormat, ranking: rankState,
         }),
       })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -1627,6 +1640,7 @@
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
         smwFormatField.hidden = mode === 'topscorer'; // Top scorer is Post-only
+        syncFormatButtons();
         resetResultsAnim();
         smAnimField.hidden = false;
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
@@ -1661,12 +1675,12 @@
         exportElementBtn.hidden = true;
         checkStandingsStatus.hidden = true;
         bgPhotoField.hidden = true;
-        smwFormatField.hidden = true;
+        smwFormatField.hidden = mode !== 'results';
+        syncFormatButtons();
         resetResultsAnim();
         resetSmAnim();
         resultsAnimField.hidden = mode !== 'results';
-        canvas.width = CANVAS_W;
-        canvas.height = CANVAS_H;
+        { const sz = mode === 'results' ? smCanvasSize() : { w: CANVAS_W, h: CANVAS_H }; canvas.width = sz.w; canvas.height = sz.h; }
         if (rounds.length) {
           populateRoundSelect();
           const round = rounds.find(r => r.id === currentRoundId) || rounds[0];
@@ -2007,13 +2021,14 @@
     showDateField.hidden = mode !== 'results';
     const dateInfo = computeResultDateMode();
     resultDateMode = dateInfo.mode;
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!transparentBg) {
+    const post = mode === 'results' && resultsFormat === 'post';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!post && !transparentBg) {
       ctx.fillStyle = C.bgColor;
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     }
 
-    C.decorations.forEach(d => {
+    if (!post) C.decorations.forEach(d => {
       const img = loadImg(d.src);
       if (img && img.complete && img.naturalWidth) {
         ctx.drawImage(img, d.x, d.y);
@@ -2023,10 +2038,27 @@
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
+    if (post) {
+      // right-aligned header block: white title, then the date in a colored bar
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${Math.round(C.titleFontSize * 0.8)}px "${fontFamily}"`;
+      ctx.fillText(C.titles.results, RP_CX - 1, 182);
+      if (dateInfo.mode === 'header') {
+        const bx = 463, by = 237, bw = 522, bh = 55;
+        const g = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+        if (compKey === 'women') { g.addColorStop(0, '#00f2e2'); g.addColorStop(1, '#00e5b1'); }
+        else { g.addColorStop(0, '#f47987'); g.addColorStop(0.5, '#e67088'); g.addColorStop(1, '#f1913d'); }
+        ctx.fillStyle = g; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = '#14142b';
+        ctx.font = `700 28px "${fontFamily}"`;
+        ctx.fillText(dateInfo.text, RP_CX, by + bh / 2 + 1);
+      }
+    } else {
     ctx.fillStyle = C.titleColor;
     ctx.font = `700 ${C.titleFontSize}px "${fontFamily}"`;
     ctx.fillText(mode === 'results' ? C.titles.results : C.titles.schedule, CANVAS_W / 2, C.titleY);
-    if (dateInfo.mode === 'header') {
+    }
+    if (!post && dateInfo.mode === 'header') {
       ctx.font = `500 34px "${fontFamily}"`;
       ctx.globalAlpha = 0.85;
       ctx.fillText(dateInfo.text, CANVAS_W / 2, C.titleY + 70);
@@ -2037,6 +2069,11 @@
       ? performance.now() - animStartTs : null;
 
     const shownMatches = visibleMatches();
+    if (post) {
+      ctx.save();
+      ctx.translate(RP_CX - ROW_CENTER * RP_SCALE, RP_Y0 - ROW_Y[0] * RP_SCALE);
+      ctx.scale(RP_SCALE, RP_SCALE);
+    }
     shownMatches.forEach((m, i) => {
       const cy = visibleRowY(i, shownMatches.length);
       let anim = null;
@@ -2070,9 +2107,20 @@
       }
     });
 
-    const footerImg = loadImg(C.footerLogo);
-    if (footerImg && footerImg.complete && footerImg.naturalWidth) {
-      ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
+    if (post) ctx.restore();
+
+    if (post) {
+      // white logo, right-aligned under the rows (Vrouwen use their own white logo)
+      const logo = loadImg(compKey === 'women' ? 'assets/women/singlematch/footer-white.png' : C.footerLogo);
+      if (logo && logo.complete && logo.naturalWidth) {
+        const lw = 485, lh = lw * logo.naturalHeight / logo.naturalWidth;
+        ctx.drawImage(logo, 480, 1203 - lh / 2, lw, lh);
+      }
+    } else {
+      const footerImg = loadImg(C.footerLogo);
+      if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+        ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
+      }
     }
 
     saveState();
@@ -3082,6 +3130,7 @@
   // reload lands back where the user left off (loadCompetition() then picks
   // up the matching round + scores via savedState above).
   if (savedState) {
+    if (savedState.resultsFormat === 'post' || savedState.resultsFormat === 'story') resultsFormat = savedState.resultsFormat;
     if (typeof savedState.showDates === 'boolean') {
       showDates = savedState.showDates;
       showDateToggle.checked = showDates;
@@ -3122,6 +3171,11 @@
         canvas.height = CANVAS_H;
       }
       resultsAnimField.hidden = mode !== 'results';
+      if (mode === 'results') {
+        smwFormatField.hidden = false;
+        { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
+      }
+      syncFormatButtons();
     }
     ['men', 'women'].forEach(key => {
       const saved = savedState.ranking && savedState.ranking[key];
