@@ -2431,127 +2431,89 @@
   }
 
   // ---------- Ranking Post (left-aligned, transparent) ----------
-  // A semi-transparent white panel on the left with all 14 positions, so the
-  // right side stays free for a player photo in the external template.
+  // The Story's own card (same rows, fonts, columns, dividers, bottom bar) scaled down onto
+  // the 1080x1350 canvas, pinned to the left so the right side stays free for a player photo
+  // in the external template. Mannen: square card + the mark on its top-right corner.
+  // Vrouwen: their rounded card, round crests and purple accents (no mark, as in their Story).
   function renderRankingPost() {
-    const W = RP_W, H = RP_H;
     const women = compKey === 'women';
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
-    const navy = '#1b2450';
-    const px = 112, pw = 492, py = 115, ph = 961;           // panel
-    const firstY = 200, pitch = 62.2;                        // row centers
-    const colRank = 144, colCrest = 226, colCode = 282, colP = 422, colPts = 525;
-    const divider = women ? '#00c9b7' : '#e8527a';
-    ctx.clearRect(0, 0, W, H);
+    const L = women ? WRANK_CARD_LEFT : RANK_CARD_LEFT, R = women ? WRANK_CARD_RIGHT : RANK_CARD_RIGHT;
+    const T = women ? WRANK_CARD_TOP : RANK_CARD_TOP, B = women ? WRANK_CARD_BOTTOM : RANK_CARD_BOTTOM;
+    const PANEL_H = 1040, PANEL_X = 100, PANEL_Y = 110;
+    const s = PANEL_H / (B - T);
+    ctx.clearRect(0, 0, RP_W, RP_H);
     drawPostPhoto('left');
 
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.fillRect(px, py, pw, ph);
-    // accent bar along the bottom edge of the panel
-    const g = ctx.createLinearGradient(px, 0, px + pw, 0);
-    if (women) { g.addColorStop(0, '#00f2e2'); g.addColorStop(1, '#00e5b1'); }
-    else { g.addColorStop(0, '#f47987'); g.addColorStop(1, '#f1913d'); }
-    ctx.fillStyle = g;
-    ctx.fillRect(px, py + ph - 20, pw, 20);
+    ctx.save();
+    ctx.translate(PANEL_X - L * s, PANEL_Y - T * s);
+    ctx.scale(s, s);
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
 
-    // column headers
-    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(27,36,80,0.55)';
-    ctx.font = `600 22px "${fontFamily}"`;
-    ctx.fillText('P', colP, 154);
-    ctx.fillText('PTS', colPts, 154);
+    if (!women) {
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.fillRect(L, T, R - L, B - T);
+      ctx.fillStyle = RANK_DIVIDER_COLOR;
+      RANK_DIVIDER_Y.forEach(y => ctx.fillRect(L, y, R - L, RANK_DIVIDER_H));
+      const bar = ctx.createLinearGradient(L, 0, R, 0);
+      bar.addColorStop(0, 'rgb(252, 119, 69)'); bar.addColorStop(1, 'rgb(243, 85, 121)');
+      ctx.fillStyle = bar;
+      ctx.fillRect(L, RANK_BOTTOM_BAR_Y, R - L, RANK_BOTTOM_BAR_H);
 
-    // zone dividers after position 8 and 10
-    ctx.fillStyle = divider;
-    [8, 10].forEach(n => ctx.fillRect(px, firstY + (n - 0.5) * pitch - 1.5, pw, 3));
+      ctx.fillStyle = RANK_TEXT_COLOR;
+      ctx.font = `500 ${RANK_HEADER_FONT}px "${fontFamily}"`;
+      ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
+      ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
+      rankState.men.forEach((row, i) => {
+        if (!row.code) return;
+        const cy = RANK_ROW_TOP + RANK_ROW_H * i + RANK_ROW_H / 2;
+        drawRankBadge(loadImg(`${COMPETITIONS.men.teamsDir}/${row.code}.png`), RANK_BADGE_CX, cy);
+        ctx.fillStyle = RANK_TEXT_COLOR;
+        ctx.font = `500 ${RANK_DATA_FONT}px "${fontFamily}"`;
+        ctx.fillText(String(i + 1) + '.', RANK_NUM_X, cy);
+        ctx.fillText(row.code, RANK_CODE_X, cy);
+        ctx.fillText(row.p, RANK_P_X, cy);
+        ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
+        ctx.fillText(row.pts, RANK_PTS_X, cy);
+      });
+      const mark = loadImg('assets/ranking/mark.png');
+      if (mark && mark.complete && mark.naturalWidth) ctx.drawImage(mark, RANK_MARK.x, RANK_MARK.y, RANK_MARK.w, RANK_MARK.h);
+    } else {
+      fillRow(ctx, L, T, R - L, B - T, 'rgba(249,246,251,0.92)', WRANK_CARD_RADIUS, WRANK_CARD_BORDER);
+      const bar = ctx.createLinearGradient(L, 0, R, 0);
+      bar.addColorStop(0, 'rgb(229, 84, 252)'); bar.addColorStop(1, 'rgb(189, 81, 252)');
+      roundedRectBottomPath(ctx, L, B - WRANK_BOTTOM_ACCENT_H, R - L, WRANK_BOTTOM_ACCENT_H, WRANK_CARD_RADIUS);
+      ctx.fillStyle = bar; ctx.fill();
 
-    const rows = rankState[compKey];
-    rows.forEach((row, i) => {
-      const cy = firstY + i * pitch;
-      ctx.fillStyle = navy;
-      ctx.textAlign = 'left';
-      ctx.font = `600 28px "${fontFamily}"`;
-      ctx.fillText(`${i + 1}.`, colRank - 8, cy);
-      if (!row.code) return;
-      tsDrawCrest(loadImg(`${comp().teamsDir}/${row.code}.png`), colCrest, cy, 50);
-      ctx.fillStyle = navy;
-      ctx.textAlign = 'left';
-      ctx.font = `600 28px "${fontFamily}"`;
-      ctx.fillText(row.code, colCode, cy);
-      ctx.textAlign = 'center';
-      ctx.font = `500 28px "${fontFamily}"`;
-      ctx.fillText(String(row.p), colP, cy);
-      ctx.font = `700 32px "${fontFamily}"`;
-      ctx.fillText(String(row.pts), colPts, cy);
-    });
+      ctx.fillStyle = WRANK_TEXT_COLOR;
+      ctx.font = `500 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
+      ctx.fillText('P', WRANK_P_X, WRANK_HEADER_Y);
+      ctx.font = `700 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
+      ctx.fillText('PTS', WRANK_PTS_X, WRANK_HEADER_Y);
+      WRANK_DIVIDER_Y.forEach(y => fillRow(ctx, L, y, R - L, WRANK_DIVIDER_H, WRANK_DIVIDER_COLOR, WRANK_DIVIDER_H / 2));
+      rankState.women.forEach((row, i) => {
+        if (!row.code) return;
+        const cy = WRANK_ROW_TOP + WRANK_ROW_H * i + WRANK_ROW_H / 2;
+        drawBadge(ctx, loadImg(`${COMPETITIONS.women.teamsDir}/${row.code}.png`), CREST_X_LEFT, WRANK_BADGE_CX, cy, WRANK_BADGE_RADIUS, WRANK_BADGE_SIZE, 6);
+        ctx.fillStyle = WRANK_TEXT_COLOR;
+        ctx.font = `500 ${WRANK_DATA_FONT}px "${fontFamily}"`;
+        ctx.fillText(String(i + 1) + '.', WRANK_NUM_X, cy);
+        ctx.fillText(row.code, WRANK_CODE_X, cy);
+        ctx.fillText(row.p, WRANK_P_X, cy);
+        ctx.font = `700 ${WRANK_DATA_FONT}px "${fontFamily}"`;
+        ctx.fillText(row.pts, WRANK_PTS_X, cy);
+      });
+    }
+    ctx.restore();
 
-    // SHL mark on the panel's top-right corner, white logo under the panel
-    const mark = loadImg(women ? 'assets/women/singlematch/mark.png' : 'assets/singlematch/mark.png');
-    if (mark && mark.complete && mark.naturalWidth) ctx.drawImage(mark, 566, 56, 96, 96 * mark.naturalHeight / mark.naturalWidth);
+    // white logo directly under the card, left-aligned with it
     const logo = loadImg(women ? 'assets/women/singlematch/footer-white.png' : 'assets/footer-logo.png');
     if (logo && logo.complete && logo.naturalWidth) {
       const lh = 118, lw = lh * logo.naturalWidth / logo.naturalHeight;
-      ctx.drawImage(logo, 100, 1100, lw, lh);
+      ctx.drawImage(logo, PANEL_X - 8, PANEL_Y + PANEL_H + 28, lw, lh);
     }
     saveState();
-  }
-
-  // ---------- Post design elements ----------
-  // The decorative lines from the results examples, top-left (Results Post only). Vrouwen use their
-  // own asset (corner-lines-women.png); Mannen get the corner chevron flipped so its
-  // steep arms run up off the top edge. Optional, so the Post can still be pasted bare.
-  let postDecor = true;
-  let postDecorCanvas = null;
-  function drawPostDecor() {
-    if (!postDecor) return;
-    // With "Animeer" on the lines play the same chevron animation as Matchresult: the
-    // shared curve (90% -> 113% with a soft fade in and out), looping every 3s, all
-    // lines together. Otherwise they just sit there.
-    const el = (mode === 'results' && resultsAnimating && animStartTs != null)
-      ? (performance.now() - animStartTs) % SM_LOOP_CYCLE_MS : null;
-    const lineState = () => el == null ? { scale: 1, opacity: 1 } : smChevronState(el);
-
-    if (compKey === 'women') {
-      const d = COMPETITIONS.women.decorations[0];
-      const img = loadImg(d.src);
-      if (img && img.complete && img.naturalWidth) {
-        const st = lineState();
-        if (st.opacity > 0) {
-          ctx.save();
-          ctx.globalAlpha = st.opacity;
-          const ax = d.x + img.naturalWidth, ay = d.y + img.naturalHeight; // grows out from its lower-right corner
-          ctx.translate(ax, ay); ctx.scale(st.scale, st.scale); ctx.translate(-ax, -ay);
-          ctx.drawImage(img, d.x, d.y);
-          ctx.restore();
-        }
-      }
-      return;
-    }
-    if (!smCardChevronPaths) smCardChevronPaths = SM_CARD_CHEVRON_D.map((p) => new Path2D(p));
-    // Drawn to a scratch canvas first so the pink-to-orange "colormash" gradient can be
-    // applied in canvas pixels: pink at the top edge, warming to orange further down.
-    if (!postDecorCanvas) { postDecorCanvas = document.createElement('canvas'); postDecorCanvas.width = 600; postDecorCanvas.height = 500; }
-    const d = postDecorCanvas.getContext('2d');
-    d.clearRect(0, 0, 600, 500);
-    smCardChevronPaths.forEach((p) => {
-      const st = lineState();
-      if (st.opacity <= 0) return;
-      d.save();
-      d.globalAlpha = st.opacity;
-      d.translate(-85, 71);
-      d.rotate(195.5 * Math.PI / 180);
-      d.scale(2.6 * st.scale, 2.6 * st.scale); // scales about the chevron's own centre, like Matchresult
-      d.fillStyle = '#fff';
-      d.fill(p);
-      d.restore();
-    });
-    d.globalCompositeOperation = 'source-in';
-    const g = d.createLinearGradient(0, 0, 0, 430);
-    g.addColorStop(0, '#fb718b'); g.addColorStop(0.55, '#fb7582'); g.addColorStop(1, '#f39760');
-    d.fillStyle = g;
-    d.fillRect(0, 0, 600, 500);
-    d.globalCompositeOperation = 'source-over';
-    ctx.drawImage(postDecorCanvas, 0, 0);
   }
 
   function renderSingleMatch() {
