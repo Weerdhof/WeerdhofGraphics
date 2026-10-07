@@ -4080,7 +4080,9 @@
   const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
   var menuComp = compKey;   // var: renderOverviewMeta can run during early init (render)
 
+  var homeTarget = menuComp;
   function syncMenuComp() {
+    homeTarget = menuComp;
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
@@ -4123,7 +4125,7 @@
 
   // ---------- Home <-> editor transition: an SHL chevron sweep covers the screen, the view swaps underneath ----------
   const navWipe = document.getElementById('navWipe');
-  let navBusy = false;
+  let navBusy = false, navPhase = '', navSwap = null;   // a click during the cover phase replaces the pending swap
   const reducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Gives the incoming view's blocks a short staggered rise (CSS keyed on .view-in and --d).
@@ -4140,8 +4142,9 @@
 
   // dir 'forward' sweeps left->right (opening an editor), 'back' right->left (back to the dashboard)
   function navSweep(dir, swap, accent) {
-    if (!navWipe || navBusy || reducedMotion() || !navWipe.animate) { swap(); return; }
-    navBusy = true;
+    if (navBusy) { if (navPhase === 'cover') navSwap = swap; else swap(); return; }
+    if (!navWipe || reducedMotion() || !navWipe.animate) { swap(); return; }
+    navBusy = true; navPhase = 'cover'; navSwap = swap;
     const back = dir === 'back';
     const x = (v) => (back ? 100 - v : v);
     const poly = (pts) => `polygon(${pts.map(([a, b]) => `${x(a)}% ${b}%`).join(', ')})`;
@@ -4156,7 +4159,9 @@
     const a1 = navWipe.animate([{ clipPath: coverFrom }, { clipPath: coverTo }], { duration: 300, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
     if (mark) mark.animate([{ opacity: 0, transform: 'scale(.8)' }, { opacity: .9, transform: 'scale(1)' }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
     a1.onfinish = () => {
-      try { swap(); } catch (e) { console.error(e); }
+      navPhase = 'reveal';
+      const run = navSwap; navSwap = null;
+      try { run(); } catch (e) { console.error(e); }
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const a2 = navWipe.animate([{ clipPath: revealFrom }, { clipPath: revealTo }], { duration: 340, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
         if (mark) mark.animate([{ opacity: .9 }, { opacity: 0 }], { duration: 220, fill: 'forwards' });
@@ -4176,7 +4181,15 @@
   }
 
   homeMenu.querySelectorAll('[data-home-comp]').forEach(btn => {
-    btn.addEventListener('click', () => { menuComp = btn.dataset.homeComp; syncMenuComp(); loadOverview(false); });
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.homeComp;
+      if (next === homeTarget) return;   // compare with where we are heading, not with the not-yet-swapped state
+      homeTarget = next;
+      // men -> women sweeps left to right in purple, women -> men back in SHL green
+      navSweep(next === 'women' ? 'forward' : 'back', () => {
+        menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; playViewIn(homeMenu);
+      }, accentFor(next));
+    });
   });
   homeMenu.querySelectorAll('.menu-card').forEach(card => {
     card.addEventListener('click', () => openAsset(menuComp, card.dataset.goMode, true));
@@ -4185,7 +4198,8 @@
     if (history.state && history.state.editor) history.back(); else showMenu();
   });
   document.getElementById('editorSwitchBtn').addEventListener('click', () => {
-    openAsset(compKey === 'men' ? 'women' : 'men', mode, false);
+    const next = compKey === 'men' ? 'women' : 'men';
+    navSweep(next === 'women' ? 'forward' : 'back', () => { openAssetNow(next, mode, false); }, accentFor(next));
   });
   window.addEventListener('popstate', () => showMenu());
   syncMenuComp();
