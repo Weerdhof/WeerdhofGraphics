@@ -318,7 +318,7 @@ def _valid_key(key):
 
 
 # ---------- Overview of all results + upcoming fixtures (home page section) ----------
-OVERVIEW_TTL = 300
+OVERVIEW_TTL = 120
 _overview_cache = {}
 
 

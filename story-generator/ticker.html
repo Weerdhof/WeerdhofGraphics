@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHL Liveticker</title>
+<style>
+  @font-face { font-family: 'ClashDisplay'; font-weight: 700; src: url(fonts/ClashDisplay-Bold.otf); }
+  @font-face { font-family: 'ClashDisplay'; font-weight: 600; src: url(fonts/ClashDisplay-Semibold.otf); }
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; height: 100%; }
+  body.list canvas#c { display: block; width: 100%; height: auto; }
+  body.list #bar { display: none; }
+  body.bar canvas#c { display: none; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; overflow: hidden; }
+  #tag { flex: none; align-self: stretch; display: flex; align-items: center; padding: 0 26px; font: 700 26px/1 'ClashDisplay', sans-serif; letter-spacing: .04em; color: #fff; position: relative; z-index: 2; }
+  #viewport { flex: 1; overflow: hidden; height: 100%; display: flex; align-items: center; }
+  #track { display: flex; align-items: center; padding-left: 20px; will-change: transform; }
+  @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(var(--shift)); } }
+</style>
+</head>
+<body>
+<canvas id="c" width="1" height="1"></canvas>
+<div id="bar"><div id="tag"></div><div id="viewport"><div id="track"></div></div></div>
+<script src="ticker.js"></script>
+</body>
+</html>

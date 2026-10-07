@@ -4218,6 +4218,34 @@
   document.querySelectorAll('#overviewTabs [data-ov]').forEach(b => b.addEventListener('click', () => { overviewTab = b.dataset.ov; renderOverview(); }));
   document.getElementById('overviewRefresh').addEventListener('click', () => { fetchSyncStatus(true).then(() => loadOverview(true)); });
 
+
+  // ---------- Home page: liveticker links ----------
+  (function buildTickerLinks() {
+    const box = document.getElementById('tickerLinks');
+    if (!box) return;
+    [['men', 'Mannen'], ['women', 'Vrouwen']].forEach(([c, label]) => {
+      const url = `${location.origin}/ticker.html?comp=${c}`;
+      const iframe = `<iframe src="${url}" style="position:fixed;left:0;bottom:0;width:100%;height:110px;border:0;z-index:9999"></iframe>`;
+      const row = document.createElement('div');
+      row.className = 'ticker-row';
+      row.innerHTML = '<strong></strong><input type="text" readonly><button class="btn btn-link" type="button" data-copy="url">Kopieer link</button><button class="btn btn-link" type="button" data-copy="iframe">Kopieer iframe-code</button><a class="btn btn-link" target="_blank" rel="noopener">Open ↗</a>';
+      row.querySelector('strong').textContent = label;
+      row.querySelector('input').value = url;
+      row.querySelector('a').href = url;
+      row.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+        const text = b.dataset.copy === 'url' ? url : iframe;
+        const done = () => { const o = b.textContent; b.textContent = '✓ Gekopieerd'; setTimeout(() => { b.textContent = o; }, 1500); };
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => window.prompt('Kopieer:', text));
+        else window.prompt('Kopieer:', text);
+      }));
+      box.appendChild(row);
+    });
+    const opt = document.createElement('p');
+    opt.className = 'sync-info';
+    opt.textContent = 'Balk onderaan het scherm, scrollt als een nieuwsuitzending. OBS: Browser Source 1920×1080 met deze link (alleen de balk is zichtbaar). Opties achter de link: &n=5 (aantal wedstrijden, max 10) · &dates=1 (datum onder de score) · &bg=transparent (zonder balkachtergrond) · &size=130 (hoogte) · &speed=100 (scrolsnelheid) · &layout=list (losse lijst).';
+    box.appendChild(opt);
+  })();
+
   // ---------- Storage & back-up (home menu) ----------
   const storageSummary = document.getElementById('storageSummary');
   const storageStatus = document.getElementById('storageStatus');
