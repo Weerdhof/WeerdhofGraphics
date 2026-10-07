@@ -77,7 +77,8 @@
   if (layout === 'bar') {
     bar.style.height = BAR_H + 'px';
     if (bg) bar.style.background = bg;
-    tag.style.background = compKey === 'women' ? '#a62ee0' : '#e8442e';
+    tag.style.background = compKey === 'women' ? '#a62ee0' : '#caff1c';   // men: SHL green
+    tag.style.color = compKey === 'women' ? '#fff' : '#1a1b38';
     tag.textContent = compKey === 'women' ? 'UITSLAGEN' : 'RESULTS';
     tag.style.fontSize = Math.round(BAR_H * .24) + 'px';
   }

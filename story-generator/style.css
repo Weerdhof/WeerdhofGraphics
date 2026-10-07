@@ -767,3 +767,7 @@ canvas.canvas-checker {
 .ticker-row:first-child { border-top: 0; }
 .ticker-row strong { width: 70px; }
 .ticker-row input { flex: 1 1 220px; min-width: 0; background: rgba(0,0,0,.25); color: inherit; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; padding: 7px 9px; font: inherit; font-size: 12px; }
+
+.home-ticker { position: fixed; left: 0; right: 0; bottom: 0; width: 100%; height: 110px; border: 0; z-index: 150; background: transparent; }
+body:not(.menu-open) .home-ticker { display: none; }
+.home-inner { padding-bottom: 130px; }
