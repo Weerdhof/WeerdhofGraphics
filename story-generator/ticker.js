@@ -145,27 +145,52 @@
       rows.forEach((r, i) => drawRowAt(r, logos[i], i * PITCH));
       return;
     }
-    // news bar: one canvas per match, side by side, scrolling right-to-left
+    // news bar: [date] [that day's matches] [date] [matches] ... [competition logo], scrolling right-to-left
     const cardH = BAR_H - 26, cardW = Math.round(cardH * W / ROW_H), GAP = Math.round(cardH * .2);
+    const accent = compKey === 'women' ? '#a62ee0' : '#caff1c', onAccent = compKey === 'women' ? '#fff' : '#1a1b38';
+    const dayLabel = (r) => {
+      const now = new Date(), y0 = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+      const d = new Date(r.month >= 8 ? y0 : y0 + 1, r.month - 1, r.day);
+      return d.toLocaleDateString(CFG.locale, { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '').toUpperCase();
+    };
+    const groups = [];
+    rows.forEach((r, i) => {
+      const key = r.month * 100 + r.day;
+      let g = groups.find(x => x.key === key);
+      if (!g) { g = { key, label: dayLabel(r), items: [] }; groups.push(g); }
+      g.items.push(i);
+    });
+    const logoSrc = compKey === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png';
     const make = () => {
       const frag = document.createDocumentFragment();
-      rows.forEach((r, i) => {
-        const cv = document.createElement('canvas');
-        cv.width = W * 2; cv.height = ROW_H * 2;
-        cv.style.cssText = `width:${cardW}px;height:${cardH}px;flex:none;`;
-        ctx = cv.getContext('2d');
-        ctx.setTransform(2, 0, 0, 2, 0, 0);
-        drawRowAt(r, logos[i], 0);
-        frag.appendChild(cv);
+      groups.forEach(g => {
+        const chip = document.createElement('div');
+        chip.textContent = g.label;
+        chip.style.cssText = `flex:none;display:flex;align-items:center;height:${cardH}px;padding:0 ${Math.round(cardH * .45)}px;background:${accent};color:${onAccent};font:700 ${Math.round(cardH * .42)}px/1 ClashDisplay,sans-serif;letter-spacing:.04em;white-space:nowrap;`;
+        frag.appendChild(chip);
+        g.items.forEach(i => {
+          const cv = document.createElement('canvas');
+          cv.width = W * 2; cv.height = ROW_H * 2;
+          cv.style.cssText = `width:${cardW}px;height:${cardH}px;flex:none;`;
+          ctx = cv.getContext('2d');
+          ctx.setTransform(2, 0, 0, 2, 0, 0);
+          drawRowAt(rows[i], logos[i], 0);
+          frag.appendChild(cv);
+        });
       });
+      const logo = document.createElement('img');
+      logo.src = logoSrc;
+      logo.style.cssText = `flex:none;height:${Math.round(cardH * .8)}px;width:auto;margin:0 ${Math.round(cardH * .3)}px;${compKey === 'women' ? 'filter:brightness(0) invert(1);' : ''}`;
+      frag.appendChild(logo);
       return frag;
     };
+    await loadImg(logoSrc);
     track.innerHTML = '';
     track.style.gap = GAP + 'px';
     track.style.animation = 'none';
     track.appendChild(make());
-    const one = rows.length * (cardW + GAP);
-    const avail = bar.clientWidth - tag.offsetWidth;
+    const one = [...track.children].reduce((w, el) => w + el.getBoundingClientRect().width + GAP, 0);
+    const avail = bar.clientWidth - (tag.style.display === 'none' ? 0 : tag.offsetWidth);
     if (one > avail) {            // longer than the screen: scroll, with a second copy for a seamless loop
       track.appendChild(make());
       track.style.setProperty('--shift', `-${one}px`);
