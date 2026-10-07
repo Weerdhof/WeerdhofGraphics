@@ -829,3 +829,40 @@ body:not(.menu-open) .home-ticker { display: none; }
 }
 .home-inner { position: relative; }
 .home-menu.theme-women .home-logo { filter: brightness(0) invert(1); }
+
+/* ================= SHL look everywhere (editor pages) ================= */
+:root { --bg: #1a1b38; --panel: #232557; --panel-2: #2d2f6b; --line: #3a3d85; --text-dim: #a9afd6; }
+.app { background: var(--bg); }
+.app.theme-women { --bg: #2a1148; --panel: #3a1a5e; --panel-2: #4a2377; --line: #6a3aa0; --text-dim: #d3b8ee; }
+.panel { background: var(--panel); }
+.panel-step-title { font-family: "ClashDisplay", sans-serif; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+.step-num { border-radius: 2px; color: #1a1b38; font-family: "ClashDisplay", sans-serif; width: 22px; height: 22px; }
+.app.theme-women .step-num { color: #2a1148; }
+.mode-tabs { border-radius: 4px; background: rgba(0,0,0,.28); }
+.mode-tab, .competition-tab, .smw-format-tab { border-radius: 2px; font-family: "ClashDisplay", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+.mode-tab.active, .competition-tab.active, .smw-format-tab.active { color: #1a1b38; }
+.app.theme-women .mode-tab.active, .app.theme-women .competition-tab.active, .app.theme-women .smw-format-tab.active { color: #2a1148; }
+.mode-group-label, .field-row-label label { font-family: "ClashDisplay", sans-serif; letter-spacing: .08em; }
+select, input[type="text"], .paste-field textarea { border-radius: 4px; }
+.btn { border-radius: 4px; }
+.btn-primary { font-family: "ClashDisplay", sans-serif; text-transform: uppercase; letter-spacing: .06em; color: #1a1b38; }
+.app.theme-women .btn-primary { color: #2a1148; }
+.btn-link { font-family: "ClashDisplay", sans-serif; letter-spacing: .02em; }
+input[type="checkbox"] { accent-color: var(--accent); }
+.editor-asset strong { font-family: "ClashDisplay", sans-serif; text-transform: uppercase; font-size: 20px; letter-spacing: 0; }
+.editor-topbar { border-bottom: 1px solid var(--line); position: relative; }
+.editor-topbar::after { content: ""; position: absolute; left: 0; bottom: -1px; width: 64px; height: 3px; background: var(--accent); }
+.preview-wrap { position: relative; background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 14%, var(--bg)) 0%, var(--bg) 70%); }
+.preview-wrap::before { content: ""; position: absolute; top: -30px; right: -60px; width: 420px; height: 420px; pointer-events: none; background: url("assets/vs-icon.png") no-repeat center / contain; opacity: .05; }
+.canvas-holder { position: relative; z-index: 1; border-radius: 2px; }
+
+/* ================= Home <-> editor transition ================= */
+.nav-wipe { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; pointer-events: all; clip-path: polygon(0 0, 0 0, 0 0, 0 0, 0 0); }
+.nav-wipe[hidden] { display: none !important; }
+.nav-wipe img { width: 110px; height: auto; filter: brightness(0) opacity(.85); opacity: 0; }
+@keyframes viewRise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes viewFade { from { opacity: 0; } to { opacity: 1; } }
+.view-in .home-logo, .view-in h1, .view-in .home-ticker, .view-in .home-head p, .view-in .home-comp, .view-in .home-group, .view-in .menu-card, .view-in .overview-panel, .view-in .storage-panel,
+.view-in.app .editor-topbar, .view-in .panel-step { animation: viewRise .5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 38ms + 80ms); }
+.view-in .canvas-holder { animation: viewFade .6s ease both; animation-delay: .2s; }
+@media (prefers-reduced-motion: reduce) { .view-in * { animation: none !important; } }

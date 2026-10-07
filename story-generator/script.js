@@ -4091,7 +4091,7 @@
     if (tk && tk.getAttribute('src') !== tkSrc) tk.setAttribute('src', tkSrc);
   }
 
-  function showMenu() {
+  function showMenuNow() {
     resetResultsAnim();
     resetSmAnim();
     menuComp = compKey;
@@ -4101,6 +4101,7 @@
     homeMenu.scrollTop = 0;
     if (typeof refreshStorage === 'function') refreshStorage();
     if (typeof loadOverview === 'function') loadOverview(false);
+    playViewIn(homeMenu);
   }
 
   function updateEditorBar() {
@@ -4109,7 +4110,7 @@
     document.getElementById('editorSwitchBtn').textContent = compKey === 'men' ? '⇄ Vrouwen' : '⇄ Mannen';
   }
 
-  function openAsset(comp, assetMode, fromMenu) {
+  function openAssetNow(comp, assetMode, fromMenu) {
     document.querySelector(`[data-competition="${comp}"]`).click();
     document.querySelector(`[data-mode="${assetMode}"]`).click();
     document.body.classList.remove('menu-open');
@@ -4117,6 +4118,61 @@
     jumpWhenReady();
     window.scrollTo(0, 0);
     if (fromMenu) history.pushState({ editor: true }, '');
+    playViewIn(document.querySelector('.app'));
+  }
+
+  // ---------- Home <-> editor transition: an SHL chevron sweep covers the screen, the view swaps underneath ----------
+  const navWipe = document.getElementById('navWipe');
+  let navBusy = false;
+  const reducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Gives the incoming view's blocks a short staggered rise (CSS keyed on .view-in and --d).
+  function playViewIn(root) {
+    if (!root || reducedMotion()) return;
+    const items = root.querySelectorAll(root === homeMenu ? '.home-logo, h1, .home-ticker, .home-head p, .home-comp, .home-group, .menu-card, .overview-panel, .storage-panel' : '.editor-topbar, .panel-step, .canvas-holder');
+    items.forEach((el, i) => el.style.setProperty('--d', Math.min(i, 14)));
+    root.classList.remove('view-in');
+    void root.offsetWidth;
+    root.classList.add('view-in');
+    clearTimeout(root._viewInTimer);
+    root._viewInTimer = setTimeout(() => root.classList.remove('view-in'), 1100);
+  }
+
+  // dir 'forward' sweeps left->right (opening an editor), 'back' right->left (back to the dashboard)
+  function navSweep(dir, swap, accent) {
+    if (!navWipe || navBusy || reducedMotion() || !navWipe.animate) { swap(); return; }
+    navBusy = true;
+    const back = dir === 'back';
+    const x = (v) => (back ? 100 - v : v);
+    const poly = (pts) => `polygon(${pts.map(([a, b]) => `${x(a)}% ${b}%`).join(', ')})`;
+    // leading edge: a chevron pointing in the travel direction
+    const coverFrom = poly([[0, 0], [0, 0], [15, 50], [0, 100], [0, 100]]);
+    const coverTo = poly([[0, 0], [100, 0], [115, 50], [100, 100], [0, 100]]);
+    const revealFrom = poly([[-15, 0], [100, 0], [100, 100], [-15, 100], [0, 50]]);
+    const revealTo = poly([[100, 0], [100, 0], [100, 100], [100, 100], [115, 50]]);
+    navWipe.style.background = accent;
+    navWipe.hidden = false;
+    const mark = navWipe.firstElementChild;
+    const a1 = navWipe.animate([{ clipPath: coverFrom }, { clipPath: coverTo }], { duration: 300, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
+    if (mark) mark.animate([{ opacity: 0, transform: 'scale(.8)' }, { opacity: .9, transform: 'scale(1)' }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+    a1.onfinish = () => {
+      try { swap(); } catch (e) { console.error(e); }
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const a2 = navWipe.animate([{ clipPath: revealFrom }, { clipPath: revealTo }], { duration: 340, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
+        if (mark) mark.animate([{ opacity: .9 }, { opacity: 0 }], { duration: 220, fill: 'forwards' });
+        a2.onfinish = () => { navWipe.hidden = true; navWipe.getAnimations().forEach(a => a.cancel()); if (mark) mark.getAnimations().forEach(a => a.cancel()); navBusy = false; };
+      }));
+    };
+  }
+  const accentFor = (c) => (c === 'women' ? '#e34fff' : '#caff1c');
+
+  function showMenu() {
+    if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
+    navSweep('back', showMenuNow, accentFor(compKey));
+  }
+  function openAsset(comp, assetMode, fromMenu) {
+    if (fromMenu && document.body.classList.contains('menu-open')) navSweep('forward', () => openAssetNow(comp, assetMode, fromMenu), accentFor(comp));
+    else openAssetNow(comp, assetMode, fromMenu);
   }
 
   homeMenu.querySelectorAll('[data-home-comp]').forEach(btn => {
