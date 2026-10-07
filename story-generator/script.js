@@ -923,6 +923,7 @@
         bgPhotoControls.hidden = false;
         canvas.classList.add('bg-photo-draggable');
         render();
+        uploadItemPhoto();
       };
       img.src = reader.result;
     };
@@ -940,6 +941,7 @@
     bgPhotoInput.value = '';
     bgPhotoControls.hidden = true;
     canvas.classList.remove('bg-photo-draggable');
+    deleteItemPhoto();
     render();
   });
 
@@ -1105,6 +1107,8 @@
     matches: Array.from({ length: 7 }, () => ({ home: '', away: '', homeScore: '', awayScore: '', time: '', played: true, showDate: false, dateLabel: '' })),
   };
   let currentRoundId = null;
+  // per-item server persistence (see "Per-item persistence" near the end)
+  let lastItemKey = null, itemLoaded = false, itemSaveTimer = null, lastSavedItemJson = '';
 
   // ---------- Autosave (survives a page reload) ----------
   // Plain localStorage — per-browser, not shared between devices, but that's
@@ -1118,6 +1122,7 @@
         sm: smState, transparentBg, showDates, resultsFormat, postDecor, ranking: rankState,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
+    scheduleServerSave();
   }
 
   function loadSavedState() {
@@ -2327,6 +2332,7 @@
 
   // ---------- Main render ----------
   function render() {
+    syncItemKey();
     // Transparent output is shown on a checkerboard in the preview only (CSS behind
     // the canvas) — the canvas pixels, and so the PNG/MP4 export, stay transparent.
     // (A photo, when present, is drawn into the canvas and covers it.)
@@ -3815,6 +3821,161 @@
         });
       }
     });
+  }
+
+
+  // ---------- Per-item persistence on the server ----------
+  // Every round / match / ranking / player gets its own record on the server (/api/item) with its
+  // settings, the typed-in data and the transform of its photo; the photo itself goes to
+  // /api/photo. Opening an item restores all of it; changes are saved a moment after you stop.
+  const itemEnc = (k) => encodeURIComponent(k);
+
+  function itemKey() {
+    let id;
+    if (mode === 'results' || mode === 'schedule') id = currentRoundId;
+    else if (mode === 'ranking') id = 'table';
+    else if (mode === 'playerweek') id = 'current';
+    else id = smState.id;
+    return id ? `${compKey}:${mode}:${id}` : null;
+  }
+
+  function collectItem() {
+    const common = {
+      v: 1, transparentBg,
+      photo: bgPhotoImg ? { scale: bgPhotoScale, x: bgPhotoOffsetX, y: bgPhotoOffsetY } : null,
+    };
+    if (mode === 'results' || mode === 'schedule') {
+      return {
+        ...common, kind: 'round', format: resultsFormat, showDates, postDecor,
+        matches: state.matches.map(m => ({
+          home: m.home, away: m.away, homeScore: m.homeScore, awayScore: m.awayScore, played: m.played,
+          hidden: m.hidden, showDate: m.showDate, dateLabel: m.dateLabel, showRowDate: m.showRowDate, rowDate: m.rowDate,
+        })),
+      };
+    }
+    if (mode === 'ranking') {
+      return { ...common, kind: 'ranking', format: resultsFormat, rows: rankState[compKey].map(r => ({ ...r })) };
+    }
+    const sm = {};
+    ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName'].forEach(k => { sm[k] = smState[k]; });
+    return { ...common, kind: 'single', format: smFormat, postDecor, sm };
+  }
+
+  function applyItem(d) {
+    if (typeof d.transparentBg === 'boolean') { transparentBg = d.transparentBg; transparentBgToggle.checked = transparentBg; }
+    if (typeof d.postDecor === 'boolean') { postDecor = d.postDecor; postDecorToggle.checked = postDecor; }
+    if (d.kind === 'round') {
+      if (d.format === 'story' || d.format === 'post') resultsFormat = d.format;
+      if (typeof d.showDates === 'boolean') { showDates = d.showDates; showDateToggle.checked = showDates; }
+      // match by home/away so a schedule change doesn't misplace typed data
+      (d.matches || []).forEach(sm => {
+        const m = state.matches.find(x => x.home === sm.home && x.away === sm.away);
+        if (m) ['homeScore', 'awayScore', 'played', 'hidden', 'showDate', 'dateLabel', 'showRowDate', 'rowDate']
+          .forEach(k => { if (sm[k] !== undefined) m[k] = sm[k]; });
+      });
+    } else if (d.kind === 'ranking') {
+      if (d.format === 'story' || d.format === 'post') resultsFormat = d.format;
+      (d.rows || []).forEach((r, i) => { if (rankState[compKey][i]) Object.assign(rankState[compKey][i], r); });
+    } else if (d.kind === 'single') {
+      if (d.format === 'story' || d.format === 'post') smFormat = d.format;
+      const sm = d.sm || {};
+      Object.keys(sm).forEach(k => { if (sm[k] !== undefined) smState[k] = sm[k]; });
+    }
+    syncFormatButtons();
+    { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
+  }
+
+  function clearPhotoLocal() {
+    bgPhotoImg = null; bgPhotoScale = 1; bgPhotoOffsetX = 0; bgPhotoOffsetY = 0;
+    bgPhotoInput.value = ''; bgPhotoZoom.value = '1'; bgPhotoControls.hidden = true;
+    canvas.classList.remove('bg-photo-draggable');
+  }
+
+  function loadPhotoFromServer(k, meta) {
+    return fetch('/api/photo?key=' + itemEnc(k))
+      .then(r => (r.ok ? r.blob() : null))
+      .then(blob => new Promise(resolve => {
+        if (!blob || k !== lastItemKey) return resolve();
+        const img = new Image();
+        img.onload = () => {
+          bgPhotoImg = img;
+          bgPhotoScale = (meta && meta.scale) || 1; bgPhotoOffsetX = (meta && meta.x) || 0; bgPhotoOffsetY = (meta && meta.y) || 0;
+          bgPhotoZoom.value = String(bgPhotoScale); bgPhotoControls.hidden = false;
+          canvas.classList.add('bg-photo-draggable');
+          clampBgPhotoOffsets();
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = URL.createObjectURL(blob);
+      }))
+      .catch(() => {});
+  }
+
+  function loadItemFromServer(k) {
+    return fetch('/api/item?key=' + itemEnc(k))
+      .then(r => (r.ok ? r.json() : {}))
+      .then(async data => {
+        if (k !== lastItemKey) return;
+        clearPhotoLocal();                       // a photo belongs to one item
+        if (data && data.kind) {
+          applyItem(data);
+          if (data.photo) await loadPhotoFromServer(k, data.photo);
+        }
+        if (k !== lastItemKey) return;
+        itemLoaded = true;
+        buildMatchRows();
+        render();
+        lastSavedItemJson = JSON.stringify(collectItem());
+      })
+      .catch(() => { if (k === lastItemKey) itemLoaded = true; });
+  }
+
+  // Called at the start of every render: a different item (round, match, mode, competition)
+  // means: stop saving, fetch that item's record, restore it.
+  function syncItemKey() {
+    const k = itemKey();
+    if (k === lastItemKey) return;
+    lastItemKey = k;
+    itemLoaded = false;
+    if (itemSaveTimer) { clearTimeout(itemSaveTimer); itemSaveTimer = null; }
+    if (k) loadItemFromServer(k);
+  }
+
+  function flushItemSave(keepalive) {
+    const k = lastItemKey;
+    if (!k || !itemLoaded) return;
+    const json = JSON.stringify(collectItem());
+    if (json === lastSavedItemJson) return;
+    lastSavedItemJson = json;
+    fetch('/api/item?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: json, keepalive: !!keepalive })
+      .catch(() => { lastSavedItemJson = ''; });
+  }
+
+  function scheduleServerSave() {
+    if (!lastItemKey || !itemLoaded || itemSaveTimer) return;
+    itemSaveTimer = setTimeout(() => { itemSaveTimer = null; flushItemSave(false); }, 800);
+  }
+  window.addEventListener('pagehide', () => { if (itemSaveTimer) { clearTimeout(itemSaveTimer); itemSaveTimer = null; } flushItemSave(true); });
+
+  function uploadItemPhoto() {
+    const k = lastItemKey;
+    if (!k || !bgPhotoImg) return;
+    const maxSide = 2200, sc = Math.min(1, maxSide / Math.max(bgPhotoImg.naturalWidth, bgPhotoImg.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bgPhotoImg.naturalWidth * sc); c.height = Math.round(bgPhotoImg.naturalHeight * sc);
+    c.getContext('2d').drawImage(bgPhotoImg, 0, 0, c.width, c.height);
+    c.toBlob(blob => {
+      if (!blob) return;
+      fetch('/api/photo?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+        .then(() => { lastSavedItemJson = ''; scheduleServerSave(); })
+        .catch(() => {});
+    }, 'image/jpeg', 0.92);
+  }
+
+  function deleteItemPhoto() {
+    const k = lastItemKey;
+    if (!k) return;
+    fetch('/api/photo?key=' + itemEnc(k), { method: 'DELETE' }).then(() => { lastSavedItemJson = ''; scheduleServerSave(); }).catch(() => {});
   }
 
   updateHint();

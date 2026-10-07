@@ -40,7 +40,7 @@ SCORE_RE = re.compile(r"^(\d{1,3})\s*[-–]\s*(\d{1,3})$")
 # this survives restarts/crashes of the running container, but a fresh
 # deploy (new container) starts with a clean disk. Good enough as a manual
 # "also save this somewhere besides my own browser" button; not a database.
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 SAVE_FILE = os.path.join(DATA_DIR, "saved_state.json")
 
 
@@ -289,6 +289,26 @@ def fetch_women_schedule():
     return played + upcoming
 
 
+# ---------- Per-item storage (settings, typed data and the photo of each round/match/etc.) ----------
+# One JSON file per item key plus an optional photo file, both named after a hash of the key.
+# Survives restarts; for deploys the DATA_DIR must live on a Railway Volume.
+import hashlib
+
+ITEM_DIR = os.path.join(DATA_DIR, "items")
+PHOTO_DIR = os.path.join(DATA_DIR, "photos")
+MAX_ITEM_BYTES = 2 * 1024 * 1024
+MAX_PHOTO_BYTES = 25 * 1024 * 1024
+
+
+def _key_hash(key):
+    return hashlib.sha1(key.encode("utf-8")).hexdigest()
+
+
+def _valid_key(key):
+    return bool(key) and len(key) <= 200
+
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -302,14 +322,137 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_schedule()
         elif self.path.startswith("/api/save"):
             self.handle_load_state()
+        elif self.path.startswith("/api/item"):
+            self.handle_item_get()
+        elif self.path.startswith("/api/photo"):
+            self.handle_photo_get()
         else:
             super().do_GET()
 
     def do_POST(self):
         if self.path.startswith("/api/save"):
             self.handle_save_state()
+        elif self.path.startswith("/api/photo"):
+            self.handle_photo_put()
+        elif self.path.startswith("/api/item"):
+            self.handle_item_put()
         else:
             self.send_error(404)
+
+    def do_PUT(self):
+        if self.path.startswith("/api/item"):
+            self.handle_item_put()
+        elif self.path.startswith("/api/photo"):
+            self.handle_photo_put()
+        else:
+            self.send_error(404)
+
+    def do_DELETE(self):
+        if self.path.startswith("/api/photo"):
+            self.handle_photo_delete()
+        else:
+            self.send_error(404)
+
+    # --- per-item storage ---
+    def _query_key(self):
+        key = parse_qs(urlparse(self.path).query).get("key", [""])[0]
+        return key if _valid_key(key) else None
+
+    def _send_json(self, status, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def handle_item_get(self):
+        key = self._query_key()
+        if not key:
+            return self._send_json(400, {"error": "bad key"})
+        path = os.path.join(ITEM_DIR, _key_hash(key) + ".json")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                self._send_json(200, json.load(f))
+        except FileNotFoundError:
+            self._send_json(200, {})
+        except Exception as err:
+            self._send_json(500, {"error": str(err)})
+
+    def handle_item_put(self):
+        key = self._query_key()
+        if not key:
+            return self._send_json(400, {"error": "bad key"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length > MAX_ITEM_BYTES:
+                return self._send_json(413, {"error": "item too large"})
+            payload = json.loads(self.rfile.read(length))
+            os.makedirs(ITEM_DIR, exist_ok=True)
+            tmp = os.path.join(ITEM_DIR, _key_hash(key) + ".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+            os.replace(tmp, os.path.join(ITEM_DIR, _key_hash(key) + ".json"))
+            self._send_json(200, {"ok": True})
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def handle_photo_get(self):
+        key = self._query_key()
+        if not key:
+            return self.send_error(400)
+        base = os.path.join(PHOTO_DIR, _key_hash(key))
+        try:
+            with open(base + ".bin", "rb") as f:
+                data = f.read()
+            ctype = "image/jpeg"
+            try:
+                with open(base + ".type", "r", encoding="utf-8") as f:
+                    ctype = f.read().strip() or ctype
+            except FileNotFoundError:
+                pass
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except FileNotFoundError:
+            self.send_error(404)
+
+    def handle_photo_put(self):
+        key = self._query_key()
+        if not key:
+            return self._send_json(400, {"error": "bad key"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > MAX_PHOTO_BYTES:
+                return self._send_json(413, {"error": "photo too large"})
+            data = self.rfile.read(length)
+            os.makedirs(PHOTO_DIR, exist_ok=True)
+            base = os.path.join(PHOTO_DIR, _key_hash(key))
+            with open(base + ".bin", "wb") as f:
+                f.write(data)
+            ctype = (self.headers.get("Content-Type") or "image/jpeg").split(";")[0]
+            if not ctype.startswith("image/"):
+                ctype = "image/jpeg"
+            with open(base + ".type", "w", encoding="utf-8") as f:
+                f.write(ctype)
+            self._send_json(200, {"ok": True})
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def handle_photo_delete(self):
+        key = self._query_key()
+        if not key:
+            return self._send_json(400, {"error": "bad key"})
+        base = os.path.join(PHOTO_DIR, _key_hash(key))
+        for ext in (".bin", ".type"):
+            try:
+                os.remove(base + ext)
+            except FileNotFoundError:
+                pass
+        self._send_json(200, {"ok": True})
+
 
     def wants_women(self):
         return parse_qs(urlparse(self.path).query).get("comp", [""])[0] == "women"
