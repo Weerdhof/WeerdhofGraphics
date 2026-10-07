@@ -1287,11 +1287,14 @@
     });
   }
 
-  // ---------- Check schedule against the site ----------
-  // The CSVs can go stale (kickoff moved, match shifted to another day). This
-  // pulls the site's fixtures and updates time + day for every match it finds:
-  // all rounds (Results/Schedule), the loaded round, and the single-match list.
+  // ---------- Schedule sync with the site ----------
+  // The CSVs go stale (kickoff moved, a match shifted day, home/away swapped). This pulls the
+  // site's complete fixture list and REPLACES the schedule: round contents, dates, times and
+  // home/away for every round (Results/Schedule) and for the single-match list. Typed scores
+  // survive for matches whose home/away didn't change. Runs by itself once per competition per
+  // page load, and on demand via the "Check schema" button.
   const checkScheduleBtn = document.getElementById('checkScheduleBtn');
+  const scheduleSynced = { men: false, women: false };
 
   function parseDayMonth(datum) {
     const m = /(\d+)\s+([A-Za-z]+)/.exec(datum || '');
@@ -1300,81 +1303,162 @@
   }
   const pad2 = (n) => String(n).padStart(2, '0');
 
-  function checkSchedule() {
+  function dateParts(day, month) {
+    const now = new Date();
+    const seasonYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    const dt = new Date(month >= 7 ? seasonYear : seasonYear + 1, month - 1, day);
+    const nl = compKey === 'women';
+    return {
+      t: dt.getTime(),
+      full: dt.toLocaleDateString(nl ? 'nl-NL' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase(),
+      weekday: dt.toLocaleDateString(nl ? 'nl-NL' : 'en-GB', { weekday: nl ? 'long' : 'short' }).toUpperCase(),
+    };
+  }
+
+  function applySiteSchedule(fixtures) {
     const aliases = comp().resultAliases;
-    const toCode = (name) => matchCodeByAlias(aliases, name);
     const toSingle = (c) => (SINGLE_CODE[compKey] && SINGLE_CODE[compKey][c]) || c;
-    checkScheduleBtn.disabled = true;
-    showCheckStatus(`Schema ophalen van ${SITE_LABEL[compKey]}…`);
-    fetch('/api/schedule?comp=' + compKey)
+    const oldTime = new Map();                       // existing kickoff per unordered pair (for feeds without times)
+    rounds.forEach(r => r.matches.forEach(m => oldTime.set([m.home, m.away].sort().join('|') + '|' + r.roundNum, m.time)));
+    const oldSingleIds = new Map(smMatches.map(m => [m.id, `${m.dateRound}|${m.time}`]));
+
+    const entries = fixtures.map(f => ({
+      home: matchCodeByAlias(aliases, f.home), away: matchCodeByAlias(aliases, f.away),
+      day: f.day, month: f.month, time: f.time || '', round: f.round || null,
+    })).filter(e => e.home && e.away);
+
+    // feeds without a round number (Vrouwen): take the CSV round of that pairing closest in date
+    entries.forEach(e => {
+      if (e.round) return;
+      const et = dateParts(e.day, e.month).t;
+      let best = null;
+      rounds.forEach(r => {
+        const rd = parseDayMonth(r.datum);
+        if (!rd) return;
+        if (!r.matches.some(m => (m.home === e.home && m.away === e.away) || (m.home === e.away && m.away === e.home))) return;
+        const dist = Math.abs(dateParts(rd.day, rd.month).t - et);
+        if (!best || dist < best.dist) best = { dist, roundNum: r.roundNum };
+      });
+      if (best) e.round = best.roundNum;
+    });
+    const usable = entries.filter(e => e.round);
+
+    // 1. rounds. Several matches played midweek next to weekend matches are split off into a
+    // separate "tussenronde" (an extra entry in the round list); a lone midweek match just
+    // stays in its round with its own date.
+    rounds = rounds.filter(r => !r.isInterim);
+    const byRound = new Map();
+    usable.forEach(e => { if (!byRound.has(e.round)) byRound.set(e.round, []); byRound.get(e.round).push(e); });
+    const isWeekday = (e) => { const d = new Date(dateParts(e.day, e.month).t).getDay(); return d >= 1 && d <= 5; };
+    const byDateTime = (a, b) => dateParts(a.day, a.month).t - dateParts(b.day, b.month).t || (a.time || '').localeCompare(b.time || '');
+    const buildBlock = (list, roundNum) => {
+      list.sort(byDateTime);
+      const counts = new Map();
+      list.forEach(e => counts.set(`${e.day}-${e.month}`, (counts.get(`${e.day}-${e.month}`) || 0) + 1));
+      const mainKey = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0].split('-').map(Number);
+      return {
+        datum: dateParts(mainKey[0], mainKey[1]).full,
+        matches: list.slice(0, 7).map(e => {
+          const otherDay = e.day !== mainKey[0] || e.month !== mainKey[1];
+          const time = e.time || oldTime.get([e.home, e.away].sort().join('|') + '|' + roundNum) || '';
+          return { time, home: e.home, away: e.away, otherDay, otherDayLabel: otherDay ? `${pad2(e.day)}-${pad2(e.month)}` : '' };
+        }),
+      };
+    };
+    const interim = [];
+    rounds.forEach(r => {
+      const list = byRound.get(r.roundNum);
+      if (!list || !list.length) return;
+      const wd = list.filter(isWeekday), we = list.filter(e => !isWeekday(e));
+      let mainList = list;
+      if (wd.length >= 2 && we.length > wd.length) {
+        mainList = we;
+        const block = buildBlock(wd, r.roundNum);
+        interim.push({ id: `${r.id}__tussen`, roundNum: r.roundNum, isInterim: true, datum: block.datum, matches: block.matches });
+      }
+      const block = buildBlock(mainList, r.roundNum);
+      r.datum = block.datum; r.matches = block.matches;
+    });
+    if (interim.length) {
+      rounds.push(...interim);
+      rounds.sort((a, b) => {
+        const da = parseDayMonth(a.datum), db = parseDayMonth(b.datum);
+        return (da ? dateParts(da.day, da.month).t : 0) - (db ? dateParts(db.day, db.month).t : 0);
+      });
+    }
+
+    // 2. single-match list
+    const roundWord = compKey === 'women' ? 'RONDE' : 'ROUND';
+    const sorted = usable.slice().sort((a, b) =>
+      dateParts(a.day, a.month).t - dateParts(b.day, b.month).t || (a.time || '').localeCompare(b.time || '') || a.round - b.round);
+    const newSingle = sorted.map(e => {
+      const home = toSingle(e.home), away = toSingle(e.away), dp = dateParts(e.day, e.month);
+      const time = e.time || oldTime.get([e.home, e.away].sort().join('|') + '|' + e.round) || '';
+      return { id: `r${e.round}_${home}-${away}`, dateRound: `${dp.weekday} ${pad2(e.day)}-${pad2(e.month)} | ${roundWord} ${e.round}`, time, home, away, roundNum: e.round };
+    });
+    let changed = 0;
+    newSingle.forEach(m => { if (oldSingleIds.get(m.id) !== `${m.dateRound}|${m.time}`) changed++; });
+    if (newSingle.length) smMatches = newSingle;
+    return { changed, total: newSingle.length };
+  }
+
+  // After the data changed: rebuild dropdowns and reload what's on screen, keeping typed scores.
+  function refreshAfterScheduleChange() {
+    if (isSingleMode()) {
+      const prev = smMatches.length ? { id: smState.id, home: smState.home, away: smState.away } : null;
+      populateSingleMatchSelect();
+      if (mode === 'playerweek') return;
+      const target = smMatches.find(m => m.id === smState.id)
+        || smMatches.find(m => prev && m.home === prev.home && m.away === prev.away)
+        || smMatches.find(m => prev && m.home === prev.away && m.away === prev.home)
+        || smMatches[0];
+      if (target) loadSingleMatch(target, target.id === smState.id ? smState : null);
+    } else if (mode !== 'ranking') {
+      const before = state.matches.slice();
+      populateRoundSelect();
+      const round = rounds.find(r => r.id === currentRoundId) || rounds[0];
+      if (round) {
+        loadRound(round);
+        state.matches.forEach(m => {
+          const old = before.find(o => o.home === m.home && o.away === m.away);
+          if (old) Object.assign(m, { homeScore: old.homeScore, awayScore: old.awayScore, played: old.played === false ? false : m.played,
+            hidden: old.hidden, showRowDate: old.showRowDate, rowDate: old.rowDate });
+        });
+        buildMatchRows();
+        render();
+      }
+    }
+  }
+
+  function fetchAndApplySchedule() {
+    return fetch('/api/schedule?comp=' + compKey)
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(data => {
         if (data.error) throw new Error(data.error);
-        const byPair = new Map();
-        (data.fixtures || []).forEach(f => byPair.set(`${toCode(f.home)}|${toCode(f.away)}`, f));
-        const changes = [];
+        const result = applySiteSchedule(data.fixtures || []);
+        refreshAfterScheduleChange();
+        return result;
+      });
+  }
 
-        // 1. every round of the CSV (Results/Schedule)
-        rounds.forEach(r => {
-          const rd = parseDayMonth(r.datum);
-          if (!rd) return;
-          r.matches.forEach(m => {
-            const f = byPair.get(`${m.home}|${m.away}`);
-            if (!f) return;
-            const otherDay = f.day !== rd.day || f.month !== rd.month;
-            const label = otherDay ? `${pad2(f.day)}-${pad2(f.month)}` : '';
-            if (f.time && m.time !== f.time) { changes.push(`${m.home}–${m.away}: ${m.time} → ${f.time}`); m.time = f.time; }
-            if (m.otherDay !== otherDay || m.otherDayLabel !== label) {
-              if (otherDay || m.otherDay) changes.push(`${m.home}–${m.away}: dag ${otherDay ? label : 'ronde-dag'}`);
-              m.otherDay = otherDay; m.otherDayLabel = label;
-            }
-          });
-        });
-        // the round currently on screen keeps its typed scores — update time/day in place
-        const cur = rounds.find(r => r.id === currentRoundId);
-        const rdCur = cur ? parseDayMonth(cur.datum) : null;
-        if (rdCur) state.matches.forEach(m => {
-          const f = byPair.get(`${m.home}|${m.away}`);
-          if (!f) return;
-          if (f.time) m.time = f.time;
-          const otherDay = f.day !== rdCur.day || f.month !== rdCur.month;
-          m.showDate = otherDay; m.dateLabel = otherDay ? `${pad2(f.day)}-${pad2(f.month)}` : '';
-        });
-
-        // 2. the single-match list (Match / Matchresult)
-        const now = new Date();
-        const seasonYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
-        smMatches.forEach(sm => {
-          const f = byPair.get(`${[...Object.keys(SINGLE_CODE[compKey] || {})].find(k => SINGLE_CODE[compKey][k] === sm.home) || sm.home}|${[...Object.keys(SINGLE_CODE[compKey] || {})].find(k => SINGLE_CODE[compKey][k] === sm.away) || sm.away}`);
-          if (!f) return;
-          const dt = new Date(f.month >= 7 ? seasonYear : seasonYear + 1, f.month - 1, f.day);
-          const weekday = compKey === 'women'
-            ? dt.toLocaleDateString('nl-NL', { weekday: 'long' }).toUpperCase()
-            : dt.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase();
-          const newDateRound = sm.dateRound.replace(/^\S+\s+\d+-\d+/, `${weekday} ${pad2(f.day)}-${pad2(f.month)}`);
-          const newTime = f.time || sm.time;
-          if (newDateRound !== sm.dateRound || newTime !== sm.time) {
-            changes.push(`${sm.home}–${sm.away}: ${sm.dateRound.split('|')[0].trim()} ${sm.time} → ${newDateRound.split('|')[0].trim()} ${newTime}`);
-            sm.dateRound = newDateRound; sm.time = newTime;
-          }
-          if (smState.id === sm.id) { smState.time = sm.time; smState.dateRound = sm.dateRound; }
-        });
-
-        const keep = roundSelect.value;
-        if (isSingleMode()) { populateSingleMatchSelect(); roundSelect.value = keep; }
-        buildMatchRows();
-        render();
-        if (changes.length) {
-          const uniq = [...new Set(changes)];
-          showCheckStatus(`✓ ${uniq.length} wijziging${uniq.length === 1 ? '' : 'en'} t.o.v. de CSV: ${uniq.slice(0, 4).join(' · ')}${uniq.length > 4 ? ' …' : ''}`, 'ok');
-        } else {
-          showCheckStatus(`✓ Schema klopt met ${SITE_LABEL[compKey]}`, 'ok');
-        }
-      })
+  function checkSchedule() {
+    checkScheduleBtn.disabled = true;
+    showCheckStatus(`Schema ophalen van ${SITE_LABEL[compKey]}…`);
+    fetchAndApplySchedule()
+      .then(r => showCheckStatus(r.changed
+        ? `✓ Schema vervangen door ${SITE_LABEL[compKey]}: ${r.changed} wedstrijden gewijzigd (${r.total} totaal)`
+        : `✓ Schema klopt al met ${SITE_LABEL[compKey]}`, 'ok'))
       .catch(err => showCheckStatus('✗ Schema ophalen mislukt: ' + err.message, 'warn'))
       .finally(() => { checkScheduleBtn.disabled = false; });
   }
   if (checkScheduleBtn) checkScheduleBtn.addEventListener('click', checkSchedule);
+
+  // Silent, once per competition per page load, as soon as both lists for it have loaded.
+  function maybeAutoSyncSchedule() {
+    if (scheduleSynced[compKey] || roundsCompKey !== compKey || smLoadedKey !== compKey) return;
+    scheduleSynced[compKey] = true;
+    fetchAndApplySchedule().catch(() => { scheduleSynced[compKey] = false; });
+  }
 
   // ---------- Jump to the date closest to today ----------
   // Results / Matchresult / Top scorer: the most recent round or match (already played).
@@ -1616,6 +1700,7 @@
       .then(text => {
         rounds = parseCsv(text);
         roundsCompKey = requestedComp;
+        maybeAutoSyncSchedule();
         if (isSingleMode() || mode === 'ranking') return; // these UIs own the dropdown right now
         populateRoundSelect();
         if (!rounds.length) return;
@@ -1701,6 +1786,7 @@
       .then(text => {
         smMatches = parseSingleMatchCsv(text);
         smLoadedKey = requestedComp;
+        maybeAutoSyncSchedule();
         if (!isSingleMode()) return; // round-based UI owns the dropdown right now
         populateSingleMatchSelect();
         if (!smMatches.length) return;
@@ -1782,7 +1868,7 @@
     rounds.forEach(r => {
       const opt = document.createElement('option');
       opt.value = r.id;
-      opt.textContent = `Ronde ${r.roundNum} — ${r.datum}`;
+      opt.textContent = r.isInterim ? `Ronde ${r.roundNum} · tussenronde — ${r.datum}` : `Ronde ${r.roundNum} — ${r.datum}`;
       roundSelect.appendChild(opt);
     });
   }

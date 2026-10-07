@@ -243,7 +243,14 @@ def fetch_men_schedule():
                 "day": int(d.group(1)), "month": NL_MONTHS[d.group(2)],
                 "time": x.get("match_time") or "", "played": played, "round": x.get("round"),
             })
-    return fixtures
+    # the results feed can list the same match twice (seen for round 2)
+    seen, unique = set(), []
+    for f in fixtures:
+        key = (f["home"], f["away"], f["day"], f["month"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(f)
+    return unique
 
 
 def _en_day_month(text):
