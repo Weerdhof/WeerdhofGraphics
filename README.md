@@ -1,6 +1,6 @@
 # WeerdhofGraphics
 
-## SHL Story Generator
+## SHL Visuals Dashboard
 
 Static tool for generating Coinmerce Super Handball League Instagram Story
 graphics (Results and Schedule) from `story-generator/assets/schedule_dataset_all_rounds.csv`.
