@@ -2246,7 +2246,7 @@
     // (A photo, when present, is drawn into the canvas and covers it.)
     canvas.classList.toggle('canvas-checker',
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
-    postDecorField.hidden = !(mode === 'results' && resultsFormat === 'post');
+    postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
     showDateField.hidden = true;
     checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
@@ -2514,6 +2514,64 @@
       ctx.drawImage(logo, PANEL_X - 8, PANEL_Y + PANEL_H + 28, lw, lh);
     }
     saveState();
+  }
+
+  // ---------- Post design elements ----------
+  // The decorative lines from the results examples, top-left (Results Post only). Vrouwen use their
+  // own asset (corner-lines-women.png); Mannen get the corner chevron flipped so its
+  // steep arms run up off the top edge. Optional, so the Post can still be pasted bare.
+  let postDecor = true;
+  let postDecorCanvas = null;
+  function drawPostDecor() {
+    if (!postDecor) return;
+    // With "Animeer" on the lines play the same chevron animation as Matchresult: the
+    // shared curve (90% -> 113% with a soft fade in and out), looping every 3s, all
+    // lines together. Otherwise they just sit there.
+    const el = (mode === 'results' && resultsAnimating && animStartTs != null)
+      ? (performance.now() - animStartTs) % SM_LOOP_CYCLE_MS : null;
+    const lineState = () => el == null ? { scale: 1, opacity: 1 } : smChevronState(el);
+
+    if (compKey === 'women') {
+      const d = COMPETITIONS.women.decorations[0];
+      const img = loadImg(d.src);
+      if (img && img.complete && img.naturalWidth) {
+        const st = lineState();
+        if (st.opacity > 0) {
+          ctx.save();
+          ctx.globalAlpha = st.opacity;
+          const ax = d.x + img.naturalWidth, ay = d.y + img.naturalHeight; // grows out from its lower-right corner
+          ctx.translate(ax, ay); ctx.scale(st.scale, st.scale); ctx.translate(-ax, -ay);
+          ctx.drawImage(img, d.x, d.y);
+          ctx.restore();
+        }
+      }
+      return;
+    }
+    if (!smCardChevronPaths) smCardChevronPaths = SM_CARD_CHEVRON_D.map((p) => new Path2D(p));
+    // Drawn to a scratch canvas first so the pink-to-orange "colormash" gradient can be
+    // applied in canvas pixels: pink at the top edge, warming to orange further down.
+    if (!postDecorCanvas) { postDecorCanvas = document.createElement('canvas'); postDecorCanvas.width = 600; postDecorCanvas.height = 500; }
+    const d = postDecorCanvas.getContext('2d');
+    d.clearRect(0, 0, 600, 500);
+    smCardChevronPaths.forEach((p) => {
+      const st = lineState();
+      if (st.opacity <= 0) return;
+      d.save();
+      d.globalAlpha = st.opacity;
+      d.translate(-85, 71);
+      d.rotate(195.5 * Math.PI / 180);
+      d.scale(2.6 * st.scale, 2.6 * st.scale); // scales about the chevron's own centre, like Matchresult
+      d.fillStyle = '#fff';
+      d.fill(p);
+      d.restore();
+    });
+    d.globalCompositeOperation = 'source-in';
+    const g = d.createLinearGradient(0, 0, 0, 430);
+    g.addColorStop(0, '#fb718b'); g.addColorStop(0.55, '#fb7582'); g.addColorStop(1, '#f39760');
+    d.fillStyle = g;
+    d.fillRect(0, 0, 600, 500);
+    d.globalCompositeOperation = 'source-over';
+    ctx.drawImage(postDecorCanvas, 0, 0);
   }
 
   function renderSingleMatch() {
@@ -2882,13 +2940,13 @@
     ctx.restore();
 
     // chevron lines over the photo, and a faint echo in the lower block
-    pwChevronLines(T.accent, 7, chev.opacity, 0, 0, PW_PHOTO_H, chev.scale);
-    pwChevronLines(T.ghost, 9, ramp(200), 660, PW_PHOTO_H + 52, H, 1);
+    if (postDecor) pwChevronLines(T.accent, 7, chev.opacity, 0, 0, PW_PHOTO_H, chev.scale);   // optional
+    pwChevronLines(T.ghost, 9, 1, 660, PW_PHOTO_H + 54, H, 1);                                // always there, never animated
 
     // banner
     ctx.save();
     ctx.globalAlpha = ramp(200);
-    ctx.fillStyle = T.accent; ctx.fillRect(0, PW_PHOTO_H + 2, W, 52);
+    ctx.fillStyle = T.accent; ctx.fillRect(0, PW_PHOTO_H, W, 54); // flush with the photo, no gap
     tsInkText(T.banner, L, PW_PHOTO_H + 2 + 36, `700 30px "${fontFamily}"`, T.accentInk);
     ctx.restore();
 
