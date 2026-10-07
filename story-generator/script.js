@@ -4085,7 +4085,7 @@
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const tk = document.getElementById('homeTicker');
-    const tkSrc = `ticker.html?comp=${menuComp}`;
+    const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&speed=50`;
     if (tk && tk.getAttribute('src') !== tkSrc) tk.setAttribute('src', tkSrc);
   }
 
