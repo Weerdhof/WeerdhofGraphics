@@ -1212,15 +1212,13 @@
     women: { 'E&O': 'ENO', FOR: 'FORE', VEN: 'FORV', 'V&L': 'VEL' },
   };
   const MONTH_ABBR = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-  function checkSingleMatchScore() {
+  function checkSingleMatchScore() {   // -> Promise<{text, cls}>
     const aliases = comp().resultAliases;
     const toSingle = (name) => {
       const c = matchCodeByAlias(aliases, name);
       return (SINGLE_CODE[compKey] && SINGLE_CODE[compKey][c]) || c;
     };
-    checkScoresBtn.disabled = true;
-    showCheckStatus(`Score ophalen van ${SITE_LABEL[compKey]}…`);
-    fetch('/api/results?comp=' + compKey)
+    return fetch('/api/results?comp=' + compKey)
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(data => {
         if (data.error) throw new Error(data.error);
@@ -1236,71 +1234,62 @@
             && (parseInt(sm[1], 10) === parseInt(dm[1], 10) || parseInt(sm[1], 10) === parseInt(dm[1], 10) + 1);
         }) : null;
         const hit = sameDay || pair[0];
-        if (!hit) { showCheckStatus(`Nog geen uitslag gevonden op ${SITE_LABEL[compKey]}`, 'warn'); return; }
+        if (!hit) return { text: `Nog geen uitslag gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
         const homeIsA = toSingle(hit.teamA) === smState.home;
         smState.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
         smState.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
         buildMatchRows();
         render();
-        showCheckStatus(`✓ Uitslag ingevuld: ${smState.homeScore} – ${smState.awayScore}`, 'ok');
+        return { text: `✓ Uitslag ingevuld: ${smState.homeScore} – ${smState.awayScore}`, cls: 'ok' };
       })
-      .catch(err => showCheckStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
-      .finally(() => { checkScoresBtn.disabled = false; });
+      .catch(err => ({ text: '✗ Score ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
 
-  if (checkScoresBtn) {
-    checkScoresBtn.addEventListener('click', () => {
-      if (isSingleMode()) { checkSingleMatchScore(); return; }
-      const aliases = comp().resultAliases;
-      if (!aliases) {
-        showCheckStatus('Niet beschikbaar voor deze competitie', 'warn');
-        return;
+  // Scores step of the combined "Check" button -> Promise<{text, cls}>.
+  function checkScoresStep() {
+  if (isSingleMode()) return checkSingleMatchScore();
+  const aliases = comp().resultAliases;
+  if (!aliases) return Promise.resolve({ text: 'Scores niet beschikbaar voor deze competitie', cls: 'warn' });
+  return fetch('/api/results?comp=' + compKey)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      const scraped = data.results || [];
+      let filled = 0;
+      state.matches.forEach(m => {
+        if (!m.home || !m.away) return;
+        const pair = scraped.filter(r => {
+          const a = matchCodeByAlias(aliases, r.teamA);
+          const b = matchCodeByAlias(aliases, r.teamB);
+          return (a === m.home && b === m.away) || (a === m.away && b === m.home);
+        });
+        // The same pairing can be on the site twice (home and away leg):
+        // prefer the one played on this round's day (or the day after).
+        const dm = /(\d+)\s+([A-Za-z]+)/.exec(state.date || '');
+        const sameDay = dm ? pair.find(r => {
+          const sm = /(\d+)\s+([A-Za-z]{3})/.exec(r.date || '');
+          if (!sm) return false;
+          const day = parseInt(dm[1], 10);
+          return sm[2].toLowerCase() === dm[2].slice(0, 3).toLowerCase()
+            && (parseInt(sm[1], 10) === day || parseInt(sm[1], 10) === day + 1);
+        }) : null;
+        const hit = sameDay || pair[0];
+        if (!hit) return;
+        const homeIsA = matchCodeByAlias(aliases, hit.teamA) === m.home;
+        m.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
+        m.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
+        m.played = true;
+        if (hit.date) m.rowDate = localizeSiteDate(hit.date);
+        filled++;
+      });
+      if (filled > 0) {
+        buildMatchRows();
+        render();
+        return { text: `✓ ${filled} van ${state.matches.length} scores ingevuld`, cls: 'ok' };
       }
-      checkScoresBtn.disabled = true;
-      showCheckStatus(`Scores ophalen van ${SITE_LABEL[compKey]}…`);
-      fetch('/api/results?comp=' + compKey)
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(data => {
-          if (data.error) throw new Error(data.error);
-          const scraped = data.results || [];
-          let filled = 0;
-          state.matches.forEach(m => {
-            if (!m.home || !m.away) return;
-            const pair = scraped.filter(r => {
-              const a = matchCodeByAlias(aliases, r.teamA);
-              const b = matchCodeByAlias(aliases, r.teamB);
-              return (a === m.home && b === m.away) || (a === m.away && b === m.home);
-            });
-            // The same pairing can be on the site twice (home and away leg):
-            // prefer the one played on this round's day (or the day after).
-            const dm = /(\d+)\s+([A-Za-z]+)/.exec(state.date || '');
-            const sameDay = dm ? pair.find(r => {
-              const sm = /(\d+)\s+([A-Za-z]{3})/.exec(r.date || '');
-              if (!sm) return false;
-              const day = parseInt(dm[1], 10);
-              return sm[2].toLowerCase() === dm[2].slice(0, 3).toLowerCase()
-                && (parseInt(sm[1], 10) === day || parseInt(sm[1], 10) === day + 1);
-            }) : null;
-            const hit = sameDay || pair[0];
-            if (!hit) return;
-            const homeIsA = matchCodeByAlias(aliases, hit.teamA) === m.home;
-            m.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
-            m.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
-            m.played = true;
-            if (hit.date) m.rowDate = localizeSiteDate(hit.date);
-            filled++;
-          });
-          if (filled > 0) {
-            buildMatchRows();
-            render();
-            showCheckStatus(`✓ ${filled} van ${state.matches.length} scores ingevuld`, 'ok');
-          } else {
-            showCheckStatus(`Geen bijpassende scores gevonden op ${SITE_LABEL[compKey]}`, 'warn');
-          }
-        })
-        .catch(err => showCheckStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
-        .finally(() => { checkScoresBtn.disabled = false; });
-    });
+      return { text: `Geen bijpassende scores gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
+    })
+    .catch(err => ({ text: '✗ Score ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
 
   // ---------- Schedule sync with the site ----------
@@ -1309,7 +1298,6 @@
   // home/away for every round (Results/Schedule) and for the single-match list. Typed scores
   // survive for matches whose home/away didn't change. Runs by itself once per competition per
   // page load, and on demand via the "Check schema" button.
-  const checkScheduleBtn = document.getElementById('checkScheduleBtn');
   const scheduleSynced = { men: false, women: false };
 
   function parseDayMonth(datum) {
@@ -1457,17 +1445,30 @@
       });
   }
 
-  function checkSchedule() {
-    checkScheduleBtn.disabled = true;
-    showCheckStatus(`Schema ophalen van ${SITE_LABEL[compKey]}…`);
-    fetchAndApplySchedule()
-      .then(r => showCheckStatus(r.changed
-        ? `✓ Schema vervangen door ${SITE_LABEL[compKey]}: ${r.changed} wedstrijden gewijzigd (${r.total} totaal)`
-        : `✓ Schema klopt al met ${SITE_LABEL[compKey]}`, 'ok'))
-      .catch(err => showCheckStatus('✗ Schema ophalen mislukt: ' + err.message, 'warn'))
-      .finally(() => { checkScheduleBtn.disabled = false; });
+  function checkScheduleStep() {   // -> Promise<{text, cls}>
+    return fetchAndApplySchedule()
+      .then(r => ({
+        text: r.changed ? `✓ Schema vervangen: ${r.changed} wedstrijden gewijzigd (${r.total} totaal)` : '✓ Schema klopt al',
+        cls: 'ok',
+      }))
+      .catch(err => ({ text: '✗ Schema ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
-  if (checkScheduleBtn) checkScheduleBtn.addEventListener('click', checkSchedule);
+
+  // One button: schema first (rounds/dates/times may change), then the scores of the (new) round.
+  function checkSite() {
+    if (checkScoresBtn.disabled) return;
+    checkScoresBtn.disabled = true;
+    showCheckStatus(`Ophalen van ${SITE_LABEL[compKey]}…`);
+    const withScores = mode !== 'match';   // a fixture has no score yet
+    checkScheduleStep()
+      .then(sr => (withScores ? checkScoresStep() : Promise.resolve(null)).then(cr => [sr, cr].filter(Boolean)))
+      .then(parts => {
+        showCheckStatus(parts.map(p => p.text).join(' · '), parts.some(p => p.cls === 'warn') ? 'warn' : 'ok');
+        markSiteChecked();
+      })
+      .finally(() => { checkScoresBtn.disabled = false; });
+  }
+  if (checkScoresBtn) checkScoresBtn.addEventListener('click', checkSite);
 
   // Silent, once per competition per page load, as soon as both lists for it have loaded.
   function maybeAutoSyncSchedule() {
@@ -1566,12 +1567,60 @@
     });
   }
 
+  // ---------- Site monitor info (the server checks the data sites every 30 min) ----------
+  const siteSyncInfo = document.getElementById('siteSyncInfo');
+  let syncStatus = null;
+  const seenKey = () => 'shl-site-seen-' + compKey;
+  function readSeen() { try { return parseInt(localStorage.getItem(seenKey()) || '0', 10) || 0; } catch (e) { return 0; } }
+  function markSiteChecked() {
+    try { localStorage.setItem(seenKey(), String(Date.now())); } catch (e) { /* private mode */ }
+    fetchSyncStatus(true);
+  }
+  function fmtWhen(ts) {
+    const d = new Date(ts * 1000), tz = 'Europe/Amsterdam';
+    const clock = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+    const dayOf = (x) => x.toLocaleDateString('nl-NL', { timeZone: tz });
+    const now = new Date();
+    if (dayOf(d) === dayOf(now)) return 'vandaag ' + clock;
+    if (dayOf(d) === dayOf(new Date(now - 864e5))) return 'gisteren ' + clock;
+    return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', timeZone: tz }) + ' ' + clock;
+  }
+  function renderSyncInfo() {
+    if (!siteSyncInfo) return;
+    const st = syncStatus && syncStatus.status && syncStatus.status[compKey];
+    if (!st || !st.checkedAt) { siteSyncInfo.textContent = ''; siteSyncInfo.hidden = true; return; }
+    const lines = [`Server controleert de site elk half uur · laatst om ${fmtWhen(st.checkedAt).replace('vandaag ', '')}`];
+    if (st.error) lines[0] += ' (⚠ laatste poging mislukt)';
+    if (st.changedAt) {
+      const c = st.changes || {};
+      const bits = [];
+      if (c.results) bits.push(`${c.results} uitslag${c.results === 1 ? '' : 'en'}`);
+      if (c.schedule) bits.push(`${c.schedule} in schema`);
+      if (c.standings) bits.push(`stand`);
+      lines.push(`Laatste wijziging op de site: ${fmtWhen(st.changedAt)}${bits.length ? ' (' + bits.join(', ') + ')' : ''}`);
+    } else {
+      lines.push('Nog geen wijzigingen op de site gezien sinds de server draait');
+    }
+    const seen = readSeen();
+    const fresh = st.changedAt && seen && st.changedAt * 1000 > seen;
+    siteSyncInfo.textContent = lines.join('\n');
+    siteSyncInfo.classList.toggle('fresh', !!fresh);
+    if (fresh) siteSyncInfo.textContent += '\n● Nieuw op de site sinds je laatste check — druk op de knop om het over te nemen';
+    siteSyncInfo.hidden = checkScoresBtn.hidden;
+  }
+  function fetchSyncStatus(refresh) {
+    return fetch('/api/sync-status' + (refresh ? '?refresh=1&comp=' + compKey : ''))
+      .then(r => r.json()).then(d => { syncStatus = d; renderSyncInfo(); }).catch(() => {});
+  }
+  try { if (!localStorage.getItem('shl-site-seen-men')) { localStorage.setItem('shl-site-seen-men', String(Date.now())); localStorage.setItem('shl-site-seen-women', String(Date.now())); } } catch (e) { /* ignore */ }
+  fetchSyncStatus(false);
+  setInterval(() => fetchSyncStatus(false), 60000);
+
   function refreshCheckButtonLabels() {
     const label = SITE_LABEL[compKey] || 'SHL site';
-    if (checkScoresBtn) checkScoresBtn.textContent = `\u{1F517} Check score ${label}`;
+    if (checkScoresBtn) checkScoresBtn.textContent = `\u{1F517} Check ${mode === 'match' ? 'schema' : 'score & schema'} ${label}`;
     if (checkStandingsBtn) checkStandingsBtn.textContent = `\u{1F517} Vul in vanuit ${label}`;
-    const sb = document.getElementById('checkScheduleBtn');
-    if (sb) sb.textContent = `\u{1F517} Check schema ${label}`;
+    renderSyncInfo();
   }
 
   // ---------- Font ----------
@@ -2353,7 +2402,9 @@
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
     showDateField.hidden = true;
-    checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
+    checkScoresBtn.hidden = mode === 'ranking' || mode === 'playerweek';
+    siteSyncInfo.hidden = checkScoresBtn.hidden || !siteSyncInfo.textContent;
+    refreshCheckButtonLabels();
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
     const C = comp();

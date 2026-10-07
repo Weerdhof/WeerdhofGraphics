@@ -27,6 +27,7 @@ import json
 import os
 import re
 import sys
+import threading
 import urllib.request
 from urllib.parse import parse_qs, urlparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -316,6 +317,104 @@ def _valid_key(key):
 
 
 
+# ---------- Background monitor: every 30 min, did anything change on the data sites? ----------
+# Fetches schedule, results (and women's standings) per competition, compares with the previous
+# snapshot and remembers when it last checked and when it last saw a change. The editor shows this
+# next to the "Check site" button. Men's standings come from a headless browser and are skipped.
+SYNC_FILE = os.path.join(DATA_DIR, "sync_status.json")
+MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", 1800))
+sync_lock = threading.Lock()
+sync_state = {"men": {}, "women": {}}   # per comp: status fields + "snapshot"
+
+
+def _men_snapshot():
+    cid = _men_competition_id()
+    snap = {"schedule": {}, "results": {}, "standings": {}}
+    for x in _fetch_json(f"{MEN_API}/match-result/ALL/{cid}").get("data", []):
+        k = f"{x.get('home_team_short')}|{x.get('away_team_short')}|{x.get('round')}"
+        snap["results"][k] = f"{x.get('home_result')}-{x.get('away_result')}"
+    for x in _fetch_json(f"{MEN_API}/match-program/ALL/{cid}").get("data", []):
+        k = f"{x.get('home_team_short')}|{x.get('away_team_short')}|{x.get('round')}"
+        snap["schedule"][k] = f"{x.get('date')} {x.get('match_time')}"
+    return snap
+
+
+def _women_snapshot():
+    snap = {"schedule": {}, "results": {}, "standings": {}}
+    for f in parse_women_matches(_fetch_html(WOMEN_BASE_URL + "/matches")):
+        snap["schedule"][f"{f['home']}|{f['away']}"] = f"{f['day']}/{f['month']} {f['time']}"
+    for r in parse_women_results(_fetch_html(WOMEN_BASE_URL + "/results")):
+        snap["results"][f"{r['teamA']}|{r['teamB']}|{r.get('date')}"] = f"{r['scoreA']}-{r['scoreB']}"
+    for row in fetch_women_standings():
+        snap["standings"][row["club"]] = f"{row['played']}/{row['points']}"
+    return snap
+
+
+def _diff_counts(old, new):
+    out = {}
+    for part in ("schedule", "results", "standings"):
+        a, b = old.get(part, {}), new.get(part, {})
+        out[part] = sum(1 for k in set(a) | set(b) if a.get(k) != b.get(k))
+    return out
+
+
+def monitor_check(comp):
+    """One check of one competition; updates sync_state and the state file."""
+    now = int(time.time())
+    try:
+        new = _women_snapshot() if comp == "women" else _men_snapshot()
+    except Exception as err:
+        with sync_lock:
+            st = sync_state.setdefault(comp, {})
+            st.update({"checkedAt": now, "error": str(err)[:200]})
+            _save_sync()
+        return
+    with sync_lock:
+        st = sync_state.setdefault(comp, {})
+        old = st.get("snapshot")
+        st.pop("error", None)
+        st["checkedAt"] = now
+        if old is not None:
+            counts = _diff_counts(old, new)
+            if any(counts.values()):
+                st["changedAt"] = now
+                st["changes"] = counts
+        st["snapshot"] = new
+        _save_sync()
+
+
+def _save_sync():
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        tmp = SYNC_FILE + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(sync_state, fh)
+        os.replace(tmp, SYNC_FILE)
+    except OSError:
+        pass
+
+
+def _monitor_loop():
+    try:
+        with open(SYNC_FILE) as fh:
+            loaded = json.load(fh)
+        for c in ("men", "women"):
+            sync_state[c] = loaded.get(c, {})
+    except (OSError, ValueError):
+        pass
+    time.sleep(5)
+    while True:
+        for comp in ("men", "women"):
+            monitor_check(comp)
+        time.sleep(MONITOR_INTERVAL)
+
+
+def public_sync_status():
+    with sync_lock:
+        return {"interval": MONITOR_INTERVAL,
+                "status": {c: {k: v for k, v in st.items() if k != "snapshot"} for c, st in sync_state.items()}}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -329,6 +428,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_schedule()
         elif self.path.startswith("/api/save"):
             self.handle_load_state()
+        elif self.path.startswith("/api/sync-status"):
+            self.handle_sync_status()
         elif self.path.startswith("/api/items"):
             self.handle_items_list()
         elif self.path.startswith("/api/item"):
@@ -601,6 +702,18 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def handle_sync_status(self):
+        qs = parse_qs(urlparse(self.path).query)
+        comp = qs.get("comp", [""])[0]
+        if qs.get("refresh", [""])[0] and comp in ("men", "women"):
+            monitor_check(comp)
+        body = json.dumps(public_sync_status()).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def handle_results(self):
         try:
             if self.wants_women():
@@ -661,4 +774,5 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Serving {STATIC_DIR} on port {PORT}")
+    threading.Thread(target=_monitor_loop, daemon=True).start()
     server.serve_forever()

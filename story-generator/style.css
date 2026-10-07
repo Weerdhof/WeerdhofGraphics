@@ -739,3 +739,6 @@ canvas.canvas-checker {
 .storage-rows .row-label strong { display: block; font-size: 14px; }
 .storage-rows .row-label span { color: var(--text-dim); font-size: 12px; }
 .storage-rows .btn { width: auto; margin: 0; padding: 6px 12px; flex-shrink: 0; }
+
+.sync-info { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted, #8b93a7); white-space: pre-line; }
+.sync-info.fresh { color: #ffb347; }
