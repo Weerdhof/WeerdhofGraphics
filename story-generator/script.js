@@ -2494,7 +2494,11 @@
       h += g.length ? (g.length - 1) * PITCH + ROW_PX : 0;
       if (gi < groups.length - 1) h += GROUP_GAP;
     });
-    const top = bars ? 237 : 255;
+    // Normally the list starts at the usual top. When it is tall (e.g. two date bars and seven
+    // rows) the whole block slides up instead, so the logo keeps real breathing room: at least
+    // LOGO_AIR above it and below it, inside the 1350px canvas.
+    const LOGO_H = 118, LOGO_AIR = 70;
+    const top = Math.min(bars ? 237 : 255, 1350 - LOGO_H - 2 * LOGO_AIR - h);
     let y = top;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2517,7 +2521,7 @@
     const logo = loadImg(compKey === 'women' ? 'assets/women/singlematch/footer-white.png' : C.footerLogo);
     if (logo && logo.complete && logo.naturalWidth) {
       const lw = 485, lh = lw * logo.naturalHeight / logo.naturalWidth;
-      ctx.drawImage(logo, 480, top + h + 40, lw, lh); // 40px of air under the last row
+      ctx.drawImage(logo, 480, top + h + LOGO_AIR, lw, lh);
     }
     saveState();
   }
