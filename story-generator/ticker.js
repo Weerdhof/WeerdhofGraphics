@@ -4,7 +4,7 @@
 // OBS:    Browser source, 1920x1080, same URL — the page is transparent except for the bar.
 // Params: comp=men|women   n=1..10 (default 7)   dates=1 (date under each score)
 //         layout=list (vertical list instead of the bar)   bg=<hex>|transparent (bar strip colour)
-//         size=<bar height px, default 110>   speed=<px per second, default 70>   refresh=<seconds, default 60>
+//         label=0 (hide the RESULTS/UITSLAGEN label)   size=<bar height px, default 110>   speed=<px per second, default 70>   refresh=<seconds, default 60>
 (() => {
   const q = new URLSearchParams(location.search);
   const compKey = q.get('comp') === 'women' ? 'women' : 'men';
@@ -74,6 +74,7 @@
   let ctx = canvas.getContext('2d');
   let shown = '';
   document.body.classList.add(layout);
+  const showLabel = q.get('label') !== '0';
   if (layout === 'bar') {
     bar.style.height = BAR_H + 'px';
     if (bg) bar.style.background = bg;
@@ -81,6 +82,7 @@
     tag.style.color = compKey === 'women' ? '#fff' : '#1a1b38';
     tag.textContent = compKey === 'women' ? 'UITSLAGEN' : 'RESULTS';
     tag.style.fontSize = Math.round(BAR_H * .24) + 'px';
+    if (!showLabel) { tag.style.display = 'none'; track.style.paddingLeft = '0'; }
   }
 
   function drawBadge(img, cropX, cx, cy) {

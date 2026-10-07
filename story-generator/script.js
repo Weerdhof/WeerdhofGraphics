@@ -4084,8 +4084,10 @@
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
+    const logo = document.getElementById('homeLogo');
+    if (logo) logo.setAttribute('src', menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
-    const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&speed=50`;
+    const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
     if (tk && tk.getAttribute('src') !== tkSrc) tk.setAttribute('src', tkSrc);
   }
 
