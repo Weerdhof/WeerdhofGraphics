@@ -2486,16 +2486,16 @@
       ? keys.map(k => shown.map((m, i) => ({ m, info: infos[i] })).filter(x => x.info.key === k))
       : [shown.map((m, i) => ({ m, info: infos[i] }))];
     const BAR_H = 53, BAR_GAP = 14, ROW_PX = ROW_H * RP_SCALE, PITCH = (ROW_Y[1] - ROW_Y[0]) * RP_SCALE, GROUP_GAP = 21;
-    // dry run for the stack height, then anchor the stack's bottom edge
+    // dry run for the stack height; the stack is anchored at the TOP (like Results), so a
+    // short list doesn't leave a gap above it, and the logo follows right under it
     let h = 0;
     groups.forEach((g, gi) => {
       if (bars) h += BAR_H + BAR_GAP;
       h += g.length ? (g.length - 1) * PITCH + ROW_PX : 0;
       if (gi < groups.length - 1) h += GROUP_GAP;
     });
-    const bottom = 1105;
-    let y = bottom - h;
-    const top = y;
+    const top = bars ? 237 : 255;
+    let y = top;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `700 ${Math.round(C.titleFontSize * 0.8)}px "${fontFamily}"`;
@@ -2517,7 +2517,7 @@
     const logo = loadImg(compKey === 'women' ? 'assets/women/singlematch/footer-white.png' : C.footerLogo);
     if (logo && logo.complete && logo.naturalWidth) {
       const lw = 485, lh = lw * logo.naturalHeight / logo.naturalWidth;
-      ctx.drawImage(logo, 480, bottom + 108 - lh / 2, lw, lh);
+      ctx.drawImage(logo, 480, top + h + 40, lw, lh); // 40px of air under the last row
     }
     saveState();
   }
