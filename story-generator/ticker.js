@@ -73,6 +73,11 @@
   const tag = document.getElementById('tag');
   let ctx = canvas.getContext('2d');
   let shown = '';
+  let announced = false;   // tells the embedding page (home) that the first frame is drawn
+  function announce() {
+    if (announced) return; announced = true;
+    try { if (window.parent !== window) window.parent.postMessage({ type: 'shl-ticker-ready', comp: compKey }, '*'); } catch (e) { /* ignore */ }
+  }
   document.body.classList.add(layout);
   const showLabel = q.get('label') !== '0';
   if (layout === 'bar') {
@@ -212,7 +217,8 @@
         const sig = JSON.stringify(rows.map(r => [r.hc, r.ac, r.homeScore, r.awayScore, r.day, r.month]));
         if (sig !== shown) { shown = sig; return draw(rows); }
       })
-      .catch(() => { /* keep showing the last good frame */ });
+      .then(announce)
+      .catch(() => { announce(); /* keep showing the last good frame */ });
   }
   refresh();
   setInterval(refresh, REFRESH_MS);

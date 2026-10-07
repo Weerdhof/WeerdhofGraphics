@@ -4081,6 +4081,11 @@
   var menuComp = compKey;   // var: renderOverviewMeta can run during early init (render)
 
   var homeTarget = menuComp;
+  // The ticker iframe tells us when its first frame is drawn, so the transition can wait for it.
+  var lastTickerReady = Promise.resolve(), tickerWaiter = null;
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'shl-ticker-ready' && tickerWaiter && e.data.comp === tickerWaiter.comp) tickerWaiter.res();
+  });
   function syncMenuComp() {
     homeTarget = menuComp;
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
@@ -4090,7 +4095,10 @@
     if (logo) logo.setAttribute('src', menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
     const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
-    if (tk && tk.getAttribute('src') !== tkSrc) tk.setAttribute('src', tkSrc);
+    if (tk && tk.getAttribute('src') !== tkSrc) {
+      lastTickerReady = new Promise(res => { tickerWaiter = { comp: menuComp, res }; setTimeout(res, 4500); });
+      tk.setAttribute('src', tkSrc);
+    }
   }
 
   function showMenuNow() {
@@ -4103,7 +4111,8 @@
     homeMenu.scrollTop = 0;
     if (typeof refreshStorage === 'function') refreshStorage();
     if (typeof loadOverview === 'function') loadOverview(false);
-    playViewIn(homeMenu);
+    popIn(homeMenu);
+    return lastTickerReady;
   }
 
   function updateEditorBar() {
@@ -4120,7 +4129,7 @@
     jumpWhenReady();
     window.scrollTo(0, 0);
     if (fromMenu) history.pushState({ editor: true }, '');
-    playViewIn(document.querySelector('.app'));
+    popIn(document.querySelector('.app'));
   }
 
   // ---------- Home <-> editor transition: an SHL chevron sweep covers the screen, the view swaps underneath ----------
@@ -4140,34 +4149,77 @@
     root._viewInTimer = setTimeout(() => root.classList.remove('view-in'), 1100);
   }
 
-  // dir 'forward' sweeps left->right (opening an editor), 'back' right->left (back to the dashboard)
+  // The pop-in of the incoming view waits until the cover lifts (or runs at once without a sweep).
+  let navPopRoot = null;
+  function popIn(root) { if (navBusy) navPopRoot = root; else playViewIn(root); }
+
+  // chevron shapes for a sweep; 'back' mirrors them so it travels right->left
+  function sweepShapes(back) {
+    const x = (v) => (back ? 100 - v : v);
+    const poly = (pts) => `polygon(${pts.map(([a, b]) => `${x(a)}% ${b}%`).join(', ')})`;
+    return {
+      coverFrom: poly([[0, 0], [0, 0], [15, 50], [0, 100], [0, 100]]),
+      coverTo: poly([[0, 0], [100, 0], [115, 50], [100, 100], [0, 100]]),
+      revealFrom: poly([[-15, 0], [100, 0], [100, 100], [-15, 100], [0, 50]]),
+      revealTo: poly([[100, 0], [100, 0], [100, 100], [100, 100], [115, 50]]),
+    };
+  }
+
+  // Lifts the cover; the incoming view pops in as the sweep starts.
+  function liftCover(back, done) {
+    const mark = navWipe.firstElementChild, sh = sweepShapes(back);
+    if (mark) mark.getAnimations().forEach(a => a.cancel());
+    navWipe.classList.remove('boot');
+    const a2 = navWipe.animate([{ clipPath: sh.revealFrom }, { clipPath: sh.revealTo }], { duration: 340, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
+    if (mark) mark.animate([{ opacity: .9 }, { opacity: 0 }], { duration: 220, fill: 'forwards' });
+    if (navPopRoot) { playViewIn(navPopRoot); navPopRoot = null; }
+    a2.onfinish = () => {
+      navWipe.hidden = true;
+      navWipe.getAnimations().forEach(a => a.cancel());
+      if (mark) mark.getAnimations().forEach(a => a.cancel());
+      done();
+    };
+  }
+
+  // Keeps the cover (mark pulsing) until `ready` resolves or the cap runs out, then lifts it.
+  function holdThenLift(ready, back, done) {
+    const mark = navWipe.firstElementChild;
+    if (mark) mark.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.14)' }], { duration: 650, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' });
+    const cap = new Promise(r => setTimeout(r, 4500));
+    Promise.race([Promise.resolve(ready).catch(() => {}), cap])
+      .then(() => new Promise(r => setTimeout(r, 120)))
+      .then(() => requestAnimationFrame(() => requestAnimationFrame(() => liftCover(back, done))));
+  }
+
+  // dir 'forward' sweeps left->right (opening an editor), 'back' right->left (back to the dashboard).
+  // `swap` may return a promise (e.g. the ticker loading): the cover stays until it resolves.
   function navSweep(dir, swap, accent) {
     if (navBusy) { if (navPhase === 'cover') navSwap = swap; else swap(); return; }
     if (!navWipe || reducedMotion() || !navWipe.animate) { swap(); return; }
     navBusy = true; navPhase = 'cover'; navSwap = swap;
-    const back = dir === 'back';
-    const x = (v) => (back ? 100 - v : v);
-    const poly = (pts) => `polygon(${pts.map(([a, b]) => `${x(a)}% ${b}%`).join(', ')})`;
-    // leading edge: a chevron pointing in the travel direction
-    const coverFrom = poly([[0, 0], [0, 0], [15, 50], [0, 100], [0, 100]]);
-    const coverTo = poly([[0, 0], [100, 0], [115, 50], [100, 100], [0, 100]]);
-    const revealFrom = poly([[-15, 0], [100, 0], [100, 100], [-15, 100], [0, 50]]);
-    const revealTo = poly([[100, 0], [100, 0], [100, 100], [100, 100], [115, 50]]);
+    const back = dir === 'back', sh = sweepShapes(back);
     navWipe.style.background = accent;
     navWipe.hidden = false;
     const mark = navWipe.firstElementChild;
-    const a1 = navWipe.animate([{ clipPath: coverFrom }, { clipPath: coverTo }], { duration: 300, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
+    const a1 = navWipe.animate([{ clipPath: sh.coverFrom }, { clipPath: sh.coverTo }], { duration: 300, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
     if (mark) mark.animate([{ opacity: 0, transform: 'scale(.8)' }, { opacity: .9, transform: 'scale(1)' }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
     a1.onfinish = () => {
-      navPhase = 'reveal';
       const run = navSwap; navSwap = null;
-      try { run(); } catch (e) { console.error(e); }
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const a2 = navWipe.animate([{ clipPath: revealFrom }, { clipPath: revealTo }], { duration: 340, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' });
-        if (mark) mark.animate([{ opacity: .9 }, { opacity: 0 }], { duration: 220, fill: 'forwards' });
-        a2.onfinish = () => { navWipe.hidden = true; navWipe.getAnimations().forEach(a => a.cancel()); if (mark) mark.getAnimations().forEach(a => a.cancel()); navBusy = false; };
-      }));
+      let ready;
+      try { ready = run(); } catch (e) { console.error(e); }
+      navPhase = 'hold';
+      holdThenLift(ready, back, () => { navBusy = false; navPhase = ''; });
     };
+  }
+
+  // First load: the page starts under the cover and is revealed once fonts and the ticker are ready.
+  function bootReveal() {
+    if (!navWipe || !navWipe.classList.contains('boot')) return;
+    if (reducedMotion() || !navWipe.animate) { navWipe.hidden = true; navWipe.classList.remove('boot'); return; }
+    navWipe.style.background = accentFor(menuComp);
+    navBusy = true; navPhase = 'hold'; navPopRoot = homeMenu;
+    const minHold = new Promise(r => setTimeout(r, 350));
+    holdThenLift(Promise.all([lastTickerReady, document.fonts && document.fonts.ready, minHold]), false, () => { navBusy = false; navPhase = ''; });
   }
   const accentFor = (c) => (c === 'women' ? '#e34fff' : '#caff1c');
 
@@ -4187,7 +4239,8 @@
       homeTarget = next;
       // men -> women sweeps left to right in purple, women -> men back in SHL green
       navSweep(next === 'women' ? 'forward' : 'back', () => {
-        menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; playViewIn(homeMenu);
+        menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
+        return lastTickerReady;
       }, accentFor(next));
     });
   });
@@ -4203,6 +4256,7 @@
   });
   window.addEventListener('popstate', () => showMenu());
   syncMenuComp();
+  bootReveal();
 
 
   // ---------- Home page: all results + programme of the chosen competition ----------

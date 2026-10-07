@@ -866,3 +866,6 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .view-in.app .editor-topbar, .view-in .panel-step { animation: viewRise .5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 38ms + 80ms); }
 .view-in .canvas-holder { animation: viewFade .6s ease both; animation-delay: .2s; }
 @media (prefers-reduced-motion: reduce) { .view-in * { animation: none !important; } }
+
+.nav-wipe.boot { clip-path: none; background: #caff1c; }
+.nav-wipe.boot img { opacity: .9; }
