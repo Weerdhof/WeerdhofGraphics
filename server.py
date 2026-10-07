@@ -293,11 +293,18 @@ def fetch_women_schedule():
 # One JSON file per item key plus an optional photo file, both named after a hash of the key.
 # Survives restarts; for deploys the DATA_DIR must live on a Railway Volume.
 import hashlib
+import io
+import shutil
+import time
+import zipfile
+from datetime import datetime
 
 ITEM_DIR = os.path.join(DATA_DIR, "items")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")
 MAX_ITEM_BYTES = 2 * 1024 * 1024
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
+MAX_RESTORE_BYTES = 400 * 1024 * 1024
+HASH_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def _key_hash(key):
@@ -322,16 +329,22 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_schedule()
         elif self.path.startswith("/api/save"):
             self.handle_load_state()
+        elif self.path.startswith("/api/items"):
+            self.handle_items_list()
         elif self.path.startswith("/api/item"):
             self.handle_item_get()
         elif self.path.startswith("/api/photo"):
             self.handle_photo_get()
+        elif self.path.startswith("/api/backup"):
+            self.handle_backup()
         else:
             super().do_GET()
 
     def do_POST(self):
         if self.path.startswith("/api/save"):
             self.handle_save_state()
+        elif self.path.startswith("/api/restore"):
+            self.handle_restore()
         elif self.path.startswith("/api/photo"):
             self.handle_photo_put()
         elif self.path.startswith("/api/item"):
@@ -350,6 +363,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_DELETE(self):
         if self.path.startswith("/api/photo"):
             self.handle_photo_delete()
+        elif self.path.startswith("/api/item"):
+            self.handle_item_delete()
         else:
             self.send_error(404)
 
@@ -388,12 +403,105 @@ class Handler(SimpleHTTPRequestHandler):
             if length > MAX_ITEM_BYTES:
                 return self._send_json(413, {"error": "item too large"})
             payload = json.loads(self.rfile.read(length))
+            if isinstance(payload, dict):
+                payload["_key"] = key
+                payload["_savedAt"] = int(time.time())
             os.makedirs(ITEM_DIR, exist_ok=True)
             tmp = os.path.join(ITEM_DIR, _key_hash(key) + ".tmp")
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(payload, f)
             os.replace(tmp, os.path.join(ITEM_DIR, _key_hash(key) + ".json"))
             self._send_json(200, {"ok": True})
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def handle_items_list(self):
+        """Everything stored: one row per item hash (JSON record and/or photo), plus disk usage."""
+        rows = {}
+        def row(h):
+            return rows.setdefault(h, {"hash": h, "key": "", "savedAt": 0, "bytes": 0, "photoBytes": 0})
+        for folder, ext, field in ((ITEM_DIR, ".json", "bytes"), (PHOTO_DIR, ".bin", "photoBytes")):
+            if not os.path.isdir(folder):
+                continue
+            for name in os.listdir(folder):
+                h = name[:-len(ext)]
+                if not name.endswith(ext) or not HASH_RE.match(h):
+                    continue
+                path = os.path.join(folder, name)
+                r = row(h)
+                r[field] = os.path.getsize(path)
+                r["savedAt"] = max(r["savedAt"], int(os.path.getmtime(path)))
+                if ext == ".json":
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        r["key"] = data.get("_key", "")
+                        r["savedAt"] = data.get("_savedAt", r["savedAt"])
+                    except Exception:
+                        pass
+        items = sorted(rows.values(), key=lambda x: x["savedAt"], reverse=True)
+        usage = {"items": len(items), "bytes": sum(i["bytes"] + i["photoBytes"] for i in items)}
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            du = shutil.disk_usage(DATA_DIR)
+            usage["diskTotal"], usage["diskFree"] = du.total, du.free
+        except Exception:
+            pass
+        self._send_json(200, {"items": items, "usage": usage})
+
+    def handle_item_delete(self):
+        qs = parse_qs(urlparse(self.path).query)
+        h = qs.get("hash", [""])[0]
+        if not HASH_RE.match(h):
+            key = qs.get("key", [""])[0]
+            if not _valid_key(key):
+                return self._send_json(400, {"error": "bad key"})
+            h = _key_hash(key)
+        for folder, ext in ((ITEM_DIR, ".json"), (PHOTO_DIR, ".bin"), (PHOTO_DIR, ".type")):
+            try:
+                os.remove(os.path.join(folder, h + ext))
+            except FileNotFoundError:
+                pass
+        self._send_json(200, {"ok": True})
+
+    def handle_backup(self):
+        """A zip with every stored item and photo — the whole app state worth keeping."""
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+            for folder, prefix in ((ITEM_DIR, "items"), (PHOTO_DIR, "photos")):
+                if os.path.isdir(folder):
+                    for name in sorted(os.listdir(folder)):
+                        if name.endswith(".tmp"):
+                            continue
+                        z.write(os.path.join(folder, name), f"{prefix}/{name}")
+        data = buf.getvalue()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", f'attachment; filename="shl-backup-{datetime.now():%Y%m%d-%H%M}.zip"')
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def handle_restore(self):
+        """Merge a backup zip back in (overwrites items/photos with the same key)."""
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > MAX_RESTORE_BYTES:
+                return self._send_json(413, {"error": "backup too large"})
+            z = zipfile.ZipFile(io.BytesIO(self.rfile.read(length)))
+            restored = 0
+            for info in z.infolist():
+                m = re.match(r"^(items|photos)/([0-9a-f]{40})\.(json|bin|type)$", info.filename)
+                if not m or (m.group(1) == "items") != (m.group(3) == "json"):
+                    continue
+                folder = ITEM_DIR if m.group(1) == "items" else PHOTO_DIR
+                os.makedirs(folder, exist_ok=True)
+                with z.open(info) as src, open(os.path.join(folder, f"{m.group(2)}.{m.group(3)}"), "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                restored += 1
+            self._send_json(200, {"ok": True, "restored": restored})
+        except zipfile.BadZipFile:
+            self._send_json(400, {"error": "not a zip file"})
         except Exception as err:
             self._send_json(400, {"error": str(err)})
 

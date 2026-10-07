@@ -907,6 +907,17 @@
   const bgPhotoControls = document.getElementById('bgPhotoControls');
   const bgPhotoZoom = document.getElementById('bgPhotoZoom');
   const removeBgPhotoBtn = document.getElementById('removeBgPhotoBtn');
+  const photoBtnText = document.getElementById('photoBtnText');
+  const photoDrop = document.getElementById('photoDrop');
+  ['dragenter', 'dragover'].forEach(ev => photoDrop.addEventListener(ev, (e) => { e.preventDefault(); photoDrop.classList.add('drag-over'); }));
+  ['dragleave', 'drop'].forEach(ev => photoDrop.addEventListener(ev, (e) => { e.preventDefault(); photoDrop.classList.remove('drag-over'); }));
+  photoDrop.addEventListener('drop', (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f || !/^image\//.test(f.type)) return;
+    const dt = new DataTransfer(); dt.items.add(f);
+    bgPhotoInput.files = dt.files;
+    bgPhotoInput.dispatchEvent(new Event('change', { bubbles: true }));
+  });
 
   bgPhotoInput.addEventListener('change', () => {
     const file = bgPhotoInput.files && bgPhotoInput.files[0];
@@ -2340,6 +2351,7 @@
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
+    photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
     showDateField.hidden = true;
     checkScheduleBtn.hidden = !['results', 'schedule', 'match', 'matchresult'].includes(mode);
     if (isSingleMode()) { renderSingleMatch(); return; }
@@ -3933,17 +3945,27 @@
         buildMatchRows();
         render();
         lastSavedItemJson = JSON.stringify(collectItem());
+        setSaveState(data && data.kind ? 'saved' : 'idle');
       })
-      .catch(() => { if (k === lastItemKey) itemLoaded = true; });
+      .catch(() => { if (k === lastItemKey) { itemLoaded = true; setSaveState('error'); } });
   }
 
   // Called at the start of every render: a different item (round, match, mode, competition)
   // means: stop saving, fetch that item's record, restore it.
+  const saveIndicator = document.getElementById('saveIndicator');
+  const SAVE_LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: '⚠ Opslaan mislukt — probeer opnieuw' };
+  function setSaveState(state) {
+    if (!saveIndicator) return;
+    saveIndicator.dataset.state = state;
+    saveIndicator.textContent = SAVE_LABELS[state] || '';
+  }
+
   function syncItemKey() {
     const k = itemKey();
     if (k === lastItemKey) return;
     lastItemKey = k;
     itemLoaded = false;
+    setSaveState(k ? 'loading' : 'idle');
     if (itemSaveTimer) { clearTimeout(itemSaveTimer); itemSaveTimer = null; }
     if (k) loadItemFromServer(k);
   }
@@ -3954,12 +3976,16 @@
     const json = JSON.stringify(collectItem());
     if (json === lastSavedItemJson) return;
     lastSavedItemJson = json;
+    setSaveState('saving');
     fetch('/api/item?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: json, keepalive: !!keepalive })
-      .catch(() => { lastSavedItemJson = ''; });
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); if (k === lastItemKey) setSaveState('saved'); })
+      .catch(() => { lastSavedItemJson = ''; setSaveState('error'); });
   }
 
   function scheduleServerSave() {
     if (!lastItemKey || !itemLoaded || itemSaveTimer) return;
+    if (JSON.stringify(collectItem()) === lastSavedItemJson) return;   // nothing changed
+    setSaveState('pending');
     itemSaveTimer = setTimeout(() => { itemSaveTimer = null; flushItemSave(false); }, 800);
   }
   window.addEventListener('pagehide', () => { if (itemSaveTimer) { clearTimeout(itemSaveTimer); itemSaveTimer = null; } flushItemSave(true); });
@@ -3973,9 +3999,10 @@
     c.getContext('2d').drawImage(bgPhotoImg, 0, 0, c.width, c.height);
     c.toBlob(blob => {
       if (!blob) return;
+      setSaveState('saving');
       fetch('/api/photo?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
-        .then(() => { lastSavedItemJson = ''; scheduleServerSave(); })
-        .catch(() => {});
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); lastSavedItemJson = ''; scheduleServerSave(); flushItemSave(false); })
+        .catch(() => setSaveState('error'));
     }, 'image/jpeg', 0.92);
   }
 
@@ -4009,6 +4036,7 @@
     document.body.classList.add('menu-open');
     window.scrollTo(0, 0);
     homeMenu.scrollTop = 0;
+    if (typeof refreshStorage === 'function') refreshStorage();
   }
 
   function updateEditorBar() {
@@ -4041,4 +4069,79 @@
   });
   window.addEventListener('popstate', () => showMenu());
   syncMenuComp();
+
+  // ---------- Storage & back-up (home menu) ----------
+  const storageSummary = document.getElementById('storageSummary');
+  const storageStatus = document.getElementById('storageStatus');
+  const storageList = document.getElementById('storageList');
+  const storageRows = document.getElementById('storageRows');
+  const fmtBytes = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  const fmtGB = (n) => (n / 1073741824).toFixed(1) + ' GB';
+  let storageItems = [];
+
+  function say(text, cls) {
+    storageStatus.textContent = text; storageStatus.className = 'save-status' + (cls ? ' ' + cls : ''); storageStatus.hidden = !text;
+  }
+  function labelForKey(key) {
+    if (!key) return { title: 'Onbekend onderdeel (oud)', sub: '' };
+    const [c, m, ...rest] = key.split(':'); const id = rest.join(':');
+    let what = ASSET_NAMES[m] || m;
+    let sub = id;
+    const single = /^r(\d+)_(.+)-(.+)$/.exec(id), round = /^ronde(\d+)/.exec(id);
+    if (single) sub = `Ronde ${single[1]}: ${single[2]} – ${single[3]}`;
+    else if (round) sub = `Ronde ${round[1]}${/__tussen/.test(id) ? ' (tussenronde)' : ''}`;
+    else if (id === 'table' || id === 'current') sub = '';
+    return { title: `${COMPETITIONS[c] ? COMPETITIONS[c].label : c} · ${what}`, sub };
+  }
+  function renderStorageRows() {
+    storageRows.innerHTML = '';
+    if (!storageItems.length) { storageRows.innerHTML = '<li><span class="row-label"><span>Nog niets opgeslagen.</span></span></li>'; return; }
+    storageItems.forEach(it => {
+      const { title, sub } = labelForKey(it.key);
+      const li = document.createElement('li');
+      const when = new Date(it.savedAt * 1000).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      li.innerHTML = `<span class="row-label"><strong></strong><span></span></span><button class="btn btn-link" type="button">Verwijder</button>`;
+      li.querySelector('strong').textContent = title;
+      li.querySelector('.row-label span').textContent = `${sub ? sub + ' · ' : ''}${when} · ${fmtBytes(it.bytes + it.photoBytes)}${it.photoBytes ? ' (met foto)' : ''}`;
+      li.querySelector('button').addEventListener('click', () => deleteStored([it], `"${title}${sub ? ' — ' + sub : ''}" verwijderen?`));
+      storageRows.appendChild(li);
+    });
+  }
+  function refreshStorage() {
+    return fetch('/api/items').then(r => r.json()).then(d => {
+      storageItems = d.items || [];
+      const u = d.usage || {};
+      storageSummary.textContent = `${u.items || 0} ${u.items === 1 ? 'onderdeel' : 'onderdelen'} opgeslagen · ${fmtBytes(u.bytes || 0)} gebruikt` + (u.diskFree ? ` · ${fmtGB(u.diskFree)} vrij op de schijf` : '');
+      renderStorageRows();
+    }).catch(() => { storageSummary.textContent = 'Opslag niet bereikbaar'; });
+  }
+  function deleteStored(list, question) {
+    if (!list.length || !window.confirm(question)) return Promise.resolve();
+    say('Verwijderen…');
+    return Promise.all(list.map(it => fetch('/api/item?hash=' + it.hash, { method: 'DELETE' })))
+      .then(() => { lastItemKey = null; say(`✓ ${list.length} verwijderd`, 'ok'); return refreshStorage(); })
+      .catch(err => say('✗ Verwijderen mislukt: ' + err.message, 'warn'));
+  }
+  document.getElementById('toggleStorageList').addEventListener('click', () => { storageList.hidden = !storageList.hidden; });
+  document.getElementById('cleanOldBtn').addEventListener('click', () => {
+    const days = parseInt(document.getElementById('cleanDays').value, 10);
+    const cutoff = Date.now() / 1000 - days * 86400;
+    const old = storageItems.filter(it => it.savedAt < cutoff);
+    if (!old.length) { say(`Niets ouder dan ${days} dagen.`, 'ok'); return; }
+    deleteStored(old, `${old.length} onderdelen (en hun foto's) ouder dan ${days} dagen verwijderen?`);
+  });
+  document.getElementById('restoreInput').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (!window.confirm(`Back-up "${f.name}" terugzetten? Onderdelen met dezelfde sleutel worden overschreven.`)) { e.target.value = ''; return; }
+    say('Terugzetten…');
+    fetch('/api/restore', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: f })
+      .then(r => r.json())
+      .then(d => { if (d.error) throw new Error(d.error); lastItemKey = null; say(`✓ ${d.restored} bestanden teruggezet`, 'ok'); return refreshStorage(); })
+      .catch(err => say('✗ Terugzetten mislukt: ' + err.message, 'warn'))
+      .finally(() => { e.target.value = ''; });
+  });
+  refreshStorage();
+
+
 })();
