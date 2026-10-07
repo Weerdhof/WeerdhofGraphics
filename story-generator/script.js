@@ -1585,28 +1585,35 @@
     if (dayOf(d) === dayOf(new Date(now - 864e5))) return 'gisteren ' + clock;
     return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', timeZone: tz }) + ' ' + clock;
   }
-  function renderSyncInfo() {
-    if (!siteSyncInfo) return;
-    const st = syncStatus && syncStatus.status && syncStatus.status[compKey];
-    if (!st || !st.checkedAt) { siteSyncInfo.textContent = ''; siteSyncInfo.hidden = true; return; }
-    const lines = [`Server controleert de site elk half uur · laatst om ${fmtWhen(st.checkedAt).replace('vandaag ', '')}`];
+  function syncLines(key) {
+    const st = syncStatus && syncStatus.status && syncStatus.status[key];
+    if (!st || !st.checkedAt) return null;
+    const lines = [`Server controleert de site elk half uur · laatst ${fmtWhen(st.checkedAt)}`];
     if (st.error) lines[0] += ' (⚠ laatste poging mislukt)';
     if (st.changedAt) {
       const c = st.changes || {};
       const bits = [];
       if (c.results) bits.push(`${c.results} uitslag${c.results === 1 ? '' : 'en'}`);
       if (c.schedule) bits.push(`${c.schedule} in schema`);
-      if (c.standings) bits.push(`stand`);
+      if (c.standings) bits.push('stand');
       lines.push(`Laatste wijziging op de site: ${fmtWhen(st.changedAt)}${bits.length ? ' (' + bits.join(', ') + ')' : ''}`);
     } else {
       lines.push('Nog geen wijzigingen op de site gezien sinds de server draait');
     }
+    return lines;
+  }
+  function renderSyncInfo() {
+    if (!siteSyncInfo) return;
+    const st = syncStatus && syncStatus.status && syncStatus.status[compKey];
+    const lines = syncLines(compKey);
+    if (!lines) { siteSyncInfo.textContent = ''; siteSyncInfo.hidden = true; renderOverviewMeta(); return; }
     const seen = readSeen();
     const fresh = st.changedAt && seen && st.changedAt * 1000 > seen;
     siteSyncInfo.textContent = lines.join('\n');
     siteSyncInfo.classList.toggle('fresh', !!fresh);
     if (fresh) siteSyncInfo.textContent += '\n● Nieuw op de site sinds je laatste check — druk op de knop om het over te nemen';
     siteSyncInfo.hidden = checkScoresBtn.hidden;
+    renderOverviewMeta();
   }
   function fetchSyncStatus(refresh) {
     return fetch('/api/sync-status' + (refresh ? '?refresh=1&comp=' + compKey : ''))
@@ -4071,7 +4078,7 @@
   // ---------- Home menu (start page) ----------
   const homeMenu = document.getElementById('homeMenu');
   const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
-  let menuComp = compKey;
+  var menuComp = compKey;   // var: renderOverviewMeta can run during early init (render)
 
   function syncMenuComp() {
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
@@ -4088,6 +4095,7 @@
     window.scrollTo(0, 0);
     homeMenu.scrollTop = 0;
     if (typeof refreshStorage === 'function') refreshStorage();
+    if (typeof loadOverview === 'function') loadOverview(false);
   }
 
   function updateEditorBar() {
@@ -4107,7 +4115,7 @@
   }
 
   homeMenu.querySelectorAll('[data-home-comp]').forEach(btn => {
-    btn.addEventListener('click', () => { menuComp = btn.dataset.homeComp; syncMenuComp(); });
+    btn.addEventListener('click', () => { menuComp = btn.dataset.homeComp; syncMenuComp(); loadOverview(false); });
   });
   homeMenu.querySelectorAll('.menu-card').forEach(card => {
     card.addEventListener('click', () => openAsset(menuComp, card.dataset.goMode, true));
@@ -4120,6 +4128,95 @@
   });
   window.addEventListener('popstate', () => showMenu());
   syncMenuComp();
+
+
+  // ---------- Home page: all results + programme of the chosen competition ----------
+  var overviewData = {};      // comp -> { at, data }; var: see menuComp
+  var overviewTab = 'results';
+  const WEEKDAYS = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const MONTHS_NL = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  function overviewDateLabel(m) {
+    const now = new Date();
+    const startYear = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    const d = new Date(m.month >= 8 ? startYear : startYear + 1, m.month - 1, m.day);
+    return `${WEEKDAYS[d.getDay()]} ${m.day} ${MONTHS_NL[m.month - 1]}`;
+  }
+  const overviewClub = (n) => String(n || '').replace(/\s+HS1$/, '');
+
+  function renderOverviewMeta() {
+    const el = document.getElementById('overviewMeta');
+    if (!el || !overviewData || !menuComp) return;
+    const lines = syncLines(menuComp);
+    const entry = overviewData[menuComp];
+    const parts = [];
+    if (entry && entry.data && entry.data.fetchedAt) parts.push(`Gegevens opgehaald ${fmtWhen(entry.data.fetchedAt)}`);
+    if (lines) parts.push(...lines);
+    el.textContent = parts.join('\n');
+  }
+
+  function renderOverview() {
+    const list = document.getElementById('overviewList');
+    if (!list) return;
+    document.querySelectorAll('#overviewTabs [data-ov]').forEach(b => b.classList.toggle('active', b.dataset.ov === overviewTab));
+    renderOverviewMeta();
+    const entry = overviewData[menuComp];
+    if (!entry) { list.textContent = 'Laden…'; return; }
+    if (entry.error) { list.textContent = '✗ Ophalen mislukt: ' + entry.error; return; }
+    const results = overviewTab === 'results';
+    const items = (results ? entry.data.results : entry.data.upcoming).slice()
+      .sort((a, b) => results ? b.ord - a.ord : a.ord - b.ord);
+    if (!items.length) { list.textContent = results ? 'Nog geen uitslagen.' : 'Geen wedstrijden gepland.'; return; }
+    // group by round when the site gives one (men), else by day (women)
+    const groups = [];
+    items.forEach(m => {
+      const key = m.round != null ? 'r' + m.round : 'd' + m.ord;
+      let g = groups.find(x => x.key === key);
+      if (!g) { g = { key, round: m.round, label: m.round != null ? `Ronde ${m.round}` : overviewDateLabel(m), items: [] }; groups.push(g); }
+      g.items.push(m);
+    });
+    list.innerHTML = '';
+    groups.forEach((g, i) => {
+      const det = document.createElement('details');
+      det.className = 'ov-group';
+      det.open = i === 0;
+      const sum = document.createElement('summary');
+      sum.textContent = `${g.label} · ${g.items.length} wedstrijd${g.items.length === 1 ? '' : 'en'}`;
+      det.appendChild(sum);
+      g.items.sort((a, b) => a.ord - b.ord || (a.time || '').localeCompare(b.time || '')).forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'ov-row';
+        const when = [overviewDateLabel(m), m.time].filter(Boolean).join(' ');
+        row.innerHTML = '<span class="ov-when"></span><span class="ov-home"></span><span class="ov-score"></span><span class="ov-away"></span>';
+        row.querySelector('.ov-when').textContent = when;
+        row.querySelector('.ov-home').textContent = overviewClub(m.home);
+        row.querySelector('.ov-away').textContent = overviewClub(m.away);
+        const sc = row.querySelector('.ov-score');
+        if (results) {
+          sc.textContent = `${m.homeScore} – ${m.awayScore}`;
+          row.classList.toggle('home-win', m.homeScore > m.awayScore);
+          row.classList.toggle('away-win', m.awayScore > m.homeScore);
+        } else {
+          sc.textContent = m.time || '–';
+        }
+        det.appendChild(row);
+      });
+      list.appendChild(det);
+    });
+  }
+
+  function loadOverview(force) {
+    const key = menuComp;
+    const e = overviewData[key];
+    if (e && !e.error && !force && Date.now() - e.at < 60000) { renderOverview(); return; }
+    if (!e) renderOverview();
+    fetch('/api/overview?comp=' + key)
+      .then(r => r.json())
+      .then(d => { if (d.error) throw new Error(d.error); overviewData[key] = { at: Date.now(), data: d }; })
+      .catch(err => { if (!overviewData[key] || overviewData[key].error) overviewData[key] = { at: Date.now(), error: err.message }; })
+      .finally(() => { if (key === menuComp) renderOverview(); });
+  }
+  document.querySelectorAll('#overviewTabs [data-ov]').forEach(b => b.addEventListener('click', () => { overviewTab = b.dataset.ov; renderOverview(); }));
+  document.getElementById('overviewRefresh').addEventListener('click', () => { fetchSyncStatus(true).then(() => loadOverview(true)); });
 
   // ---------- Storage & back-up (home menu) ----------
   const storageSummary = document.getElementById('storageSummary');
@@ -4193,6 +4290,7 @@
       .finally(() => { e.target.value = ''; });
   });
   refreshStorage();
+  loadOverview(false);
 
 
 })();

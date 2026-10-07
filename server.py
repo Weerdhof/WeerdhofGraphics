@@ -317,6 +317,58 @@ def _valid_key(key):
 
 
 
+# ---------- Overview of all results + upcoming fixtures (home page section) ----------
+OVERVIEW_TTL = 300
+_overview_cache = {}
+
+
+def _season_order(day, month):
+    return ((month - 8) % 12) * 100 + day   # season runs Aug..Jul
+
+
+def fetch_overview(comp):
+    now = time.time()
+    hit = _overview_cache.get(comp)
+    if hit and now - hit[0] < OVERVIEW_TTL:
+        return hit[1]
+    results, upcoming = [], []
+    if comp == "women":
+        for r in parse_women_results(_fetch_html(WOMEN_BASE_URL + "/results")):
+            day, month = _en_day_month(r.get("date"))
+            if day is None:
+                continue
+            results.append({"home": r["teamA"], "away": r["teamB"], "homeScore": r["scoreA"], "awayScore": r["scoreB"],
+                            "day": day, "month": month, "time": "", "round": None, "ord": _season_order(day, month)})
+        for f in parse_women_matches(_fetch_html(WOMEN_BASE_URL + "/matches")):
+            upcoming.append({"home": f["home"], "away": f["away"], "day": f["day"], "month": f["month"], "time": f["time"],
+                             "round": None, "ord": _season_order(f["day"], f["month"])})
+    else:
+        cid = _men_competition_id()
+        for endpoint, bucket in (("match-result/ALL", results), ("match-program/ALL", upcoming)):
+            for x in _fetch_json(f"{MEN_API}/{endpoint}/{cid}").get("data", []):
+                d = re.match(r"\s*\w*\s*(\d+)\s+([a-z]+)", (x.get("date") or "").lower())
+                if not d or d.group(2) not in NL_MONTHS:
+                    continue
+                day, month = int(d.group(1)), NL_MONTHS[d.group(2)]
+                item = {"home": x.get("home_team_short") or x.get("home_team") or "",
+                        "away": x.get("away_team_short") or x.get("away_team") or "",
+                        "day": day, "month": month, "time": x.get("match_time") or "",
+                        "round": x.get("round"), "ord": _season_order(day, month)}
+                if bucket is results:
+                    item["homeScore"], item["awayScore"] = x.get("home_result"), x.get("away_result")
+                bucket.append(item)
+    # the results feed can list the same match twice
+    seen, uniq = set(), []
+    for r in results:
+        k = (r["home"], r["away"], r["day"], r["month"])
+        if k not in seen:
+            seen.add(k)
+            uniq.append(r)
+    out = {"results": uniq, "upcoming": upcoming, "fetchedAt": int(now)}
+    _overview_cache[comp] = (now, out)
+    return out
+
+
 # ---------- Background monitor: every 30 min, did anything change on the data sites? ----------
 # Fetches schedule, results (and women's standings) per competition, compares with the previous
 # snapshot and remembers when it last checked and when it last saw a change. The editor shows this
@@ -428,6 +480,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_schedule()
         elif self.path.startswith("/api/save"):
             self.handle_load_state()
+        elif self.path.startswith("/api/overview"):
+            self.handle_overview()
         elif self.path.startswith("/api/sync-status"):
             self.handle_sync_status()
         elif self.path.startswith("/api/items"):
@@ -698,6 +752,19 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(500)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def handle_overview(self):
+        comp = "women" if self.wants_women() else "men"
+        try:
+            body = json.dumps(fetch_overview(comp)).encode("utf-8")
+            self.send_response(200)
+        except Exception as err:
+            body = json.dumps({"error": str(err)}).encode("utf-8")
+            self.send_response(502)
+        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
