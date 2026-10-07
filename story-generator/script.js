@@ -3924,6 +3924,9 @@
         if (data && data.kind) {
           applyItem(data);
           if (data.photo) await loadPhotoFromServer(k, data.photo);
+        } else if (mode === 'playerweek') {
+          // a new player slot (e.g. the other competition's) starts empty, not with the last name/club
+          smState.pwName = ''; smState.pwTeam = '';
         }
         if (k !== lastItemKey) return;
         itemLoaded = true;
