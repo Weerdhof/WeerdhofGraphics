@@ -926,3 +926,11 @@ body.th-open .app { display: none; }
 .hnl-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
 .home-menu.theme-th { background: radial-gradient(1100px 520px at 85% -10%, rgba(245,92,110,.16), transparent 60%), linear-gradient(180deg, #1a1b38 0%, #14152d 100%); }
+
+/* the four home tabs must fit on a phone */
+.home-comp { max-width: 100%; }
+@media (max-width: 560px) {
+  .home-comp { display: flex; width: 100%; gap: 3px; }
+  .home-comp-tab { flex: 1 1 0; min-width: 0; padding: 10px 3px; font-size: 10.5px; letter-spacing: 0; }
+}
+@media (max-width: 860px) { .th-app #thCanvas { width: calc(100vw - 32px); max-height: none; } }

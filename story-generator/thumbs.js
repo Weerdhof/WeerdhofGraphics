@@ -314,20 +314,28 @@
     await renderThumb(kind, d, c.getContext('2d'), withPhoto ? cur.photo : null);
     return toBlob(c, fmt);
   }
+  // YYYYMMDD from the date text ("zaterdag 5 september", "SATURDAY 05 SEPTEMBER", ...)
+  function stampFromText(text) {
+    const m = /(\d{1,2})\s+([A-Za-zÀ-ÿ]+)/.exec(text || '');
+    if (!m) return null;
+    const name = m[2].toLowerCase();
+    let mi = MONTHS_NL_LOWER.indexOf(name); if (mi < 0) mi = MONTHS.en.findIndex(x => x.toLowerCase() === name);
+    if (mi < 0) return null;
+    return `${seasonDate(parseInt(m[1], 10), mi + 1).getFullYear()}${String(mi + 1).padStart(2, '0')}${String(m[1]).padStart(2, '0')}`;
+  }
+  // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    let prefix, ca, cb;
     if (KINDS[kind].next) {
       const code = (id) => NEXT_CODE[id] || String(id).toUpperCase();
-      const dm = /(\d+)\s+(\w+)/.exec(d.date || ''); const mi = dm ? MONTHS_NL_LOWER.indexOf(dm[2].toLowerCase()) : -1;
-      const y = mi >= 0 ? seasonDate(1, mi + 1).getFullYear() : new Date().getFullYear();
-      const stamp = dm && mi >= 0 ? `${y}${String(mi + 1).padStart(2, '0')}${String(dm[1]).padStart(2, '0')}` : 'datum';
-      return `${kind === 'nextmen' ? 'NextMEN' : 'NextWomen'}_${stamp}_${code(d.home)}-${code(d.away)}`;
+      prefix = kind === 'nextmen' ? 'NextMEN' : 'NextWomen'; ca = code(d.home); cb = code(d.away);
+    } else {
+      const cfg = kind === 'shl' ? MEN : WOMEN, ec = (c) => cfg.exportCode[c] || c;
+      prefix = kind === 'shl' ? 'SHL' : 'SHLW'; ca = ec(d.home); cb = ec(d.away);
     }
-    const cfg = kind === 'shl' ? MEN : WOMEN;
-    const ec = (c) => cfg.exportCode[c] || c;
-    if (kind === 'shl' && d.round) return `r${d.round}_${ec(d.home)}-${ec(d.away)}`;
-    const y = d.month ? seasonDate(d.day, d.month).getFullYear() : new Date().getFullYear();
-    const stamp = d.month ? `${y}${String(d.month).padStart(2, '0')}${String(d.day).padStart(2, '0')}` : 'datum';
-    return `${kind === 'shl' ? 'SHL' : 'SHLW'}_${stamp}_${ec(d.home)}-${ec(d.away)}`;
+    // the date on the image wins (the user may have edited it), the picked fixture is the fallback
+    const stamp = stampFromText(d.date) || (d.month ? `${seasonDate(d.day, d.month).getFullYear()}${String(d.month).padStart(2, '0')}${String(d.day).padStart(2, '0')}` : null) || 'datum';
+    return `${prefix}_${stamp}_${ca}-${cb}`;
   }
   function download(blob, name) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
