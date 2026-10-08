@@ -22,17 +22,16 @@
     .then(() => Promise.all([document.fonts.load('700 40px ClashDisplay'), document.fonts.load('600 40px ClashDisplay')]).catch(() => {}));
 
   // ---------- SHL / SHLW club data (same codes and aliases as the editor) ----------
+  const DEF = SETTINGS.DEF;
   const MEN = {
-    dir: 'assets/teams', exportCode: { HCS: 'SPR' },
-    clubs: [['BEV', 'Bevo HC'], ['BWH', 'Hercules'], ['DFS', 'DFS Arnhem'], ['EUP', 'KTSV Eupen'], ['HCS', 'Sprimont'], ['HCV', 'Visé BM'], ['HUB', 'HUBO'], ['HUP', 'Hurry-Up'], ['HVA', 'Aalsmeer'], ['IZE', 'Izegem'], ['PEL', 'Pelt'], ['SAB', 'Bocholt'], ['TAC', 'Tachos'], ['VOL', 'Volendam']],
+    dir: 'assets/teams', exportCode: DEF.menExportCode, clubs: DEF.men, kind: 'men',
     aliases: { SAB: ['bocholt'], IZE: ['izegem'], EUP: ['eupen'], HCS: ['sprimont'], BEV: ['bevo'], PEL: ['pelt'], BWH: ['hercules', 'whc'], DFS: ['arnhem'], HUP: ['hurry'], HCV: ['vise', 'visé'], HVA: ['aalsmeer', 'royalfloraholland'], HUB: ['hubo'], VOL: ['volendam'], TAC: ['tachos', 'mossel', 'witte ster'] },
-    dateLocale: 'en', datePattern: (wd, d, m) => `${wd} ${d} ${m}`,
+    dateLocale: 'en',
   };
   const WOMEN = {
-    dir: 'assets/women/teams', exportCode: { 'E&O': 'ENO', FOR: 'FORE', VEN: 'FORV', 'V&L': 'VEL' },
-    clubs: [['DSVD', 'DSVD'], ['E&O', 'Oosting/E&O'], ['FOR', 'HV Foreholte'], ['KWI', 'Zwartwoud/Kwiek'], ['MHV', "M.H.V. '81"], ['PSV', 'Hypotheekvisie/PSV'], ['QUI', 'Drive in Units/Quintus'], ['SEW', 'Westfriesland/SEW'], ['V&L', 'Geonius/V&L'], ['VEN', 'Cabooter/Fortes Venlo'], ['VOC', 'Ruitenheer/VOC'], ['VOL', 'Garage Kil/Volendam'], ['VZV', 'Juro Unirek/VZV'], ['WPK', 'Westlandia']],
+    dir: 'assets/women/teams', exportCode: DEF.womenExportCode, clubs: DEF.women, kind: 'women',
     aliases: { DSVD: ['dsvd', 'aqqo'], 'E&O': ['misker', 'oosting'], FOR: ['foreholte'], KWI: ['kwiek'], MHV: ['m.h.v'], PSV: ['hypotheekvisie', 'eindhoven'], QUI: ['quintus'], SEW: ['westfriesland'], 'V&L': ['geonius'], VEN: ['venlo', 'cabooter'], VOC: ['ruitenheer'], VOL: ['volendam'], VZV: ['juro'], WPK: ['westlandia'] },
-    dateLocale: 'nl', datePattern: (wd, d, m) => `${wd} ${d} ${m}`,
+    dateLocale: 'nl',
   };
   const DAYS = { en: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'], nl: ['ZONDAG', 'MAANDAG', 'DINSDAG', 'WOENSDAG', 'DONDERDAG', 'VRIJDAG', 'ZATERDAG'] };
   const MONTHS = { en: ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'], nl: ['JANUARI', 'FEBRUARI', 'MAART', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AUGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DECEMBER'] };
@@ -40,7 +39,7 @@
   const DAYS_NL_LOWER = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const codeOf = (cfg, name) => { const n = norm(name); return Object.keys(cfg.aliases).find(c => cfg.aliases[c].some(a => n.includes(a))) || null; };
-  const labelOf = (cfg, code) => (cfg.clubs.find(c => c[0] === code) || [0, code])[1];
+  const labelOf = (cfg, code) => SETTINGS.label(`${cfg.kind}:${code}`, (cfg.clubs.find(c => c[0] === code) || [0, code])[1]);
   function seasonDate(day, month) {
     const now = new Date(), start = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
     return new Date(month >= 8 ? start : start + 1, month - 1, day);
@@ -50,8 +49,8 @@
   // ---------- Next (HandbalNL) club data ----------
   let nextClubs = [], nextById = {};
   const nextReady = fetch('assets/hnl/clubs.json').then(r => r.json()).then(l => { nextClubs = l; l.forEach(c => { nextById[c.id] = c; }); }).catch(() => {});
-  const WOMEN_JPG = { DSVD: 'dsvd', 'E&O': 'e-o', FOR: 'foreholte', KWI: 'kwiek-r', MHV: 'mhv', PSV: 'psv-handbal', QUI: 'quintus', SEW: 'sew', 'V&L': 'vlug-en-lenig', VEN: 'fortes-venlo', VOC: 'voc', VOL: 'volendam', VZV: 'vzv', WPK: 'westlandia' };
-  const NEXT_CODE = { artemis: 'ART', bfc: 'BFC', bevo: 'BEV', 'dfs-arnhem': 'DFS', dsvd: 'DSVD', dws: 'DWS', dalfsen: 'DAL', dynamico: 'DYN', 'e-o': 'OEO', foreholte: 'FORE', 'fortes-venlo': 'VEN', fortissimo: 'FTS', 'handbal-aalsmeer': 'HVA', hellas: 'HEL', hercules: 'BWH', houten: 'HOU', 'hurry-up': 'HUP', 'kwiek-r': 'KWI', mhv: 'MHV', 'psv-handbal': 'PSV', quintus: 'QUI', 'rotterdam-handbal': 'ROT', sew: 'SEW', tachos: 'TAC', us: 'USH', unitas: 'UNI', velo: 'VEL', voc: 'VOC', vvw: 'VVW', vzv: 'VZV', 'vlug-en-lenig': 'VEL', volendam: 'VOL', westlandia: 'WPK', zap: 'ZAP', zvbb21: 'ZVB' };
+  const WOMEN_JPG = DEF.womenJpg;
+  const NEXT_CODE = DEF.hnlCode;
 
   // ---------- Images ----------
   const imgs = new Map();
@@ -77,6 +76,8 @@
   }
   // crest of a team strip (the logo box at the left end of the 1200x200 strip)
   async function crest(ctx, cfg, code, x, y, w, h) {
+    const over = SETTINGS.hasLogo(`${cfg.kind}:${code}`) ? await loadImg(SETTINGS.logo(`${cfg.kind}:${code}`, '')) : null;
+    if (over) { ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.drawImage(over, x, y, w, h); return; }
     const im = await loadImg(`${cfg.dir}/${code}.png`);
     if (!im) return;
     ctx.drawImage(im, 0, 19, 158, 159, x, y, w, h);
@@ -99,7 +100,7 @@
 
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
-    await fontsReady; await nextReady;
+    await fontsReady; await nextReady; await SETTINGS.ready;
     const scene = await loadScene(kind);
     ctx.clearRect(0, 0, W, H);
     ThumbScene.base = SCENES[kind];
@@ -130,7 +131,7 @@
         c.save(); c.fillStyle = 'rgba(250,251,255,0.70)'; roundRect(c, ox + 18, oy + 200, 273, 136, 28); c.fill(); c.restore();
         c.save(); c.shadowColor = 'rgba(30,26,14,0.28)'; c.shadowBlur = 22; c.shadowOffsetY = 6; c.fillStyle = '#fff'; roundRect(c, ox + 18, oy + 19, 273, 272, 28); c.fill(); c.restore();
         c.save(); roundRect(c, ox + 18, oy + 19, 273, 272, 28); c.clip();
-        const lg = await loadImg(`assets/hnl/clubs/${WOMEN_JPG[code] || code}.jpg`); if (lg) c.drawImage(lg, ox + 18 + (273 - 232) / 2, oy + 19 + (272 - 232) / 2, 232, 232);
+        const jid = WOMEN_JPG[code] || code; const lg = await loadImg(SETTINGS.logo('hnl:' + jid, `assets/hnl/clubs/${jid}.jpg`)); if (lg) c.drawImage(lg, ox + 18 + (273 - 232) / 2, oy + 19 + (272 - 232) / 2, 232, 232);
         c.restore();
         text(c, (caption || '').toUpperCase(), 0, oy + 318, '700 16px "ClashDisplay"', '#000', { center: ox + 155 });
       };
@@ -141,7 +142,7 @@
       const col = men ? 'rgb(247,222,218)' : 'rgb(240,231,253)';
       const logo = async (c, x, id) => {
         c.fillStyle = '#fff'; c.fillRect(x, 122, 229, 229);
-        const im = await loadImg(`assets/hnl/clubs/${id}.jpg`); if (im) c.drawImage(im, x, 122, 229, 229);
+        const im = await loadImg(SETTINGS.logo('hnl:' + id, `assets/hnl/clubs/${id}.jpg`)); if (im) c.drawImage(im, x, 122, 229, 229);
       };
       dyn.LOGOTHUIS = async (c) => logo(c, 62, d.home);
       dyn.LOGOUIT = async (c) => logo(c, 432, d.away);
@@ -196,9 +197,9 @@
   function nextDefaults(kind) {
     const men = KINDS[kind].men;
     const home = men ? 'artemis' : 'dalfsen', away = men ? 'dws' : 'bfc';
-    return { home, away, homeName: (nextById[home] || {}).name || home, awayName: (nextById[away] || {}).name || away, date: 'zaterdag 5 september', time: men ? '20:00' : '20:15' };
+    return { home, away, homeName: SETTINGS.name('hnl:' + home, (nextById[home] || {}).name || home), awayName: SETTINGS.name('hnl:' + away, (nextById[away] || {}).name || away), date: 'zaterdag 5 september', time: men ? '20:00' : '20:15' };
   }
-  function shlDefaults() { return { hasPhoto: false, photoPos: { z: 1, x: 0, y: 0 }, home: '', away: '', date: '', time: '', title: 'Livestream', variant: 'live', label: 'Regular season', homeLabel: '', awayLabel: '', fixture: '' }; }
+  function shlDefaults() { return { hasPhoto: false, photoPos: { z: 1, x: 0, y: 0 }, home: '', away: '', date: '', time: '', title: SETTINGS.text('th.title', 'Livestream'), variant: 'live', label: SETTINGS.text('th.label', 'Regular season'), homeLabel: '', awayLabel: '', fixture: '' }; }
 
   async function loadFixtures(kind) {
     const cfg = kind === 'shl' ? MEN : WOMEN;
@@ -222,8 +223,8 @@
   // ---------- UI ----------
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const clubSelect = (id, cfg, v) => `<select id="${id}">${cfg.clubs.map(([c, l]) => `<option value="${esc(c)}"${c === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
-  const nextSelect = (id, v) => `<select id="${id}">${nextClubs.map(c => `<option value="${esc(c.id)}"${c.id === v ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select>`;
+  const clubSelect = (id, cfg, v) => `<select id="${id}">${cfg.clubs.map(([c]) => `<option value="${esc(c)}"${c === v ? ' selected' : ''}>${esc(labelOf(cfg, c))}</option>`).join('')}</select>`;
+  const nextSelect = (id, v) => `<select id="${id}">${nextClubs.map(c => `<option value="${esc(c.id)}"${c.id === v ? ' selected' : ''}>${esc(SETTINGS.label('hnl:' + c.id, c.label))}</option>`).join('')}</select>`;
 
   function buildControls() {
     const box = $('thControls'); if (!box || !cur.d) return;
@@ -277,8 +278,8 @@
     const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
     const set = (patch, rebuild) => { Object.assign(d, patch); scheduleRender(); scheduleSave(); if (rebuild) buildControls(); };
     on('thSlot', 'change', (e) => { flushSave().then(() => { cur.slot = parseInt(e.target.value, 10); loadItem(); }); });
-    on('thHome', 'change', (e) => { if (KINDS[cur.kind].next) set({ home: e.target.value, homeName: (nextById[e.target.value] || {}).name || e.target.value }, true); else { const cfg = cur.kind === 'shl' ? MEN : WOMEN; set({ home: e.target.value, homeLabel: labelOf(cfg, e.target.value) }, true); } });
-    on('thAway', 'change', (e) => { if (KINDS[cur.kind].next) set({ away: e.target.value, awayName: (nextById[e.target.value] || {}).name || e.target.value }, true); else { const cfg = cur.kind === 'shl' ? MEN : WOMEN; set({ away: e.target.value, awayLabel: labelOf(cfg, e.target.value) }, true); } });
+    on('thHome', 'change', (e) => { if (KINDS[cur.kind].next) set({ home: e.target.value, homeName: SETTINGS.name('hnl:' + e.target.value, (nextById[e.target.value] || {}).name || e.target.value) }, true); else { const cfg = cur.kind === 'shl' ? MEN : WOMEN; set({ home: e.target.value, homeLabel: labelOf(cfg, e.target.value) }, true); } });
+    on('thAway', 'change', (e) => { if (KINDS[cur.kind].next) set({ away: e.target.value, awayName: SETTINGS.name('hnl:' + e.target.value, (nextById[e.target.value] || {}).name || e.target.value) }, true); else { const cfg = cur.kind === 'shl' ? MEN : WOMEN; set({ away: e.target.value, awayLabel: labelOf(cfg, e.target.value) }, true); } });
     on('thHomeName', 'input', (e) => set({ homeName: e.target.value }));
     on('thAwayName', 'input', (e) => set({ awayName: e.target.value }));
     on('thHomeLabel', 'input', (e) => set({ homeLabel: e.target.value }));
@@ -327,10 +328,10 @@
   function fileName(kind, d) {
     let prefix, ca, cb;
     if (KINDS[kind].next) {
-      const code = (id) => NEXT_CODE[id] || String(id).toUpperCase();
+      const code = (id) => SETTINGS.code('hnl:' + id, NEXT_CODE[id] || String(id).toUpperCase());
       prefix = kind === 'nextmen' ? 'NextMEN' : 'NextWomen'; ca = code(d.home); cb = code(d.away);
     } else {
-      const cfg = kind === 'shl' ? MEN : WOMEN, ec = (c) => cfg.exportCode[c] || c;
+      const cfg = kind === 'shl' ? MEN : WOMEN, ec = (c) => SETTINGS.code(`${cfg.kind}:${c}`, cfg.exportCode[c] || c);
       prefix = kind === 'shl' ? 'SHL' : 'SHLW'; ca = ec(d.home); cb = ec(d.away);
     }
     // the date on the image wins (the user may have edited it), the picked fixture is the fallback
@@ -387,7 +388,7 @@
   async function loadItem() {
     cur.loaded = false; lastSaved = ''; cur.photo = null;
     const kind = cur.kind, K = KINDS[kind];
-    await nextReady;
+    await nextReady; await SETTINGS.ready;
     setSave('loading');
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }

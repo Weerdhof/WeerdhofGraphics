@@ -192,6 +192,11 @@ from datetime import datetime
 
 ITEM_DIR = os.path.join(DATA_DIR, "items")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")
+LOGO_DIR = os.path.join(DATA_DIR, "logos")
+SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+MAX_SETTINGS_BYTES = 1024 * 1024
+MAX_LOGO_BYTES = 3 * 1024 * 1024
+LOGO_ID_RE = re.compile(r"^[a-z0-9:_.-]{1,60}$")
 MAX_ITEM_BYTES = 2 * 1024 * 1024
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
 MAX_RESTORE_BYTES = 400 * 1024 * 1024
@@ -414,6 +419,10 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_overview()
         elif self.path.startswith("/api/sync-status"):
             self.handle_sync_status()
+        elif self.path.startswith("/api/settings"):
+            self.handle_settings_get()
+        elif self.path.startswith("/api/logo"):
+            self.handle_logo_get()
         elif self.path.startswith("/api/items"):
             self.handle_items_list()
         elif self.path.startswith("/api/item"):
@@ -438,7 +447,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_PUT(self):
-        if self.path.startswith("/api/item"):
+        if self.path.startswith("/api/settings"):
+            self.handle_settings_put()
+        elif self.path.startswith("/api/logo"):
+            self.handle_logo_put()
+        elif self.path.startswith("/api/item"):
             self.handle_item_put()
         elif self.path.startswith("/api/photo"):
             self.handle_photo_put()
@@ -446,7 +459,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_DELETE(self):
-        if self.path.startswith("/api/photo"):
+        if self.path.startswith("/api/logo"):
+            self.handle_logo_delete()
+        elif self.path.startswith("/api/photo"):
             self.handle_photo_delete()
         elif self.path.startswith("/api/item"):
             self.handle_item_delete()
@@ -553,12 +568,14 @@ class Handler(SimpleHTTPRequestHandler):
         """A zip with every stored item and photo — the whole app state worth keeping."""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
-            for folder, prefix in ((ITEM_DIR, "items"), (PHOTO_DIR, "photos")):
+            for folder, prefix in ((ITEM_DIR, "items"), (PHOTO_DIR, "photos"), (LOGO_DIR, "logos")):
                 if os.path.isdir(folder):
                     for name in sorted(os.listdir(folder)):
                         if name.endswith(".tmp"):
                             continue
                         z.write(os.path.join(folder, name), f"{prefix}/{name}")
+            if os.path.isfile(SETTINGS_FILE):
+                z.write(SETTINGS_FILE, "settings.json")
         data = buf.getvalue()
         self.send_response(200)
         self.send_header("Content-Type", "application/zip")
@@ -576,10 +593,16 @@ class Handler(SimpleHTTPRequestHandler):
             z = zipfile.ZipFile(io.BytesIO(self.rfile.read(length)))
             restored = 0
             for info in z.infolist():
-                m = re.match(r"^(items|photos)/([0-9a-f]{40})\.(json|bin|type)$", info.filename)
+                if info.filename == "settings.json" and info.file_size <= MAX_SETTINGS_BYTES:
+                    os.makedirs(DATA_DIR, exist_ok=True)
+                    with z.open(info) as src, open(SETTINGS_FILE, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                    restored += 1
+                    continue
+                m = re.match(r"^(items|photos|logos)/([0-9a-f]{40})\.(json|bin|type)$", info.filename)
                 if not m or (m.group(1) == "items") != (m.group(3) == "json"):
                     continue
-                folder = ITEM_DIR if m.group(1) == "items" else PHOTO_DIR
+                folder = {"items": ITEM_DIR, "photos": PHOTO_DIR, "logos": LOGO_DIR}[m.group(1)]
                 os.makedirs(folder, exist_ok=True)
                 with z.open(info) as src, open(os.path.join(folder, f"{m.group(2)}.{m.group(3)}"), "wb") as dst:
                     shutil.copyfileobj(src, dst)
@@ -589,6 +612,91 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json(400, {"error": "not a zip file"})
         except Exception as err:
             self._send_json(400, {"error": str(err)})
+
+    # --- settings (default names, texts, logo overrides) ---
+    def handle_settings_get(self):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            data = {}
+        self._send_json(200, data)
+
+    def handle_settings_put(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > MAX_SETTINGS_BYTES:
+                return self._send_json(413, {"error": "settings too large"})
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+            if not isinstance(data, dict):
+                return self._send_json(400, {"error": "settings must be an object"})
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = SETTINGS_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, SETTINGS_FILE)
+            self._send_json(200, {"ok": True})
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def _logo_base(self):
+        lid = parse_qs(urlparse(self.path).query).get("id", [""])[0]
+        if not LOGO_ID_RE.match(lid):
+            return None
+        return os.path.join(LOGO_DIR, _key_hash(lid))
+
+    def handle_logo_get(self):
+        base = self._logo_base()
+        if not base:
+            return self.send_error(400)
+        try:
+            with open(base + ".bin", "rb") as f:
+                data = f.read()
+            ctype = "image/jpeg"
+            try:
+                with open(base + ".type", "r", encoding="utf-8") as f:
+                    ctype = f.read().strip() or ctype
+            except FileNotFoundError:
+                pass
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except FileNotFoundError:
+            self.send_error(404)
+
+    def handle_logo_put(self):
+        base = self._logo_base()
+        if not base:
+            return self._send_json(400, {"error": "bad id"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > MAX_LOGO_BYTES:
+                return self._send_json(413, {"error": "logo too large"})
+            data = self.rfile.read(length)
+            os.makedirs(LOGO_DIR, exist_ok=True)
+            with open(base + ".bin", "wb") as f:
+                f.write(data)
+            ctype = (self.headers.get("Content-Type") or "image/jpeg").split(";")[0]
+            if not ctype.startswith("image/"):
+                ctype = "image/jpeg"
+            with open(base + ".type", "w", encoding="utf-8") as f:
+                f.write(ctype)
+            self._send_json(200, {"ok": True})
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def handle_logo_delete(self):
+        base = self._logo_base()
+        if not base:
+            return self._send_json(400, {"error": "bad id"})
+        for ext in (".bin", ".type"):
+            try:
+                os.remove(base + ext)
+            except FileNotFoundError:
+                pass
+        self._send_json(200, {"ok": True})
 
     def handle_photo_get(self):
         key = self._query_key()

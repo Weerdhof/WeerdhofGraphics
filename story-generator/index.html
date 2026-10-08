@@ -12,6 +12,7 @@
 <div class="home-menu" id="homeMenu">
   <div class="home-inner">
     <div class="home-head">
+      <button class="home-settings-btn" id="openSettings" type="button">⚙ Instellingen</button>
       <img class="home-logo" id="homeLogo" src="assets/footer-logo.png" alt="Coinmerce Super Handball League">
       <h1>SHL Visuals Dashboard</h1>
       <iframe id="homeTicker" class="home-ticker" title="Liveticker" tabindex="-1"></iframe>
@@ -472,9 +473,23 @@
   <main class="preview-wrap"><div class="canvas-holder"><canvas id="thCanvas" width="1920" height="1080"></canvas></div></main>
 </div>
 
+<!-- ===================== SETTINGS ===================== -->
+<div class="settings-view" id="setApp">
+  <div class="settings-inner">
+    <div class="editor-topbar">
+      <button class="btn" id="setBack" type="button">← Menu</button>
+      <div class="editor-asset"><strong>Instellingen</strong><span>Namen, codes, logo's en standaardteksten</span><span class="save-indicator" id="setSave" data-state="idle"></span></div>
+      <button class="btn btn-link" id="setResetAll" type="button">Alles herstellen</button>
+    </div>
+    <div id="setBody"></div>
+  </div>
+</div>
+
 <div id="navWipe" class="nav-wipe boot"><img src="assets/vs-icon.png" alt=""></div>
 
 <script src="script.js"></script>
+<script src="settings.js"></script>
+<script src="settings-ui.js"></script>
 <script src="hnl.js"></script>
 <script src="thumbs_scene.js"></script>
 <script src="thumbs.js"></script>

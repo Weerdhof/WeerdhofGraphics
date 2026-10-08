@@ -4134,11 +4134,12 @@
     resetResultsAnim();
     resetSmAnim();
     const fromHnl = document.body.classList.contains('hnl-open'), fromTh = document.body.classList.contains('th-open');
+    if (document.body.classList.contains('set-open') && window.SETUI) window.SETUI.close();
     if (fromHnl && window.HNL) window.HNL.close();
     if (fromTh && window.TH) window.TH.close();
     menuComp = fromHnl ? 'hnl' : fromTh ? 'th' : compKey;
     syncMenuComp();
-    document.body.classList.remove('hnl-open', 'th-open');
+    document.body.classList.remove('hnl-open', 'th-open', 'set-open');
     document.body.classList.add('menu-open');
     window.scrollTo(0, 0);
     homeMenu.scrollTop = 0;
@@ -4173,7 +4174,7 @@
   // Gives the incoming view's blocks a short staggered rise (CSS keyed on .view-in and --d).
   function playViewIn(root) {
     if (!root || reducedMotion()) return;
-    const items = root.querySelectorAll(root === homeMenu ? '.home-logo, h1, .home-ticker, .home-head p, .home-comp, .home-group, .menu-card, .overview-panel, .storage-panel' : '.editor-topbar, .panel-step, .canvas-holder');
+    const items = root.querySelectorAll(root === homeMenu ? '.home-logo, h1, .home-ticker, .home-head p, .home-comp, .home-group, .menu-card, .overview-panel, .storage-panel' : '.editor-topbar, .panel-step, .canvas-holder, .set-sec');
     items.forEach((el, i) => el.style.setProperty('--d', Math.min(i, 14)));
     root.classList.remove('view-in');
     void root.offsetWidth;
@@ -4260,6 +4261,16 @@
     if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
     navSweep('back', showMenuNow, accentFor(document.body.classList.contains('hnl-open') ? 'hnl' : document.body.classList.contains('th-open') ? 'th' : compKey));
   }
+  // Settings page (settings-ui.js)
+  function openSetNow() {
+    document.body.classList.remove('menu-open');
+    document.body.classList.add('set-open');
+    window.SETUI.open();
+    window.scrollTo(0, 0);
+    history.pushState({ editor: true }, '');
+    const v = document.getElementById('setApp'); v.scrollTop = 0;
+    popIn(v);
+  }
   // Thumbnails editor (thumbs.js)
   function openThNow(kind) {
     document.body.classList.remove('menu-open');
@@ -4304,6 +4315,10 @@
   });
   homeMenu.querySelectorAll('.menu-card[data-go-th]').forEach(card => {
     card.addEventListener('click', () => navSweep('forward', () => openThNow(card.dataset.goTh), { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff' }[card.dataset.goTh] || accentFor('th')));
+  });
+  document.getElementById('openSettings').addEventListener('click', () => navSweep('forward', openSetNow, '#caff1c'));
+  document.getElementById('setBack').addEventListener('click', () => {
+    if (history.state && history.state.editor) history.back(); else showMenu();
   });
   document.getElementById('thBack').addEventListener('click', () => {
     if (history.state && history.state.editor) history.back(); else showMenu();

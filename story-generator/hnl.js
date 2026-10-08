@@ -63,17 +63,19 @@
   const LS_NAMES = 'hnl-club-names', LS_LABELS = 'hnl-slot-labels';
   const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch (e) { return {}; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-  const clubName = (id) => (lsGet(LS_NAMES)[id]) || (clubsById[id] && clubsById[id].name) || id;
+  const clubName = (id) => (lsGet(LS_NAMES)[id]) || SETTINGS.name('hnl:' + id, (clubsById[id] && clubsById[id].name) || id);
+  const clubLabel = (id, def) => SETTINGS.label('hnl:' + id, def);
 
   function defaults(kind) {
     const photoPos = () => ({ post: { z: 1, x: 0, y: 0 }, story: { z: 1, x: 0, y: 0 } });
     if (kind === 'announce') {
-      return { l1: 'MIS NIETS VAN DE', l2: 'NEXT HANDBALL LEAGUE', l1w: '6', l2w: '5', b1: 'LIVE', b2: 'TE ZIEN VIA', b3: 'HANDBALNL.TV', decor: true, hasPhoto: false, photoPos: photoPos(), format: 'post' };
+      const T = (k, d) => SETTINGS.text('hnl.announce.' + k, d);
+      return { l1: T('l1', 'MIS NIETS VAN DE'), l2: T('l2', 'NEXT HANDBALL LEAGUE'), l1w: '6', l2w: '5', b1: T('b1', 'LIVE'), b2: T('b2', 'TE ZIEN VIA'), b3: T('b3', 'HANDBALNL.TV'), decor: true, hasPhoto: false, photoPos: photoPos(), format: 'post' };
     }
     const men = KINDS[kind].men;
     const home = men ? 'houten' : 'vzv', away = men ? 'bfc' : 'kwiek-r';
     return { home, away, homeName: clubName(home), awayName: clubName(away), time: men ? '19:00' : '20:30', dateISO: '', date: 'Zaterdag 05 september',
-      label: KINDS[kind].label, decor: true, hasPhoto: false, photoPos: photoPos(), format: 'post' };
+      label: SETTINGS.text('hnl.label.' + kind, KINDS[kind].label), decor: true, hasPhoto: false, photoPos: photoPos(), format: 'post' };
   }
 
   // ---------- Drawing ----------
@@ -147,7 +149,7 @@
     drawText(ctx, n2, 69, P - 46, 'TuskerGrotesk3', nameSize, textCol, { shadow: true });
 
     // logos: white squares with the club logos, "VS" between them
-    const logos = await Promise.all([loadImg(`assets/hnl/clubs/${d.home}.jpg`), loadImg(`assets/hnl/clubs/${d.away}.jpg`)]);
+    const logos = await Promise.all([loadImg(SETTINGS.logo('hnl:' + d.home, `assets/hnl/clubs/${d.home}.jpg`)), loadImg(SETTINGS.logo('hnl:' + d.away, `assets/hnl/clubs/${d.away}.jpg`))]);
     [[68, logos[0]], [294, logos[1]]].forEach(([x, im]) => {
       ctx.fillStyle = C.white; ctx.fillRect(x, P + 63, 172, 172);
       if (im) ctx.drawImage(im, x, P + 63, 172, 172);
@@ -199,7 +201,7 @@
   async function render() {
     renderTimer = 0;
     if (!cur.kind || !cur.data) return;
-    await resources;
+    await resources; await SETTINGS.ready;
     const seq = ++drawSeq;
     const fkey = cur.data.format, f = FORMATS[fkey];
     const cv = canvas();
@@ -244,6 +246,7 @@
 
   async function loadItem() {
     cur.loaded = false; cur.data = null; cur.photo = null; lastSaved = '';
+    await SETTINGS.ready;
     setSave('loading');
     const k = keyOf();
     let data = null;
@@ -316,12 +319,12 @@
   }
   function updateSlotLabel() {
     const d = cur.data; if (!d || cur.kind === 'announce') return;
-    const map = lsGet(LS_LABELS); map[`${cur.kind}:${cur.slot}`] = `${(clubsById[d.home] || {}).label || d.home} – ${(clubsById[d.away] || {}).label || d.away}`; lsSet(LS_LABELS, map);
+    const map = lsGet(LS_LABELS); map[`${cur.kind}:${cur.slot}`] = `${clubLabel(d.home, (clubsById[d.home] || {}).label || d.home)} – ${clubLabel(d.away, (clubsById[d.away] || {}).label || d.away)}`; lsSet(LS_LABELS, map);
     const opt = document.querySelector(`#hnlSlot option[value="${cur.slot}"]`); if (opt) opt.textContent = slotLabel(cur.slot);
   }
 
   function clubSelect(id, value) {
-    return `<select id="${id}">${clubs.map(c => `<option value="${esc(c.id)}"${c.id === value ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select>`;
+    return `<select id="${id}">${clubs.map(c => `<option value="${esc(c.id)}"${c.id === value ? ' selected' : ''}>${esc(clubLabel(c.id, c.label))}</option>`).join('')}</select>`;
   }
 
   const widthSelect = (id, v) => `<select id="${id}">${[['3', 'Smal'], ['5', 'Normaal'], ['6', 'Breed']].map(([k, l]) => `<option value="${k}"${String(v) === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
