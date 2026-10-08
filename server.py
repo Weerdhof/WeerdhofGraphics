@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 """
-Static file server for the SHL Story Generator, plus one on-demand endpoint:
+Server for the SHL Visuals Dashboard: static files plus a small JSON API.
 
-    GET /api/results
+Data sites (superhandballeague.com's sportsuite API for the men, shlw.nl for the women) are fetched into ONE
+persisted store (DATA_DIR/sitedata.json) every 30 minutes and whenever a "Check" button asks for a refresh.
+Everything else reads from that store:
 
-Launches a headless Chromium (Playwright), loads
-https://superhandballeague.com/competition-overview/, waits for its
-JS-rendered results feed to appear, and returns the parsed matches as JSON.
-The site has no public API and blocks direct browser fetches via CORS, and
-its results are rendered client-side (not present in the raw HTML), so a
-plain requests/urllib fetch can't see them — a real browser is needed to
-run the page's own JavaScript. The browser is started fresh for each
-request and closed immediately after, so nothing runs in the background
-between clicks.
+    GET /api/results?comp=     played matches with scores     (?refresh=1 re-fetches the sites first)
+    GET /api/schedule?comp=    full fixture list (played + upcoming)
+    GET /api/standings?comp=   league table
+    GET /api/overview?comp=    results + upcoming for the home page and the ticker
+    GET /api/sync-status       when each competition was last checked / last changed
+
+Plus per-item persistence (/api/item, /api/photo, /api/items, /api/backup, /api/restore). No headless browser needed.
 
 Usage:
     python3 server.py [port]
 
-The port can also be supplied via the PORT environment variable (this is
-what Railway and most other hosting platforms do automatically), which
-takes precedence when no command-line argument is given.
+The port can also be supplied via the PORT environment variable (Railway sets it).
 """
 
 import html
@@ -43,114 +41,6 @@ SCORE_RE = re.compile(r"^(\d{1,3})\s*[-–]\s*(\d{1,3})$")
 # "also save this somewhere besides my own browser" button; not a database.
 DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 SAVE_FILE = os.path.join(DATA_DIR, "saved_state.json")
-
-
-def fetch_results():
-    from playwright.sync_api import sync_playwright
-
-    # Deployed via the official mcr.microsoft.com/playwright/python Docker
-    # image, which already bundles a Chromium build that exactly matches the
-    # installed `playwright` pip version. (An earlier attempt pointed
-    # Playwright at a Nix-installed system Chromium instead, to avoid
-    # downloading a browser inside the Nixpacks build — but that version
-    # mismatch made the page load [200 OK, correct title] while silently
-    # failing to execute enough of the site's JS to render any content.)
-    launch_kwargs = {
-        "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"],
-    }
-
-    console_errors = []
-    page_errors = []
-    failed_requests = []
-    bad_responses = []
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(**launch_kwargs)
-        try:
-            page = browser.new_page()
-            page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
-            page.on("pageerror", lambda exc: page_errors.append(str(exc)))
-            page.on("requestfailed", lambda req: failed_requests.append(
-                f"{req.method} {req.url} -> {req.failure}" if req.failure else f"{req.method} {req.url}"
-            ))
-            page.on("response", lambda res: bad_responses.append(f"{res.status} {res.url}") if res.status >= 400 else None)
-            response = page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
-            # The results are injected client-side after load, on a timeline
-            # that isn't reliably captured by "networkidle" alone (seen in
-            # practice: a container behind a different network path can end
-            # up racing the AJAX call). Wait for the actual score text to
-            # show up in the DOM instead of a generic network/selector signal.
-            try:
-                page.wait_for_function(
-                    "() => /\\d{1,3}\\s*[-\\u2013]\\s*\\d{1,3}/.test(document.body.innerText)",
-                    timeout=15000,
-                )
-            except Exception:
-                pass  # fall through and parse whatever is there — diagnosable via the debug field below
-            text = page.inner_text("body")
-            status = response.status if response else None
-            title = page.title()
-            final_url = page.url
-        finally:
-            browser.close()
-
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
-    results = []
-    for i in range(1, len(lines) - 1):
-        m = SCORE_RE.match(lines[i])
-        if not m:
-            continue
-        results.append({
-            "teamA": lines[i - 1],
-            "scoreA": int(m.group(1)),
-            "scoreB": int(m.group(2)),
-            "teamB": lines[i + 1],
-        })
-
-    debug = None
-    if not results:
-        debug = {
-            "http_status": status,
-            "title": title,
-            "final_url": final_url,
-            "text_length": len(text),
-            "raw_sample": text[:400],
-            "console_errors": console_errors[:10],
-            "page_errors": page_errors[:10],
-            "failed_requests": failed_requests[:15],
-            "bad_responses": bad_responses[:15],
-        }
-    return results, debug
-
-
-def fetch_standings():
-    from playwright.sync_api import sync_playwright
-
-    launch_kwargs = {
-        "args": ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"],
-    }
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(**launch_kwargs)
-        try:
-            page = browser.new_page()
-            page.goto(SOURCE_URL, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_selector("#standingTable tbody tr", timeout=15000)
-            rows = page.query_selector_all("#standingTable tbody tr")
-            standings = []
-            for row in rows:
-                cells = row.query_selector_all("td")
-                if len(cells) < 4:
-                    continue
-                standings.append({
-                    "club": cells[1].inner_text().strip(),
-                    "played": cells[2].inner_text().strip(),
-                    "points": cells[3].inner_text().strip(),
-                })
-        finally:
-            browser.close()
-
-    return standings
 
 
 WOMEN_BASE_URL = "https://shlw.nl"
@@ -317,20 +207,24 @@ def _valid_key(key):
 
 
 
-# ---------- Overview of all results + upcoming fixtures (home page section) ----------
-OVERVIEW_TTL = 120
-_overview_cache = {}
+# ---------- Site data: ONE store that everything reads from ----------
+# A background job (every 30 min) and the "Check" buttons refresh this store from the data sites; the
+# check buttons, the home overview, the ticker and the schedule sync all read from it instead of
+# fetching the sites themselves. It is persisted, so it survives restarts and a site outage just
+# means slightly older data (with the time it was fetched shown in the UI).
+SITE_FILE = os.path.join(DATA_DIR, "sitedata.json")
+MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", 1800))
+site_lock = threading.RLock()
+refresh_locks = {"men": threading.Lock(), "women": threading.Lock()}
+site_data = {"men": {}, "women": {}}   # comp -> {results, upcoming, standings, fetchedAt, checkedAt, changedAt, changes, error}
 
 
 def _season_order(day, month):
     return ((month - 8) % 12) * 100 + day   # season runs Aug..Jul
 
 
-def fetch_overview(comp):
-    now = time.time()
-    hit = _overview_cache.get(comp)
-    if hit and now - hit[0] < OVERVIEW_TTL:
-        return hit[1]
+def _fetch_matches(comp):
+    """-> (results, upcoming), both lists of {home, away, day, month, time, round, ord[, homeScore, awayScore]}."""
     results, upcoming = [], []
     if comp == "women":
         for r in parse_women_results(_fetch_html(WOMEN_BASE_URL + "/results")):
@@ -357,49 +251,30 @@ def fetch_overview(comp):
                 if bucket is results:
                     item["homeScore"], item["awayScore"] = x.get("home_result"), x.get("away_result")
                 bucket.append(item)
-    # the results feed can list the same match twice
-    seen, uniq = set(), []
+    seen, uniq = set(), []     # the results feed can list the same match twice
     for r in results:
         k = (r["home"], r["away"], r["day"], r["month"])
         if k not in seen:
             seen.add(k)
             uniq.append(r)
-    out = {"results": uniq, "upcoming": upcoming, "fetchedAt": int(now)}
-    _overview_cache[comp] = (now, out)
-    return out
+    return uniq, upcoming
 
 
-# ---------- Background monitor: every 30 min, did anything change on the data sites? ----------
-# Fetches schedule, results (and women's standings) per competition, compares with the previous
-# snapshot and remembers when it last checked and when it last saw a change. The editor shows this
-# next to the "Check site" button. Men's standings come from a headless browser and are skipped.
-SYNC_FILE = os.path.join(DATA_DIR, "sync_status.json")
-MONITOR_INTERVAL = int(os.environ.get("MONITOR_INTERVAL", 1800))
-sync_lock = threading.Lock()
-sync_state = {"men": {}, "women": {}}   # per comp: status fields + "snapshot"
-
-
-def _men_snapshot():
+def _fetch_standings(comp):
+    """-> [{club, played, points}] in table order."""
+    if comp == "women":
+        return fetch_women_standings()
     cid = _men_competition_id()
-    snap = {"schedule": {}, "results": {}, "standings": {}}
-    for x in _fetch_json(f"{MEN_API}/match-result/ALL/{cid}").get("data", []):
-        k = f"{x.get('home_team_short')}|{x.get('away_team_short')}|{x.get('round')}"
-        snap["results"][k] = f"{x.get('home_result')}-{x.get('away_result')}"
-    for x in _fetch_json(f"{MEN_API}/match-program/ALL/{cid}").get("data", []):
-        k = f"{x.get('home_team_short')}|{x.get('away_team_short')}|{x.get('round')}"
-        snap["schedule"][k] = f"{x.get('date')} {x.get('match_time')}"
-    return snap
+    rows = sorted(_fetch_json(f"{MEN_API}/pool-standing/{cid}").get("data", []), key=lambda r: r.get("position") or 99)
+    return [{"club": r.get("name") or "", "played": str(r.get("games", "")), "points": str(r.get("points", ""))} for r in rows]
 
 
-def _women_snapshot():
-    snap = {"schedule": {}, "results": {}, "standings": {}}
-    for f in parse_women_matches(_fetch_html(WOMEN_BASE_URL + "/matches")):
-        snap["schedule"][f"{f['home']}|{f['away']}"] = f"{f['day']}/{f['month']} {f['time']}"
-    for r in parse_women_results(_fetch_html(WOMEN_BASE_URL + "/results")):
-        snap["results"][f"{r['teamA']}|{r['teamB']}|{r.get('date')}"] = f"{r['scoreA']}-{r['scoreB']}"
-    for row in fetch_women_standings():
-        snap["standings"][row["club"]] = f"{row['played']}/{row['points']}"
-    return snap
+def _snapshot(d):
+    return {
+        "schedule": {f"{m['home']}|{m['away']}|{m['round']}": f"{m['day']}/{m['month']} {m['time']}" for m in d.get("upcoming", [])},
+        "results": {f"{m['home']}|{m['away']}|{m['day']}/{m['month']}": f"{m.get('homeScore')}-{m.get('awayScore')}" for m in d.get("results", [])},
+        "standings": {r["club"]: f"{r['played']}/{r['points']}" for r in d.get("standings", [])},
+    }
 
 
 def _diff_counts(old, new):
@@ -410,61 +285,116 @@ def _diff_counts(old, new):
     return out
 
 
-def monitor_check(comp):
-    """One check of one competition; updates sync_state and the state file."""
-    now = int(time.time())
-    try:
-        new = _women_snapshot() if comp == "women" else _men_snapshot()
-    except Exception as err:
-        with sync_lock:
-            st = sync_state.setdefault(comp, {})
-            st.update({"checkedAt": now, "error": str(err)[:200]})
-            _save_sync()
-        return
-    with sync_lock:
-        st = sync_state.setdefault(comp, {})
-        old = st.get("snapshot")
-        st.pop("error", None)
-        st["checkedAt"] = now
-        if old is not None:
-            counts = _diff_counts(old, new)
-            if any(counts.values()):
-                st["changedAt"] = now
-                st["changes"] = counts
-        st["snapshot"] = new
-        _save_sync()
-
-
-def _save_sync():
+def _save_site():
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
-        tmp = SYNC_FILE + ".tmp"
+        tmp = SITE_FILE + ".tmp"
         with open(tmp, "w") as fh:
-            json.dump(sync_state, fh)
-        os.replace(tmp, SYNC_FILE)
+            json.dump(site_data, fh)
+        os.replace(tmp, SITE_FILE)
     except OSError:
         pass
 
 
+def refresh_comp(comp):
+    """Fetch everything for one competition into the store. Each part keeps its old value if its fetch fails."""
+    with refresh_locks[comp]:
+        now = int(time.time())
+        with site_lock:
+            old = dict(site_data.get(comp) or {})
+        new, errors = dict(old), []
+        try:
+            new["results"], new["upcoming"] = _fetch_matches(comp)
+            new["fetchedAt"] = now
+        except Exception as err:
+            errors.append(f"uitslagen/schema: {err}")
+        try:
+            new["standings"] = _fetch_standings(comp)
+        except Exception as err:
+            errors.append(f"stand: {err}")
+        new["checkedAt"] = now
+        if errors:
+            new["error"] = "; ".join(errors)[:300]
+        else:
+            new.pop("error", None)
+        if old.get("results") is not None or old.get("upcoming") is not None:
+            counts = _diff_counts(_snapshot(old), _snapshot(new))
+            if any(counts.values()):
+                new["changedAt"] = now
+                new["changes"] = counts
+        with site_lock:
+            site_data[comp] = new
+            _save_site()
+        return new
+
+
+def get_comp_data(comp, force=False):
+    """The stored data for a competition; fetches it first when forced, missing, or really stale."""
+    with site_lock:
+        d = site_data.get(comp) or {}
+    stale = time.time() - d.get("fetchedAt", 0) > MONITOR_INTERVAL * 2
+    if force or stale or (not d.get("results") and not d.get("upcoming")):
+        d = refresh_comp(comp)
+    if not d.get("results") and not d.get("upcoming"):
+        raise RuntimeError(d.get("error") or "geen data beschikbaar")
+    return d
+
+
+_MONTH_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+_DAY_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _en_date_label(m):
+    """'Sat 3 Oct' — the format the site shows (the editor localizes it)."""
+    today = datetime.now()
+    start = today.year if today.month >= 8 else today.year - 1
+    year = start if m["month"] >= 8 else start + 1
+    try:
+        wd = _DAY_EN[datetime(year, m["month"], m["day"]).weekday()]
+    except ValueError:
+        wd = ""
+    return f"{wd} {m['day']} {_MONTH_EN[m['month'] - 1]}".strip()
+
+
+def legacy_results(d):
+    return [{"teamA": m["home"], "teamB": m["away"], "scoreA": m["homeScore"], "scoreB": m["awayScore"], "date": _en_date_label(m)}
+            for m in d.get("results", []) if m.get("homeScore") is not None]
+
+
+def legacy_schedule(d):
+    out = []
+    for played, items in ((True, d.get("results", [])), (False, d.get("upcoming", []))):
+        for m in items:
+            f = {"home": m["home"], "away": m["away"], "day": m["day"], "month": m["month"], "time": m["time"], "played": played}
+            if m.get("round") is not None:
+                f["round"] = m["round"]
+            out.append(f)
+    return out
+
+
+def public_sync_status():
+    with site_lock:
+        return {"interval": MONITOR_INTERVAL,
+                "status": {c: {k: v for k, v in d.items() if k in ("checkedAt", "fetchedAt", "changedAt", "changes", "error")}
+                           for c, d in site_data.items()}}
+
+
 def _monitor_loop():
     try:
-        with open(SYNC_FILE) as fh:
+        with open(SITE_FILE) as fh:
             loaded = json.load(fh)
         for c in ("men", "women"):
-            sync_state[c] = loaded.get(c, {})
+            site_data[c] = loaded.get(c, {})
     except (OSError, ValueError):
         pass
     time.sleep(5)
     while True:
         for comp in ("men", "women"):
-            monitor_check(comp)
+            try:
+                refresh_comp(comp)
+            except Exception:
+                pass
         time.sleep(MONITOR_INTERVAL)
-
-
-def public_sync_status():
-    with sync_lock:
-        return {"interval": MONITOR_INTERVAL,
-                "status": {c: {k: v for k, v in st.items() if k != "snapshot"} for c, st in sync_state.items()}}
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -756,78 +686,55 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def handle_overview(self):
-        comp = "women" if self.wants_women() else "men"
-        try:
-            body = json.dumps(fetch_overview(comp)).encode("utf-8")
-            self.send_response(200)
-        except Exception as err:
-            body = json.dumps({"error": str(err)}).encode("utf-8")
-            self.send_response(502)
+    def _json(self, status, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _comp_data(self):
+        """Stored data for ?comp=; ?refresh=1 re-fetches from the sites first."""
+        qs = parse_qs(urlparse(self.path).query)
+        comp = "women" if qs.get("comp", [""])[0] == "women" else "men"
+        return get_comp_data(comp, force=bool(qs.get("refresh", [""])[0]))
+
+    def handle_overview(self):
+        try:
+            d = self._comp_data()
+            self._json(200, {"results": d.get("results", []), "upcoming": d.get("upcoming", []), "fetchedAt": d.get("fetchedAt")})
+        except Exception as err:
+            self._json(502, {"error": str(err)})
 
     def handle_sync_status(self):
         qs = parse_qs(urlparse(self.path).query)
         comp = qs.get("comp", [""])[0]
         if qs.get("refresh", [""])[0] and comp in ("men", "women"):
-            monitor_check(comp)
-        body = json.dumps(public_sync_status()).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+            refresh_comp(comp)
+        self._json(200, public_sync_status())
 
     def handle_results(self):
         try:
-            if self.wants_women():
-                results, debug = fetch_women_results(), None
-            else:
-                results, debug = fetch_results()
-            payload = {"results": results}
-            if debug is not None:
-                payload["debug"] = debug
-            body = json.dumps(payload).encode("utf-8")
-            self.send_response(200)
+            d = self._comp_data()
+            self._json(200, {"results": legacy_results(d), "fetchedAt": d.get("fetchedAt")})
         except Exception as err:
-            body = json.dumps({"error": str(err)}).encode("utf-8")
-            self.send_response(502)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+            self._json(502, {"error": str(err)})
 
     def handle_schedule(self):
         try:
-            fixtures = fetch_women_schedule() if self.wants_women() else fetch_men_schedule()
-            body = json.dumps({"fixtures": fixtures}).encode("utf-8")
-            self.send_response(200)
+            d = self._comp_data()
+            self._json(200, {"fixtures": legacy_schedule(d), "fetchedAt": d.get("fetchedAt")})
         except Exception as err:
-            body = json.dumps({"error": str(err)}).encode("utf-8")
-            self.send_response(502)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+            self._json(502, {"error": str(err)})
 
     def handle_standings(self):
         try:
-            standings = fetch_women_standings() if self.wants_women() else fetch_standings()
-            body = json.dumps({"standings": standings}).encode("utf-8")
-            self.send_response(200)
+            d = self._comp_data()
+            self._json(200, {"standings": d.get("standings", []), "fetchedAt": d.get("fetchedAt")})
         except Exception as err:
-            body = json.dumps({"error": str(err)}).encode("utf-8")
-            self.send_response(502)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+            self._json(502, {"error": str(err)})
 
     def end_headers(self):
         # Always revalidate: otherwise a browser keeps running an older script.js/CSV after a deploy.

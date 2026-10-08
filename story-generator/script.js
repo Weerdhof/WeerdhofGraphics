@@ -1455,18 +1455,45 @@
   }
 
   // One button: schema first (rounds/dates/times may change), then the scores of the (new) round.
+  // Button feedback: spinner + busy text while working, then a green/orange flash with the outcome.
+  function btnBusy(btn, text) {
+    btn.dataset.lock = '1';
+    btn.disabled = true;
+    btn.classList.remove('flash-ok', 'flash-warn');
+    btn.classList.add('is-loading');
+    btn.textContent = text;
+  }
+  function btnDone(btn, ok, text, restore) {
+    btn.classList.remove('is-loading');
+    btn.classList.add(ok ? 'flash-ok' : 'flash-warn');
+    btn.textContent = text;
+    setTimeout(() => {
+      btn.classList.remove('flash-ok', 'flash-warn');
+      delete btn.dataset.lock;
+      btn.disabled = false;
+      restore();
+    }, 2200);
+  }
+  const clockNow = () => new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Amsterdam' });
+
   function checkSite() {
     if (checkScoresBtn.disabled) return;
-    checkScoresBtn.disabled = true;
+    const startedAt = Date.now();
+    btnBusy(checkScoresBtn, 'Controleren…');
     showCheckStatus(`Ophalen van ${SITE_LABEL[compKey]}…`);
     const withScores = mode !== 'match';   // a fixture has no score yet
-    checkScheduleStep()
+    // refresh the server's data store from the sites first; schedule and scores below are then read from it
+    fetchSyncStatus(true).catch(() => {})
+      .then(() => checkScheduleStep())
       .then(sr => (withScores ? checkScoresStep() : Promise.resolve(null)).then(cr => [sr, cr].filter(Boolean)))
       .then(parts => {
-        showCheckStatus(parts.map(p => p.text).join(' · '), parts.some(p => p.cls === 'warn') ? 'warn' : 'ok');
+        const warn = parts.some(p => p.cls === 'warn');
+        showCheckStatus(`Gecontroleerd om ${clockNow()} — ` + parts.map(p => p.text).join(' · '), warn ? 'warn' : 'ok');
         markSiteChecked();
+        return new Promise(r => setTimeout(r, Math.max(0, 700 - (Date.now() - startedAt)))).then(() => warn);   // keep the spinner visible at least a moment
       })
-      .finally(() => { checkScoresBtn.disabled = false; });
+      .then(warn => btnDone(checkScoresBtn, !warn, warn ? '⚠ Gecontroleerd — zie melding' : '✓ Gecontroleerd', refreshCheckButtonLabels),
+        () => btnDone(checkScoresBtn, false, '⚠ Controle mislukt', refreshCheckButtonLabels));
   }
   if (checkScoresBtn) checkScoresBtn.addEventListener('click', checkSite);
 
@@ -1538,7 +1565,7 @@
       const aliases = comp().resultAliases;
       checkStandingsBtn.disabled = true;
       showStandingsStatus(`Stand ophalen van ${SITE_LABEL[compKey]}…`);
-      fetch('/api/standings?comp=' + compKey)
+      fetch('/api/standings?comp=' + compKey + '&refresh=1')
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
           if (data.error) throw new Error(data.error);
@@ -1574,7 +1601,7 @@
   function readSeen() { try { return parseInt(localStorage.getItem(seenKey()) || '0', 10) || 0; } catch (e) { return 0; } }
   function markSiteChecked() {
     try { localStorage.setItem(seenKey(), String(Date.now())); } catch (e) { /* private mode */ }
-    fetchSyncStatus(true);
+    fetchSyncStatus(false);
   }
   function fmtWhen(ts) {
     const d = new Date(ts * 1000), tz = 'Europe/Amsterdam';
@@ -1625,7 +1652,7 @@
 
   function refreshCheckButtonLabels() {
     const label = SITE_LABEL[compKey] || 'SHL site';
-    if (checkScoresBtn) checkScoresBtn.textContent = `\u{1F517} Check ${mode === 'match' ? 'schema' : 'score & schema'} ${label}`;
+    if (checkScoresBtn && !checkScoresBtn.dataset.lock) checkScoresBtn.textContent = `\u{1F517} Check ${mode === 'match' ? 'schema' : 'score & schema'} ${label}`;
     if (checkStandingsBtn) checkStandingsBtn.textContent = `\u{1F517} Vul in vanuit ${label}`;
     renderSyncInfo();
   }
@@ -4345,7 +4372,17 @@
       .finally(() => { if (key === menuComp) renderOverview(); });
   }
   document.querySelectorAll('#overviewTabs [data-ov]').forEach(b => b.addEventListener('click', () => { overviewTab = b.dataset.ov; renderOverview(); }));
-  document.getElementById('overviewRefresh').addEventListener('click', () => { fetchSyncStatus(true).then(() => loadOverview(true)); });
+  document.getElementById('overviewRefresh').addEventListener('click', () => {
+    const btn = document.getElementById('overviewRefresh');
+    if (btn.disabled) return;
+    const startedAt = Date.now();
+    btnBusy(btn, 'Controleren…');
+    fetchSyncStatus(true)
+      .then(() => loadOverview(true))
+      .then(() => new Promise(r => setTimeout(r, Math.max(0, 700 - (Date.now() - startedAt)))))
+      .then(() => btnDone(btn, true, `✓ Gecontroleerd ${clockNow()}`, () => { btn.textContent = '↻ Vernieuwen'; }),
+        () => btnDone(btn, false, '⚠ Mislukt', () => { btn.textContent = '↻ Vernieuwen'; }));
+  });
 
 
   // ---------- Home page: liveticker links ----------

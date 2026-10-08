@@ -869,3 +869,15 @@ input[type="checkbox"] { accent-color: var(--accent); }
 
 .nav-wipe.boot { clip-path: none; background: #caff1c; }
 .nav-wipe.boot img { opacity: .9; }
+
+/* button feedback: spinner while working, green/orange flash for the outcome */
+.btn.is-loading { position: relative; opacity: .9; cursor: progress; }
+.btn.is-loading::before {
+  content: ""; display: inline-block; width: 13px; height: 13px; margin-right: 8px; vertical-align: -2px;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: btnSpin .7s linear infinite;
+}
+@keyframes btnSpin { to { transform: rotate(360deg); } }
+@keyframes btnFlash { 0% { transform: scale(.96); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
+.btn.flash-ok { background: #4fd18b !important; border-color: #4fd18b !important; color: #0d2a1b !important; animation: btnFlash .45s ease; }
+.btn.flash-warn { background: #ffb347 !important; border-color: #ffb347 !important; color: #2e1b00 !important; animation: btnFlash .45s ease; }
+.save-status.ok, .save-status.warn { font-weight: 600; }
