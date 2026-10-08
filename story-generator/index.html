@@ -21,8 +21,10 @@
     <div class="home-comp" role="tablist">
       <button class="home-comp-tab active" data-home-comp="men" type="button">Mannen</button>
       <button class="home-comp-tab" data-home-comp="women" type="button">Vrouwen</button>
+      <button class="home-comp-tab" data-home-comp="hnl" type="button">HandbalNL</button>
     </div>
 
+    <div class="home-shl">
     <h2 class="home-group">Per speelronde</h2>
     <div class="home-cards">
       <button class="menu-card" data-go-mode="results" type="button">
@@ -98,6 +100,31 @@
     <div class="overview-panel ticker-panel">
       <p class="sync-info">De laatste 7 uitslagen (één kaart per wedstrijd, uitslagen-design), ververst zichzelf elke minuut. Voor een site (iframe) en voor OBS.</p>
       <div id="tickerLinks"></div>
+    </div>
+    </div><!-- /home-shl -->
+
+    <div class="home-hnl">
+      <h2 class="home-group">HandbalNL assets</h2>
+      <div class="home-cards">
+        <button class="menu-card" data-go-hnl="announce" type="button">
+          <span class="menu-icon">📣</span>
+          <span class="menu-title">Aankondiging</span>
+          <span class="menu-desc">Foto met kop en de balk "live te zien via HandbalNL.TV"</span>
+          <span class="menu-tags"><i>Story</i><i>Post</i></span>
+        </button>
+        <button class="menu-card" data-go-hnl="nextmen" type="button">
+          <span class="menu-icon">⚡</span>
+          <span class="menu-title">Next heren</span>
+          <span class="menu-desc">Wedstrijdaankondiging Next Handball League heren</span>
+          <span class="menu-tags"><i>Story</i><i>Post</i></span>
+        </button>
+        <button class="menu-card" data-go-hnl="nextwomen" type="button">
+          <span class="menu-icon">⚡</span>
+          <span class="menu-title">Next dames</span>
+          <span class="menu-desc">Wedstrijdaankondiging Next Handball League dames</span>
+          <span class="menu-tags"><i>Story</i><i>Post</i></span>
+        </button>
+      </div>
     </div>
 
     <h2 class="home-group">Opslag &amp; back-up</h2>
@@ -390,8 +417,21 @@
   </div>
 </template>
 
+<!-- ===================== HANDBALNL EDITOR ===================== -->
+<div class="hnl-app" id="hnlApp">
+  <aside class="panel">
+    <div class="editor-topbar">
+      <button class="btn" id="hnlBack" type="button">← Menu</button>
+      <div class="editor-asset"><strong id="hnlTitle"></strong><span>HandbalNL</span><span class="save-indicator" id="hnlSave" data-state="idle"></span></div>
+    </div>
+    <div id="hnlControls"></div>
+  </aside>
+  <main class="preview-wrap"><div class="canvas-holder"><canvas id="hnlCanvas" width="1080" height="1350"></canvas></div></main>
+</div>
+
 <div id="navWipe" class="nav-wipe boot"><img src="assets/vs-icon.png" alt=""></div>
 
 <script src="script.js"></script>
+<script src="hnl.js"></script>
 </body>
 </html>

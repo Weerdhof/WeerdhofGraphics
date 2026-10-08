@@ -881,3 +881,41 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .btn.flash-ok { background: #4fd18b !important; border-color: #4fd18b !important; color: #0d2a1b !important; animation: btnFlash .45s ease; }
 .btn.flash-warn { background: #ffb347 !important; border-color: #ffb347 !important; color: #2e1b00 !important; animation: btnFlash .45s ease; }
 .save-status.ok, .save-status.warn { font-weight: 600; }
+
+/* ================= HandbalNL tab: same look as SHL, in orange ================= */
+body.hnl-open .app { display: none; }
+body:not(.hnl-open) .hnl-app { display: none; }
+.home-menu.theme-hnl .home-shl, .home-menu:not(.theme-hnl) .home-hnl { display: none; }
+.home-menu.theme-hnl .home-ticker { display: none; }
+.home-menu.theme-hnl::before { display: none; }
+.home-menu.theme-hnl { --accent: #ff7429; }
+.home-menu.theme-hnl {
+  background: radial-gradient(1100px 520px at 85% -10%, rgba(255,116,41,.14), transparent 60%), linear-gradient(180deg, #1a1b38 0%, #14152d 100%);
+}
+.hnl-app { --bg: #1a1b38; --panel: #232557; --panel-2: #2d2f6b; --line: #3a3d85; --text-dim: #a9afd6; --accent: #ff7429; }
+.home-menu.theme-hnl .home-comp-tab.active { color: #1a1b38; }
+.home-menu.theme-hnl .menu-card:hover:not(:disabled) { background: var(--accent); color: #1a1b38; border-color: var(--accent); }
+.home-menu.theme-hnl .menu-card:hover:not(:disabled) .menu-title, .home-menu.theme-hnl .menu-card:hover:not(:disabled) .menu-tags i { color: #1a1b38; }
+.home-menu.theme-hnl .menu-card:hover:not(:disabled) .menu-desc { color: rgba(26,27,56,.8); }
+
+.hnl-app { display: flex; min-height: 100vh; width: 100vw; background: var(--bg); color: var(--text); }
+.hnl-app .panel { background: var(--panel); }
+.hnl-app .step-num { color: #1a1b38; border-radius: 2px; }
+.hnl-app .btn-primary { color: #1a1b38; }
+.hnl-app .mode-tab.active { color: #1a1b38; }
+.hnl-app .mode-tabs { background: rgba(0,0,0,.28); border-radius: 4px; }
+.hnl-app .preview-wrap { position: relative; background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 14%, var(--bg)) 0%, var(--bg) 70%); }
+.hnl-app #hnlCanvas { display: block; max-width: min(46vw, 440px); max-height: min(88vh, 780px); width: auto; height: auto; cursor: default; touch-action: none; }
+.hnl-app .editor-topbar { border-bottom: 1px solid var(--line); position: relative; }
+.hnl-app .editor-topbar::after { content: ""; position: absolute; left: 0; bottom: -1px; width: 64px; height: 3px; background: var(--accent); }
+.hnl-app .photo-btn { border-color: var(--accent); }
+.hnl-triple { display: grid; grid-template-columns: 1fr 1.3fr 1.6fr; gap: 6px; }
+.hnl-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 12px; cursor: pointer; }
+@media (max-width: 860px) {
+  .hnl-app { flex-direction: column; }
+  .hnl-app .panel { width: 100%; max-height: none; border-right: none; border-bottom: 1px solid var(--line); order: 2; }
+  .hnl-app .preview-wrap { order: 1; padding: 16px; }
+  .hnl-app #hnlCanvas { max-width: 86vw; }
+}
+
+.hnl-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
