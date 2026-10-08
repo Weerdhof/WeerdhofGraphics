@@ -461,6 +461,7 @@
     NAMES,
     open(kind) {
       cur.kind = kind; cur.slot = 1; cur.d = null; cur.days = []; cur.fixtures = [];
+      $('thApp').dataset.kind = kind;   // the page takes the colour of the thumbnail (see style.css)
       $('thTitle2').textContent = KINDS[kind].title;
       $('thSub').textContent = KINDS[kind].sub;
       $('thControls').innerHTML = '';

@@ -934,3 +934,17 @@ body.th-open .app { display: none; }
   .home-comp-tab { flex: 1 1 0; min-width: 0; padding: 10px 3px; font-size: 10.5px; letter-spacing: 0; }
 }
 @media (max-width: 860px) { .th-app #thCanvas { width: calc(100vw - 32px); max-height: none; } }
+
+/* Thumbnails: the page takes the colour of the thumbnail you are making */
+.th-app[data-kind="shl"] { --accent: #caff1c; }
+.th-app[data-kind="shlw"] { --accent: #e353fc; }
+.th-app[data-kind="nextmen"] { --accent: #ff7429; }
+.th-app[data-kind="nextwomen"] { --accent: #b87cff; }
+.home-menu.theme-th .menu-card[data-go-th="shl"] { border-left-color: #caff1c; }
+.home-menu.theme-th .menu-card[data-go-th="shlw"] { border-left-color: #e353fc; }
+.home-menu.theme-th .menu-card[data-go-th="nextmen"] { border-left-color: #ff7429; }
+.home-menu.theme-th .menu-card[data-go-th="nextwomen"] { border-left-color: #b87cff; }
+.home-menu.theme-th .menu-card[data-go-th="shl"]:hover:not(:disabled) { background: #caff1c; border-color: #caff1c; }
+.home-menu.theme-th .menu-card[data-go-th="shlw"]:hover:not(:disabled) { background: #e353fc; border-color: #e353fc; }
+.home-menu.theme-th .menu-card[data-go-th="nextmen"]:hover:not(:disabled) { background: #ff7429; border-color: #ff7429; }
+.home-menu.theme-th .menu-card[data-go-th="nextwomen"]:hover:not(:disabled) { background: #b87cff; border-color: #b87cff; }

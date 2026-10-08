@@ -4303,7 +4303,7 @@
     card.addEventListener('click', () => navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')));
   });
   homeMenu.querySelectorAll('.menu-card[data-go-th]').forEach(card => {
-    card.addEventListener('click', () => navSweep('forward', () => openThNow(card.dataset.goTh), accentFor('th')));
+    card.addEventListener('click', () => navSweep('forward', () => openThNow(card.dataset.goTh), { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff' }[card.dataset.goTh] || accentFor('th')));
   });
   document.getElementById('thBack').addEventListener('click', () => {
     if (history.state && history.state.editor) history.back(); else showMenu();
