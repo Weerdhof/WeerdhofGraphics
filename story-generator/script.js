@@ -4252,7 +4252,7 @@
     const minHold = new Promise(r => setTimeout(r, 350));
     holdThenLift(Promise.all([lastTickerReady, document.fonts && document.fonts.ready, minHold]), false, () => { navBusy = false; navPhase = ''; });
   }
-  const accentFor = (c) => (c === 'women' ? '#e34fff' : c === 'hnl' ? '#c993fc' : '#caff1c');
+  const accentFor = (c) => (c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : '#caff1c');
 
   function showMenu() {
     if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
