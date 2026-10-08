@@ -4117,13 +4117,14 @@
     homeTarget = menuComp;
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
     homeMenu.classList.toggle('theme-hnl', menuComp === 'hnl');
+    homeMenu.classList.toggle('theme-th', menuComp === 'th');
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
     if (logo) logo.setAttribute('src', menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
     const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
-    if (menuComp !== 'hnl' && tk && tk.getAttribute('src') !== tkSrc) {
+    if (menuComp !== 'hnl' && menuComp !== 'th' && tk && tk.getAttribute('src') !== tkSrc) {
       lastTickerReady = new Promise(res => { tickerWaiter = { comp: menuComp, res }; setTimeout(res, 4500); });
       tk.setAttribute('src', tkSrc);
     }
@@ -4132,11 +4133,12 @@
   function showMenuNow() {
     resetResultsAnim();
     resetSmAnim();
-    const fromHnl = document.body.classList.contains('hnl-open');
+    const fromHnl = document.body.classList.contains('hnl-open'), fromTh = document.body.classList.contains('th-open');
     if (fromHnl && window.HNL) window.HNL.close();
-    menuComp = fromHnl ? 'hnl' : compKey;
+    if (fromTh && window.TH) window.TH.close();
+    menuComp = fromHnl ? 'hnl' : fromTh ? 'th' : compKey;
     syncMenuComp();
-    document.body.classList.remove('hnl-open');
+    document.body.classList.remove('hnl-open', 'th-open');
     document.body.classList.add('menu-open');
     window.scrollTo(0, 0);
     homeMenu.scrollTop = 0;
@@ -4252,11 +4254,20 @@
     const minHold = new Promise(r => setTimeout(r, 350));
     holdThenLift(Promise.all([lastTickerReady, document.fonts && document.fonts.ready, minHold]), false, () => { navBusy = false; navPhase = ''; });
   }
-  const accentFor = (c) => (c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : '#caff1c');
+  const accentFor = (c) => (c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'th' ? '#f55c6e' : '#caff1c');
 
   function showMenu() {
     if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
-    navSweep('back', showMenuNow, accentFor(document.body.classList.contains('hnl-open') ? 'hnl' : compKey));
+    navSweep('back', showMenuNow, accentFor(document.body.classList.contains('hnl-open') ? 'hnl' : document.body.classList.contains('th-open') ? 'th' : compKey));
+  }
+  // Thumbnails editor (thumbs.js)
+  function openThNow(kind) {
+    document.body.classList.remove('menu-open');
+    document.body.classList.add('th-open');
+    window.TH.open(kind);
+    window.scrollTo(0, 0);
+    history.pushState({ editor: true }, '');
+    popIn(document.getElementById('thApp'));
   }
   // HandbalNL editor (hnl.js): a separate view next to the SHL editor
   function openHnlNow(kind) {
@@ -4278,7 +4289,7 @@
       if (next === homeTarget) return;   // compare with where we are heading, not with the not-yet-swapped state
       homeTarget = next;
       // men -> women sweeps left to right in purple, women -> men back in SHL green
-      const order = { men: 0, women: 1, hnl: 2 };
+      const order = { men: 0, women: 1, hnl: 2, th: 3 };
       navSweep(order[next] > order[menuComp] ? 'forward' : 'back', () => {
         menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
         return lastTickerReady;
@@ -4290,6 +4301,12 @@
   });
   homeMenu.querySelectorAll('.menu-card[data-go-hnl]').forEach(card => {
     card.addEventListener('click', () => navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')));
+  });
+  homeMenu.querySelectorAll('.menu-card[data-go-th]').forEach(card => {
+    card.addEventListener('click', () => navSweep('forward', () => openThNow(card.dataset.goTh), accentFor('th')));
+  });
+  document.getElementById('thBack').addEventListener('click', () => {
+    if (history.state && history.state.editor) history.back(); else showMenu();
   });
   document.getElementById('hnlBack').addEventListener('click', () => {
     if (history.state && history.state.editor) history.back(); else showMenu();
@@ -4382,7 +4399,7 @@
 
   function loadOverview(force) {
     const key = menuComp;
-    if (key === 'hnl') return;   // HandbalNL has no site data
+    if (key === 'hnl' || key === 'th') return;   // no site data for these tabs
     const e = overviewData[key];
     if (e && !e.error && !force && Date.now() - e.at < 60000) { renderOverview(); return; }
     if (!e) renderOverview();
@@ -4448,6 +4465,7 @@
   function labelForKey(key) {
     if (!key) return { title: 'Onbekend onderdeel (oud)', sub: '' };
     const [c, m, ...rest] = key.split(':'); const id = rest.join(':');
+    if (c === 'th') return { title: `Thumbnails · ${(window.TH && window.TH.NAMES[m]) || m}`, sub: /^s\d+$/.test(id) ? `Opslagplek ${id.slice(1)}` : id };
     if (c === 'hnl') return { title: `HandbalNL · ${(window.HNL && window.HNL.NAMES[m]) || m}`, sub: /^s\d+$/.test(id) ? `Opslagplek ${id.slice(1)}` : id };
     let what = ASSET_NAMES[m] || m;
     let sub = id;
