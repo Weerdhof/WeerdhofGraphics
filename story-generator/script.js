@@ -2804,7 +2804,7 @@
   function predictionBackdrop(W, H, homeColor, awayColor, homeCode, awayCode, light) {
     if (!light) { homeColor = predVivid(homeColor); awayColor = predVivid(awayColor); }
     ctx.save();
-    // soft colour glows in the corners: home colour top-left / bottom-right, away colour top-right / bottom-left
+    // soft colour glows in the corners: home colour at the top, away colour at the bottom
     const glow = (x, y, r, color, a) => {
       const n = parseInt(color.slice(1), 16), lum = ((n >> 16 & 255) * 0.2126 + (n >> 8 & 255) * 0.7152 + (n & 255) * 0.0722) / 255;
       if (lum > 0.6) a *= 0.5;   // pale club colours turn muddy grey, keep them subtle
@@ -2814,8 +2814,8 @@
     };
     const R = Math.max(W, H) * 0.42;
     const ga = light ? 0.55 : 1;   // on white the glows and codes need to be softer
-    glow(0, 0, R, homeColor, 0.5 * ga); glow(W, H, R, awayColor, 0.5 * ga);
-    glow(W, 0, R * 0.75, awayColor, 0.3 * ga); glow(0, H, R * 0.75, homeColor, 0.3 * ga);
+    glow(0, 0, R, homeColor, 0.5 * ga); glow(W, 0, R, homeColor, 0.5 * ga);   // home colour along the top
+    glow(0, H, R, awayColor, 0.5 * ga); glow(W, H, R, awayColor, 0.5 * ga);   // away colour along the bottom
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     const draw = (code, color, align, x, y) => {
       ctx.font = `800 470px "${fontFamily}"`;
