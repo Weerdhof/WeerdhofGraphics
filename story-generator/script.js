@@ -1225,7 +1225,7 @@
     women: { 'E&O': 'ENO', FOR: 'FORE', VEN: 'FORV', 'V&L': 'VEL' },
   };
   const MONTH_ABBR = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-  function checkSingleMatchScore() {   // -> Promise<{text, cls}>
+  function checkSingleMatchScore(onlyEmpty) {   // -> Promise<{text, cls}>
     const aliases = comp().resultAliases;
     const toSingle = (name) => {
       const c = matchCodeByAlias(aliases, name);
@@ -1248,6 +1248,7 @@
         }) : null;
         const hit = sameDay || pair[0];
         if (!hit) return { text: `Nog geen uitslag gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
+        if (onlyEmpty && (smState.homeScore !== '' || smState.awayScore !== '')) return { text: '', cls: 'ok' };
         const homeIsA = toSingle(hit.teamA) === smState.home;
         smState.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
         smState.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
@@ -1259,8 +1260,8 @@
   }
 
   // Scores step of the combined "Check" button -> Promise<{text, cls}>.
-  function checkScoresStep() {
-  if (isSingleMode()) return checkSingleMatchScore();
+  function checkScoresStep(onlyEmpty) {
+  if (isSingleMode()) return checkSingleMatchScore(onlyEmpty);
   const aliases = comp().resultAliases;
   if (!aliases) return Promise.resolve({ text: 'Scores niet beschikbaar voor deze competitie', cls: 'warn' });
   return fetch('/api/results?comp=' + compKey)
@@ -1271,6 +1272,7 @@
       let filled = 0;
       state.matches.forEach(m => {
         if (!m.home || !m.away) return;
+        if (onlyEmpty && (m.homeScore !== '' || m.awayScore !== '')) return;   // never overwrite typed scores
         const pair = scraped.filter(r => {
           const a = matchCodeByAlias(aliases, r.teamA);
           const b = matchCodeByAlias(aliases, r.teamB);
@@ -1448,10 +1450,8 @@
   }
 
   function fetchAndApplySchedule() {
-    return fetch('/api/schedule?comp=' + compKey)
-      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    return fetchSchedule(compKey)
       .then(data => {
-        if (data.error) throw new Error(data.error);
         const result = applySiteSchedule(data.fixtures || []);
         refreshAfterScheduleChange();
         return result;
@@ -1465,6 +1465,13 @@
         cls: 'ok',
       }))
       .catch(err => ({ text: '✗ Schema ophalen mislukt: ' + err.message, cls: 'warn' }));
+  }
+
+  // Own data first: opening a round/match fills the played scores from the server's store (empty fields only).
+  function autoFillScores() {
+    if (mode !== 'results' && mode !== 'matchresult' && mode !== 'topscorer') return;
+    const k = compKey, m = mode;
+    Promise.resolve(checkScoresStep(true)).then(() => { if (compKey === k && mode === m) { buildMatchRows(); render(); } }).catch(() => {});
   }
 
   // One button: schema first (rounds/dates/times may change), then the scores of the (new) round.
@@ -1510,8 +1517,46 @@
   }
   if (checkScoresBtn) checkScoresBtn.addEventListener('click', checkSite);
 
-  // Silent, once per competition per page load, as soon as both lists for it have loaded.
-  // Pull the site's schedule once per competition, as soon as the CSV rounds are in. The single-match list is only
+  // ---------- Own data first ----------
+  // The server keeps its own data store: it syncs with the sites every 30 min, and on opening the app when its
+  // last check is older than 10 min. Rounds, dates, kick-off times and scores are built from that store before
+  // anything is shown; the CSV files are only the round structure and the fallback when the store is unavailable.
+  const scheduleCache = {};
+  function fetchSchedule(k) {   // the store as it is now
+    return fetch('/api/schedule?comp=' + k).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(d => { if (d.error) throw new Error(d.error); return d; });
+  }
+  function getScheduleData(k) {   // once per competition per page load: sync the store with the sites if it is old, then read it
+    if (scheduleCache[k]) return scheduleCache[k];
+    const p = (async () => {
+      let stale = true;
+      try {
+        const st = await (await fetch('/api/sync-status')).json();
+        const c = st.status && st.status[k];
+        stale = !c || !c.checkedAt || Date.now() / 1000 - c.checkedAt > 600;
+      } catch (e) { /* unknown: refresh to be safe */ }
+      if (stale) { try { await fetch('/api/overview?comp=' + k + '&refresh=1'); } catch (e) { /* the store may still be usable */ } }
+      return fetchSchedule(k);
+    })();
+    scheduleCache[k] = p;
+    p.catch(() => { if (scheduleCache[k] === p) delete scheduleCache[k]; });
+    return p;
+  }
+  // Called by both CSV loaders before they fill the dropdowns: waits (max 8 s) for the store, then applies it.
+  async function syncFirst(k) {
+    try {
+      const d = await Promise.race([getScheduleData(k), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
+      for (let i = 0; i < 50 && roundsCompKey !== k; i++) await new Promise(r => setTimeout(r, 100));
+      if (compKey !== k || roundsCompKey !== k) return;
+      applySiteSchedule(d.fixtures || []);
+      roundsSynced[k] = true;
+      if (smLoadedKey === k) scheduleSynced[k] = true;
+    } catch (e) {
+      setTimeout(maybeAutoSyncSchedule, 3000);   // fall back to the CSV for now, keep trying in the background
+    }
+  }
+
+  // Background retry (after a failed first sync). Pull the site's schedule once per competition, as soon as the CSV rounds are in. The single-match list is only
   // rebuilt when it is loaded for that competition too; if it loads later, this runs again for it.
   // (Before, the sync waited for both, so opening Vrouwen straight in Schedule never synced and showed the stale CSV.)
   const roundsSynced = { men: false, women: false };
@@ -1816,10 +1861,11 @@
     const requestedComp = compKey;
     fetch(comp().csvPath)
       .then(r => r.text())
-      .then(text => {
+      .then(async text => {
         rounds = parseCsv(text);
         roundsCompKey = requestedComp;
-        maybeAutoSyncSchedule();
+        await syncFirst(requestedComp);   // own data first: the store replaces the CSV before anything is shown
+        if (compKey !== requestedComp) return;
         if (isSingleMode() || mode === 'ranking') return; // these UIs own the dropdown right now
         populateRoundSelect();
         if (!rounds.length) return;
@@ -1902,10 +1948,11 @@
     const requestedComp = compKey;
     fetch(singleMatchCsvPath())
       .then(r => r.text())
-      .then(text => {
+      .then(async text => {
         smMatches = parseSingleMatchCsv(text);
         smLoadedKey = requestedComp;
-        maybeAutoSyncSchedule();
+        await syncFirst(requestedComp);   // own data first
+        if (compKey !== requestedComp) return;
         if (!isSingleMode()) return; // round-based UI owns the dropdown right now
         populateSingleMatchSelect();
         if (!smMatches.length) return;
@@ -4492,6 +4539,7 @@
         buildMatchRows();
         render();
         lastSavedItemJson = JSON.stringify(collectItem());
+        autoFillScores();
         setSaveState(data && data.kind ? 'saved' : 'idle');
       })
       .catch(() => { if (k === lastItemKey) { itemLoaded = true; setSaveState('error'); } });
