@@ -2895,7 +2895,7 @@
     if (L.teamLeft) { n.teamLeft = S(L.teamLeft); n.teamRight = S(L.teamRight); n.bar = S(L.bar); }
     return n;
   }
-  let PRED_POLL = { x: 200, y: 0, w: 680, h: 310 };   // set on every render; used by the guide
+  let PRED_POLL = { x: 320, y: 0, w: 440, h: 200 };   // set on every render; used by the guide
   // Dark club colours (e.g. SEW, VEN) vanish on the navy background, so lift them to a minimum brightness.
   function predVivid(hex) {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
@@ -2945,7 +2945,7 @@
     ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = light ? '#1a1b38' : '#ffffff'; ctx.fillText(l1, W / 2, b1);
     ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
     ctx.shadowColor = 'transparent';
-    const story = H > 1500, pw = story ? 680 : 600, ph = story ? 310 : 230;
+    const story = H > 1500, pw = story ? 440 : 380, ph = story ? 200 : 150;   // a small poll sticker
     PRED_POLL = { x: (W - pw) / 2, y: barBottom + (story ? 70 : 50), w: pw, h: ph };
     if (predGuide) {   // marks the free spot for the Instagram poll sticker
       const P = PRED_POLL;
@@ -2960,6 +2960,16 @@
   const predOptsField = document.getElementById('predOptsField');
   const predGuideToggle = document.getElementById('predGuideToggle');
   predGuideToggle.addEventListener('change', () => { predGuide = predGuideToggle.checked; render(); });
+  // the kick-off time in the Prediction bar can be switched off (remembered per browser)
+  const predTimeToggle = document.getElementById('predTimeToggle');
+  let predShowTime = true;
+  try { predShowTime = localStorage.getItem('pred-time') !== '0'; } catch (e) { /* ignore */ }
+  predTimeToggle.checked = predShowTime;
+  predTimeToggle.addEventListener('change', () => {
+    predShowTime = predTimeToggle.checked;
+    try { localStorage.setItem('pred-time', predShowTime ? '1' : '0'); } catch (e) { /* ignore */ }
+    render();
+  });
 
   function renderSingleMatch() {
     if (mode === 'playerweek') { renderPlayerWeek(); return; }
@@ -3650,6 +3660,11 @@
         ctx.fillStyle = T.strip; ctx.fillRect(L, pmY, R - L, pmH);
         const meet = A.games.find(g => g.opp === away);
         ctx.globalAlpha = ac;
+        if (meet && meet.gf !== meet.ga) {
+          // a chevron in the winner's club colour points to the winner's side (like the Matchresult chevron)
+          const homeWon = meet.gf > meet.ga;
+          drawSmCardChevron(ctx, homeWon ? L + 150 : R - 150, pmY + pmH / 2, homeWon, homeWon ? colH : colA, 0.5, 0.9 * ac);   // the true club colour: the strip is light
+        }
         if (meet) {
           drawCrest(crestSrc(home), L + 80, pmY + pmH / 2, 84);
           drawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
@@ -3902,7 +3917,7 @@
       }
     } else {
       ctx.font = `700 ${mode === 'prediction' ? 86 : SM_TIME_FONT}px "${fontFamily}"`;
-      ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY + (mode === 'prediction' ? 16 : 0));
+      if (mode !== 'prediction' || predShowTime) ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY + (mode === 'prediction' ? 16 : 0));
     }
 
     if (mode === 'match') {   // the Prediction story has no date/round line
@@ -4046,7 +4061,7 @@
       }
     } else {
       ctx.font = `700 ${mode === 'prediction' ? 86 : L.timeFont}px "${fontFamily}"`;
-      ctx.fillText(smState.time || '', L.centerX, L.timeY + (mode === 'prediction' ? 16 : 0));
+      if (mode !== 'prediction' || predShowTime) ctx.fillText(smState.time || '', L.centerX, L.timeY + (mode === 'prediction' ? 16 : 0));
     }
 
     if (mode === 'match') {
