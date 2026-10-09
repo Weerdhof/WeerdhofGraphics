@@ -2804,6 +2804,17 @@
   function predictionBackdrop(W, H, homeColor, awayColor, homeCode, awayCode) {
     homeColor = predVivid(homeColor); awayColor = predVivid(awayColor);
     ctx.save();
+    // soft colour glows in the corners: home colour top-left / bottom-right, away colour top-right / bottom-left
+    const glow = (x, y, r, color, a) => {
+      const n = parseInt(color.slice(1), 16), lum = ((n >> 16 & 255) * 0.2126 + (n >> 8 & 255) * 0.7152 + (n & 255) * 0.0722) / 255;
+      if (lum > 0.6) a *= 0.5;   // pale club colours turn muddy grey, keep them subtle
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    };
+    const R = Math.max(W, H) * 0.42;
+    glow(0, 0, R, homeColor, 0.5); glow(W, H, R, awayColor, 0.5);
+    glow(W, 0, R * 0.75, awayColor, 0.3); glow(0, H, R * 0.75, homeColor, 0.3);
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     const draw = (code, color, align, x, y) => {
       ctx.font = `800 470px "${fontFamily}"`;
@@ -3380,7 +3391,7 @@
         ctx.globalAlpha = 1;
       }
     } else {
-      ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
+      ctx.font = `700 ${mode === 'prediction' ? 86 : SM_TIME_FONT}px "${fontFamily}"`;
       ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
     }
 
@@ -3521,7 +3532,7 @@
         ctx.globalAlpha = 1;
       }
     } else {
-      ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
+      ctx.font = `700 ${mode === 'prediction' ? 86 : L.timeFont}px "${fontFamily}"`;
       ctx.fillText(smState.time || '', L.centerX, L.timeY);
     }
 
