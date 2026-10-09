@@ -298,7 +298,9 @@
   };
   // Results / Schedule / Ranking share the Story-or-Post choice (Post = left or right aligned, transparent).
   function isListMode() { return mode === 'results' || mode === 'schedule' || mode === 'ranking'; }
-  function isSingleMode() { return mode === 'match' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
+  function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
+  // Match and Prediction share the announcement layout (teams, time, date; no score)
+  function isMatchLike() { return mode === 'match' || mode === 'prediction'; }
 
   // Optional user-uploaded photo behind the single-match graphic (Mannen
   // Match/Matchresult only). In-memory only — not persisted via saveState,
@@ -606,8 +608,9 @@
     return Math.max(ICON_MS * SM_BEATS, ANIM_TOTAL_TARGET_MS);
   }
 
+  let batchExporting = false;   // true while a whole matchday is rendered: static frames only
   function smAnimElapsed() {
-    return (isSingleMode()) && smAnimating && smAnimStartTs != null
+    return !batchExporting && (isSingleMode()) && smAnimating && smAnimStartTs != null
       ? performance.now() - smAnimStartTs : null;
   }
 
@@ -788,7 +791,10 @@
   // so switching modes can't leave stale advice showing (e.g. "kies een
   // speelronde" while in Match mode, which has no speelronde at all).
   function updateHint() {
-    if (mode === 'match') {
+    if (mode === 'prediction') {
+      matchesLabel.textContent = 'Tijd & teams';
+      modeHint.textContent = 'Kies een wedstrijd voor de "Who takes the win?"-story. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
+    } else if (mode === 'match') {
       matchesLabel.textContent = 'Tijd & teams';
       modeHint.textContent = 'Kies een wedstrijd — teams en tijd worden automatisch ingevuld, de datum/ronde kun je aanpassen.';
     } else if (mode === 'matchresult') {
@@ -1481,7 +1487,7 @@
     const startedAt = Date.now();
     btnBusy(checkScoresBtn, 'Controleren…');
     showCheckStatus(`Ophalen van ${SITE_LABEL[compKey]}…`);
-    const withScores = mode !== 'match';   // a fixture has no score yet
+    const withScores = !isMatchLike();   // a fixture has no score yet
     // refresh the server's data store from the sites first; schedule and scores below are then read from it
     fetchSyncStatus(true).catch(() => {})
       .then(() => checkScheduleStep())
@@ -1652,7 +1658,7 @@
 
   function refreshCheckButtonLabels() {
     const label = SITE_LABEL[compKey] || 'SHL site';
-    if (checkScoresBtn && !checkScoresBtn.dataset.lock) checkScoresBtn.textContent = `\u{1F517} Check ${mode === 'match' ? 'schema' : 'score & schema'} ${label}`;
+    if (checkScoresBtn && !checkScoresBtn.dataset.lock) checkScoresBtn.textContent = `\u{1F517} Check ${isMatchLike() ? 'schema' : 'score & schema'} ${label}`;
     if (checkStandingsBtn) checkStandingsBtn.textContent = `\u{1F517} Vul in vanuit ${label}`;
     renderSyncInfo();
   }
@@ -1890,7 +1896,7 @@
         populateSingleMatchSelect();
         if (!smMatches.length) return;
         let restoreMatch = null, restoreSm = null;
-        if (savedState && (['match', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
+        if (savedState && (['match', 'prediction', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
           restoreMatch = smMatches.find(x => x.id === savedState.sm.id);
           restoreSm = savedState.sm;
         }
@@ -2014,7 +2020,7 @@
         roundSelectField.hidden = mode === 'playerweek'; // no fixture to pick
         roundSelectLabel.textContent = 'Wedstrijd';
         updateHint();
-        checkScoresBtn.hidden = mode === 'match' || mode === 'playerweek'; // no score to fetch
+        checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek'; // no score to fetch
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
@@ -2286,8 +2292,8 @@
     awaySelect.addEventListener('change', () => { smState.away = awaySelect.value; render(); });
 
     timeInput.value = smState.time;
-    timeInput.hidden = mode !== 'match';
-    scorePair.hidden = mode === 'match';
+    timeInput.hidden = !isMatchLike();
+    scorePair.hidden = isMatchLike();
     homeScoreInput.value = smState.homeScore;
     awayScoreInput.value = smState.awayScore;
 
@@ -2311,7 +2317,7 @@
     tsLast.addEventListener('input', () => { smState.tsLast = tsLast.value; render(); });
     tsGoals.addEventListener('input', () => { smState.tsGoals = tsGoals.value; render(); });
 
-    dateRow.hidden = mode !== 'match';
+    dateRow.hidden = !isMatchLike();
     dateInput.value = smState.dateRound;
     dateInput.addEventListener('input', () => { smState.dateRound = dateInput.value; render(); });
 
@@ -2432,6 +2438,8 @@
     // (A photo, when present, is drawn into the canvas and covers it.)
     canvas.classList.toggle('canvas-checker',
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
+    predDesignField.hidden = mode !== 'prediction';
+    batchField.hidden = mode !== 'prediction' && mode !== 'match';
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
@@ -2766,6 +2774,97 @@
     d.globalCompositeOperation = 'source-over';
     ctx.drawImage(postDecorCanvas, 0, 0);
   }
+
+  // ---------- Prediction story: "Who takes the win?" ----------
+  // Same announcement layout as Match (teams, mark, time, date, footer) with three backdrop/headline designs:
+  //   1 = big corner chevrons in the team colours, 2 = diagonal colour split with room for the poll sticker,
+  //   3 = giant team codes as typography. The chosen design is remembered per browser.
+  const PRED_ACCENT = { men: '#caff1c', women: '#e34fff' };
+  let predDesign = 1;
+  try { predDesign = parseInt(localStorage.getItem('pred-design') || '1', 10) || 1; } catch (e) { /* ignore */ }
+  let predGuide = true;   // dashed poll-sticker zone; always off in exports
+  const predText = (k, d) => (window.SETTINGS ? SETTINGS.text(k, d) : d);
+
+  // The headline always sits at the top; y 640-1040 stays empty for an Instagram poll sticker
+  // (the match cards start at y 1154).
+  const PRED_POLL = { x: 120, y: 650, w: 840, h: 380 };
+  // Dark club colours (e.g. SEW, VEN) vanish on the navy background, so lift them to a minimum brightness.
+  function predVivid(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
+    const n = parseInt(m[1], 16), c = [n >> 16 & 255, n >> 8 & 255, n & 255];
+    const lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+    if (lum >= 0.42) return hex;
+    const t = (0.42 - lum) / (1 - lum);
+    return '#' + c.map(v => Math.round(v + (255 - v) * t).toString(16).padStart(2, '0')).join('');
+  }
+  function predictionBackdrop(W, H, homeColor, awayColor, homeCode, awayCode) {
+    homeColor = predVivid(homeColor); awayColor = predVivid(awayColor);
+    ctx.save();
+    if (predDesign === 1) {
+      const big = 2.7;
+      drawSmCardChevron(ctx, 36, 230, true, homeColor, big, 0.92);
+      drawSmCardChevron(ctx, W - 36, 430, false, awayColor, big, 0.92);
+      drawSmCardChevron(ctx, 36, H - 300, true, homeColor, big * 0.8, 0.5);
+      drawSmCardChevron(ctx, W - 36, H - 40, false, awayColor, big * 0.8, 0.5);
+    } else if (predDesign === 2) {
+      ctx.globalAlpha = 0.24;
+      ctx.fillStyle = homeColor; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(0, H * 0.62); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = awayColor; ctx.beginPath(); ctx.moveTo(W, H * 0.38); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.lineTo(0, H * 0.62); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+      drawSmCardChevron(ctx, 36, 330, true, homeColor, 1.7, 0.9);
+      drawSmCardChevron(ctx, W - 36, H - 260, false, awayColor, 1.7, 0.9);
+    } else {
+      const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+      const draw = (code, color, align, x, y) => {
+        ctx.font = `800 470px "${fontFamily}"`;
+        const w = ctx.measureText(code).width, px = w > W - 60 ? 470 * (W - 60) / w : 470;
+        ctx.font = `800 ${px}px "${fontFamily}"`; ctx.textAlign = align; ctx.fillStyle = color; ctx.fillText(code, x, y);
+      };
+      ctx.globalAlpha = 0.22; ctx.textBaseline = 'alphabetic';
+      draw(homeCode || '', homeColor, 'left', 24, 470);
+      draw(awayCode || '', awayColor, 'right', W - 24, H - 330);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+  function predictionHeadline(W, cardsTop, accent) {
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const tag = predText('pr.tag', 'Prediction').toUpperCase();
+    const l1 = predText('pr.l1', 'Who takes').toUpperCase(), l2 = predText('pr.l2', 'the win?').toUpperCase();
+    const b2 = 520, b1 = b2 - 158;
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6;
+    const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > W - 140 ? px * (W - 140) / w : px; };
+    ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = '#ffffff'; ctx.fillText(l1, W / 2, b1);
+    ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
+    ctx.shadowColor = 'transparent';
+    ctx.font = `700 30px "${fontFamily}"`; ctx.letterSpacing = '6px';
+    const tw = ctx.measureText(tag).width + 64, ty = b1 - 215;
+    ctx.fillStyle = accent; roundedRectPath(ctx, (W - tw) / 2, ty, tw, 62, 31); ctx.fill();
+    ctx.fillStyle = compKey === 'women' ? '#ffffff' : '#14142b'; ctx.fillText(tag, W / 2 + 3, ty + 43);
+    if (predGuide) {   // marks the free spot for the Instagram poll sticker
+      const P = PRED_POLL;
+      ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      roundedRectPath(ctx, P.x, P.y, P.w, P.h, 36); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2 + 9);
+    }
+    ctx.restore();
+  }
+
+  const predDesignField = document.getElementById('predDesignField');
+  const predGuideToggle = document.getElementById('predGuideToggle');
+  function syncPredDesignTabs() {
+    document.querySelectorAll('.pred-design-tab').forEach(b => b.classList.toggle('active', +b.dataset.predDesign === predDesign));
+  }
+  document.querySelectorAll('.pred-design-tab').forEach(b => b.addEventListener('click', () => {
+    predDesign = +b.dataset.predDesign;
+    try { localStorage.setItem('pred-design', String(predDesign)); } catch (e) { /* ignore */ }
+    syncPredDesignTabs(); render();
+  }));
+  predGuideToggle.addEventListener('change', () => { predGuide = predGuideToggle.checked; render(); });
+  syncPredDesignTabs();
 
   function renderSingleMatch() {
     if (mode === 'playerweek') { renderPlayerWeek(); return; }
@@ -3189,6 +3288,8 @@
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
+    if (mode === 'prediction') predictionBackdrop(L.canvasW, L.canvasH, SM_TEAM_COLORS[smState.home] || '#ffffff', SM_TEAM_COLORS[smState.away] || '#ffffff', smState.home, smState.away);
+
     // Once a result is in (Matchresult mode), the winning side is tracked
     // for both the card-chevron accent below and the score-text dimming
     // further down — same win/loss convention as the Results list.
@@ -3304,10 +3405,12 @@
       ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
     }
 
-    if (mode === 'match') {
+    if (isMatchLike()) {
       ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
       ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
     }
+
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.teamY, PRED_ACCENT.men);
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
@@ -3341,6 +3444,7 @@
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
+    if (mode === 'prediction') predictionBackdrop(L.canvasW, L.canvasH, SMW_TEAM_COLORS[smState.home] || '#ffffff', SMW_TEAM_COLORS[smState.away] || '#ffffff', smState.home, smState.away);
     const bar = loadImg('assets/women/singlematch/bar.png');
     if (bar && bar.complete && bar.naturalWidth) {
       ctx.drawImage(bar, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
@@ -3442,7 +3546,7 @@
       ctx.fillText(smState.time || '', L.centerX, L.timeY);
     }
 
-    if (mode === 'match') {
+    if (isMatchLike()) {
       ctx.font = `500 ${L.dateFont}px "${fontFamily}"`;
       ctx.fillText(smState.dateRound || '', L.centerX, L.dateY);
     }
@@ -3459,6 +3563,8 @@
     if (awayImg && awayImg.complete && awayImg.naturalWidth) {
       ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
     }
+
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.teamLeft.y, PRED_ACCENT.women);
 
     const footerImg = loadImg('assets/women/singlematch/footer-white.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
@@ -3811,8 +3917,73 @@
   }
 
   // ---------- Export ----------
+  // ---------- Whole matchday / round as a zip ----------
+  const batchField = document.getElementById('batchField');
+  const batchStatus = document.getElementById('batchStatus');
+  const crcTable = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = (u8) => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcTable[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  function makeZip(files) {   // store-only zip
+    const enc8 = new TextEncoder(), parts = [], central = []; let offset = 0;
+    files.forEach(f => {
+      const name = enc8.encode(f.name), crc = crc32(f.data), size = f.data.length;
+      const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+      lh.setUint16(12, 0x21, true); lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, name.length, true);
+      parts.push(new Uint8Array(lh.buffer), name, f.data);
+      const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint16(14, 0x21, true); ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, name.length, true); ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + size;
+    });
+    const csize = central.reduce((n, p) => n + p.length, 0);
+    const end = new DataView(new ArrayBuffer(22)); end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, csize, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+  }
+  const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
+  let batchBusy = false;
+  async function exportBatch(scope) {
+    if (batchBusy || !smMatches.length) return;
+    const cur = smMatches.find(x => x.id === smState.id); if (!cur) return;
+    const dayOf = (m) => (m.dateRound.split('|')[0] || '').trim();
+    const list = smMatches.filter(m => scope === 'round' ? m.roundNum === cur.roundNum : dayOf(m) === dayOf(cur));
+    batchBusy = true; batchExporting = true;
+    const guideWas = predGuide; predGuide = false;
+    const snap = { ...smState };
+    const say = (t) => { batchStatus.textContent = t; batchStatus.hidden = !t; };
+    flushItemSave(true);
+    const files = [], prefix = compKey === 'women' ? 'SHLW' : 'SHL';
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const m = list[i];
+        say(`Story ${i + 1} van ${list.length} maken…`);
+        loadSingleMatch(m);
+        // wait for this match's saved photo/settings, then give logos and fonts a beat to arrive
+        for (let t = 0; t < 60 && !(itemLoaded && lastItemKey === itemKey()); t++) await sleepMs(100);
+        render(); await sleepMs(500); render(); await sleepMs(150);
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        const day = dayOf(m).replace(/[^0-9-]/g, '');
+        files.push({ name: `${prefix}_${mode}_R${m.roundNum}_${day}_${m.home}-${m.away}.png`, data: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(makeZip(files));
+      a.download = `${prefix}_${mode}_${scope === 'round' ? 'ronde' + cur.roundNum : dayOf(cur).replace(/[^0-9-]/g, '')}.zip`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      say(`✓ ${files.length} stories in de zip`);
+    } catch (e) {
+      console.error(e); say('⚠ Zip maken mislukt: ' + e.message);
+    } finally {
+      batchExporting = false; predGuide = guideWas; batchBusy = false;
+      loadSingleMatch(cur, snap);   // back to the match that was open, edits intact
+    }
+  }
+  document.getElementById('exportDayBtn').addEventListener('click', () => exportBatch('day'));
+  document.getElementById('exportRoundBtn').addEventListener('click', () => exportBatch('round'));
+
   exportBtn.addEventListener('click', () => {
+    const guideWas = predGuide;
+    if (guideWas) { predGuide = false; render(); }
     canvas.toBlob(blob => {
+      if (guideWas) { predGuide = true; render(); }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -3882,13 +4053,13 @@
     }
     refreshCheckButtonLabels();
     if (savedState.mode === 'topscorer' && compKey !== 'men') savedState.mode = 'matchresult';
-    const canRestoreMode = ['results', 'schedule', 'match', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
+    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
       if (isSingleMode()) {
         roundSelectLabel.textContent = 'Wedstrijd';
-        checkScoresBtn.hidden = mode === 'match' || mode === 'playerweek';
+        checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek';
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
@@ -4104,7 +4275,7 @@
 
   // ---------- Home menu (start page) ----------
   const homeMenu = document.getElementById('homeMenu');
-  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
+  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
   var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
   var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
 

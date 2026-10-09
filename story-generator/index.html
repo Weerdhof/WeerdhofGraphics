@@ -59,6 +59,12 @@
         <span class="menu-desc">Aankondiging: teams, tijd en datum</span>
         <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
       </button>
+      <button class="menu-card" data-go-mode="prediction" type="button">
+        <span class="menu-icon">🔮</span>
+        <span class="menu-title">Prediction</span>
+        <span class="menu-desc">"Who takes the win?" per wedstrijd, alle wedstrijden van een speeldag in één zip</span>
+        <span class="menu-tags"><i>Story</i><i>PNG</i><i>Zip per speeldag</i></span>
+      </button>
       <button class="menu-card" data-go-mode="matchresult" type="button">
         <span class="menu-icon">🎯</span>
         <span class="menu-title">Matchresult</span>
@@ -220,6 +226,7 @@
       <div class="mode-group-label">Per wedstrijd</div>
       <div class="mode-tabs mode-tabs-compact">
         <button class="mode-tab" data-mode="match">Match</button>
+        <button class="mode-tab" data-mode="prediction">Prediction</button>
         <button class="mode-tab" data-mode="matchresult">Matchresult</button>
         <button class="mode-tab men-only-tab" data-mode="topscorer">Top scorer</button>
         <button class="mode-tab" data-mode="playerweek">Speler van de week</button>
@@ -275,6 +282,19 @@
         Transparante achtergrond (i.p.v. kleur)
       </label>
 
+      <div class="field" id="predDesignField" hidden>
+        <label>Design (Prediction)</label>
+        <div class="mode-tabs mode-tabs-compact">
+          <button class="pred-design-tab active" data-pred-design="1" type="button">1 · Chevrons</button>
+          <button class="pred-design-tab" data-pred-design="2" type="button">2 · Diagonaal</button>
+          <button class="pred-design-tab" data-pred-design="3" type="button">3 · Codes</button>
+        </div>
+        <label class="upcoming-toggle bg-toggle">
+          <input type="checkbox" id="predGuideToggle" checked>
+          Toon pollsticker-zone (alleen in voorbeeld)
+        </label>
+      </div>
+
       <label class="upcoming-toggle bg-toggle" id="postDecorField" hidden>
         <input type="checkbox" id="postDecorToggle" checked>
         Designelementen (lijnen over de foto)
@@ -316,6 +336,11 @@
       <p class="save-status" id="serverSaveStatus" hidden></p>
       <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
       <button class="btn btn-link" id="exportElementBtn" type="button" hidden>⬇ Exporteer zonder achtergrond</button>
+      <div id="batchField" hidden>
+        <button class="btn btn-link" id="exportDayBtn" type="button">⬇ Hele speeldag (zip)</button>
+        <button class="btn btn-link" id="exportRoundBtn" type="button">⬇ Hele ronde (zip)</button>
+        <div class="hint" id="batchStatus" hidden></div>
+      </div>
       <button class="btn btn-link" id="downloadMp4Btn" type="button" hidden>🎬 Download als MP4</button>
       <p class="save-status" id="mp4Status" hidden></p>
       <button class="btn btn-link" id="smDownloadMp4Btn" type="button" hidden>🎬 Download als MP4</button>

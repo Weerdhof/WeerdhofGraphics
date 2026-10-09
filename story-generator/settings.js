@@ -18,6 +18,10 @@
     texts: [
       ['th.title', 'Thumbnails SHL/SHLW — titel onderin', 'Livestream'],
       ['th.label', 'Thumbnails SHL — label in de highlights-balk', 'Regular season'],
+      ['pr.tag', 'Prediction story — label bovenaan', 'Prediction'],
+      ['pr.l1', 'Prediction story — titel regel 1', 'Who takes'],
+      ['pr.l2', 'Prediction story — titel regel 2', 'the win?'],
+      ['pr.hint', 'Prediction story — tekst boven de poll-ruimte', 'Vote in the poll'],
       ['hnl.label.nextmen', 'HandbalNL Next heren — competitietekst', 'Next Handball League Men'],
       ['hnl.label.nextwomen', 'HandbalNL Next dames — competitietekst', 'Next Handball League Women'],
       ['hnl.announce.l1', 'HandbalNL aankondiging — kop regel 1', 'MIS NIETS VAN DE'],
