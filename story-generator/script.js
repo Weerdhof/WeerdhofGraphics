@@ -216,7 +216,7 @@
   // both Mannen and Vrouwen toggle between Post and Story.
   function smCanvasSize() {
     if (isListMode()) return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
-    if (mode === 'headtohead') return { w: 1080, h: 1920 };   // Head to head is a Story
+    if (mode === 'headtohead' || mode === 'nowlive') return { w: 1080, h: 1920 };   // Head to head and Now live are Stories
     if (postOnlyMode()) return { w: TS_W, h: TS_H };
     if (compKey === 'women') {
       const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
@@ -299,11 +299,11 @@
   };
   // Results / Schedule / Ranking share the Story-or-Post choice (Post = left or right aligned, transparent).
   function isListMode() { return mode === 'results' || mode === 'schedule' || mode === 'ranking'; }
-  function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
+  function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'nowlive' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
   // single-match graphics that only exist as a Post (1080x1350)
-  function postOnlyMode() { return mode === 'topscorer' || mode === 'playerweek' || mode === 'headtohead'; }
+  function postOnlyMode() { return mode === 'topscorer' || mode === 'playerweek' || mode === 'headtohead' || mode === 'nowlive'; }
   // Match and Prediction share the announcement layout (teams, time, date; no score)
-  function isMatchLike() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead'; }
+  function isMatchLike() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'nowlive'; }
 
   // Optional user-uploaded photo behind the single-match graphic (Mannen
   // Match/Matchresult only). In-memory only — not persisted via saveState,
@@ -609,6 +609,7 @@
 
   function smAnimClipDuration() {
     if (mode === 'headtohead') return H2H_CLIP_MS;
+    if (mode === 'nowlive') return NL_CLIP_MS;
     return Math.max(ICON_MS * SM_BEATS, ANIM_TOTAL_TARGET_MS);
   }
 
@@ -807,6 +808,9 @@
     } else if (mode === 'playerweek') {
       matchesLabel.textContent = compKey === 'women' ? 'Speelster van de week' : 'Speler van de week';
       modeHint.textContent = 'Kies de club en vul de naam in. Upload bij Opmaak de foto.';
+    } else if (mode === 'nowlive') {
+      matchesLabel.textContent = 'Now live — SHL TV';
+      modeHint.textContent = 'Kies de wedstrijd die nu live is: die wordt gemarkeerd. De andere wedstrijden van die dag staan er klein onder. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'headtohead') {
       matchesLabel.textContent = 'Head to head';
       modeHint.textContent = 'Kies een wedstrijd: stand, laatste uitslagen en onderlinge duels komen automatisch van de site. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
@@ -981,7 +985,7 @@
   // Where a background photo can be used: every single-match graphic, Results/Schedule
   // (Story and Post) and the Ranking Post.
   function photoModeActive() {
-    return (isSingleMode() && mode !== 'headtohead') || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
+    return (isSingleMode() && mode !== 'headtohead' && mode !== 'nowlive') || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
   }
   // In the Post formats the photo is drawn into the canvas (so PNG and MP4 contain it) with
   // a subtle navy gradient on the side the block sits on, keeping the rows readable.
@@ -1845,6 +1849,12 @@
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
       refreshCheckButtonLabels();
+      // Now live (SHL TV) only exists for Mannen — fall back to Match.
+      if (compKey === 'women' && mode === 'nowlive') {
+        mode = 'match';
+        modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+        updateHint();
+      }
       // Match/Matchresult exist for both competitions now, each with its
       // own canvas size and fixture list — resize and reload rather than
       // bailing back to Results.
@@ -1966,7 +1976,7 @@
         populateSingleMatchSelect();
         if (!smMatches.length) return;
         let restoreMatch = null, restoreSm = null;
-        if (savedState && (['match', 'prediction', 'headtohead', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
+        if (savedState && (['match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
           restoreMatch = smMatches.find(x => x.id === savedState.sm.id);
           restoreSm = savedState.sm;
         }
@@ -2511,7 +2521,7 @@
     canvas.classList.toggle('canvas-checker',
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
     predOptsField.hidden = mode !== 'prediction';
-    batchField.hidden = mode !== 'prediction' && mode !== 'match' && mode !== 'headtohead';
+    batchField.hidden = mode !== 'prediction' && mode !== 'match' && mode !== 'headtohead' && mode !== 'nowlive';
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
@@ -2933,6 +2943,7 @@
     if (mode === 'playerweek') { renderPlayerWeek(); return; }
     if (mode === 'topscorer') { renderTopScorer(); return; }
     if (mode === 'headtohead') { renderHeadToHead(); return; }
+    if (mode === 'nowlive') { renderNowLive(); return; }
     if (compKey === 'women') { renderWomenSingleMatch(); return; }
     renderMenSingleMatch();
   }
@@ -3262,6 +3273,119 @@
       ctx.restore();
     }
 
+    saveState();
+  }
+
+  // ---------- NOW LIVE for SHL TV (Story, Mannen only) ----------
+  // The SHL TV logo, a big "NOW LIVE" with a pulsing dot, and the day's matches small underneath; the match that is
+  // being streamed (the selected one) is highlighted. Navy for both competitions, because the logo is white.
+  const NL_CLIP_MS = 8000;
+  function renderNowLive() {
+    const W = 1080, H = 1920, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const accent = women ? '#e34fff' : '#caff1c', accentInk = women ? '#ffffff' : '#14142b';
+    const colors = women ? SMW_TEAM_COLORS : SM_TEAM_COLORS;
+    const tx = { live: 'NOW LIVE', watch: 'WATCH LIVE ON SHL TV', tag: 'LIVE' };   // Mannen only, so English
+    ctx.clearRect(0, 0, W, H);
+    if (!transparentBg) { ctx.fillStyle = COMPETITIONS.men.bgColor; ctx.fillRect(0, 0, W, H); }
+
+    // the matches of that day, earliest first; the selected one is the live one
+    const cur = smMatches.find(m => m.id === smState.id);
+    const dayOf = (m) => (m.dateRound.split('|')[0] || '').trim();
+    const list = cur ? smMatches.filter(m => dayOf(m) === dayOf(cur)).sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))).slice(0, 7) : [];
+
+    // ---- animation helpers (el == null: static design) ----
+    const el = smAnimElapsed();
+    const clamp01 = (v) => Math.max(0, Math.min(1, v));
+    const prog = (t0, d) => el == null ? 1 : clamp01((el - t0) / d);
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+    const easeBack = (t) => { const c1 = 0.55, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+    const group = (alpha, dx, dy, fn) => { if (alpha <= 0.001) return; ctx.save(); ctx.globalAlpha = alpha; ctx.translate(dx || 0, dy || 0); fn(); ctx.restore(); };
+
+    // background: club-colour glows of the live match, corner chevrons
+    const code1 = smState.home, code2 = smState.away;
+    const c1 = predVivid(colors[code1] || '#d2ddf2'), c2 = predVivid(colors[code2] || '#d2ddf2');
+    const glow = (x, y, r, color, a) => {
+      if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    };
+    const eG = easeOut(prog(0, 900));
+    glow(0, 0, 900, c1, 0.42 * eG); glow(W, 0, 900, c2, 0.42 * eG);
+    {
+      const e = easeOut(prog(0, 1000)), breathe = el == null ? 1 : 1 + 0.03 * Math.sin(el / 3000 * 2 * Math.PI), out = (1 - e) * 280;
+      drawSmCardChevron(ctx, 30 - out, H - 50 + out * 0.6, true, c1, 1.4 * breathe, 0.85 * e);
+      drawSmCardChevron(ctx, W - 30 + out, H - 50 + out * 0.6, false, c2, 1.4 * breathe, 0.85 * e);
+    }
+
+    // SHL TV logo (the top ~250px stay clear of Instagram's UI)
+    {
+      const logo = loadImg('assets/shltv/logo.png');
+      if (logo && logo.complete && logo.naturalWidth) {
+        const lw = 780, lh = lw * logo.naturalHeight / logo.naturalWidth, e = easeOut(prog(100, 600));
+        group(e, 0, -30 * (1 - e), () => ctx.drawImage(logo, (W - lw) / 2, 290, lw, lh));
+      }
+    }
+
+    // NOW LIVE with a pulsing dot
+    {
+      const e = easeBack(prog(500, 650)), a = clamp01(prog(500, 250) * 1.6);
+      const pulse = el == null ? 0 : (Math.sin(Math.max(0, el - 1100) / 1000 * 2 * Math.PI) + 1) / 2;
+      group(a, 0, 0, () => {
+        ctx.font = `700 150px "${fontFamily}"`;
+        const tw = ctx.measureText(tx.live).width, dot = 30, gap = 36, total = dot * 2 + gap + tw, x0 = (W - total) / 2, cy = 700;
+        ctx.translate(W / 2, cy); ctx.scale(Math.max(0.001, e), Math.max(0.001, e)); ctx.translate(-W / 2, -cy);
+        // live dot with a soft halo
+        const halo = ctx.createRadialGradient(x0 + dot, cy - 52, 0, x0 + dot, cy - 52, dot * (2.2 + pulse * 0.9));
+        halo.addColorStop(0, 'rgba(255, 59, 59, 0.55)'); halo.addColorStop(1, 'rgba(255, 59, 59, 0)');
+        ctx.fillStyle = halo; ctx.fillRect(x0 - dot * 3, cy - 52 - dot * 3.5, dot * 8, dot * 7);
+        ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(x0 + dot, cy - 52, dot, 0, Math.PI * 2); ctx.fill();
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
+        ctx.fillText(tx.live, x0 + dot * 2 + gap, cy);
+      });
+      // accent underline under the headline
+      const eu = easeOut(prog(900, 500));
+      ctx.fillStyle = accent; ctx.fillRect(W / 2 - 160 * eu, 748, 320 * eu, 8);
+    }
+
+    // the matches of the day, small
+    const rowH = 92, gap = 10, y0 = 810;
+    list.forEach((m, i) => {
+      const live = m.id === smState.id;
+      const t0 = 1000 + i * 130, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
+      const y = y0 + i * (rowH + gap);
+      group(a, 0, 36 * (1 - e), () => {
+        // the live match is a solid white strip, the others are translucent so it stands out
+        ctx.fillStyle = live ? '#ffffff' : 'rgba(255, 255, 255, 0.13)'; ctx.fillRect(L, y, R - L, rowH);
+        if (live) { ctx.fillStyle = accent; ctx.fillRect(L, y, 12, rowH); }
+        const ink = live ? '#1b2450' : '#ffffff';
+        const crest = (c) => c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(c)}.png`) : null;
+        tsDrawCrest(crest(m.home), L + 78, y + rowH / 2, 64);
+        tsDrawCrest(crest(m.away), R - 78, y + rowH / 2, 64);
+        const tCode = h2hCrestCode(m.home), aCode = h2hCrestCode(m.away);
+        tsInkText(tCode, L + 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink);
+        tsInkText(aCode, R - 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink, 'right');
+        const time = live ? (smState.time || m.time) : m.time;
+        if (live) {
+          // LIVE chip + kick-off time in the middle
+          const cw = 92; ctx.fillStyle = '#ff3b3b'; ctx.fillRect(W / 2 - cw / 2, y + 10, cw, 30);
+          tsInkText(tx.tag, W / 2, y + 33, `700 22px "${fontFamily}"`, '#ffffff', 'center');
+          tsInkText(time || '', W / 2, y + 79, `700 36px "${fontFamily}"`, ink, 'center');
+        } else {
+          tsInkText(time || '', W / 2, y + rowH / 2 + 13, `700 38px "${fontFamily}"`, ink, 'center', 0.9);
+        }
+      });
+    });
+
+    // bottom line
+    group(easeOut(prog(2200, 500)), 0, 0, () => {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffffff'; ctx.globalAlpha *= 0.9;
+      ctx.font = `700 34px "${fontFamily}"`; ctx.letterSpacing = '6px';
+      ctx.fillText(tx.watch, W / 2, 1600);
+      ctx.fillStyle = accent; ctx.fillRect(W / 2 - 60, 1624, 120, 6);
+    });
     saveState();
   }
 
@@ -4400,7 +4524,8 @@
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
     refreshCheckButtonLabels();
-    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
+    if (savedState.mode === 'nowlive' && compKey !== 'men') savedState.mode = 'match';
+    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
@@ -4623,7 +4748,7 @@
 
   // ---------- Home menu (start page) ----------
   const homeMenu = document.getElementById('homeMenu');
-  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
+  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', nowlive: 'Now live (SHL TV)', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
   var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
   var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
 
@@ -4642,6 +4767,7 @@
     const tagline = homeMenu.querySelector('.home-head p'); if (tagline) tagline.textContent = menuComp === 'dash' ? 'Stand van zaken' : 'Wat wil je maken?';
     if (window.DASH) { if (menuComp === 'dash') lastTickerReady = window.DASH.show(); else window.DASH.hide(); }
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
+    homeMenu.querySelectorAll('.menu-card[data-go-mode="nowlive"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
     if (logo) logo.setAttribute('src', menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
