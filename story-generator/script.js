@@ -3260,10 +3260,22 @@
     // hero: big crest tiles, VS in between, club names below
     const heroY = 360, tile = 250;
     const crestSrc = (code) => code ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(code)}.png`) : null;
+    // The women's crest crops come from rounded white cards: the corners show transparency and a bit of the
+    // card's stripe, so clip off the corners with a rounded square. The men's crops are clean.
+    const drawCrest = (img, cx, cy, size) => {
+      if (!women) { tsDrawCrest(img, cx, cy, size); return; }
+      if (!img || !img.complete || !img.naturalWidth) return;
+      const h = size * CREST_H / CREST_W, ins = 0;
+      ctx.save();
+      roundedRectPath(ctx, cx - size / 2 + ins, cy - h / 2 + ins, size - 2 * ins, h - 2 * ins, size * 0.22);
+      ctx.clip();
+      tsDrawCrest(img, cx, cy, size);
+      ctx.restore();
+    };
     const tileFor = (x, code) => {
       ctx.fillStyle = '#ffffff'; ctx.fillRect(x, heroY, tile, tile);
       if (women) { ctx.save(); ctx.strokeStyle = 'rgba(26,27,56,0.12)'; ctx.lineWidth = 2; ctx.strokeRect(x, heroY, tile, tile); ctx.restore(); }
-      tsDrawCrest(crestSrc(code), x + tile / 2, heroY + tile / 2, 200);
+      drawCrest(crestSrc(code), x + tile / 2, heroY + tile / 2, 200);
     };
     tileFor(L, home); tileFor(R - tile, away);
     const nameBlock = (code, x, align) => {
@@ -3305,12 +3317,12 @@
         if (!g) { if (ready && i === 0) tsInkText(tx.none, x + colW / 2, y + 58, `600 24px "${fontFamily}"`, T.ink, 'center', 0.5); continue; }
         const cy = y + rowH / 2;
         if (!mirror) {
-          tsDrawCrest(crestSrc(g.opp), x + 54, cy, 64);
+          drawCrest(crestSrc(g.opp), x + 54, cy, 64);
           tsInkText(`${g.gf} – ${g.ga}`, x + (100 + colW - 100) / 2, cy + 21, `700 58px "${fontFamily}"`, T.ink, 'center');
           ctx.fillStyle = chipFill[g.res]; ctx.fillRect(x + colW - 14 - CHIP, y + (rowH - CHIP) / 2, CHIP, CHIP);
           tsInkText(g.res, x + colW - 14 - CHIP / 2, cy + 14, `700 40px "${fontFamily}"`, chipInk[g.res], 'center');
         } else {
-          tsDrawCrest(crestSrc(g.opp), x + colW - 54, cy, 64);
+          drawCrest(crestSrc(g.opp), x + colW - 54, cy, 64);
           tsInkText(`${g.gf} – ${g.ga}`, x + (100 + colW - 100) / 2, cy + 21, `700 58px "${fontFamily}"`, T.ink, 'center');
           ctx.fillStyle = chipFill[g.res]; ctx.fillRect(x + 14, y + (rowH - CHIP) / 2, CHIP, CHIP);
           tsInkText(g.res, x + 14 + CHIP / 2, cy + 14, `700 40px "${fontFamily}"`, chipInk[g.res], 'center');
@@ -3324,8 +3336,8 @@
     ctx.fillStyle = T.strip; ctx.fillRect(L, pmY, R - L, pmH);
     const meet = A.games.find(g => g.opp === away);
     if (meet) {
-      tsDrawCrest(crestSrc(home), L + 80, pmY + pmH / 2, 84);
-      tsDrawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
+      drawCrest(crestSrc(home), L + 80, pmY + pmH / 2, 84);
+      drawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
       ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = 0.55; ctx.font = `600 24px "${fontFamily}"`;
       ctx.fillText(`${tx.prev}  ·  ${(meet.date || '').toUpperCase()}`, W / 2, pmY + 34); ctx.restore();
       tsInkText(`${meet.gf} – ${meet.ga}`, W / 2, pmY + 100, `700 62px "${fontFamily}"`, T.ink, 'center');
