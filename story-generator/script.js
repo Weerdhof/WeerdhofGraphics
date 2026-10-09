@@ -294,6 +294,8 @@
     id: '', home: '', away: '', time: '', homeScore: '', awayScore: '', dateRound: '',
     // Top scorer graphic only: which side the player is on + their name and goals.
     tsSide: 'home', tsFirst: '', tsLast: '', tsGoals: '',
+    // Now live: the moment (dd-mm + hh:mm) the story is made for; the matches running then are marked live.
+    nlDate: '', nlTime: '',
     // Player of the week: the player's club and name.
     pwTeam: '', pwName: '',
   };
@@ -1943,6 +1945,7 @@
     smState.homeScore = restore ? restore.homeScore : '';
     smState.awayScore = restore ? restore.awayScore : '';
     smState.dateRound = m.dateRound;
+    { const dm = /(\d+)-(\d+)/.exec(m.dateRound || ''); smState.nlDate = restore && restore.nlDate ? restore.nlDate : (dm ? `${dm[1].padStart(2, '0')}-${dm[2].padStart(2, '0')}` : ''); smState.nlTime = restore && restore.nlTime ? restore.nlTime : (m.time || ''); }
     smState.tsSide = restore && restore.tsSide ? restore.tsSide : 'home';
     smState.tsFirst = restore ? (restore.tsFirst || '') : '';
     smState.tsLast = restore ? (restore.tsLast || '') : '';
@@ -2374,7 +2377,7 @@
     awaySelect.addEventListener('change', () => { smState.away = awaySelect.value; render(); });
 
     timeInput.value = smState.time;
-    timeInput.hidden = !isMatchLike();
+    timeInput.hidden = !isMatchLike() || mode === 'nowlive';   // Now live has its own date/time fields
     scorePair.hidden = isMatchLike();
     homeScoreInput.value = smState.homeScore;
     awayScoreInput.value = smState.awayScore;
@@ -2386,6 +2389,25 @@
     // The date/round line is only drawn on the poster in Match mode — a
     // result graphic doesn't need it — and only Match lets you edit it,
     // since Matchresult never shows it anyway.
+    const nlFields = node.querySelector('.nowlive-fields');
+    nlFields.hidden = mode !== 'nowlive';
+    if (mode === 'nowlive') {
+      const nlDate = node.querySelector('.nl-date'), nlTime = node.querySelector('.nl-time');
+      nlDate.value = smState.nlDate; nlTime.value = smState.nlTime;
+      nlDate.addEventListener('input', () => { smState.nlDate = nlDate.value; render(); });
+      nlTime.addEventListener('input', () => { smState.nlTime = nlTime.value; render(); });
+      node.querySelector('.nl-now').addEventListener('click', () => {   // right now
+        const d = new Date(), p = (n) => String(n).padStart(2, '0');
+        smState.nlDate = `${p(d.getDate())}-${p(d.getMonth() + 1)}`; smState.nlTime = `${p(d.getHours())}:${p(d.getMinutes())}`;
+        nlDate.value = smState.nlDate; nlTime.value = smState.nlTime; render();
+      });
+      node.querySelector('.nl-sel').addEventListener('click', () => {   // kick-off of the selected match
+        const cur = smMatches.find(x => x.id === smState.id), dm = cur && /(\d+)-(\d+)/.exec(cur.dateRound || '');
+        if (!cur) return;
+        smState.nlDate = dm ? `${dm[1].padStart(2, '0')}-${dm[2].padStart(2, '0')}` : ''; smState.nlTime = cur.time || '';
+        nlDate.value = smState.nlDate; nlTime.value = smState.nlTime; render();
+      });
+    }
     const tsFields = node.querySelector('.topscorer-fields');
     tsFields.hidden = mode !== 'topscorer';
     const tsSide = node.querySelector('.ts-side');
@@ -3277,22 +3299,36 @@
   }
 
   // ---------- NOW LIVE for SHL TV (Story, Mannen only) ----------
-  // The SHL TV logo, a big "NOW LIVE" with a pulsing dot, and the day's matches small underneath; the match that is
-  // being streamed (the selected one) is highlighted. Navy for both competitions, because the logo is white.
+  // The SHL TV logo, a big "NOW LIVE" with a pulsing yellow dot, and the day's matches small underneath. Date + time
+  // are fields: the matches running at that moment (kick-off up to NL_MATCH_MIN minutes ago) are marked live.
+  // Colours: the SHL men's green "colormash" gradient on navy (no red), with a yellow live dot.
   const NL_CLIP_MS = 8000;
+  const NL_MATCH_MIN = 90;     // a match counts as live for this long after kick-off
+  const NL_YELLOW = '#ffd814';
+  let nlMaskCanvas = null;
   function renderNowLive() {
-    const W = 1080, H = 1920, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
+    const W = 1080, H = 1920, L = TS_MARGIN, R = W - TS_MARGIN;
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
-    const accent = women ? '#e34fff' : '#caff1c', accentInk = women ? '#ffffff' : '#14142b';
-    const colors = women ? SMW_TEAM_COLORS : SM_TEAM_COLORS;
     const tx = { live: 'NOW LIVE', watch: 'WATCH LIVE ON SHL TV', tag: 'LIVE' };   // Mannen only, so English
     ctx.clearRect(0, 0, W, H);
     if (!transparentBg) { ctx.fillStyle = COMPETITIONS.men.bgColor; ctx.fillRect(0, 0, W, H); }
 
-    // the matches of that day, earliest first; the selected one is the live one
+    // which matches are live at the chosen date + time
     const cur = smMatches.find(m => m.id === smState.id);
-    const dayOf = (m) => (m.dateRound.split('|')[0] || '').trim();
-    const list = cur ? smMatches.filter(m => dayOf(m) === dayOf(cur)).sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))).slice(0, 7) : [];
+    const dayKey = (str) => { const m = /(\d+)-(\d+)/.exec(str || ''); return m ? `${parseInt(m[1], 10)}-${parseInt(m[2], 10)}` : ''; };
+    const toMin = (t) => { const m = /(\d{1,2})[:.](\d{2})/.exec(t || ''); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null; };
+    let key = dayKey(smState.nlDate);
+    let list = key ? smMatches.filter(m => dayKey(m.dateRound) === key) : [];
+    const onDate = list.length > 0;
+    if (!onDate && cur) list = smMatches.filter(m => dayKey(m.dateRound) === dayKey(cur.dateRound));   // nothing on that date: show the selected match's day
+    list = list.sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))).slice(0, 7);
+    const nowMin = toMin(smState.nlTime);
+    const isLive = (m) => onDate && nowMin != null && toMin(m.time) != null && toMin(m.time) <= nowMin && nowMin < toMin(m.time) + NL_MATCH_MIN;
+    const liveList = list.filter(isLive);
+    const info = document.querySelector('.nl-info');
+    if (info) info.textContent = !onDate ? `Geen wedstrijden op ${smState.nlDate || 'die datum'} — de dag van de gekozen wedstrijd wordt getoond.`
+      : liveList.length ? `Live om ${smState.nlTime}: ${liveList.map(m => `${m.home}–${m.away}`).join(', ')} (${NL_MATCH_MIN} min na de aftrap)`
+      : `Om ${smState.nlTime} is er geen wedstrijd live.`;
 
     // ---- animation helpers (el == null: static design) ----
     const el = smAnimElapsed();
@@ -3302,21 +3338,27 @@
     const easeBack = (t) => { const c1 = 0.55, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
     const group = (alpha, dx, dy, fn) => { if (alpha <= 0.001) return; ctx.save(); ctx.globalAlpha = alpha; ctx.translate(dx || 0, dy || 0); fn(); ctx.restore(); };
 
-    // background: club-colour glows of the live match, corner chevrons
-    const code1 = smState.home, code2 = smState.away;
-    const c1 = predVivid(colors[code1] || '#d2ddf2'), c2 = predVivid(colors[code2] || '#d2ddf2');
-    const glow = (x, y, r, color, a) => {
-      if (!/^#[0-9a-f]{6}$/i.test(color)) return;
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // background: the colormash gradients fade out of two corners, plus a chevron from each bottom corner
+    const mash = (src, cx, cy, r, alpha) => {
+      const img = loadImg(src);
+      if (!img || !img.complete || !img.naturalWidth) return;
+      if (!nlMaskCanvas) nlMaskCanvas = document.createElement('canvas');
+      nlMaskCanvas.width = W; nlMaskCanvas.height = H;
+      const m = nlMaskCanvas.getContext('2d'), sc = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+      m.drawImage(img, (W - img.naturalWidth * sc) / 2, (H - img.naturalHeight * sc) / 2, img.naturalWidth * sc, img.naturalHeight * sc);
+      m.globalCompositeOperation = 'destination-in';
+      const g = m.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      m.fillStyle = g; m.fillRect(0, 0, W, H);
+      ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(nlMaskCanvas, 0, 0); ctx.restore();
     };
     const eG = easeOut(prog(0, 900));
-    glow(0, 0, 900, c1, 0.42 * eG); glow(W, 0, 900, c2, 0.42 * eG);
+    mash('assets/colormash/GREEN.png', 0, 0, 1250, 0.5 * eG);      // no red in this one: the green colormash only
+    mash('assets/colormash/GREEN.png', W, H, 1150, 0.45 * eG);
     {
       const e = easeOut(prog(0, 1000)), breathe = el == null ? 1 : 1 + 0.03 * Math.sin(el / 3000 * 2 * Math.PI), out = (1 - e) * 280;
-      drawSmCardChevron(ctx, 30 - out, H - 50 + out * 0.6, true, c1, 1.4 * breathe, 0.85 * e);
-      drawSmCardChevron(ctx, W - 30 + out, H - 50 + out * 0.6, false, c2, 1.4 * breathe, 0.85 * e);
+      drawSmCardChevron(ctx, 30 - out, H - 50 + out * 0.6, true, '#b6fc37', 1.4 * breathe, 0.85 * e);
+      drawSmCardChevron(ctx, W - 30 + out, H - 50 + out * 0.6, false, '#92fb31', 1.4 * breathe, 0.85 * e);
     }
 
     // SHL TV logo (the top ~250px stay clear of Instagram's UI)
@@ -3328,7 +3370,7 @@
       }
     }
 
-    // NOW LIVE with a pulsing dot
+    // NOW LIVE with a pulsing yellow dot
     {
       const e = easeBack(prog(500, 650)), a = clamp01(prog(500, 250) * 1.6);
       const pulse = el == null ? 0 : (Math.sin(Math.max(0, el - 1100) / 1000 * 2 * Math.PI) + 1) / 2;
@@ -3336,45 +3378,36 @@
         ctx.font = `700 150px "${fontFamily}"`;
         const tw = ctx.measureText(tx.live).width, dot = 30, gap = 36, total = dot * 2 + gap + tw, x0 = (W - total) / 2, cy = 700;
         ctx.translate(W / 2, cy); ctx.scale(Math.max(0.001, e), Math.max(0.001, e)); ctx.translate(-W / 2, -cy);
-        // live dot with a soft halo
         const halo = ctx.createRadialGradient(x0 + dot, cy - 52, 0, x0 + dot, cy - 52, dot * (2.2 + pulse * 0.9));
-        halo.addColorStop(0, 'rgba(255, 59, 59, 0.55)'); halo.addColorStop(1, 'rgba(255, 59, 59, 0)');
+        halo.addColorStop(0, 'rgba(255, 216, 20, 0.55)'); halo.addColorStop(1, 'rgba(255, 216, 20, 0)');
         ctx.fillStyle = halo; ctx.fillRect(x0 - dot * 3, cy - 52 - dot * 3.5, dot * 8, dot * 7);
-        ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(x0 + dot, cy - 52, dot, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = NL_YELLOW; ctx.beginPath(); ctx.arc(x0 + dot, cy - 52, dot, 0, Math.PI * 2); ctx.fill();
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffffff';
         ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
         ctx.fillText(tx.live, x0 + dot * 2 + gap, cy);
       });
-      // accent underline under the headline
-      const eu = easeOut(prog(900, 500));
-      ctx.fillStyle = accent; ctx.fillRect(W / 2 - 160 * eu, 748, 320 * eu, 8);
     }
 
-    // the matches of the day, small
-    const rowH = 92, gap = 10, y0 = 810;
+    // the matches of the day, small: live ones are solid white with a yellow LIVE chip, the rest translucent
+    const rowH = 92, gap = 10, y0 = 790;
+    const crest = (c) => c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(c)}.png`) : null;
     list.forEach((m, i) => {
-      const live = m.id === smState.id;
+      const live = isLive(m);
       const t0 = 1000 + i * 130, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
       const y = y0 + i * (rowH + gap);
       group(a, 0, 36 * (1 - e), () => {
-        // the live match is a solid white strip, the others are translucent so it stands out
         ctx.fillStyle = live ? '#ffffff' : 'rgba(255, 255, 255, 0.13)'; ctx.fillRect(L, y, R - L, rowH);
-        if (live) { ctx.fillStyle = accent; ctx.fillRect(L, y, 12, rowH); }
         const ink = live ? '#1b2450' : '#ffffff';
-        const crest = (c) => c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(c)}.png`) : null;
         tsDrawCrest(crest(m.home), L + 78, y + rowH / 2, 64);
         tsDrawCrest(crest(m.away), R - 78, y + rowH / 2, 64);
-        const tCode = h2hCrestCode(m.home), aCode = h2hCrestCode(m.away);
-        tsInkText(tCode, L + 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink);
-        tsInkText(aCode, R - 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink, 'right');
-        const time = live ? (smState.time || m.time) : m.time;
+        tsInkText(h2hCrestCode(m.home), L + 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink);
+        tsInkText(h2hCrestCode(m.away), R - 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink, 'right');
         if (live) {
-          // LIVE chip + kick-off time in the middle
-          const cw = 92; ctx.fillStyle = '#ff3b3b'; ctx.fillRect(W / 2 - cw / 2, y + 10, cw, 30);
-          tsInkText(tx.tag, W / 2, y + 33, `700 22px "${fontFamily}"`, '#ffffff', 'center');
-          tsInkText(time || '', W / 2, y + 79, `700 36px "${fontFamily}"`, ink, 'center');
+          const cw = 92; ctx.fillStyle = NL_YELLOW; ctx.fillRect(W / 2 - cw / 2, y + 10, cw, 30);
+          tsInkText(tx.tag, W / 2, y + 33, `700 22px "${fontFamily}"`, '#14142b', 'center');
+          tsInkText(m.time || '', W / 2, y + 79, `700 36px "${fontFamily}"`, ink, 'center');
         } else {
-          tsInkText(time || '', W / 2, y + rowH / 2 + 13, `700 38px "${fontFamily}"`, ink, 'center', 0.9);
+          tsInkText(m.time || '', W / 2, y + rowH / 2 + 13, `700 38px "${fontFamily}"`, ink, 'center', 0.9);
         }
       });
     });
@@ -3384,7 +3417,6 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffffff'; ctx.globalAlpha *= 0.9;
       ctx.font = `700 34px "${fontFamily}"`; ctx.letterSpacing = '6px';
       ctx.fillText(tx.watch, W / 2, 1600);
-      ctx.fillStyle = accent; ctx.fillRect(W / 2 - 60, 1624, 120, 6);
     });
     saveState();
   }
@@ -4601,7 +4633,7 @@
       return { ...common, kind: 'ranking', format: resultsFormat, rows: rankState[compKey].map(r => ({ ...r })) };
     }
     const sm = {};
-    ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName'].forEach(k => { sm[k] = smState[k]; });
+    ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName', 'nlDate', 'nlTime'].forEach(k => { sm[k] = smState[k]; });
     return { ...common, kind: 'single', format: smFormat, postDecor, sm };
   }
 

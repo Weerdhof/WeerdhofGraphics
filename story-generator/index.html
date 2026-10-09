@@ -472,6 +472,19 @@
         <input type="text" class="score-input ts-goals" placeholder="Goals" maxlength="2" inputmode="numeric" autocomplete="off">
       </div>
     </div>
+    <div class="nowlive-fields" hidden>
+      <div class="ts-row">
+        <label>Datum</label>
+        <input type="text" class="nl-date" placeholder="dd-mm" maxlength="5" autocomplete="off">
+        <label>Tijd</label>
+        <input type="text" class="nl-time" placeholder="hh:mm" maxlength="5" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="ts-row">
+        <button class="btn btn-link nl-sel" type="button">Aftrap gekozen wedstrijd</button>
+        <button class="btn btn-link nl-now" type="button">Nu</button>
+      </div>
+      <div class="hint nl-info"></div>
+    </div>
     <div class="single-match-date-row">
       <label>Datum / ronde</label>
       <input type="text" class="date-label-input single-match-dateround" placeholder="bv. SAT 19-09 | ROUND 3" autocomplete="off">

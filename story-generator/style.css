@@ -615,6 +615,15 @@ input.rank-input {
   border: 1px solid rgba(255,255,255,.12); background: #0f1024; color: #fff; font: inherit;
 }
 .topscorer-fields .ts-goals { flex: 0 0 72px; text-align: center; }
+.nowlive-fields { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.nowlive-fields[hidden] { display: none; }
+.nowlive-fields .ts-row { display: flex; gap: 8px; align-items: center; }
+.nowlive-fields .ts-row label { font-size: 12px; opacity: .7; flex: 0 0 auto; }
+.nowlive-fields input[type=text] {
+  flex: 1 1 0; min-width: 0; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: #0f1024; color: #fff; font: inherit; text-align: center;
+}
+.nowlive-fields .nl-info { margin: 0; }
 
 
 /* ---------------- HOME MENU ---------------- */
