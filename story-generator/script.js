@@ -2801,8 +2801,8 @@
     const t = (0.42 - lum) / (1 - lum);
     return '#' + c.map(v => Math.round(v + (255 - v) * t).toString(16).padStart(2, '0')).join('');
   }
-  function predictionBackdrop(W, H, homeColor, awayColor, homeCode, awayCode) {
-    homeColor = predVivid(homeColor); awayColor = predVivid(awayColor);
+  function predictionBackdrop(W, H, homeColor, awayColor, homeCode, awayCode, light) {
+    if (!light) { homeColor = predVivid(homeColor); awayColor = predVivid(awayColor); }
     ctx.save();
     // soft colour glows in the corners: home colour top-left / bottom-right, away colour top-right / bottom-left
     const glow = (x, y, r, color, a) => {
@@ -2813,21 +2813,22 @@
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     };
     const R = Math.max(W, H) * 0.42;
-    glow(0, 0, R, homeColor, 0.5); glow(W, H, R, awayColor, 0.5);
-    glow(W, 0, R * 0.75, awayColor, 0.3); glow(0, H, R * 0.75, homeColor, 0.3);
+    const ga = light ? 0.55 : 1;   // on white the glows and codes need to be softer
+    glow(0, 0, R, homeColor, 0.5 * ga); glow(W, H, R, awayColor, 0.5 * ga);
+    glow(W, 0, R * 0.75, awayColor, 0.3 * ga); glow(0, H, R * 0.75, homeColor, 0.3 * ga);
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     const draw = (code, color, align, x, y) => {
       ctx.font = `800 470px "${fontFamily}"`;
       const w = ctx.measureText(code).width, px = w > W - 60 ? 470 * (W - 60) / w : 470;
       ctx.font = `800 ${px}px "${fontFamily}"`; ctx.textAlign = align; ctx.fillStyle = color; ctx.fillText(code, x, y);
     };
-    ctx.globalAlpha = 0.22; ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = light ? 0.13 : 0.22; ctx.textBaseline = 'alphabetic';
     draw(homeCode || '', homeColor, 'left', 24, 470);
     draw(awayCode || '', awayColor, 'right', W - 24, H - 300);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
-  function predictionHeadline(W, H, barTop, barBottom, accent) {
+  function predictionHeadline(W, H, barTop, barBottom, accent, light) {
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     // the women's story is in Dutch, the men's in English
     const nl = compKey === 'women', k = nl ? 'pr.w.' : 'pr.';
@@ -2835,18 +2836,18 @@
     const b2 = barTop - 120, b1 = b2 - 158;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6;
+    if (!light) { ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6; }
     const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > W - 140 ? px * (W - 140) / w : px; };
-    ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = '#ffffff'; ctx.fillText(l1, W / 2, b1);
+    ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = light ? '#1a1b38' : '#ffffff'; ctx.fillText(l1, W / 2, b1);
     ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
     ctx.shadowColor = 'transparent';
     const story = H > 1500, pw = story ? 680 : 600, ph = story ? 310 : 230;
     PRED_POLL = { x: (W - pw) / 2, y: barBottom + (story ? 70 : 50), w: pw, h: ph };
     if (predGuide) {   // marks the free spot for the Instagram poll sticker
       const P = PRED_POLL;
-      ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = light ? 'rgba(26,27,56,0.4)' : 'rgba(255,255,255,0.55)';
       roundedRectPath(ctx, P.x, P.y, P.w, P.h, 36); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.fillStyle = light ? 'rgba(26,27,56,0.55)' : 'rgba(255,255,255,0.7)';
       ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2 + 9);
     }
     ctx.restore();
@@ -3392,7 +3393,7 @@
       }
     } else {
       ctx.font = `700 ${mode === 'prediction' ? 86 : SM_TIME_FONT}px "${fontFamily}"`;
-      ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
+      ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY + (mode === 'prediction' ? 16 : 0));
     }
 
     if (mode === 'match') {   // the Prediction story has no date/round line
@@ -3417,6 +3418,7 @@
 
   function renderWomenSingleMatch() {
     const L = predLayout(SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story);
+    const predLight = mode === 'prediction' && !bgPhotoImg && !transparentBg;
     ctx.clearRect(0, 0, L.canvasW, L.canvasH);
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
@@ -3430,14 +3432,16 @@
       ctx.fillStyle = footerFade;
       ctx.fillRect(0, fadeTop, L.canvasW, L.canvasH - fadeTop);
     } else if (!transparentBg) {
-      ctx.fillStyle = SMW_TEXT_COLOR;
+      ctx.fillStyle = predLight ? '#ffffff' : SMW_TEXT_COLOR;   // the women's Prediction is white like the other Vrouwen assets
       ctx.fillRect(0, 0, L.canvasW, L.canvasH);
     }
 
-    if (mode === 'prediction') predictionBackdrop(L.canvasW, L.canvasH, SMW_TEAM_COLORS[smState.home] || '#ffffff', SMW_TEAM_COLORS[smState.away] || '#ffffff', smState.home, smState.away);
+    if (mode === 'prediction') predictionBackdrop(L.canvasW, L.canvasH, SMW_TEAM_COLORS[smState.home] || '#ffffff', SMW_TEAM_COLORS[smState.away] || '#ffffff', smState.home, smState.away, predLight);
     const bar = loadImg('assets/women/singlematch/bar.png');
     if (bar && bar.complete && bar.naturalWidth) {
+      if (predLight) { ctx.save(); ctx.shadowColor = 'rgba(26, 27, 56, 0.22)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 10; }
       ctx.drawImage(bar, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+      if (predLight) ctx.restore();
     }
 
     // Chevron accent behind the cards — home team's color on the left half,
@@ -3533,7 +3537,7 @@
       }
     } else {
       ctx.font = `700 ${mode === 'prediction' ? 86 : L.timeFont}px "${fontFamily}"`;
-      ctx.fillText(smState.time || '', L.centerX, L.timeY);
+      ctx.fillText(smState.time || '', L.centerX, L.timeY + (mode === 'prediction' ? 16 : 0));
     }
 
     if (mode === 'match') {
@@ -3554,12 +3558,12 @@
       ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamLeft.y, L.bar.y + L.bar.h, '#e34fff');
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamLeft.y, L.bar.y + L.bar.h, predLight ? '#c93cf0' : '#e34fff', predLight);
 
-    const footerImg = loadImg('assets/women/singlematch/footer-white.png');
+    const footerImg = loadImg(predLight ? 'assets/women/footer-logo-women.png' : 'assets/women/singlematch/footer-white.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
       ctx.save();
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowColor = predLight ? 'transparent' : 'rgba(0, 0, 0, 0.25)';
       ctx.shadowBlur = 10;
       ctx.shadowOffsetY = 3;
       ctx.drawImage(footerImg, L.footer.x, L.footer.y, L.footer.w, L.footer.h);
