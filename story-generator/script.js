@@ -3218,8 +3218,8 @@
   }
 
   // Head to head animation (15 s, most of it holding the finished graphic): glows + corner chevrons sweep in, label bar grows, the two crest tiles slide in
-  // from the sides with a bounce while VS pops, names rise, standing tiles wipe in and count up, the result rows
-  // stagger in (scores count up, W/D/L squares pop), the previous-meeting strip opens. The logo is there from the start. Then it holds
+  // from the sides with a bounce while VS pops, names rise, standing tiles wipe in (only the points count up), the result rows
+  // stagger in (W/D/L squares pop), the previous-meeting strip opens. The logo is there from the start. Then it holds
   // with a VS heartbeat and breathing chevrons. With the animation off (el == null) every progress is 1 = static design.
   const H2H_CLIP_MS = 15000;
   function renderHeadToHead() {
@@ -3339,7 +3339,7 @@
     // standing tiles in the club colours: wipe in from the outside, numbers count
     const sy = 800, sh = 110, sw = 420;
     const standTile = (x, col, t, fromLeft) => {
-      const e = easeOut(prog(1700, 600)), ep = easeOut(prog(1800, 800)), er = easeOut(prog(2700, 700)), ar = prog(2700, 250);
+      const e = easeOut(prog(1700, 600)), ep = easeOut(prog(1800, 800)), ar = prog(2700, 250);
       if (e <= 0) return;
       ctx.save();
       ctx.beginPath();
@@ -3348,7 +3348,7 @@
       ctx.fillStyle = col; ctx.fillRect(x, sy, sw, sh);
       const ink = tsInkFor(col);
       // the points come first, then the position in the table
-      const posShown = t.pos ? Math.round(t.pos + (1 - er) * 12) : null;
+      const posShown = t.pos ? t.pos : null;   // the position itself does not count, it just appears
       ctx.save(); ctx.globalAlpha *= ar;
       tsInkText(posShown != null ? `#${posShown}` : '–', x + 28, sy + 82, `700 76px "${fontFamily}"`, ink);
       ctx.restore();
@@ -3381,7 +3381,7 @@
         group(a, dx, 0, () => {
           ctx.fillStyle = T.strip; ctx.fillRect(x, y, colW, rowH);
           if (!g) { if (ready && i === 0) tsInkText(tx.none, x + colW / 2, y + 58, `600 24px "${fontFamily}"`, T.ink, 'center', 0.5); return; }
-          const cy = y + rowH / 2, gf = Math.round(g.gf * e), ga = Math.round(g.ga * e);
+          const cy = y + rowH / 2, gf = g.gf, ga = g.ga;   // scores do not count up
           const chipX = mirror ? x + 14 : x + colW - 14 - CHIP, chipCx = chipX + CHIP / 2;
           drawCrest(crestSrc(g.opp), mirror ? x + colW - 54 : x + 54, cy, 64);
           tsInkText(`${gf} – ${ga}`, x + colW / 2, cy + 21, `700 58px "${fontFamily}"`, T.ink, 'center');
@@ -3398,7 +3398,7 @@
     // previous meeting this season: the strip opens from the middle
     const pmY = rowsY + N * (rowH + rowGap) + 22, pmH = 130;
     {
-      const e = easeOut(prog(4350, 550)), ec = easeOut(prog(4650, 600)), ac = prog(4650, 300);
+      const e = easeOut(prog(4350, 550)), ac = prog(4650, 300);
       if (e > 0) {
         ctx.save();
         ctx.beginPath(); ctx.rect(L, pmY + pmH * (1 - e) / 2, R - L, pmH * e); ctx.clip();
@@ -3410,7 +3410,7 @@
           drawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
           ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = ac * 0.55; ctx.font = `600 24px "${fontFamily}"`;
           ctx.fillText(`${tx.prev}  ·  ${(meet.date || '').toUpperCase()}`, W / 2, pmY + 34); ctx.restore();
-          tsInkText(`${Math.round(meet.gf * ec)} – ${Math.round(meet.ga * ec)}`, W / 2, pmY + 100, `700 62px "${fontFamily}"`, T.ink, 'center');
+          tsInkText(`${meet.gf} – ${meet.ga}`, W / 2, pmY + 100, `700 62px "${fontFamily}"`, T.ink, 'center');
         } else {
           ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = ac * 0.6; ctx.font = `600 30px "${fontFamily}"`;
           ctx.fillText(ready ? tx.first : tx.load, W / 2, pmY + pmH / 2 + 11);
