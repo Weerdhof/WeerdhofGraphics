@@ -2438,7 +2438,7 @@
     // (A photo, when present, is drawn into the canvas and covers it.)
     canvas.classList.toggle('canvas-checker',
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
-    predDesignField.hidden = mode !== 'prediction';
+    predOptsField.hidden = mode !== 'prediction';
     batchField.hidden = mode !== 'prediction' && mode !== 'match';
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
@@ -2776,18 +2776,15 @@
   }
 
   // ---------- Prediction story: "Who takes the win?" ----------
-  // Same announcement layout as Match (teams, mark, time, date, footer) with three backdrop/headline designs:
-  //   1 = big corner chevrons in the team colours, 2 = diagonal colour split with room for the poll sticker,
-  //   3 = giant team codes as typography. The chosen design is remembered per browser.
+  // Same announcement layout as Match (teams, mark, time, date, footer) with the club codes as giant
+  // background typography, a SHL-style label (accent bar + bold text) and a free zone for a poll sticker.
   const PRED_ACCENT = { men: '#caff1c', women: '#e34fff' };
-  let predDesign = 1;
-  try { predDesign = parseInt(localStorage.getItem('pred-design') || '1', 10) || 1; } catch (e) { /* ignore */ }
   let predGuide = true;   // dashed poll-sticker zone; always off in exports
   const predText = (k, d) => (window.SETTINGS ? SETTINGS.text(k, d) : d);
 
-  // The headline always sits at the top; y 640-1040 stays empty for an Instagram poll sticker
+  // The headline always sits at the top; y 690-1000 stays empty for an Instagram poll sticker
   // (the match cards start at y 1154).
-  const PRED_POLL = { x: 120, y: 650, w: 840, h: 380 };
+  const PRED_POLL = { x: 200, y: 690, w: 680, h: 310 };
   // Dark club colours (e.g. SEW, VEN) vanish on the navy background, so lift them to a minimum brightness.
   function predVivid(hex) {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
@@ -2800,31 +2797,16 @@
   function predictionBackdrop(W, H, homeColor, awayColor, homeCode, awayCode) {
     homeColor = predVivid(homeColor); awayColor = predVivid(awayColor);
     ctx.save();
-    if (predDesign === 1) {
-      const big = 2.7;
-      drawSmCardChevron(ctx, 36, 230, true, homeColor, big, 0.92);
-      drawSmCardChevron(ctx, W - 36, 430, false, awayColor, big, 0.92);
-      drawSmCardChevron(ctx, 36, H - 300, true, homeColor, big * 0.8, 0.5);
-      drawSmCardChevron(ctx, W - 36, H - 40, false, awayColor, big * 0.8, 0.5);
-    } else if (predDesign === 2) {
-      ctx.globalAlpha = 0.24;
-      ctx.fillStyle = homeColor; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(0, H * 0.62); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = awayColor; ctx.beginPath(); ctx.moveTo(W, H * 0.38); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.lineTo(0, H * 0.62); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha = 1;
-      drawSmCardChevron(ctx, 36, 330, true, homeColor, 1.7, 0.9);
-      drawSmCardChevron(ctx, W - 36, H - 260, false, awayColor, 1.7, 0.9);
-    } else {
-      const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
-      const draw = (code, color, align, x, y) => {
-        ctx.font = `800 470px "${fontFamily}"`;
-        const w = ctx.measureText(code).width, px = w > W - 60 ? 470 * (W - 60) / w : 470;
-        ctx.font = `800 ${px}px "${fontFamily}"`; ctx.textAlign = align; ctx.fillStyle = color; ctx.fillText(code, x, y);
-      };
-      ctx.globalAlpha = 0.22; ctx.textBaseline = 'alphabetic';
-      draw(homeCode || '', homeColor, 'left', 24, 470);
-      draw(awayCode || '', awayColor, 'right', W - 24, H - 330);
-      ctx.globalAlpha = 1;
-    }
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const draw = (code, color, align, x, y) => {
+      ctx.font = `800 470px "${fontFamily}"`;
+      const w = ctx.measureText(code).width, px = w > W - 60 ? 470 * (W - 60) / w : 470;
+      ctx.font = `800 ${px}px "${fontFamily}"`; ctx.textAlign = align; ctx.fillStyle = color; ctx.fillText(code, x, y);
+    };
+    ctx.globalAlpha = 0.22; ctx.textBaseline = 'alphabetic';
+    draw(homeCode || '', homeColor, 'left', 24, 470);
+    draw(awayCode || '', awayColor, 'right', W - 24, H - 330);
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
   function predictionHeadline(W, cardsTop, accent) {
@@ -2839,32 +2821,24 @@
     ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = '#ffffff'; ctx.fillText(l1, W / 2, b1);
     ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
     ctx.shadowColor = 'transparent';
-    ctx.font = `700 30px "${fontFamily}"`; ctx.letterSpacing = '6px';
-    const tw = ctx.measureText(tag).width + 64, ty = b1 - 215;
-    ctx.fillStyle = accent; roundedRectPath(ctx, (W - tw) / 2, ty, tw, 62, 31); ctx.fill();
-    ctx.fillStyle = compKey === 'women' ? '#ffffff' : '#14142b'; ctx.fillText(tag, W / 2 + 3, ty + 43);
+    // SHL-style label: accent bar + bold caps (same as the "TOP SCORER" label)
+    ctx.font = `700 44px "${fontFamily}"`; ctx.textAlign = 'left';
+    const lw = 10 + 24 + ctx.measureText(tag).width, lx = (W - lw) / 2, ly = b1 - 175;
+    ctx.fillStyle = accent; ctx.fillRect(lx, ly - 52, 10, 66);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(tag, lx + 34, ly);
     if (predGuide) {   // marks the free spot for the Instagram poll sticker
       const P = PRED_POLL;
       ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.55)';
       roundedRectPath(ctx, P.x, P.y, P.w, P.h, 36); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2 + 9);
     }
     ctx.restore();
   }
 
-  const predDesignField = document.getElementById('predDesignField');
+  const predOptsField = document.getElementById('predOptsField');
   const predGuideToggle = document.getElementById('predGuideToggle');
-  function syncPredDesignTabs() {
-    document.querySelectorAll('.pred-design-tab').forEach(b => b.classList.toggle('active', +b.dataset.predDesign === predDesign));
-  }
-  document.querySelectorAll('.pred-design-tab').forEach(b => b.addEventListener('click', () => {
-    predDesign = +b.dataset.predDesign;
-    try { localStorage.setItem('pred-design', String(predDesign)); } catch (e) { /* ignore */ }
-    syncPredDesignTabs(); render();
-  }));
   predGuideToggle.addEventListener('change', () => { predGuide = predGuideToggle.checked; render(); });
-  syncPredDesignTabs();
 
   function renderSingleMatch() {
     if (mode === 'playerweek') { renderPlayerWeek(); return; }

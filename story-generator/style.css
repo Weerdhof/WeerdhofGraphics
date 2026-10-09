@@ -130,7 +130,7 @@ html, body {
   opacity: 0.7;
 }
 
-.mode-tab, .competition-tab, .smw-format-tab, .pred-design-tab {
+.mode-tab, .competition-tab, .smw-format-tab {
   flex: 1;
   min-width: 72px;
   padding: 9px 0;
@@ -147,7 +147,7 @@ html, body {
   z-index: 1;
 }
 
-.mode-tab.active, .competition-tab.active, .smw-format-tab.active, .pred-design-tab.active {
+.mode-tab.active, .competition-tab.active, .smw-format-tab.active.active {
   background: var(--accent);
   color: #10240a;
 }
@@ -159,7 +159,7 @@ html, body {
 }
 .app.theme-women .mode-tab.active,
 .app.theme-women .competition-tab.active,
-.app.theme-women .smw-format-tab.active, .app.theme-women .pred-design-tab.active {
+.app.theme-women .smw-format-tab.active {
   color: #2b0733;
 }
 
@@ -839,9 +839,9 @@ body:not(.menu-open) .home-ticker { display: none; }
 .step-num { border-radius: 2px; color: #1a1b38; font-family: "ClashDisplay", sans-serif; width: 22px; height: 22px; }
 .app.theme-women .step-num { color: #2a1148; }
 .mode-tabs { border-radius: 4px; background: rgba(0,0,0,.28); }
-.mode-tab, .competition-tab, .smw-format-tab, .pred-design-tab { border-radius: 2px; font-family: "ClashDisplay", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
-.mode-tab.active, .competition-tab.active, .smw-format-tab.active, .pred-design-tab.active { color: #1a1b38; }
-.app.theme-women .mode-tab.active, .app.theme-women .competition-tab.active, .app.theme-women .smw-format-tab.active, .app.theme-women .pred-design-tab.active { color: #2a1148; }
+.mode-tab, .competition-tab, .smw-format-tab { border-radius: 2px; font-family: "ClashDisplay", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+.mode-tab.active, .competition-tab.active, .smw-format-tab.active.active { color: #1a1b38; }
+.app.theme-women .mode-tab.active, .app.theme-women .competition-tab.active, .app.theme-women .smw-format-tab.active { color: #2a1148; }
 .mode-group-label, .field-row-label label { font-family: "ClashDisplay", sans-serif; letter-spacing: .08em; }
 select, input[type="text"], .paste-field textarea { border-radius: 4px; }
 .btn { border-radius: 4px; }
