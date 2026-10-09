@@ -62,7 +62,7 @@
 
   const GO = {
     men: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speler van de week'], ['ranking', '📈', 'Ranking']],
-    women: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['playerweek', '⭐', 'Speelster van de week'], ['ranking', '📈', 'Ranking']],
+    women: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speelster van de week'], ['ranking', '📈', 'Ranking']],
   };
   const chips = (list, prefix) => list.map(([id, icon, label]) => `<button type="button" class="dash-chip" data-dash-go="${prefix}:${id}"><span>${icon}</span>${esc(label)}</button>`).join('');
 

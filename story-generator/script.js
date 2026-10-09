@@ -1778,12 +1778,6 @@
       competitionTabs.forEach(b => b.classList.toggle('active', b === btn));
       appEl.classList.toggle('theme-women', compKey === 'women');
       refreshCheckButtonLabels();
-      // Top scorer only exists for Mannen — fall back to Matchresult.
-      if (compKey === 'women' && mode === 'topscorer') {
-        mode = 'matchresult';
-        modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-        updateHint();
-      }
       // Match/Matchresult exist for both competitions now, each with its
       // own canvas size and fixture list — resize and reload rather than
       // bailing back to Results.
@@ -2913,7 +2907,14 @@
 
   function tsDrawCrest(img, cx, cy, size) {
     if (!img || !img.complete || !img.naturalWidth) return;
+    ctx.save();
+    if (compKey === 'women') {   // the women's crops come from rounded cards: cut the corners (transparent + a bit of stripe)
+      const h = size * CREST_H / CREST_W;
+      roundedRectPath(ctx, cx - size / 2, cy - h / 2, size, h, size * 0.22);
+      ctx.clip();
+    }
     ctx.drawImage(img, CREST_X_LEFT, CREST_Y, CREST_W, CREST_H, cx - size / 2, cy - size / 2, size, size * CREST_H / CREST_W);
+    ctx.restore();
   }
 
   // Club crest in its white square. Static = just the crest. In the animation
@@ -2992,15 +2993,21 @@
   }
 
   function renderTopScorer() {
-    const W = TS_W, H = TS_H, L = TS_MARGIN, R = W - TS_MARGIN;
+    const W = TS_W, H = TS_H, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
+    // Mannen: dark navy. Vrouwen: white with the women's magenta, like Speelster van de week / Results.
+    const TT = women
+      ? { bg: '#ffffff', text: '#1a1b38', strip: '#f3f1fa', frame: '#ebe6f7', fade: '255, 255, 255', phA: '#ecd3fa', phB: '#ffffff', phInk: '#1a1b38',
+          logo: 'assets/women/footer-logo-women.png', chevA: 0.3, accent: '#c93cf0', tag: true, labelA: 'TOPSCORER', labelB: 'VAN DE WEDSTRIJD' }
+      : { bg: COMPETITIONS.men.bgColor, text: '#fff', strip: '#fff', frame: '#fff', fade: '26, 27, 56', phA: '#3a3c6e', phB: '#14152e', phInk: '#fff',
+          logo: 'assets/footer-logo.png', chevA: 0.9, accent: null, tag: false, labelA: 'TOP SCORER', labelB: 'OF THE MATCH' };
     ctx.clearRect(0, 0, W, H);
     if (!transparentBg) {
-      ctx.fillStyle = COMPETITIONS.men.bgColor;
+      ctx.fillStyle = TT.bg;
       ctx.fillRect(0, 0, W, H);
     }
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     const code = smState.tsSide === 'away' ? smState.away : smState.home;
-    const col = SM_TEAM_COLORS[code] || '#d2ddf2';
+    const col = (women ? SMW_TEAM_COLORS : SM_TEAM_COLORS)[code] || (women ? '#d07af0' : '#d2ddf2');
     const ink = tsInkFor(col);
     const navyInk = '#1b2450';
 
@@ -3042,23 +3049,23 @@
       drawBgPhotoCover(ctx, bgPhotoImg);
     } else {
       const g = ctx.createLinearGradient(0, 0, 0, photoH);
-      g.addColorStop(0, '#3a3c6e'); g.addColorStop(1, '#14152e');
+      g.addColorStop(0, TT.phA); g.addColorStop(1, TT.phB);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, photoH);
-      ctx.fillStyle = '#14152e'; ctx.fillRect(0, photoH, W, H - photoH);
+      ctx.fillStyle = TT.phB; ctx.fillRect(0, photoH, W, H - photoH);
       ctx.save();
-      ctx.font = `500 28px "${fontFamily}"`; ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.35;
-      ctx.textAlign = 'center'; ctx.fillText('SPELERSFOTO', W / 2, 60);
+      ctx.font = `500 28px "${fontFamily}"`; ctx.fillStyle = TT.phInk; ctx.globalAlpha = 0.35;
+      ctx.textAlign = 'center'; ctx.fillText(women ? 'SPEELSTERFOTO' : 'SPELERSFOTO', W / 2, 60);
       ctx.restore();
     }
     const fade = ctx.createLinearGradient(0, 470, 0, photoH);
-    fade.addColorStop(0, 'rgba(26, 27, 56, 0)');
-    fade.addColorStop(1, 'rgba(26, 27, 56, 1)');
+    fade.addColorStop(0, `rgba(${TT.fade}, 0)`);
+    fade.addColorStop(1, `rgba(${TT.fade}, 1)`);
     ctx.save();
-    ctx.globalAlpha = restAlpha;
+    ctx.globalAlpha = women ? 1 : restAlpha;   // women: the white fade is there from the first frame (the navy name needs it)
     ctx.fillStyle = fade;
     ctx.fillRect(0, 470, W, photoH - 470);
     if (!transparentBg) {
-      ctx.fillStyle = COMPETITIONS.men.bgColor;
+      ctx.fillStyle = TT.bg;
       ctx.fillRect(0, photoH, W, H - photoH);
     }
     ctx.restore();
@@ -3066,26 +3073,35 @@
     // big chevron out of the bottom-left corner, behind everything else
     // (the logo always stays on top).
     if (elapsed == null) {
-      drawSmCardChevron(ctx, 40, 1290, true, col, TS_CHEVRON_STATIC, 0.9);
+      drawSmCardChevron(ctx, 40, 1290, true, col, TS_CHEVRON_STATIC, TT.chevA);
     } else if (chevElapsed != null) {
       const chev = smChevronState(chevElapsed);
-      drawSmCardChevron(ctx, 40, 1290, true, col, TS_CHEVRON_ANIM * chev.scale, 0.9 * chev.opacity);
+      drawSmCardChevron(ctx, 40, 1290, true, col, TS_CHEVRON_ANIM * chev.scale, TT.chevA * chev.opacity);
     }
 
     // label
     ctx.save(); ctx.globalAlpha = restAlpha;
-    ctx.fillStyle = col; ctx.fillRect(L, 95, 10, 78);
-    tsInkText('TOP SCORER', L + 34, 130, `700 44px "${fontFamily}"`, '#fff');
-    tsInkText('OF THE MATCH', L + 34, 168, `500 30px "${fontFamily}"`, '#fff', 'left', 0.8);
+    if (TT.tag) {
+      // women: a magenta tag (legible on any photo), same two lines
+      ctx.font = `700 44px "${fontFamily}"`; const tw1 = ctx.measureText(TT.labelA).width;
+      ctx.font = `500 30px "${fontFamily}"`; const tw2 = ctx.measureText(TT.labelB).width;
+      ctx.fillStyle = TT.accent; ctx.fillRect(L, 95, Math.max(tw1, tw2) + 60, 86);
+      tsInkText(TT.labelA, L + 30, 138, `700 44px "${fontFamily}"`, '#fff');
+      tsInkText(TT.labelB, L + 30, 170, `500 30px "${fontFamily}"`, '#fff', 'left', 0.9);
+    } else {
+      ctx.fillStyle = col; ctx.fillRect(L, 95, 10, 78);
+      tsInkText(TT.labelA, L + 34, 130, `700 44px "${fontFamily}"`, TT.text);
+      tsInkText(TT.labelB, L + 34, 168, `500 30px "${fontFamily}"`, TT.text, 'left', 0.8);
+    }
     ctx.restore();
 
     // player name
     const first = (smState.tsFirst || '').toUpperCase();
     const last = (smState.tsLast || '').toUpperCase();
-    if (first) tsInkText(first, L, 620, `500 60px "${fontFamily}"`, '#fff', 'left', 0.85);
+    if (first) tsInkText(first, L, 620, `500 60px "${fontFamily}"`, TT.text, 'left', 0.85);
     if (last) {
       const px = tsFitFont(last, 700, 128, R - L, fontFamily);
-      tsInkText(last, L, 725, `700 ${px}px "${fontFamily}"`, '#fff');
+      tsInkText(last, L, 725, `700 ${px}px "${fontFamily}"`, TT.text);
     }
 
     // goals tile + the player's club
@@ -3098,7 +3114,7 @@
     const labelW = ctx.measureText('GOALS').width;
     ctx.restore();
     const tw = Math.max(360, Math.ceil(pad + numW + 36 + labelW + pad));
-    ctx.fillStyle = '#fff'; ctx.fillRect(L, ty, tw, th);
+    ctx.fillStyle = TT.frame; ctx.fillRect(L, ty, tw, th);
     // chevron inside the white frame, masked to it; the color fill below
     // then covers it (same color), so it reads as the chevron flooding the tile
     if (tileAfter >= 0 && tileMix < 1) {
@@ -3133,23 +3149,25 @@
     ctx.save(); ctx.globalAlpha = restAlpha;
     const clubX = L + tw + 24;
     ctx.fillStyle = '#fff'; ctx.fillRect(clubX, ty, th, th);
-    tsDrawClubCrest(code ? loadImg(`assets/teams/${code}.png`) : null, clubX, ty, th, col, clubT);
+    if (women) { ctx.save(); ctx.strokeStyle = 'rgba(26,27,56,0.12)'; ctx.lineWidth = 2; ctx.strokeRect(clubX, ty, th, th); ctx.restore(); }
+    tsDrawClubCrest(code ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(code)}.png`) : null, clubX, ty, th, col, clubT);
     const textX = clubX + th + 28, textMaxW = R - textX;
     if (code) {
       // Club name only (no code), as big as fits; wraps onto two lines when too long.
-      const full = (SM_TEAM_NAMES[code] || code).toUpperCase();
+      const full = (pwClubNames()[code] || code).toUpperCase();
       const lines = tsFitClubName(full, textMaxW, fontFamily);
       const lh = lines.px * 1.08;
       const first = ty + th / 2 - ((lines.rows.length - 1) * lh) / 2 + lines.px * 0.35;
-      lines.rows.forEach((row, i) => tsInkText(row, textX, first + i * lh, `700 ${lines.px}px "${fontFamily}"`, '#fff'));
+      lines.rows.forEach((row, i) => tsInkText(row, textX, first + i * lh, `700 ${lines.px}px "${fontFamily}"`, TT.text));
     }
     ctx.restore();
 
     ctx.save(); ctx.globalAlpha = restAlpha;
     // match strip on the same margins
-    ctx.fillStyle = '#fff'; ctx.fillRect(L, 955, R - L, 110);
-    tsDrawCrest(smState.home ? loadImg(`assets/teams/${smState.home}.png`) : null, L + 75, 1010, 76);
-    tsDrawCrest(smState.away ? loadImg(`assets/teams/${smState.away}.png`) : null, R - 75, 1010, 76);
+    ctx.fillStyle = TT.strip; ctx.fillRect(L, 955, R - L, 110);
+    const stripCrest = (c) => c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(c)}.png`) : null;
+    tsDrawCrest(stripCrest(smState.home), L + 75, 1010, 76);
+    tsDrawCrest(stripCrest(smState.away), R - 75, 1010, 76);
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = navyInk;
     ctx.font = `600 22px "${fontFamily}"`; ctx.globalAlpha = 0.55 * restAlpha;
@@ -3162,11 +3180,11 @@
     ctx.restore();
 
     // Coinmerce logo: bigger, centered in the clear space under the strip
-    const footerImg = loadImg('assets/footer-logo.png');
+    const footerImg = loadImg(TT.logo);
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
       const lw = 560, lh = lw * footerImg.naturalHeight / footerImg.naturalWidth;
       ctx.save();
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowColor = women ? 'transparent' : 'rgba(0, 0, 0, 0.25)';
       ctx.shadowBlur = 10;
       ctx.shadowOffsetY = 3;
       ctx.drawImage(footerImg, (W - lw) / 2, 1065 + (H - 1065 - lh) / 2, lw, lh);
@@ -4311,7 +4329,6 @@
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
     refreshCheckButtonLabels();
-    if (savedState.mode === 'topscorer' && compKey !== 'men') savedState.mode = 'matchresult';
     const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
@@ -4553,7 +4570,6 @@
     const tagline = homeMenu.querySelector('.home-head p'); if (tagline) tagline.textContent = menuComp === 'dash' ? 'Stand van zaken' : 'Wat wil je maken?';
     if (window.DASH) { if (menuComp === 'dash') lastTickerReady = window.DASH.show(); else window.DASH.hide(); }
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
-    homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
     if (logo) logo.setAttribute('src', menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
