@@ -2833,7 +2833,7 @@
     // the women's story is in Dutch, the men's in English
     const nl = compKey === 'women', k = nl ? 'pr.w.' : 'pr.';
     const l1 = predText(k + 'l1', nl ? 'Wie pakt' : 'Who takes').toUpperCase(), l2 = predText(k + 'l2', nl ? 'de winst?' : 'the win?').toUpperCase();
-    const b2 = barTop - 120, b1 = b2 - 158;
+    const b2 = barTop - 120, b1 = b2 - 136;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     if (!light) { ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6; }
