@@ -10,6 +10,10 @@
     women: [['DSVD', 'DSVD'], ['E&O', 'Oosting/E&O'], ['FOR', 'HV Foreholte'], ['KWI', 'Zwartwoud/Kwiek'], ['MHV', "M.H.V. '81"], ['PSV', 'Hypotheekvisie/PSV'], ['QUI', 'Drive in Units/Quintus'], ['SEW', 'Westfriesland/SEW'], ['V&L', 'Geonius/V&L'], ['VEN', 'Cabooter/Fortes Venlo'], ['VOC', 'Ruitenheer/VOC'], ['VOL', 'Garage Kil/Volendam'], ['VZV', 'Juro Unirek/VZV'], ['WPK', 'Westlandia']],
     womenExportCode: { 'E&O': 'ENO', FOR: 'FORE', VEN: 'FORV', 'V&L': 'VEL' },
     womenJpg: { DSVD: 'dsvd', 'E&O': 'e-o', FOR: 'foreholte', KWI: 'kwiek-r', MHV: 'mhv', PSV: 'psv-handbal', QUI: 'quintus', SEW: 'sew', 'V&L': 'vlug-en-lenig', VEN: 'fortes-venlo', VOC: 'voc', VOL: 'volendam', VZV: 'vzv', WPK: 'westlandia' },
+    aliases: {
+      men: { SAB: ['bocholt'], IZE: ['izegem'], EUP: ['eupen'], HCS: ['sprimont'], BEV: ['bevo'], PEL: ['pelt'], BWH: ['hercules', 'whc'], DFS: ['arnhem'], HUP: ['hurry'], HCV: ['vise', 'visé'], HVA: ['aalsmeer', 'royalfloraholland'], HUB: ['hubo'], VOL: ['volendam'], TAC: ['tachos', 'mossel', 'witte ster'] },
+      women: { DSVD: ['dsvd', 'aqqo'], 'E&O': ['misker', 'oosting'], FOR: ['foreholte'], KWI: ['kwiek'], MHV: ['m.h.v'], PSV: ['hypotheekvisie', 'eindhoven'], QUI: ['quintus'], SEW: ['westfriesland'], 'V&L': ['geonius'], VEN: ['venlo', 'cabooter'], VOC: ['ruitenheer'], VOL: ['volendam'], VZV: ['juro'], WPK: ['westlandia'] },
+    },
     hnlCode: { artemis: 'ART', bfc: 'BFC', bevo: 'BEV', 'dfs-arnhem': 'DFS', dsvd: 'DSVD', dws: 'DWS', dalfsen: 'DAL', dynamico: 'DYN', 'e-o': 'OEO', foreholte: 'FORE', 'fortes-venlo': 'VEN', fortissimo: 'FTS', 'handbal-aalsmeer': 'HVA', hellas: 'HEL', hercules: 'BWH', houten: 'HOU', 'hurry-up': 'HUP', 'kwiek-r': 'KWI', mhv: 'MHV', 'psv-handbal': 'PSV', quintus: 'QUI', 'rotterdam-handbal': 'ROT', sew: 'SEW', tachos: 'TAC', us: 'USH', unitas: 'UNI', velo: 'VEL', voc: 'VOC', vvw: 'VVW', vzv: 'VZV', 'vlug-en-lenig': 'VEL', volendam: 'VOL', westlandia: 'WPK', zap: 'ZAP', zvbb21: 'ZVB' },
     texts: [
       ['th.title', 'Thumbnails SHL/SHLW — titel onderin', 'Livestream'],

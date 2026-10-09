@@ -4105,7 +4105,8 @@
   // ---------- Home menu (start page) ----------
   const homeMenu = document.getElementById('homeMenu');
   const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
-  var menuComp = compKey;   // var: renderOverviewMeta can run during early init (render)
+  var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
+  var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
 
   var homeTarget = menuComp;
   // The ticker iframe tells us when its first frame is drawn, so the transition can wait for it.
@@ -4118,13 +4119,16 @@
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
     homeMenu.classList.toggle('theme-hnl', menuComp === 'hnl');
     homeMenu.classList.toggle('theme-th', menuComp === 'th');
+    homeMenu.classList.toggle('theme-dash', menuComp === 'dash');
+    const tagline = homeMenu.querySelector('.home-head p'); if (tagline) tagline.textContent = menuComp === 'dash' ? 'Stand van zaken' : 'Wat wil je maken?';
+    if (window.DASH) { if (menuComp === 'dash') lastTickerReady = window.DASH.show(); else window.DASH.hide(); }
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="topscorer"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
     if (logo) logo.setAttribute('src', menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
     const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
-    if (menuComp !== 'hnl' && menuComp !== 'th' && tk && tk.getAttribute('src') !== tkSrc) {
+    if (menuComp !== 'hnl' && menuComp !== 'th' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
       lastTickerReady = new Promise(res => { tickerWaiter = { comp: menuComp, res }; setTimeout(res, 4500); });
       tk.setAttribute('src', tkSrc);
     }
@@ -4137,7 +4141,7 @@
     if (document.body.classList.contains('set-open') && window.SETUI) window.SETUI.close();
     if (fromHnl && window.HNL) window.HNL.close();
     if (fromTh && window.TH) window.TH.close();
-    menuComp = fromHnl ? 'hnl' : fromTh ? 'th' : compKey;
+    menuComp = lastHome || (fromHnl ? 'hnl' : fromTh ? 'th' : compKey);
     syncMenuComp();
     document.body.classList.remove('hnl-open', 'th-open', 'set-open');
     document.body.classList.add('menu-open');
@@ -4300,7 +4304,7 @@
       if (next === homeTarget) return;   // compare with where we are heading, not with the not-yet-swapped state
       homeTarget = next;
       // men -> women sweeps left to right in purple, women -> men back in SHL green
-      const order = { men: 0, women: 1, hnl: 2, th: 3 };
+      const order = { dash: 0, men: 1, women: 2, hnl: 3, th: 4 };
       navSweep(order[next] > order[menuComp] ? 'forward' : 'back', () => {
         menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
         return lastTickerReady;
@@ -4308,15 +4312,24 @@
     });
   });
   homeMenu.querySelectorAll('.menu-card[data-go-mode]').forEach(card => {
-    card.addEventListener('click', () => openAsset(menuComp, card.dataset.goMode, true));
+    card.addEventListener('click', () => { lastHome = menuComp; openAsset(menuComp, card.dataset.goMode, true); });
   });
   homeMenu.querySelectorAll('.menu-card[data-go-hnl]').forEach(card => {
-    card.addEventListener('click', () => navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')));
+    card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')); });
+  });
+  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff' };
+  // shortcuts on the dashboard
+  document.addEventListener('dash-go', (e) => {
+    const [group, id] = String(e.detail).split(':');
+    lastHome = 'dash';
+    if (group === 'men' || group === 'women') openAsset(group, id, true);
+    else if (group === 'hnl') navSweep('forward', () => openHnlNow(id), accentFor('hnl'));
+    else if (group === 'th') navSweep('forward', () => openThNow(id), TH_ACCENT[id] || accentFor('th'));
   });
   homeMenu.querySelectorAll('.menu-card[data-go-th]').forEach(card => {
-    card.addEventListener('click', () => navSweep('forward', () => openThNow(card.dataset.goTh), { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff' }[card.dataset.goTh] || accentFor('th')));
+    card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openThNow(card.dataset.goTh), TH_ACCENT[card.dataset.goTh] || accentFor('th')); });
   });
-  document.getElementById('openSettings').addEventListener('click', () => navSweep('forward', openSetNow, '#caff1c'));
+  document.getElementById('openSettings').addEventListener('click', () => { lastHome = menuComp; navSweep('forward', openSetNow, '#caff1c'); });
   document.getElementById('setBack').addEventListener('click', () => {
     if (history.state && history.state.editor) history.back(); else showMenu();
   });
@@ -4414,7 +4427,7 @@
 
   function loadOverview(force) {
     const key = menuComp;
-    if (key === 'hnl' || key === 'th') return;   // no site data for these tabs
+    if (key === 'hnl' || key === 'th' || key === 'dash') return;   // no site data for these tabs
     const e = overviewData[key];
     if (e && !e.error && !force && Date.now() - e.at < 60000) { renderOverview(); return; }
     if (!e) renderOverview();

@@ -85,7 +85,13 @@ def parse_women_standings(page):
         cells = re.findall(r'<td class="text-center(?: points)?">(.*?)</td>', tr, re.S)
         if not name or len(cells) < 2:
             continue
-        rows.append({"club": _clean(name.group(1)), "played": _clean(cells[0]), "points": _clean(cells[1])})
+        row = {"club": _clean(name.group(1)), "played": _clean(cells[0]), "points": _clean(cells[1])}
+        if len(cells) >= 8:
+            row.update({"w": _clean(cells[2]), "d": _clean(cells[3]), "l": _clean(cells[4]), "gf": _clean(cells[5]), "ga": _clean(cells[6]), "gd": _clean(cells[7])})
+        form = re.findall(r'<span class="(win|draw|loss|lose)"', tr)
+        if form:
+            row["form"] = ["w" if f == "win" else "d" if f == "draw" else "l" for f in form]
+        rows.append(row)
     return rows
 
 
@@ -271,7 +277,8 @@ def _fetch_standings(comp):
         return fetch_women_standings()
     cid = _men_competition_id()
     rows = sorted(_fetch_json(f"{MEN_API}/pool-standing/{cid}").get("data", []), key=lambda r: r.get("position") or 99)
-    return [{"club": r.get("name") or "", "played": str(r.get("games", "")), "points": str(r.get("points", ""))} for r in rows]
+    return [{"club": r.get("name") or "", "played": str(r.get("games", "")), "points": str(r.get("points", "")),
+             "w": str(r.get("wins", "")), "d": str(r.get("draws", "")), "l": str(r.get("losses", ""))} for r in rows]
 
 
 def _snapshot(d):

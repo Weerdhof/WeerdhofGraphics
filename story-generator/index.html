@@ -16,14 +16,22 @@
       <img class="home-logo" id="homeLogo" src="assets/footer-logo.png" alt="Coinmerce Super Handball League">
       <h1>SHL Visuals Dashboard</h1>
       <iframe id="homeTicker" class="home-ticker" title="Liveticker" tabindex="-1"></iframe>
-      <p>Wat wil je maken?</p>
+      <p>Stand van zaken</p>
     </div>
 
     <div class="home-comp" role="tablist">
-      <button class="home-comp-tab active" data-home-comp="men" type="button">Mannen</button>
+      <button class="home-comp-tab active" data-home-comp="dash" type="button">Dashboard</button>
+      <button class="home-comp-tab" data-home-comp="men" type="button">Mannen</button>
       <button class="home-comp-tab" data-home-comp="women" type="button">Vrouwen</button>
       <button class="home-comp-tab" data-home-comp="hnl" type="button">HandbalNL</button>
       <button class="home-comp-tab" data-home-comp="th" type="button">Thumbnails</button>
+    </div>
+
+    <div class="home-dash">
+      <h2 class="home-group">Dashboard</h2>
+      <div class="dash-panels" id="dashPanels"></div>
+      <h2 class="home-group">Meer visuals</h2>
+      <div class="dash-more" id="dashMore"></div>
     </div>
 
     <div class="home-shl">
@@ -487,8 +495,9 @@
 
 <div id="navWipe" class="nav-wipe boot"><img src="assets/vs-icon.png" alt=""></div>
 
-<script src="script.js"></script>
 <script src="settings.js"></script>
+<script src="dashboard.js"></script>
+<script src="script.js"></script>
 <script src="settings-ui.js"></script>
 <script src="hnl.js"></script>
 <script src="thumbs_scene.js"></script>
