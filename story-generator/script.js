@@ -2778,13 +2778,12 @@
   // ---------- Prediction story: "Who takes the win?" ----------
   // Same announcement layout as Match (teams, mark, time, date, footer) with the club codes as giant
   // background typography, a SHL-style label (accent bar + bold text) and a free zone for a poll sticker.
-  const PRED_ACCENT = { men: '#caff1c', women: '#e34fff' };
-  let predGuide = true;   // dashed poll-sticker zone; always off in exports
+    let predGuide = true;   // dashed poll-sticker zone; always off in exports
   const predText = (k, d) => (window.SETTINGS ? SETTINGS.text(k, d) : d);
 
-  // The headline always sits at the top; y 690-1000 stays empty for an Instagram poll sticker
+  // The headline always sits at the top; y 560-870 stays empty for an Instagram poll sticker
   // (the match cards start at y 1154).
-  const PRED_POLL = { x: 200, y: 690, w: 680, h: 310 };
+  const PRED_POLL = { x: 200, y: 560, w: 680, h: 310 };
   // Dark club colours (e.g. SEW, VEN) vanish on the navy background, so lift them to a minimum brightness.
   function predVivid(hex) {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
@@ -2809,31 +2808,25 @@
     ctx.globalAlpha = 1;
     ctx.restore();
   }
-  function predictionHeadline(W, cardsTop, accent) {
+  // The question sits in the middle of the match bar, where Match has the icon and the kick-off time.
+  function predictionHeadline(W, cx, cy, ink, accent) {
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     // the women's story is in Dutch, the men's in English
     const nl = compKey === 'women', k = nl ? 'pr.w.' : 'pr.';
-    const tag = predText(k + 'tag', nl ? 'Voorspelling' : 'Prediction').toUpperCase();
     const l1 = predText(k + 'l1', nl ? 'Wie pakt' : 'Who takes').toUpperCase(), l2 = predText(k + 'l2', nl ? 'de winst?' : 'the win?').toUpperCase();
-    const b2 = 520, b1 = b2 - 158;
     ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6;
-    const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > W - 140 ? px * (W - 140) / w : px; };
-    ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = '#ffffff'; ctx.fillText(l1, W / 2, b1);
-    ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
-    ctx.shadowColor = 'transparent';
-    // SHL-style label: accent bar + bold caps (same as the "TOP SCORER" label)
-    ctx.font = `700 44px "${fontFamily}"`; ctx.textAlign = 'left';
-    const lw = 10 + 24 + ctx.measureText(tag).width, lx = (W - lw) / 2, ly = b1 - 175;
-    ctx.fillStyle = accent; ctx.fillRect(lx, ly - 52, 10, 66);
-    ctx.fillStyle = '#ffffff'; ctx.fillText(tag, lx + 34, ly);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = 1;
+    const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > 300 ? px * 300 / w : px; };
+    const px = Math.min(fit(l1, 52), fit(l2, 52));
+    ctx.font = `700 ${px}px "${fontFamily}"`;
+    ctx.fillStyle = ink; ctx.fillText(l1, cx, cy - px * 0.58);
+    ctx.fillStyle = accent; ctx.fillText(l2, cx, cy + px * 0.58);
     if (predGuide) {   // marks the free spot for the Instagram poll sticker
       const P = PRED_POLL;
       ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.55)';
       roundedRectPath(ctx, P.x, P.y, P.w, P.h, 36); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2 + 9);
+      ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2);
     }
     ctx.restore();
   }
@@ -3331,7 +3324,7 @@
     }
 
     const mark = loadImg('assets/singlematch/mark.png');
-    if (mark && mark.complete && mark.naturalWidth) {
+    if (mode !== 'prediction' && mark && mark.complete && mark.naturalWidth) {
       const smElapsed = smCycleElapsed();
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
@@ -3376,7 +3369,7 @@
         ctx.textAlign = 'center';
         ctx.globalAlpha = 1;
       }
-    } else {
+    } else if (mode !== 'prediction') {
       ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
       ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
     }
@@ -3386,7 +3379,7 @@
       ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, L.teamY, PRED_ACCENT.men);
+    if (mode === 'prediction') predictionHeadline(L.canvasW, SM_CENTER_X, L.timeY, SM_TEXT_COLOR, SM_TEXT_COLOR);
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
@@ -3469,7 +3462,7 @@
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
-    if (mark && mark.complete && mark.naturalWidth) {
+    if (mode !== 'prediction' && mark && mark.complete && mark.naturalWidth) {
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
       if (iconScale !== 1) {
@@ -3517,7 +3510,7 @@
         ctx.textAlign = 'center';
         ctx.globalAlpha = 1;
       }
-    } else {
+    } else if (mode !== 'prediction') {
       ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
       ctx.fillText(smState.time || '', L.centerX, L.timeY);
     }
@@ -3540,7 +3533,7 @@
       ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, L.teamLeft.y, PRED_ACCENT.women);
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.centerX, L.timeY, SM_TEXT_COLOR, '#b81fd9');
 
     const footerImg = loadImg('assets/women/singlematch/footer-white.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
