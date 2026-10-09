@@ -3875,7 +3875,7 @@
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       // Prediction without the kick-off time: the icon grows and takes the time's spot, centred in the bar
       let mx = L.mark.x, my = L.mark.y, mw = L.mark.w, mh = L.mark.h;
-      if (mode === 'prediction' && !predShowTime) { mw *= 1.3; mh *= 1.3; mx = SM_CENTER_X - mw / 2; my = L.timeY - 28 - mh / 2; }
+      if (mode === 'prediction' && !predShowTime) { mw *= 1.6; mh *= 1.6; mx = SM_CENTER_X - mw / 2; my = L.timeY - 28 - mh / 2; }
       const mcx = mx + mw / 2, mcy = my + mh / 2;
       if (iconScale !== 1) {
         ctx.save();
@@ -4018,7 +4018,7 @@
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       // Prediction without the kick-off time: the icon grows and takes the time's spot, centred in the bar
       let mx = L.mark.x, my = L.mark.y, mw = L.mark.w, mh = L.mark.h;
-      if (mode === 'prediction' && !predShowTime) { mw *= 1.3; mh *= 1.3; mx = L.centerX - mw / 2; my = L.bar.y + L.bar.h / 2 - 16 - mh / 2; }
+      if (mode === 'prediction' && !predShowTime) { mw *= 1.6; mh *= 1.6; mx = L.centerX - mw / 2; my = L.bar.y + L.bar.h / 2 - 16 - mh / 2; }
       const mcx = mx + mw / 2, mcy = my + mh / 2;
       if (iconScale !== 1) {
         ctx.save();
