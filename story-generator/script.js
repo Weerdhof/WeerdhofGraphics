@@ -3217,11 +3217,11 @@
     return { games, gf, ga, n: games.length, pos: idx + 1, row };
   }
 
-  // Head to head animation (6.5 s): glows + corner chevrons sweep in, label bar grows, the two crest tiles slide in
+  // Head to head animation (15 s, most of it holding the finished graphic): glows + corner chevrons sweep in, label bar grows, the two crest tiles slide in
   // from the sides with a bounce while VS pops, names rise, standing tiles wipe in and count up, the result rows
   // stagger in (scores count up, W/D/L squares pop), the previous-meeting strip opens. The logo is there from the start. Then it holds
   // with a VS heartbeat and breathing chevrons. With the animation off (el == null) every progress is 1 = static design.
-  const H2H_CLIP_MS = 6500;
+  const H2H_CLIP_MS = 15000;
   function renderHeadToHead() {
     const W = 1080, H = 1920, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
@@ -3249,7 +3249,7 @@
     const clamp01 = (v) => Math.max(0, Math.min(1, v));
     const prog = (start, dur) => el == null ? 1 : clamp01((el - start) / dur);
     const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-    const easeBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+    const easeBack = (t) => { const c1 = 0.55, c3 = c1 + 1; /* gentle overshoot */ return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
     let gA = 1;   // alpha of the group being drawn, for text that sets its own alpha
     const group = (alpha, dx, dy, fn) => {
       if (alpha <= 0.001) return;
@@ -3271,7 +3271,7 @@
     const eG = easeOut(prog(0, 800));
     glow(0, 0, 800, show(colH), (women ? 0.22 : 0.4) * eG); glow(W, 0, 800, show(colA), (women ? 0.22 : 0.4) * eG);
     {
-      const e = easeOut(prog(0, 1000)), breathe = el == null ? 1 : 1 + 0.06 * Math.sin(el / 3000 * 2 * Math.PI), out = (1 - e) * 280;
+      const e = easeOut(prog(0, 1000)), breathe = el == null ? 1 : 1 + 0.03 * Math.sin(el / 3000 * 2 * Math.PI), out = (1 - e) * 280;
       drawSmCardChevron(ctx, 30 - out, H - 50 + out * 0.6, true, show(colH), 1.4 * breathe, T.chev * e);
       drawSmCardChevron(ctx, W - 30 + out, H - 50 + out * 0.6, false, show(colA), 1.4 * breathe, T.chev * e);
     }
@@ -3327,7 +3327,7 @@
       const e = easeOut(prog(1250, 500));
       group(e, 0, 34 * (1 - e), () => { nameBlock(home, L, 'left'); nameBlock(away, R, 'right'); });
       // VS pops in with a bounce, then beats like the icon in the other animations
-      const ev = easeBack(prog(1000, 550)), sc = Math.max(0.001, ev) * (1 + 0.12 * loopBump(1800, 3000, 0.22));
+      const ev = easeBack(prog(1000, 550)), sc = Math.max(0.001, ev) * (1 + 0.05 * loopBump(1800, 3000, 0.22));
       group(clamp01(prog(1000, 200) * 0.7), 0, 0, () => {
         const cy = heroY + tile / 2 + 34 - 34;
         ctx.translate(W / 2, cy); ctx.scale(sc, sc); ctx.translate(-W / 2, -cy);
@@ -3339,7 +3339,7 @@
     // standing tiles in the club colours: wipe in from the outside, numbers count
     const sy = 800, sh = 110, sw = 420;
     const standTile = (x, col, t, fromLeft) => {
-      const e = easeOut(prog(1700, 600)), ec = easeOut(prog(1800, 900));
+      const e = easeOut(prog(1700, 600)), ep = easeOut(prog(1800, 800)), er = easeOut(prog(2700, 700)), ar = prog(2700, 250);
       if (e <= 0) return;
       ctx.save();
       ctx.beginPath();
@@ -3347,14 +3347,17 @@
       ctx.clip();
       ctx.fillStyle = col; ctx.fillRect(x, sy, sw, sh);
       const ink = tsInkFor(col);
-      const posShown = t.pos ? Math.round(t.pos + (1 - ec) * 12) : null;
+      // the points come first, then the position in the table
+      const posShown = t.pos ? Math.round(t.pos + (1 - er) * 12) : null;
+      ctx.save(); ctx.globalAlpha *= ar;
       tsInkText(posShown != null ? `#${posShown}` : '–', x + 28, sy + 82, `700 76px "${fontFamily}"`, ink);
+      ctx.restore();
       if (t.row) {
-        const pv = parseInt(t.row.points, 10), shown = isNaN(pv) ? t.row.points : Math.round(pv * ec);
+        const pv = parseInt(t.row.points, 10), shown = isNaN(pv) ? t.row.points : Math.round(pv * ep);
         tsInkText(`${shown} ${tx.pts}`, x + sw - 28, sy + 52, `700 38px "${fontFamily}"`, ink, 'right');
       }
       if (t.row && t.row.w !== undefined) {
-        ctx.globalAlpha = prog(2300, 300);
+        ctx.globalAlpha = prog(3000, 300);
         tsInkText(`${t.row.w}W  ${t.row.d}D  ${t.row.l}L`, x + sw - 28, sy + 88, `500 24px "${fontFamily}"`, ink, 'right', 0.85);
       }
       ctx.restore();
@@ -3362,7 +3365,7 @@
     standTile(L, colH, A, true); standTile(R - sw, colA, B, false);
 
     // last 3 results, one column per club
-    group(easeOut(prog(2300, 300)), 0, 0, () => {
+    group(easeOut(prog(3100, 300)), 0, 0, () => {
       ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.text; ctx.globalAlpha = gA * 0.6; ctx.font = `600 26px "${fontFamily}"`;
       ctx.fillText(tx.last, W / 2, 964); ctx.restore();
     });
@@ -3373,7 +3376,7 @@
     const resultCol = (x, t, mirror) => {
       for (let i = 0; i < N; i++) {
         const y = rowsY + i * (rowH + rowGap), g = t.games[i];
-        const t0 = 2450 + i * 220, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
+        const t0 = 3250 + i * 220, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
         const dx = (mirror ? 1 : -1) * (1 - e) * 220;
         group(a, dx, 0, () => {
           ctx.fillStyle = T.strip; ctx.fillRect(x, y, colW, rowH);
@@ -3395,7 +3398,7 @@
     // previous meeting this season: the strip opens from the middle
     const pmY = rowsY + N * (rowH + rowGap) + 22, pmH = 130;
     {
-      const e = easeOut(prog(3350, 550)), ec = easeOut(prog(3650, 600)), ac = prog(3650, 300);
+      const e = easeOut(prog(4350, 550)), ec = easeOut(prog(4650, 600)), ac = prog(4650, 300);
       if (e > 0) {
         ctx.save();
         ctx.beginPath(); ctx.rect(L, pmY + pmH * (1 - e) / 2, R - L, pmH * e); ctx.clip();
