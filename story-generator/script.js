@@ -884,7 +884,16 @@
     return { key: dateKey(full), full, short: shortFromFull(full) };
   }
   function computeResultDateMode() {
-    if (!showDates || mode !== 'results') return { mode: 'none' };
+    if (!showDates) return { mode: 'none' };
+    if (mode === 'schedule') {
+      // Story: one day -> a date bar under the title; several days -> the date on each row (Post has its own logic)
+      const shown = visibleMatches();
+      if (!shown.length) return { mode: 'none' };
+      const infos = shown.map(scheduleDateInfo);
+      if (new Set(infos.map(i => i.key)).size > 1) return { mode: 'rows' };
+      return { mode: 'header', text: infos[0].full };
+    }
+    if (mode !== 'results') return { mode: 'none' };
     const dates = resultDates().filter(Boolean);
     if (!dates.length) return { mode: 'none' };
     const keys = new Set(dates.map(dateKey));
@@ -2559,10 +2568,10 @@
     ctx.fillText(mode === 'results' ? C.titles.results : C.titles.schedule, CANVAS_W / 2, C.titleY);
     }
     if (!post && dateInfo.mode === 'header') {
-      ctx.font = `500 34px "${fontFamily}"`;
-      ctx.globalAlpha = 0.85;
-      ctx.fillText(dateInfo.text, CANVAS_W / 2, C.titleY + 70);
-      ctx.globalAlpha = 1;
+      // the same coloured date bar as in the Post, centred under the title
+      ctx.save();
+      drawDateBar(CANVAS_W / 2 - 261, C.titleY + 50, 522, 52, dateInfo.text, 0, fontFamily);
+      ctx.restore();
     }
 
     const animElapsed = (mode === 'results' && resultsAnimating && animStartTs != null)
@@ -2598,7 +2607,7 @@
           ctx.scale(bar.scale, bar.scale);
           ctx.translate(-ROW_CENTER, -cy);
         }
-        if (showAsSchedule) drawScheduleRow(m, cy, fontFamily, C);
+        if (showAsSchedule) drawScheduleRow(m, cy, fontFamily, C, mode === 'schedule' && resultDateMode === 'rows' ? scheduleDateInfo(m).short : undefined);
         else drawResultRow(m, cy, fontFamily, C, anim);
       } catch (err) {
         console.error('Kon wedstrijd niet tekenen:', m, err);
