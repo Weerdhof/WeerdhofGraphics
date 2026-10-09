@@ -2317,7 +2317,7 @@
     tsLast.addEventListener('input', () => { smState.tsLast = tsLast.value; render(); });
     tsGoals.addEventListener('input', () => { smState.tsGoals = tsGoals.value; render(); });
 
-    dateRow.hidden = !isMatchLike();
+    dateRow.hidden = mode !== 'match';
     dateInput.value = smState.dateRound;
     dateInput.addEventListener('input', () => { smState.dateRound = dateInput.value; render(); });
 
@@ -2811,8 +2811,10 @@
   }
   function predictionHeadline(W, cardsTop, accent) {
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
-    const tag = predText('pr.tag', 'Prediction').toUpperCase();
-    const l1 = predText('pr.l1', 'Who takes').toUpperCase(), l2 = predText('pr.l2', 'the win?').toUpperCase();
+    // the women's story is in Dutch, the men's in English
+    const nl = compKey === 'women', k = nl ? 'pr.w.' : 'pr.';
+    const tag = predText(k + 'tag', nl ? 'Voorspelling' : 'Prediction').toUpperCase();
+    const l1 = predText(k + 'l1', nl ? 'Wie pakt' : 'Who takes').toUpperCase(), l2 = predText(k + 'l2', nl ? 'de winst?' : 'the win?').toUpperCase();
     const b2 = 520, b1 = b2 - 158;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
@@ -3379,7 +3381,7 @@
       ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
     }
 
-    if (isMatchLike()) {
+    if (mode === 'match') {   // the Prediction story has no date/round line
       ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
       ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
     }
@@ -3520,7 +3522,7 @@
       ctx.fillText(smState.time || '', L.centerX, L.timeY);
     }
 
-    if (isMatchLike()) {
+    if (mode === 'match') {
       ctx.font = `500 ${L.dateFont}px "${fontFamily}"`;
       ctx.fillText(smState.dateRound || '', L.centerX, L.dateY);
     }
