@@ -1415,7 +1415,7 @@
     });
     let changed = 0;
     newSingle.forEach(m => { if (oldSingleIds.get(m.id) !== `${m.dateRound}|${m.time}`) changed++; });
-    if (newSingle.length) smMatches = newSingle;
+    if (newSingle.length && smLoadedKey === compKey) smMatches = newSingle;
     return { changed, total: newSingle.length };
   }
 
@@ -1511,10 +1511,23 @@
   if (checkScoresBtn) checkScoresBtn.addEventListener('click', checkSite);
 
   // Silent, once per competition per page load, as soon as both lists for it have loaded.
+  // Pull the site's schedule once per competition, as soon as the CSV rounds are in. The single-match list is only
+  // rebuilt when it is loaded for that competition too; if it loads later, this runs again for it.
+  // (Before, the sync waited for both, so opening Vrouwen straight in Schedule never synced and showed the stale CSV.)
+  const roundsSynced = { men: false, women: false };
+  let syncRetries = 0;
   function maybeAutoSyncSchedule() {
-    if (scheduleSynced[compKey] || roundsCompKey !== compKey || smLoadedKey !== compKey) return;
-    scheduleSynced[compKey] = true;
-    fetchAndApplySchedule().catch(() => { scheduleSynced[compKey] = false; });
+    if (roundsCompKey !== compKey) return;
+    const both = smLoadedKey === compKey;
+    if (both ? scheduleSynced[compKey] : roundsSynced[compKey]) return;
+    const k = compKey;
+    if (both) scheduleSynced[k] = true;
+    roundsSynced[k] = true;
+    fetchAndApplySchedule().then(() => { syncRetries = 0; }).catch(() => {
+      scheduleSynced[k] = false; roundsSynced[k] = false;
+      if (syncRetries++ < 3) setTimeout(maybeAutoSyncSchedule, 5000);
+      else showCheckStatus('⚠ Het schema van de site kon niet worden opgehaald — dit programma kan verouderd zijn. Klik op "Check".', 'warn');
+    });
   }
 
   // ---------- Jump to the date closest to today ----------
@@ -1964,6 +1977,8 @@
         const otherDay = isMultiDay && !isNaN(hour) && hour < 18;
         matches.push({ time, home, away, otherDay, otherDayLabel: otherDay ? otherDayLabel : '' });
       }
+      // earliest kick-off first (the CSV lists them in a different order); matches on the other day go last
+      matches.sort((a, b) => (a.otherDay ? 1 : 0) - (b.otherDay ? 1 : 0) || String(a.time || '99:99').localeCompare(String(b.time || '99:99')));
       rows.push({ id: dataset, roundNum, datum, matches });
     }
     return rows;
