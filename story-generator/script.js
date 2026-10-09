@@ -3372,8 +3372,8 @@
 
     // NOW LIVE with a pulsing SHL-lime dot
     {
-      const e = easeBack(prog(500, 650)), a = clamp01(prog(500, 250) * 1.6);
-      const pulse = el == null ? 0 : (Math.sin(Math.max(0, el - 1100) / 1000 * 2 * Math.PI) + 1) / 2;
+      const e = 1, a = 1;   // NOW LIVE is there from the first frame; everything else animates around it
+      const pulse = el == null ? 0 : (Math.sin(el / 1000 * 2 * Math.PI) + 1) / 2;
       group(a, 0, 0, () => {
         ctx.font = `700 150px "${fontFamily}"`;
         const tw = ctx.measureText(tx.live).width, dot = 30, gap = 36, total = dot * 2 + gap + tw, x0 = (W - total) / 2, cy = 700;
@@ -3393,7 +3393,7 @@
     const crest = (c) => c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(c)}.png`) : null;
     list.forEach((m, i) => {
       const live = isLive(m);
-      const t0 = 1000 + i * 130, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
+      const t0 = 450 + i * 130, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
       const y = y0 + i * (rowH + gap);
       group(a, 0, 36 * (1 - e), () => {
         ctx.fillStyle = live ? '#ffffff' : 'rgba(255, 255, 255, 0.13)'; ctx.fillRect(L, y, R - L, rowH);
@@ -3413,7 +3413,7 @@
     });
 
     // bottom line
-    group(easeOut(prog(2200, 500)), 0, 0, () => {
+    group(easeOut(prog(1500, 500)), 0, 0, () => {
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffffff'; ctx.globalAlpha *= 0.9;
       ctx.font = `700 34px "${fontFamily}"`; ctx.letterSpacing = '6px';
       ctx.fillText(tx.watch, W / 2, 1600);
