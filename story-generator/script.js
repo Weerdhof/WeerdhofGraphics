@@ -216,7 +216,7 @@
   // both Mannen and Vrouwen toggle between Post and Story.
   function smCanvasSize() {
     if (isListMode()) return resultsFormat === 'post' ? { w: RP_W, h: RP_H } : { w: CANVAS_W, h: CANVAS_H };
-    if (mode === 'topscorer' || mode === 'playerweek') return { w: TS_W, h: TS_H };
+    if (postOnlyMode()) return { w: TS_W, h: TS_H };
     if (compKey === 'women') {
       const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
       return { w: L.canvasW, h: L.canvasH };
@@ -298,9 +298,11 @@
   };
   // Results / Schedule / Ranking share the Story-or-Post choice (Post = left or right aligned, transparent).
   function isListMode() { return mode === 'results' || mode === 'schedule' || mode === 'ranking'; }
-  function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
+  function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
+  // single-match graphics that only exist as a Post (1080x1350)
+  function postOnlyMode() { return mode === 'topscorer' || mode === 'playerweek' || mode === 'headtohead'; }
   // Match and Prediction share the announcement layout (teams, time, date; no score)
-  function isMatchLike() { return mode === 'match' || mode === 'prediction'; }
+  function isMatchLike() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead'; }
 
   // Optional user-uploaded photo behind the single-match graphic (Mannen
   // Match/Matchresult only). In-memory only — not persisted via saveState,
@@ -803,6 +805,9 @@
     } else if (mode === 'playerweek') {
       matchesLabel.textContent = compKey === 'women' ? 'Speelster van de week' : 'Speler van de week';
       modeHint.textContent = 'Kies de club en vul de naam in. Upload bij Opmaak de foto.';
+    } else if (mode === 'headtohead') {
+      matchesLabel.textContent = 'Head to head';
+      modeHint.textContent = 'Kies een wedstrijd: stand, laatste uitslagen en onderlinge duels komen automatisch van de site. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'topscorer') {
       matchesLabel.textContent = 'Top scorer & uitslag';
       modeHint.textContent = 'Kies een wedstrijd, vul de eindstand in en de gegevens van de topscorer. Upload bij Opmaak een spelersfoto.';
@@ -965,7 +970,7 @@
   // Where a background photo can be used: every single-match graphic, Results/Schedule
   // (Story and Post) and the Ranking Post.
   function photoModeActive() {
-    return isSingleMode() || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
+    return (isSingleMode() && mode !== 'headtohead') || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
   }
   // In the Post formats the photo is drawn into the canvas (so PNG and MP4 contain it) with
   // a subtle navy gradient on the side the block sits on, keeping the rows readable.
@@ -1781,7 +1786,7 @@
       // own canvas size and fixture list — resize and reload rather than
       // bailing back to Results.
       if (isSingleMode()) {
-        smwFormatField.hidden = mode === 'topscorer' || mode === 'playerweek'; // Post/Story choice now applies to both competitions
+        smwFormatField.hidden = postOnlyMode(); // Post/Story choice now applies to both competitions
         resetSmAnim();
         smAnimField.hidden = false; // resetSmAnim hides it; still in Match/Matchresult
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
@@ -1896,7 +1901,7 @@
         populateSingleMatchSelect();
         if (!smMatches.length) return;
         let restoreMatch = null, restoreSm = null;
-        if (savedState && (['match', 'prediction', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
+        if (savedState && (['match', 'prediction', 'headtohead', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
           restoreMatch = smMatches.find(x => x.id === savedState.sm.id);
           restoreSm = savedState.sm;
         }
@@ -2026,7 +2031,7 @@
         checkStandingsStatus.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
-        smwFormatField.hidden = mode === 'topscorer' || mode === 'playerweek'; // Post-only
+        smwFormatField.hidden = postOnlyMode(); // Post-only
         syncFormatButtons();
         resetResultsAnim();
         smAnimField.hidden = false;
@@ -2439,7 +2444,8 @@
     canvas.classList.toggle('canvas-checker',
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
     predOptsField.hidden = mode !== 'prediction';
-    batchField.hidden = mode !== 'prediction' && mode !== 'match';
+    batchField.hidden = mode !== 'prediction' && mode !== 'match' && mode !== 'headtohead';
+    if (mode === 'headtohead') smAnimField.hidden = true;   // no animation for this one
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
@@ -2860,6 +2866,7 @@
   function renderSingleMatch() {
     if (mode === 'playerweek') { renderPlayerWeek(); return; }
     if (mode === 'topscorer') { renderTopScorer(); return; }
+    if (mode === 'headtohead') { renderHeadToHead(); return; }
     if (compKey === 'women') { renderWomenSingleMatch(); return; }
     renderMenSingleMatch();
   }
@@ -3165,6 +3172,175 @@
       ctx.restore();
     }
 
+    saveState();
+  }
+
+  // ---------- Head to head (Mannen dark, Vrouwen light; Post) ----------
+  // Built from the Top scorer language: label with colour bar, white tiles, club-colour tiles, big chevrons.
+  // Data comes from the same site feed as Results/Ranking (/api/results + /api/standings), cached for a minute.
+  const h2h = { comp: null, ts: 0, results: [], standings: [], loading: null, loadingComp: null };
+  function h2hEnsure() {
+    const k = compKey;
+    if (h2h.comp === k && Date.now() - h2h.ts < 60000) return Promise.resolve();
+    if (h2h.loading && h2h.loadingComp === k) return h2h.loading;
+    h2h.loadingComp = k;
+    const get = (u) => fetch(u).then(r => r.json()).catch(() => ({}));
+    h2h.loading = Promise.all([get('/api/results?comp=' + k), get('/api/standings?comp=' + k)]).then(([r, st]) => {
+      h2h.comp = k; h2h.ts = Date.now(); h2h.results = r.results || []; h2h.standings = st.standings || [];
+    }).finally(() => { h2h.loading = null; if (mode === 'headtohead') render(); });
+    return h2h.loading;
+  }
+  // site team name -> single-match code (SPR, ENO, ...)
+  function h2hCode(name) {
+    const c = matchCodeByAlias(COMPETITIONS[compKey].resultAliases, name);
+    return (SINGLE_CODE[compKey] && SINGLE_CODE[compKey][c]) || c;
+  }
+  // single-match code -> the code the crest files are named after
+  function h2hCrestCode(code) {
+    const map = SINGLE_CODE[compKey] || {};
+    const k = Object.keys(map).find(x => map[x] === code);
+    return k || code;
+  }
+  function h2hTeam(code) {
+    const games = [];
+    let gf = 0, ga = 0;
+    h2h.results.forEach(r => {
+      const a = h2hCode(r.teamA), b = h2hCode(r.teamB);
+      if (a !== code && b !== code) return;
+      const mine = a === code, f = mine ? r.scoreA : r.scoreB, g = mine ? r.scoreB : r.scoreA;
+      gf += f; ga += g;
+      games.push({ opp: mine ? b : a, gf: f, ga: g, home: mine, date: r.date || '', res: f > g ? 'W' : f < g ? 'L' : 'D' });
+    });
+    const idx = h2h.standings.findIndex(x => h2hCode(x.club) === code);
+    const row = idx >= 0 ? h2h.standings[idx] : null;
+    return { games, gf, ga, n: games.length, pos: idx + 1, row };
+  }
+
+  function renderHeadToHead() {
+    const W = TS_W, H = TS_H, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const T = women
+      ? { bg: '#ffffff', text: '#1a1b38', strip: '#eef0f8', ink: '#1a1b38', accent: '#c93cf0', accentInk: '#ffffff', logo: 'assets/women/footer-logo-women.png', chev: 0.35 }
+      : { bg: COMPETITIONS.men.bgColor, text: '#ffffff', strip: '#ffffff', ink: '#1b2450', accent: '#bdff00', accentInk: '#14142b', logo: 'assets/footer-logo.png', chev: 0.85 };
+    const colors = women ? SMW_TEAM_COLORS : SM_TEAM_COLORS, names = women ? SMW_TEAM_NAMES : SM_TEAM_NAMES;
+    const home = smState.home, away = smState.away;
+    const colH = colors[home] || '#d2ddf2', colA = colors[away] || '#d2ddf2';
+    const show = (c) => women ? c : predVivid(c);
+    ctx.clearRect(0, 0, W, H);
+    if (!transparentBg) { ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H); }
+    if (h2h.comp !== compKey || Date.now() - h2h.ts > 60000) h2hEnsure();
+    const ready = h2h.comp === compKey;
+    const empty = { games: [], gf: 0, ga: 0, n: 0, pos: 0, row: null };
+    const A = ready ? h2hTeam(home) : empty;
+    const B = ready ? h2hTeam(away) : empty;
+
+    // background: club-colour glows at the top, big chevrons behind the lower half
+    const glow = (x, y, r, color, a) => {
+      if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, 700);
+    };
+    glow(0, 0, 620, show(colH), women ? 0.22 : 0.4); glow(W, 0, 620, show(colA), women ? 0.22 : 0.4);
+    drawSmCardChevron(ctx, 40, 1180, true, show(colH), TS_CHEVRON_STATIC, T.chev);
+    drawSmCardChevron(ctx, W - 40, 1010, false, show(colA), TS_CHEVRON_STATIC, T.chev);
+
+    // label (accent bar + two lines, same as TOP SCORER OF THE MATCH)
+    ctx.fillStyle = T.accent; ctx.fillRect(L, 70, 10, 78);
+    tsInkText('HEAD TO HEAD', L + 34, 105, `700 44px "${fontFamily}"`, T.text);
+    const sub = [(smState.dateRound || '').toUpperCase(), smState.time || ''].filter(Boolean).join('  ·  ');
+    tsInkText(sub, L + 34, 143, `500 28px "${fontFamily}"`, T.text, 'left', 0.8);
+
+    // hero: crest tiles + club names
+    const heroY = 190, tile = 190;
+    const crestSrc = (code) => code ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(code)}.png`) : null;
+    const tileFor = (x, code) => {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(x, heroY, tile, tile);
+      if (women) { ctx.save(); ctx.strokeStyle = 'rgba(26,27,56,0.12)'; ctx.lineWidth = 2; ctx.strokeRect(x, heroY, tile, tile); ctx.restore(); }
+      tsDrawCrest(crestSrc(code), x + tile / 2, heroY + tile / 2, 150);
+    };
+    tileFor(L, home); tileFor(R - tile, away);
+    const nameBlock = (code, x, align) => {
+      if (!code) return;
+      // the women's names are not all known locally: use the club name from the site's standings
+      const row = women ? h2h.standings.find(x => h2hCode(x.club) === code) : null;
+      const siteName = row ? row.club.replace(/\s+(HS|DS)\d+\s*$/i, '').trim() : '';
+      const full = (names[code] || siteName || code).toUpperCase();
+      const lines = tsFitClubName(full, 205, fontFamily);
+      const lh = lines.px * 1.08, first = heroY + tile / 2 - ((lines.rows.length - 1) * lh) / 2 + lines.px * 0.35;
+      lines.rows.forEach((row, i) => tsInkText(row, x, first + i * lh, `700 ${lines.px}px "${fontFamily}"`, T.text, align));
+    };
+    nameBlock(home, L + tile + 24, 'left'); nameBlock(away, R - tile - 24, 'right');
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = T.text; ctx.globalAlpha = 0.65;
+    ctx.font = `700 52px "${fontFamily}"`; ctx.fillText('VS', W / 2, heroY + tile / 2 + 18); ctx.restore();
+
+    // standing tiles in the club colours
+    const sy = 405, sh = 96, sw = 330;
+    const standTile = (x, col, t) => {
+      ctx.fillStyle = col; ctx.fillRect(x, sy, sw, sh);
+      const ink = tsInkFor(col);
+      const pos = t.pos ? `#${t.pos}` : '–', pts = t.row ? `${t.row.points} PTN` : '';
+      tsInkText(pos, x + 28, sy + 70, `700 64px "${fontFamily}"`, ink);
+      tsInkText(pts, x + sw - 28, sy + 44, `700 34px "${fontFamily}"`, ink, 'right');
+      if (t.row && t.row.w !== undefined) tsInkText(`${t.row.w}W  ${t.row.d}D  ${t.row.l}L`, x + sw - 28, sy + 76, `500 22px "${fontFamily}"`, ink, 'right', 0.85);
+    };
+    standTile(L, colH, A); standTile(R - sw, colA, B);
+    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.text; ctx.globalAlpha = 0.6; ctx.font = `600 24px "${fontFamily}"`; ctx.fillText('STAND', W / 2, sy + 58); ctx.restore();
+
+    // recent results, one column per club
+    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.text; ctx.globalAlpha = 0.6; ctx.font = `600 24px "${fontFamily}"`;
+    ctx.fillText('LAATSTE UITSLAGEN', W / 2, 548); ctx.restore();
+    const colW = (R - L - 14) / 2, rowH = 70, rowGap = 8, rowsY = 568, N = 4;
+    const chipFill = { W: T.accent, D: '#c9cde0', L: '#1b2450' }, chipInk = { W: T.accentInk, D: '#1b2450', L: '#ffffff' };
+    const resultCol = (x, t) => {
+      for (let i = 0; i < N; i++) {
+        const y = rowsY + i * (rowH + rowGap), g = t.games[i];
+        ctx.fillStyle = T.strip; ctx.fillRect(x, y, colW, rowH);
+        if (!g) { if (ready && i === 0) tsInkText('NOG GEEN UITSLAGEN', x + colW / 2, y + 44, `600 22px "${fontFamily}"`, T.ink, 'center', 0.5); continue; }
+        tsDrawCrest(crestSrc(g.opp), x + 46, y + rowH / 2, 52);
+        tsInkText(g.opp, x + 86, y + rowH / 2 + 8, `600 22px "${fontFamily}"`, T.ink, 'left', 0.6);
+        tsInkText(`${g.gf} – ${g.ga}`, x + colW - 84, y + rowH / 2 + 15, `700 42px "${fontFamily}"`, T.ink, 'right');
+        ctx.fillStyle = chipFill[g.res]; ctx.fillRect(x + colW - 60, y + 10, 50, rowH - 20);
+        tsInkText(g.res, x + colW - 35, y + rowH / 2 + 10, `700 30px "${fontFamily}"`, chipInk[g.res], 'center');
+      }
+    };
+    resultCol(L, A); resultCol(L + colW + 14, B);
+
+    // averages
+    const stY = rowsY + N * (rowH + rowGap) + 12, stH = 64;
+    const avg = (v, n) => n ? (v / n).toFixed(1) : '–';
+    const statRow = (i, label, a, b) => {
+      const y = stY + i * (stH + 8);
+      ctx.fillStyle = T.strip; ctx.fillRect(L, y, R - L, stH);
+      tsInkText(a, L + 32, y + 46, `700 40px "${fontFamily}"`, T.ink);
+      tsInkText(b, R - 32, y + 46, `700 40px "${fontFamily}"`, T.ink, 'right');
+      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = 0.55; ctx.font = `600 22px "${fontFamily}"`; ctx.fillText(label, W / 2, y + 40); ctx.restore();
+    };
+    statRow(0, 'GEM. DOELPUNTEN VOOR', avg(A.gf, A.n), avg(B.gf, B.n));
+    statRow(1, 'GEM. DOELPUNTEN TEGEN', avg(A.ga, A.n), avg(B.ga, B.n));
+
+    // previous meeting this season
+    const pmY = stY + 2 * (stH + 8) + 6, pmH = 92;
+    ctx.fillStyle = T.strip; ctx.fillRect(L, pmY, R - L, pmH);
+    const meet = A.games.find(g => g.opp === away);
+    if (meet) {
+      tsDrawCrest(crestSrc(home), L + 70, pmY + pmH / 2, 70);
+      tsDrawCrest(crestSrc(away), R - 70, pmY + pmH / 2, 70);
+      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = 0.55; ctx.font = `600 22px "${fontFamily}"`;
+      ctx.fillText(`VORIGE ONTMOETING  ·  ${(meet.date || '').toUpperCase()}`, W / 2, pmY + 30); ctx.restore();
+      tsInkText(`${meet.gf} – ${meet.ga}`, W / 2, pmY + 78, `700 52px "${fontFamily}"`, T.ink, 'center');
+    } else {
+      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = 0.6; ctx.font = `600 26px "${fontFamily}"`;
+      ctx.fillText(ready ? 'EERSTE ONTMOETING VAN HET SEIZOEN' : 'GEGEVENS LADEN…', W / 2, pmY + pmH / 2 + 9); ctx.restore();
+    }
+
+    // logo
+    const logo = loadImg(T.logo);
+    if (logo && logo.complete && logo.naturalWidth) {
+      const top = pmY + pmH + 16, lh = Math.min(100, H - top - 20), lw = lh * logo.naturalWidth / logo.naturalHeight;
+      ctx.save(); ctx.shadowColor = women ? 'transparent' : 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+      ctx.drawImage(logo, (W - lw) / 2, top + (H - top - lh) / 2, lw, lh); ctx.restore();
+    }
     saveState();
   }
 
@@ -3944,6 +4120,7 @@
     const snap = { ...smState };
     const say = (t) => { batchStatus.textContent = t; batchStatus.hidden = !t; };
     flushItemSave(true);
+    if (mode === 'headtohead') await h2hEnsure();
     const files = [], prefix = compKey === 'women' ? 'SHLW' : 'SHL';
     try {
       for (let i = 0; i < list.length; i++) {
@@ -4047,7 +4224,7 @@
     }
     refreshCheckButtonLabels();
     if (savedState.mode === 'topscorer' && compKey !== 'men') savedState.mode = 'matchresult';
-    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
+    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
@@ -4059,7 +4236,7 @@
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
         smAnimField.hidden = false;
-        smwFormatField.hidden = mode === 'topscorer' || mode === 'playerweek';
+        smwFormatField.hidden = postOnlyMode();
         roundSelectField.hidden = mode === 'playerweek';
         smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === smFormat));
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
@@ -4269,7 +4446,7 @@
 
   // ---------- Home menu (start page) ----------
   const homeMenu = document.getElementById('homeMenu');
-  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
+  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
   var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
   var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
 
