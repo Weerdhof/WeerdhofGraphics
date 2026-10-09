@@ -608,6 +608,7 @@
   let smAnimRafId = null;
 
   function smAnimClipDuration() {
+    if (mode === 'headtohead') return H2H_CLIP_MS;
     return Math.max(ICON_MS * SM_BEATS, ANIM_TOTAL_TARGET_MS);
   }
 
@@ -2446,7 +2447,6 @@
       !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
     predOptsField.hidden = mode !== 'prediction';
     batchField.hidden = mode !== 'prediction' && mode !== 'match' && mode !== 'headtohead';
-    if (mode === 'headtohead') smAnimField.hidden = true;   // no animation for this one
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
     bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
@@ -3217,6 +3217,11 @@
     return { games, gf, ga, n: games.length, pos: idx + 1, row };
   }
 
+  // Head to head animation (6.5 s): glows + corner chevrons sweep in, label bar grows, the two crest tiles slide in
+  // from the sides with a bounce while VS pops, names rise, standing tiles wipe in and count up, the result rows
+  // stagger in (scores count up, W/D/L squares pop), the previous-meeting strip opens, the logo rises. Then it holds
+  // with a VS heartbeat and breathing chevrons. With the animation off (el == null) every progress is 1 = static design.
+  const H2H_CLIP_MS = 6500;
   function renderHeadToHead() {
     const W = 1080, H = 1920, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
@@ -3239,23 +3244,49 @@
     const A = ready ? h2hTeam(home) : empty;
     const B = ready ? h2hTeam(away) : empty;
 
-    // background: club-colour glows at the top, big chevrons behind the lower half
+    // ---- animation helpers ----
+    const el = smAnimElapsed();
+    const clamp01 = (v) => Math.max(0, Math.min(1, v));
+    const prog = (start, dur) => el == null ? 1 : clamp01((el - start) / dur);
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+    const easeBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+    let gA = 1;   // alpha of the group being drawn, for text that sets its own alpha
+    const group = (alpha, dx, dy, fn) => {
+      if (alpha <= 0.001) return;
+      ctx.save(); ctx.globalAlpha = alpha; gA = alpha; ctx.translate(dx || 0, dy || 0); fn(); ctx.restore(); gA = 1;
+    };
+    const loopBump = (t0, period, riseFrac) => {   // 0..1 pulse that repeats every `period` ms after t0
+      if (el == null || el < t0) return 0;
+      const ph = ((el - t0) % period) / period;
+      return ph < riseFrac ? Math.sin(ph / riseFrac * Math.PI) : 0;
+    };
+
+    // background: club-colour glows at the top, corner chevrons
     const glow = (x, y, r, color, a) => {
       if (!/^#[0-9a-f]{6}$/i.test(color)) return;
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
       g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, 1100);
     };
-    glow(0, 0, 800, show(colH), women ? 0.22 : 0.4); glow(W, 0, 800, show(colA), women ? 0.22 : 0.4);
-    // both chevrons come straight out of the bottom corners
-    drawSmCardChevron(ctx, 30, H - 50, true, show(colH), 1.4, T.chev);
-    drawSmCardChevron(ctx, W - 30, H - 50, false, show(colA), 1.4, T.chev);
+    const eG = easeOut(prog(0, 800));
+    glow(0, 0, 800, show(colH), (women ? 0.22 : 0.4) * eG); glow(W, 0, 800, show(colA), (women ? 0.22 : 0.4) * eG);
+    {
+      const e = easeOut(prog(0, 1000)), breathe = el == null ? 1 : 1 + 0.06 * Math.sin(el / 3000 * 2 * Math.PI), out = (1 - e) * 280;
+      drawSmCardChevron(ctx, 30 - out, H - 50 + out * 0.6, true, show(colH), 1.4 * breathe, T.chev * e);
+      drawSmCardChevron(ctx, W - 30 + out, H - 50 + out * 0.6, false, show(colA), 1.4 * breathe, T.chev * e);
+    }
 
     // label (accent bar + two lines, same as TOP SCORER OF THE MATCH); the top ~250px stay clear of Instagram's UI
-    ctx.fillStyle = T.accent; ctx.fillRect(L, 230, 10, 78);
-    tsInkText('HEAD TO HEAD', L + 34, 265, `700 44px "${fontFamily}"`, T.text);
-    const sub = [(smState.dateRound || '').toUpperCase(), smState.time || ''].filter(Boolean).join('  ·  ');
-    tsInkText(sub, L + 34, 303, `500 28px "${fontFamily}"`, T.text, 'left', 0.8);
+    {
+      const eb = easeOut(prog(200, 450)), et = easeOut(prog(350, 450));
+      ctx.save(); ctx.translate(0, 269); ctx.scale(1, Math.max(0.001, eb)); ctx.translate(0, -269);
+      ctx.fillStyle = T.accent; ctx.fillRect(L, 230, 10, 78); ctx.restore();
+      group(et, -26 * (1 - et), 0, () => {
+        tsInkText('HEAD TO HEAD', L + 34, 265, `700 44px "${fontFamily}"`, T.text);
+        const sub = [(smState.dateRound || '').toUpperCase(), smState.time || ''].filter(Boolean).join('  ·  ');
+        tsInkText(sub, L + 34, 303, `500 28px "${fontFamily}"`, T.text, 'left', 0.8);
+      });
+    }
 
     // hero: big crest tiles, VS in between, club names below
     const heroY = 360, tile = 250;
@@ -3265,9 +3296,9 @@
     const drawCrest = (img, cx, cy, size) => {
       if (!women) { tsDrawCrest(img, cx, cy, size); return; }
       if (!img || !img.complete || !img.naturalWidth) return;
-      const h = size * CREST_H / CREST_W, ins = 0;
+      const h = size * CREST_H / CREST_W;
       ctx.save();
-      roundedRectPath(ctx, cx - size / 2 + ins, cy - h / 2 + ins, size - 2 * ins, h - 2 * ins, size * 0.22);
+      roundedRectPath(ctx, cx - size / 2, cy - h / 2, size, h, size * 0.22);
       ctx.clip();
       tsDrawCrest(img, cx, cy, size);
       ctx.restore();
@@ -3277,7 +3308,11 @@
       if (women) { ctx.save(); ctx.strokeStyle = 'rgba(26,27,56,0.12)'; ctx.lineWidth = 2; ctx.strokeRect(x, heroY, tile, tile); ctx.restore(); }
       drawCrest(crestSrc(code), x + tile / 2, heroY + tile / 2, 200);
     };
-    tileFor(L, home); tileFor(R - tile, away);
+    {
+      const eb = easeBack(prog(500, 750)), ea = clamp01(prog(500, 250) * 1.5);
+      group(ea, -(1 - eb) * 420, 0, () => tileFor(L, home));
+      group(ea, (1 - eb) * 420, 0, () => tileFor(R - tile, away));
+    }
     const nameBlock = (code, x, align) => {
       if (!code) return;
       // the women's names are not all known locally: use the club name from the site's standings
@@ -3288,24 +3323,49 @@
       const px = Math.min(lines.px, 48), lh = px * 1.1;
       lines.rows.forEach((row2, i) => tsInkText(row2, x, heroY + tile + 62 + i * lh, `700 ${px}px "${fontFamily}"`, T.text, align));
     };
-    nameBlock(home, L, 'left'); nameBlock(away, R, 'right');
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = T.text; ctx.globalAlpha = 0.7;
-    ctx.font = `700 96px "${fontFamily}"`; ctx.fillText('VS', W / 2, heroY + tile / 2 + 34); ctx.restore();
+    {
+      const e = easeOut(prog(1250, 500));
+      group(e, 0, 34 * (1 - e), () => { nameBlock(home, L, 'left'); nameBlock(away, R, 'right'); });
+      // VS pops in with a bounce, then beats like the icon in the other animations
+      const ev = easeBack(prog(1000, 550)), sc = Math.max(0.001, ev) * (1 + 0.12 * loopBump(1800, 3000, 0.22));
+      group(clamp01(prog(1000, 200) * 0.7), 0, 0, () => {
+        const cy = heroY + tile / 2 + 34 - 34;
+        ctx.translate(W / 2, cy); ctx.scale(sc, sc); ctx.translate(-W / 2, -cy);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = T.text;
+        ctx.font = `700 96px "${fontFamily}"`; ctx.fillText('VS', W / 2, heroY + tile / 2 + 34);
+      });
+    }
 
-    // standing tiles in the club colours
+    // standing tiles in the club colours: wipe in from the outside, numbers count
     const sy = 800, sh = 110, sw = 420;
-    const standTile = (x, col, t) => {
+    const standTile = (x, col, t, fromLeft) => {
+      const e = easeOut(prog(1700, 600)), ec = easeOut(prog(1800, 900));
+      if (e <= 0) return;
+      ctx.save();
+      ctx.beginPath();
+      if (fromLeft) ctx.rect(x, sy, sw * e, sh); else ctx.rect(x + sw * (1 - e), sy, sw * e, sh);
+      ctx.clip();
       ctx.fillStyle = col; ctx.fillRect(x, sy, sw, sh);
       const ink = tsInkFor(col);
-      tsInkText(t.pos ? `#${t.pos}` : '–', x + 28, sy + 82, `700 76px "${fontFamily}"`, ink);
-      if (t.row) tsInkText(`${t.row.points} ${tx.pts}`, x + sw - 28, sy + 52, `700 38px "${fontFamily}"`, ink, 'right');
-      if (t.row && t.row.w !== undefined) tsInkText(`${t.row.w}W  ${t.row.d}D  ${t.row.l}L`, x + sw - 28, sy + 88, `500 24px "${fontFamily}"`, ink, 'right', 0.85);
+      const posShown = t.pos ? Math.round(t.pos + (1 - ec) * 12) : null;
+      tsInkText(posShown != null ? `#${posShown}` : '–', x + 28, sy + 82, `700 76px "${fontFamily}"`, ink);
+      if (t.row) {
+        const pv = parseInt(t.row.points, 10), shown = isNaN(pv) ? t.row.points : Math.round(pv * ec);
+        tsInkText(`${shown} ${tx.pts}`, x + sw - 28, sy + 52, `700 38px "${fontFamily}"`, ink, 'right');
+      }
+      if (t.row && t.row.w !== undefined) {
+        ctx.globalAlpha = prog(2300, 300);
+        tsInkText(`${t.row.w}W  ${t.row.d}D  ${t.row.l}L`, x + sw - 28, sy + 88, `500 24px "${fontFamily}"`, ink, 'right', 0.85);
+      }
+      ctx.restore();
     };
-    standTile(L, colH, A); standTile(R - sw, colA, B);
+    standTile(L, colH, A, true); standTile(R - sw, colA, B, false);
 
     // last 3 results, one column per club
-    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.text; ctx.globalAlpha = 0.6; ctx.font = `600 26px "${fontFamily}"`;
-    ctx.fillText(tx.last, W / 2, 964); ctx.restore();
+    group(easeOut(prog(2300, 300)), 0, 0, () => {
+      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.text; ctx.globalAlpha = gA * 0.6; ctx.font = `600 26px "${fontFamily}"`;
+      ctx.fillText(tx.last, W / 2, 964); ctx.restore();
+    });
     const colW = (R - L - 14) / 2, rowH = 100, rowGap = 10, rowsY = 990, N = 3;
     const chipFill = { W: T.accent, D: '#c9cde0', L: '#1b2450' }, chipInk = { W: T.accentInk, D: '#1b2450', L: '#ffffff' };
     // the right column is mirrored, so the two W/D/L chips sit next to each other in the middle
@@ -3313,45 +3373,58 @@
     const resultCol = (x, t, mirror) => {
       for (let i = 0; i < N; i++) {
         const y = rowsY + i * (rowH + rowGap), g = t.games[i];
-        ctx.fillStyle = T.strip; ctx.fillRect(x, y, colW, rowH);
-        if (!g) { if (ready && i === 0) tsInkText(tx.none, x + colW / 2, y + 58, `600 24px "${fontFamily}"`, T.ink, 'center', 0.5); continue; }
-        const cy = y + rowH / 2;
-        if (!mirror) {
-          drawCrest(crestSrc(g.opp), x + 54, cy, 64);
-          tsInkText(`${g.gf} – ${g.ga}`, x + (100 + colW - 100) / 2, cy + 21, `700 58px "${fontFamily}"`, T.ink, 'center');
-          ctx.fillStyle = chipFill[g.res]; ctx.fillRect(x + colW - 14 - CHIP, y + (rowH - CHIP) / 2, CHIP, CHIP);
-          tsInkText(g.res, x + colW - 14 - CHIP / 2, cy + 14, `700 40px "${fontFamily}"`, chipInk[g.res], 'center');
-        } else {
-          drawCrest(crestSrc(g.opp), x + colW - 54, cy, 64);
-          tsInkText(`${g.gf} – ${g.ga}`, x + (100 + colW - 100) / 2, cy + 21, `700 58px "${fontFamily}"`, T.ink, 'center');
-          ctx.fillStyle = chipFill[g.res]; ctx.fillRect(x + 14, y + (rowH - CHIP) / 2, CHIP, CHIP);
-          tsInkText(g.res, x + 14 + CHIP / 2, cy + 14, `700 40px "${fontFamily}"`, chipInk[g.res], 'center');
-        }
+        const t0 = 2450 + i * 220, e = easeOut(prog(t0, 480)), a = clamp01(prog(t0, 220) * 1.4);
+        const dx = (mirror ? 1 : -1) * (1 - e) * 220;
+        group(a, dx, 0, () => {
+          ctx.fillStyle = T.strip; ctx.fillRect(x, y, colW, rowH);
+          if (!g) { if (ready && i === 0) tsInkText(tx.none, x + colW / 2, y + 58, `600 24px "${fontFamily}"`, T.ink, 'center', 0.5); return; }
+          const cy = y + rowH / 2, gf = Math.round(g.gf * e), ga = Math.round(g.ga * e);
+          const chipX = mirror ? x + 14 : x + colW - 14 - CHIP, chipCx = chipX + CHIP / 2;
+          drawCrest(crestSrc(g.opp), mirror ? x + colW - 54 : x + 54, cy, 64);
+          tsInkText(`${gf} – ${ga}`, x + colW / 2, cy + 21, `700 58px "${fontFamily}"`, T.ink, 'center');
+          const cs = Math.max(0.001, easeBack(prog(t0 + 320, 320)));
+          ctx.save(); ctx.translate(chipCx, cy); ctx.scale(cs, cs); ctx.translate(-chipCx, -cy);
+          ctx.fillStyle = chipFill[g.res]; ctx.fillRect(chipX, y + (rowH - CHIP) / 2, CHIP, CHIP);
+          tsInkText(g.res, chipCx, cy + 14, `700 40px "${fontFamily}"`, chipInk[g.res], 'center');
+          ctx.restore();
+        });
       }
     };
     resultCol(L, A, false); resultCol(L + colW + 14, B, true);
 
-    // previous meeting this season
+    // previous meeting this season: the strip opens from the middle
     const pmY = rowsY + N * (rowH + rowGap) + 22, pmH = 130;
-    ctx.fillStyle = T.strip; ctx.fillRect(L, pmY, R - L, pmH);
-    const meet = A.games.find(g => g.opp === away);
-    if (meet) {
-      drawCrest(crestSrc(home), L + 80, pmY + pmH / 2, 84);
-      drawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
-      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = 0.55; ctx.font = `600 24px "${fontFamily}"`;
-      ctx.fillText(`${tx.prev}  ·  ${(meet.date || '').toUpperCase()}`, W / 2, pmY + 34); ctx.restore();
-      tsInkText(`${meet.gf} – ${meet.ga}`, W / 2, pmY + 100, `700 62px "${fontFamily}"`, T.ink, 'center');
-    } else {
-      ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = 0.6; ctx.font = `600 30px "${fontFamily}"`;
-      ctx.fillText(ready ? tx.first : tx.load, W / 2, pmY + pmH / 2 + 11); ctx.restore();
+    {
+      const e = easeOut(prog(3350, 550)), ec = easeOut(prog(3650, 600)), ac = prog(3650, 300);
+      if (e > 0) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(L, pmY + pmH * (1 - e) / 2, R - L, pmH * e); ctx.clip();
+        ctx.fillStyle = T.strip; ctx.fillRect(L, pmY, R - L, pmH);
+        const meet = A.games.find(g => g.opp === away);
+        ctx.globalAlpha = ac;
+        if (meet) {
+          drawCrest(crestSrc(home), L + 80, pmY + pmH / 2, 84);
+          drawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
+          ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = ac * 0.55; ctx.font = `600 24px "${fontFamily}"`;
+          ctx.fillText(`${tx.prev}  ·  ${(meet.date || '').toUpperCase()}`, W / 2, pmY + 34); ctx.restore();
+          tsInkText(`${Math.round(meet.gf * ec)} – ${Math.round(meet.ga * ec)}`, W / 2, pmY + 100, `700 62px "${fontFamily}"`, T.ink, 'center');
+        } else {
+          ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = ac * 0.6; ctx.font = `600 30px "${fontFamily}"`;
+          ctx.fillText(ready ? tx.first : tx.load, W / 2, pmY + pmH / 2 + 11);
+        }
+        ctx.restore();
+      }
     }
 
     // logo, kept above Instagram's bottom UI
     const logo = loadImg(T.logo);
     if (logo && logo.complete && logo.naturalWidth) {
+      const e = easeOut(prog(4000, 650));
       const top = pmY + pmH + 36, lh = 140, lw = lh * logo.naturalWidth / logo.naturalHeight;
-      ctx.save(); ctx.shadowColor = women ? 'transparent' : 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
-      ctx.drawImage(logo, (W - lw) / 2, top, lw, lh); ctx.restore();
+      group(e, 0, 40 * (1 - e), () => {
+        ctx.shadowColor = women ? 'transparent' : 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        ctx.drawImage(logo, (W - lw) / 2, top, lw, lh);
+      });
     }
     saveState();
   }
