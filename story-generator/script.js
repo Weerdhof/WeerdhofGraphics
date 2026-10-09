@@ -3873,14 +3873,17 @@
     if (mark && mark.complete && mark.naturalWidth) {
       const smElapsed = smCycleElapsed();
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
-      const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
+      // Prediction without the kick-off time: the icon grows and takes the time's spot, centred in the bar
+      let mx = L.mark.x, my = L.mark.y, mw = L.mark.w, mh = L.mark.h;
+      if (mode === 'prediction' && !predShowTime) { mw *= 1.3; mh *= 1.3; mx = SM_CENTER_X - mw / 2; my = L.timeY - 10 - mh / 2; }
+      const mcx = mx + mw / 2, mcy = my + mh / 2;
       if (iconScale !== 1) {
         ctx.save();
         ctx.translate(mcx, mcy);
         ctx.scale(iconScale, iconScale);
         ctx.translate(-mcx, -mcy);
       }
-      ctx.drawImage(mark, L.mark.x, L.mark.y, L.mark.w, L.mark.h);
+      ctx.drawImage(mark, mx, my, mw, mh);
       if (iconScale !== 1) ctx.restore();
     }
 
@@ -4013,14 +4016,17 @@
     const mark = loadImg('assets/women/singlematch/mark.png');
     if (mark && mark.complete && mark.naturalWidth) {
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
-      const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
+      // Prediction without the kick-off time: the icon grows and takes the time's spot, centred in the bar
+      let mx = L.mark.x, my = L.mark.y, mw = L.mark.w, mh = L.mark.h;
+      if (mode === 'prediction' && !predShowTime) { mw *= 1.3; mh *= 1.3; mx = L.centerX - mw / 2; my = L.bar.y + L.bar.h / 2 - mh / 2; }
+      const mcx = mx + mw / 2, mcy = my + mh / 2;
       if (iconScale !== 1) {
         ctx.save();
         ctx.translate(mcx, mcy);
         ctx.scale(iconScale, iconScale);
         ctx.translate(-mcx, -mcy);
       }
-      ctx.drawImage(mark, L.mark.x, L.mark.y, L.mark.w, L.mark.h);
+      ctx.drawImage(mark, mx, my, mw, mh);
       if (iconScale !== 1) ctx.restore();
     }
 
