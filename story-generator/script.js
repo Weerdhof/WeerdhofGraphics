@@ -2781,9 +2781,17 @@
     let predGuide = true;   // dashed poll-sticker zone; always off in exports
   const predText = (k, d) => (window.SETTINGS ? SETTINGS.text(k, d) : d);
 
-  // The headline always sits at the top; y 560-870 stays empty for an Instagram poll sticker
-  // (the match cards start at y 1154).
-  const PRED_POLL = { x: 200, y: 560, w: 680, h: 310 };
+  // Prediction moves the match bar up so there is room for the title above it and an Instagram
+  // poll sticker below it (the footer logo stays where it is).
+  function predLayout(L) {
+    if (mode !== 'prediction') return L;
+    const dy = L.canvasH > 1500 ? -480 : -340, S = (o) => ({ ...o, y: o.y + dy });
+    const n = { ...L, timeY: L.timeY + dy, dateY: L.dateY + dy, mark: S(L.mark) };
+    if (L.teamY !== undefined) n.teamY = L.teamY + dy;
+    if (L.teamLeft) { n.teamLeft = S(L.teamLeft); n.teamRight = S(L.teamRight); n.bar = S(L.bar); }
+    return n;
+  }
+  let PRED_POLL = { x: 200, y: 0, w: 680, h: 310 };   // set on every render; used by the guide
   // Dark club colours (e.g. SEW, VEN) vanish on the navy background, so lift them to a minimum brightness.
   function predVivid(hex) {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
@@ -2804,29 +2812,31 @@
     };
     ctx.globalAlpha = 0.22; ctx.textBaseline = 'alphabetic';
     draw(homeCode || '', homeColor, 'left', 24, 470);
-    draw(awayCode || '', awayColor, 'right', W - 24, H - 330);
+    draw(awayCode || '', awayColor, 'right', W - 24, H - 300);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
-  // The question sits in the middle of the match bar, where Match has the icon and the kick-off time.
-  function predictionHeadline(W, cx, cy, ink, accent) {
+  function predictionHeadline(W, H, barTop, barBottom, accent) {
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     // the women's story is in Dutch, the men's in English
     const nl = compKey === 'women', k = nl ? 'pr.w.' : 'pr.';
     const l1 = predText(k + 'l1', nl ? 'Wie pakt' : 'Who takes').toUpperCase(), l2 = predText(k + 'l2', nl ? 'de winst?' : 'the win?').toUpperCase();
+    const b2 = barTop - 120, b1 = b2 - 158;
     ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = 1;
-    const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > 300 ? px * 300 / w : px; };
-    const px = Math.min(fit(l1, 52), fit(l2, 52));
-    ctx.font = `700 ${px}px "${fontFamily}"`;
-    ctx.fillStyle = ink; ctx.fillText(l1, cx, cy - px * 0.58);
-    ctx.fillStyle = accent; ctx.fillText(l2, cx, cy + px * 0.58);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6;
+    const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > W - 140 ? px * (W - 140) / w : px; };
+    ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = '#ffffff'; ctx.fillText(l1, W / 2, b1);
+    ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
+    ctx.shadowColor = 'transparent';
+    const story = H > 1500, pw = story ? 680 : 600, ph = story ? 310 : 230;
+    PRED_POLL = { x: (W - pw) / 2, y: barBottom + (story ? 70 : 50), w: pw, h: ph };
     if (predGuide) {   // marks the free spot for the Instagram poll sticker
       const P = PRED_POLL;
       ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.55)';
       roundedRectPath(ctx, P.x, P.y, P.w, P.h, 36); ctx.stroke(); ctx.setLineDash([]);
       ctx.font = `700 26px "${fontFamily}"`; ctx.letterSpacing = '5px'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2);
+      ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2 + 9);
     }
     ctx.restore();
   }
@@ -3239,7 +3249,7 @@
   }
 
   function renderMenSingleMatch() {
-    const L = SM_LAYOUTS[smFormat] || SM_LAYOUTS.post;
+    const L = predLayout(SM_LAYOUTS[smFormat] || SM_LAYOUTS.post);
     ctx.clearRect(0, 0, L.canvasW, L.canvasH);
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
@@ -3324,7 +3334,7 @@
     }
 
     const mark = loadImg('assets/singlematch/mark.png');
-    if (mode !== 'prediction' && mark && mark.complete && mark.naturalWidth) {
+    if (mark && mark.complete && mark.naturalWidth) {
       const smElapsed = smCycleElapsed();
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
@@ -3369,7 +3379,7 @@
         ctx.textAlign = 'center';
         ctx.globalAlpha = 1;
       }
-    } else if (mode !== 'prediction') {
+    } else {
       ctx.font = `700 ${SM_TIME_FONT}px "${fontFamily}"`;
       ctx.fillText(smState.time || '', SM_CENTER_X, L.timeY);
     }
@@ -3379,7 +3389,7 @@
       ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, SM_CENTER_X, L.timeY, SM_TEXT_COLOR, SM_TEXT_COLOR);
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamY, L.teamY + SM_TEAM_H, '#caff1c');
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
@@ -3395,7 +3405,7 @@
   }
 
   function renderWomenSingleMatch() {
-    const L = SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story;
+    const L = predLayout(SMW_LAYOUTS[smFormat] || SMW_LAYOUTS.story);
     ctx.clearRect(0, 0, L.canvasW, L.canvasH);
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
@@ -3462,7 +3472,7 @@
     }
 
     const mark = loadImg('assets/women/singlematch/mark.png');
-    if (mode !== 'prediction' && mark && mark.complete && mark.naturalWidth) {
+    if (mark && mark.complete && mark.naturalWidth) {
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       const mcx = L.mark.x + L.mark.w / 2, mcy = L.mark.y + L.mark.h / 2;
       if (iconScale !== 1) {
@@ -3510,7 +3520,7 @@
         ctx.textAlign = 'center';
         ctx.globalAlpha = 1;
       }
-    } else if (mode !== 'prediction') {
+    } else {
       ctx.font = `700 ${L.timeFont}px "${fontFamily}"`;
       ctx.fillText(smState.time || '', L.centerX, L.timeY);
     }
@@ -3533,7 +3543,7 @@
       ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, L.centerX, L.timeY, SM_TEXT_COLOR, '#b81fd9');
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamLeft.y, L.bar.y + L.bar.h, '#e34fff');
 
     const footerImg = loadImg('assets/women/singlematch/footer-white.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
