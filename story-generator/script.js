@@ -3219,7 +3219,7 @@
 
   // Head to head animation (6.5 s): glows + corner chevrons sweep in, label bar grows, the two crest tiles slide in
   // from the sides with a bounce while VS pops, names rise, standing tiles wipe in and count up, the result rows
-  // stagger in (scores count up, W/D/L squares pop), the previous-meeting strip opens, the logo rises. Then it holds
+  // stagger in (scores count up, W/D/L squares pop), the previous-meeting strip opens. The logo is there from the start. Then it holds
   // with a VS heartbeat and breathing chevrons. With the animation off (el == null) every progress is 1 = static design.
   const H2H_CLIP_MS = 6500;
   function renderHeadToHead() {
@@ -3419,7 +3419,7 @@
     // logo, kept above Instagram's bottom UI
     const logo = loadImg(T.logo);
     if (logo && logo.complete && logo.naturalWidth) {
-      const e = easeOut(prog(4000, 650));
+      const e = 1;   // the logo is there from the first frame
       const top = pmY + pmH + 36, lh = 140, lw = lh * logo.naturalWidth / logo.naturalHeight;
       group(e, 0, 40 * (1 - e), () => {
         ctx.shadowColor = women ? 'transparent' : 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
