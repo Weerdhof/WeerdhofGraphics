@@ -3299,12 +3299,12 @@
   }
 
   // ---------- NOW LIVE for SHL TV (Story, Mannen only) ----------
-  // The SHL TV logo, a big "NOW LIVE" with a pulsing yellow dot, and the day's matches small underneath. Date + time
+  // The SHL TV logo, a big "NOW LIVE" with a pulsing SHL-lime dot, and the day's matches small underneath. Date + time
   // are fields: the matches running at that moment (kick-off up to NL_MATCH_MIN minutes ago) are marked live.
-  // Colours: the SHL men's green "colormash" gradient on navy (no red), with a yellow live dot.
+  // Colours: the SHL men's green "colormash" gradient on navy (no red), with an SHL-lime live dot.
   const NL_CLIP_MS = 8000;
   const NL_MATCH_MIN = 90;     // a match counts as live for this long after kick-off
-  const NL_YELLOW = '#ffd814';
+  const NL_LIME = '#ccff33';   // the SHL lime, sampled from the SHL TV logo's "TV"
   let nlMaskCanvas = null;
   function renderNowLive() {
     const W = 1080, H = 1920, L = TS_MARGIN, R = W - TS_MARGIN;
@@ -3370,7 +3370,7 @@
       }
     }
 
-    // NOW LIVE with a pulsing yellow dot
+    // NOW LIVE with a pulsing SHL-lime dot
     {
       const e = easeBack(prog(500, 650)), a = clamp01(prog(500, 250) * 1.6);
       const pulse = el == null ? 0 : (Math.sin(Math.max(0, el - 1100) / 1000 * 2 * Math.PI) + 1) / 2;
@@ -3379,16 +3379,16 @@
         const tw = ctx.measureText(tx.live).width, dot = 30, gap = 36, total = dot * 2 + gap + tw, x0 = (W - total) / 2, cy = 700;
         ctx.translate(W / 2, cy); ctx.scale(Math.max(0.001, e), Math.max(0.001, e)); ctx.translate(-W / 2, -cy);
         const halo = ctx.createRadialGradient(x0 + dot, cy - 52, 0, x0 + dot, cy - 52, dot * (2.2 + pulse * 0.9));
-        halo.addColorStop(0, 'rgba(255, 216, 20, 0.55)'); halo.addColorStop(1, 'rgba(255, 216, 20, 0)');
+        halo.addColorStop(0, 'rgba(204, 255, 51, 0.55)'); halo.addColorStop(1, 'rgba(204, 255, 51, 0)');
         ctx.fillStyle = halo; ctx.fillRect(x0 - dot * 3, cy - 52 - dot * 3.5, dot * 8, dot * 7);
-        ctx.fillStyle = NL_YELLOW; ctx.beginPath(); ctx.arc(x0 + dot, cy - 52, dot, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = NL_LIME; ctx.beginPath(); ctx.arc(x0 + dot, cy - 52, dot, 0, Math.PI * 2); ctx.fill();
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffffff';
         ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
         ctx.fillText(tx.live, x0 + dot * 2 + gap, cy);
       });
     }
 
-    // the matches of the day, small: live ones are solid white with a yellow LIVE chip, the rest translucent
+    // the matches of the day, small: live ones are solid white with a lime LIVE chip, the rest translucent
     const rowH = 92, gap = 10, y0 = 790;
     const crest = (c) => c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${h2hCrestCode(c)}.png`) : null;
     list.forEach((m, i) => {
@@ -3403,7 +3403,7 @@
         tsInkText(h2hCrestCode(m.home), L + 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink);
         tsInkText(h2hCrestCode(m.away), R - 140, y + rowH / 2 + 16, `700 46px "${fontFamily}"`, ink, 'right');
         if (live) {
-          const cw = 92; ctx.fillStyle = NL_YELLOW; ctx.fillRect(W / 2 - cw / 2, y + 10, cw, 30);
+          const cw = 92; ctx.fillStyle = NL_LIME; ctx.fillRect(W / 2 - cw / 2, y + 10, cw, 30);
           tsInkText(tx.tag, W / 2, y + 33, `700 22px "${fontFamily}"`, '#14142b', 'center');
           tsInkText(m.time || '', W / 2, y + 79, `700 36px "${fontFamily}"`, ink, 'center');
         } else {
