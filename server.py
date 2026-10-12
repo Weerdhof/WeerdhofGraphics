@@ -944,7 +944,7 @@ class Handler(SimpleHTTPRequestHandler):
         self._send_json(200, {"ok": True})
 
     def handle_backup(self):
-        """A zip with every stored item and photo — the whole app state worth keeping."""
+        """A zip with every stored item and photo, the settings, the usage log and the stored export images."""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
             for folder, prefix in ((ITEM_DIR, "items"), (PHOTO_DIR, "photos"), (LOGO_DIR, "logos")):
@@ -955,6 +955,12 @@ class Handler(SimpleHTTPRequestHandler):
                         z.write(os.path.join(folder, name), f"{prefix}/{name}")
             if os.path.isfile(SETTINGS_FILE):
                 z.write(SETTINGS_FILE, "settings.json")
+            if os.path.isfile(USAGE_FILE):           # what was used when
+                z.write(USAGE_FILE, "usage.json")
+            if os.path.isdir(EXPORT_DIR):            # stored export images (zips/videos are left out: they can be recreated)
+                for name in sorted(os.listdir(EXPORT_DIR)):
+                    if re.search(r"\.(png|jpe?g|webp)$", name, re.I) and EXPORT_NAME_RE.match(name):
+                        z.write(os.path.join(EXPORT_DIR, name), f"exports/{name}")
         data = buf.getvalue()
         self.send_response(200)
         self.send_header("Content-Type", "application/zip")
@@ -977,6 +983,32 @@ class Handler(SimpleHTTPRequestHandler):
                     with z.open(info) as src, open(SETTINGS_FILE, "wb") as dst:
                         shutil.copyfileobj(src, dst)
                     restored += 1
+                    continue
+                if info.filename == "usage.json" and info.file_size <= 5_000_000:
+                    # merge with the log that is already there (no duplicates, newest 3000 kept)
+                    try:
+                        incoming = json.loads(z.read(info).decode("utf-8"))
+                    except ValueError:
+                        incoming = []
+                    if isinstance(incoming, list):
+                        with usage_lock:
+                            merged = {}
+                            for e in _usage_read() + [x for x in incoming if isinstance(x, dict)]:
+                                merged[(e.get("t"), e.get("asset"), e.get("comp"), e.get("format"), e.get("action"))] = e
+                            log = sorted(merged.values(), key=lambda e: e.get("t") or 0)[-3000:]
+                            os.makedirs(DATA_DIR, exist_ok=True)
+                            with open(USAGE_FILE, "w", encoding="utf-8") as f:
+                                json.dump(log, f)
+                        restored += 1
+                    continue
+                em = re.match(r"^exports/(.+)$", info.filename)
+                if em:
+                    ename = _safe_export_name(em.group(1))
+                    if ename and info.file_size <= MAX_EXPORT_BYTES:
+                        os.makedirs(EXPORT_DIR, exist_ok=True)
+                        with z.open(info) as src, open(os.path.join(EXPORT_DIR, ename), "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+                        restored += 1
                     continue
                 m = re.match(r"^(items|photos|logos)/([0-9a-f]{40})\.(json|bin|type)$", info.filename)
                 if not m or (m.group(1) == "items") != (m.group(3) == "json"):
