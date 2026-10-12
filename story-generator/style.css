@@ -1076,3 +1076,12 @@ body:not(.set-open) .settings-view { display: none; }
 .feat-card .feat-img { box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent); }
 .feat-pill { align-self: flex-start; background: var(--acc); color: #1a1b38; font-family: "ClashDisplay", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; opacity: 1 !important; }
 .feat-women .feat-pill { color: #fff; }
+
+/* phones: the featured assets sit next to each other (two per row) instead of under each other */
+@media (max-width: 640px) {
+  .feat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .feat-card { padding: 7px; gap: 6px; }
+  .feat-cap b { font-size: 12px; }
+  .feat-cap span, .feat-cap small { font-size: 10.5px; }
+  .feat-pill { font-size: 9.5px; padding: 2px 6px; }
+}
