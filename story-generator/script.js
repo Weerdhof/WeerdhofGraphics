@@ -985,6 +985,7 @@
     bgPhotoControls.hidden = true;
     canvas.classList.remove('bg-photo-draggable');
     deleteItemPhoto();
+    deleteAssetPhoto();         // and the asset's own copy, so other rounds/matches stop inheriting it
     render();
   });
 
@@ -4814,9 +4815,18 @@
   function saveAssetPhotoMeta() {
     if (!bgPhotoImg || !photoModeActive()) return;
     const k = assetPhotoKey(), body = JSON.stringify({ kind: 'asset-photo', photo: { scale: bgPhotoScale, x: bgPhotoOffsetX, y: bgPhotoOffsetY } });
-    fetch('/api/item?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
+    fetch('/api/item?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body }).then(() => trackUse('photo')).catch(() => {});
   }
   const scheduleAssetMeta = () => { clearTimeout(assetMetaTimer); assetMetaTimer = setTimeout(saveAssetPhotoMeta, 1200); };
+  // removing the photo: forget it for the whole asset on the server and tell the dashboard its preview is stale
+  function deleteAssetPhoto() {
+    const k = assetPhotoKey();
+    clearTimeout(assetMetaTimer);
+    Promise.all([
+      fetch('/api/photo?key=' + itemEnc(k), { method: 'DELETE' }),
+      fetch('/api/item?key=' + itemEnc(k), { method: 'DELETE' }),
+    ]).catch(() => {}).finally(() => trackUse('photo'));
+  }
   async function inheritAssetPhoto(itemK) {
     try {
       const ak = assetPhotoKey();

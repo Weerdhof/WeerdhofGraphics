@@ -592,6 +592,7 @@ def warm_previews():
 
 
 usage_lock = threading.Lock()
+photo_changed = {}               # 'comp:asset:format' -> time of the last photo change (upload, move, removal): the preview is stale after it
 
 
 def _usage_read():
@@ -625,7 +626,7 @@ def usage_summary(limit=40):
         k = f"{e.get('comp')}:{e.get('asset')}:{e.get('format') or ''}"
         last.setdefault(k, {})[e.get("action", "open")] = e.get("t")
         counts[k] = counts.get(k, 0) + 1
-    return {"recent": log[-limit:][::-1], "last": last, "counts": counts}
+    return {"recent": log[-limit:][::-1], "last": last, "counts": counts, "photo": dict(photo_changed)}
 
 
 def _safe_export_name(name):
@@ -749,6 +750,12 @@ class Handler(SimpleHTTPRequestHandler):
             if not asset or comp not in ("men", "women", "hnl", "th"):
                 return self._send_json(400, {"error": "asset en comp nodig"})
             action = clean(body.get("action")) or "open"
+            if action == "photo":
+                # not a usage entry: the photo of this asset changed, so its cached preview is out of date
+                fmt = clean(body.get("format"))
+                photo_changed[f"{comp}:{asset}:{fmt}"] = int(time.time())
+                preview_cache.pop((asset, comp, fmt), None)
+                return self._send_json(200, {"ok": True})
             usage_add({"t": int(time.time()), "asset": asset, "comp": comp, "format": clean(body.get("format")), "action": action})
             self._send_json(200, {"ok": True})
         except ValueError:

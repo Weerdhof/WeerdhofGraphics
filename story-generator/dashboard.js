@@ -146,8 +146,21 @@
     if (!force && box.dataset.built) return;
     box.dataset.built = '1'; box.innerHTML = featuredHtml();
   }
+  const photoSeen = {};   // 'comp:asset:format' -> time of the photo change the shown preview already includes
   function updateUsage() {
     document.querySelectorAll('[data-usage]').forEach(el => { const [comp, asset, fmt] = el.dataset.usage.split(':'); el.textContent = usageLine(comp, asset, fmt); });
+    // a photo was added, moved or removed in the editor: show a fresh preview
+    document.querySelectorAll('.feat-card[data-dash-go]').forEach(card => {
+      const [comp, asset, fmt] = card.dataset.dashGo.split(':'), key = card.dataset.dashGo;
+      const t = (usage && usage.photo && usage.photo[key]) || 0;
+      if (photoSeen[key] === undefined) { photoSeen[key] = t; return; }
+      if (t > photoSeen[key]) {
+        photoSeen[key] = t;
+        const img = card.querySelector('img'); if (!img) return;
+        img.parentNode.classList.remove('loaded', 'feat-fail'); img.classList.remove('ready');
+        img.src = `/api/preview?asset=${asset}&comp=${comp}&format=${fmt}&v=${t}`;
+      }
+    });
   }
 
   async function refresh() {
