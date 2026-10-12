@@ -3417,7 +3417,7 @@
     const liveList = list.filter(isLive);
     const info = document.querySelector('.nl-info');
     if (info) info.textContent = !onDate ? `Geen wedstrijden op ${smState.nlDate || 'die datum'} — de dag van de gekozen wedstrijd wordt getoond.`
-      : liveList.length ? `Live om ${smState.nlTime}: ${liveList.map(m => `${m.home}–${m.away}`).join(', ')} (${liveMin} min na de aftrap)`
+      : liveList.length ? `Live om ${smState.nlTime}: ${liveList.map(m => `${m.home}–${m.away}`).join(', ')} (${liveMin} min na de aanvang)`
       : `Om ${smState.nlTime} is er geen wedstrijd live.`;
 
     // ---- animation helpers (el == null: static design) ----

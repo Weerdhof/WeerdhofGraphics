@@ -243,7 +243,7 @@
         <div class="field"><label for="thAway">Uitclub (logo)</label>${nextSelect('thAway', d.away)}</div>
         <div class="field"><label for="thAwayName">Naam uit</label><input type="text" id="thAwayName" value="${esc(d.awayName)}"></div>
         <div class="field"><label for="thDate">Datum</label><input type="text" id="thDate" value="${esc(d.date)}"></div>
-        <div class="field"><label for="thTime">Aftrap</label><input type="text" id="thTime" value="${esc(d.time)}"></div>
+        <div class="field"><label for="thTime">Aanvang</label><input type="text" id="thTime" value="${esc(d.time)}"></div>
         <button class="btn btn-link" id="thSwap" type="button">⇄ Thuis en uit omdraaien</button></div>`;
     } else {
       const cfg = cur.kind === 'shl' ? MEN : WOMEN;
@@ -257,7 +257,7 @@
         <div class="field"><label for="thAway">Uitclub</label>${clubSelect('thAway', cfg, d.away)}</div>
         ${cur.kind === 'shlw' ? `<div class="field"><label>Onderschrift bij de logo's</label><div class="hnl-pair"><input type="text" id="thHomeLabel" value="${esc(d.homeLabel)}"><input type="text" id="thAwayLabel" value="${esc(d.awayLabel)}"></div></div>` : ''}
         <div class="field"><label for="thDate">Datumtekst</label><input type="text" id="thDate" value="${esc(d.date)}"></div>
-        <div class="field"><label for="thTime">Aftrap</label><input type="text" id="thTime" value="${esc(d.time)}"></div></div>
+        <div class="field"><label for="thTime">Aanvang</label><input type="text" id="thTime" value="${esc(d.time)}"></div></div>
         <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Opmaak</div>
         ${cur.kind === 'shl' ? `<div class="field"><label>Type</label><div class="mode-tabs mode-tabs-compact" id="thVariant"><button type="button" class="mode-tab${d.variant === 'live' ? ' active' : ''}" data-v="live">Livestream</button><button type="button" class="mode-tab${d.variant === 'highlights' ? ' active' : ''}" data-v="highlights">Highlights</button></div></div>
         <div class="field"${d.variant === 'highlights' ? '' : ' hidden'} id="thLabelField"><label for="thLabel">Label in de balk (highlights)</label><input type="text" id="thLabel" value="${esc(d.label)}"></div>` : ''}

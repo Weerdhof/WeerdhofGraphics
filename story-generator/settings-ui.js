@@ -42,13 +42,13 @@
       <div class="set-plan">${DAYS.map(([k, label]) => `<div class="set-plan-row"><b>${label}</b>${[0, 1].map(i => { const [a, f] = D.plan[k][i]; return `<span class="set-plan-slot"><select data-plan="${k}:${i}:asset" aria-label="${label}, asset ${i + 1}">${opt(ASSETS, a)}</select><select data-plan="${k}:${i}:fmt" aria-label="${label}, formaat ${i + 1}">${opt(FMTS, f)}</select></span>`; }).join('')}</div>`).join('')}</div>
       <div class="set-text"><label for="dashResFmt">Klik op een uitslag op het dashboard opent Matchresult als</label><select id="dashResFmt" data-dash="resultFmt">${opt(FMTS, D.resultFmt)}</select></div>
       <div class="set-text"><label for="dashMatFmt">Klik op een wedstrijd uit het programma opent Match als</label><select id="dashMatFmt" data-dash="matchFmt">${opt(FMTS, D.matchFmt)}</select></div>
-      <div class="set-text"><label for="dashLive">Minuten dat een wedstrijd "live" is (Now live, vanaf de aftrap)</label><input type="number" id="dashLive" data-dash="liveMinutes" min="30" max="240" step="5" value="${D.liveMinutes}"></div>
+      <div class="set-text"><label for="dashLive">Minuten dat een wedstrijd "live" is (Now live, vanaf de aanvang)</label><input type="number" id="dashLive" data-dash="liveMinutes" min="30" max="240" step="5" value="${D.liveMinutes}"></div>
       <button class="btn btn-link" type="button" id="dashReset">↺ Dashboard-instellingen herstellen</button>
     </details>`;
     // --- Stream dashboard
     h += `<details class="set-sec" open><summary>Stream-dashboard</summary>
-      <p class="sync-info">Een beeldvullende pagina voor je livestream (OBS Browser-bron, 1920×1080) die de aftrap van een wedstrijd volgt: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel en daarna schoon beeld. Wat je wanneer ziet stel je in op de aparte instellingenpagina.</p>
-      <div class="set-links"><a class="btn" href="stream-setup.html">⚙ Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html?sim=20&debug=1" target="_blank" rel="noopener">▶ Proefdraaien (20 min voor de aftrap)</a></div>
+      <p class="sync-info">Een beeldvullende pagina voor je livestream (OBS Browser-bron, 1920×1080) die de aanvang van een wedstrijd volgt: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel en daarna schoon beeld. Wat je wanneer ziet stel je in op de aparte instellingenpagina.</p>
+      <div class="set-links"><a class="btn" href="stream-setup.html">⚙ Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html?sim=20&debug=1" target="_blank" rel="noopener">▶ Proefdraaien (20 min voor de aanvang)</a></div>
     </details>`;
     // --- HandbalNL clubs
     h += `<details class="set-sec" open><summary>Clubs HandbalNL (Next heren/dames en SHLW-logo's)</summary>

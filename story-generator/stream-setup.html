@@ -54,7 +54,7 @@
 <div class="wrap">
   <a class="back" href="index.html">← Terug naar het dashboard</a>
   <h1>Stream-dashboard</h1>
-  <p class="lead">Een beeldvullende pagina die je als Browser-bron in OBS zet (1920×1080). Hij volgt de aftrap van een wedstrijd en wisselt vanzelf van beeld: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel, en op het laatst helemaal schoon.</p>
+  <p class="lead">Een beeldvullende pagina die je als Browser-bron in OBS zet (1920×1080). Hij volgt de aanvang van een wedstrijd en wisselt vanzelf van beeld: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel, en op het laatst helemaal schoon.</p>
 
   <section>
     <h2><span class="n">1</span>Voor welke wedstrijd</h2>
@@ -62,10 +62,10 @@
       <div class="seg" id="modeSeg"><button data-mode="auto">Automatisch</button><button data-mode="manual">Zelf kiezen</button></div>
     </div>
     <div id="autoBox">
-      <p>Het dashboard pakt steeds de eerstvolgende aftrap en blijft die wedstrijd houden tot een paar minuten na de start. Je hoeft er niets voor te doen.</p>
+      <p>Het dashboard pakt steeds de eerstvolgende wedstrijd en blijft die wedstrijd houden tot een paar minuten na de start. Je hoeft er niets voor te doen.</p>
       <label for="comp">Competitie</label>
       <select id="comp"><option value="men">Mannen</option><option value="women">Vrouwen</option><option value="both">Mannen en vrouwen (eerstvolgende van beide)</option></select>
-      <label for="grace">Houd de wedstrijd vast tot zoveel minuten na de aftrap</label>
+      <label for="grace">Houd de wedstrijd vast tot zoveel minuten na de aanvang</label>
       <input type="number" id="grace" min="0" max="180" step="5"> <span class="hint">minuten</span>
     </div>
     <div id="manualBox" class="hidden">
@@ -77,12 +77,12 @@
 
   <section>
     <h2><span class="n">2</span>Wat zie je wanneer</h2>
-    <p>Elke stap begint zoveel minuten vóór de aftrap en duurt tot de volgende stap. Voor de eerste stap en na de aftrap is het beeld leeg (transparant).</p>
+    <p>Elke stap begint zoveel minuten vóór de aanvang en duurt tot de volgende stap. Voor de eerste stap en na de aanvang is het beeld leeg (transparant).</p>
     <div id="segs"></div>
     <div class="row" style="margin-top:10px"><button class="btn sm" id="addSeg" type="button">+ Stap toevoegen</button><button class="btn sm" id="resetSeg" type="button">↺ Standaard terugzetten</button></div>
     <div class="tl" id="tl"></div>
-    <div class="tl-ends"><span id="tlStart"></span><span>aftrap</span></div>
-    <p class="hint" style="margin-top:12px"><b>Beeld:</b> Speelronde = alle wedstrijden uit dezelfde ronde als deze wedstrijd, met de uitslag als hij al gespeeld is en anders de aftrap · Head to head = stand, laatste drie uitslagen en vorige ontmoeting van beide teams · Uitslagen = de uitslagen van de laatste speeldag · Stand = de ranglijst met beide teams gemarkeerd · Titel = grote wedstrijdtitel met logo's en ronde/wedstrijd-id · Vorm = laatste vijf uitslagen van beide teams · Programma = alle wedstrijden van die dag · Leeg = niets in beeld.</p>
+    <div class="tl-ends"><span id="tlStart"></span><span>aanvang</span></div>
+    <p class="hint" style="margin-top:12px"><b>Beeld:</b> Speelronde = alle wedstrijden uit dezelfde ronde als deze wedstrijd, met de uitslag als hij al gespeeld is en anders de aanvangstijd · Head to head = stand, laatste drie uitslagen en vorige ontmoeting van beide teams · Uitslagen = de uitslagen van de laatste speeldag · Stand = de ranglijst met beide teams gemarkeerd · Titel = grote wedstrijdtitel met logo's en ronde/wedstrijd-id · Vorm = laatste vijf uitslagen van beide teams · Programma = alle wedstrijden van die dag · Leeg = niets in beeld.</p>
   </section>
 
   <section>
@@ -109,7 +109,7 @@
     <p>Voeg een <b>Browser</b>-bron toe, breedte <b>1920</b>, hoogte <b>1080</b>, met deze URL. De pagina leest je instellingen hierboven zelf uit: wijzig je hier iets, dan volgt de stream binnen 30 seconden.</p>
     <div class="url" id="urlMain"></div>
     <div class="row"><button class="btn" id="copyMain" type="button">Kopieer URL</button><a class="btn" id="openMain" target="_blank" rel="noopener" style="text-decoration:none">Open in nieuw tabblad</a></div>
-    <p class="hint" style="margin-top:14px">Voor twee streams tegelijk: zet de wedstrijd vast in de URL, bijvoorbeeld <span style="font-family:ui-monospace,monospace">…/stream.html?comp=men&amp;home=HUB&amp;away=PEL</span> (clubcodes). Alleen kijken hoe het eruitziet? Voeg <span style="font-family:ui-monospace,monospace">?sim=20</span> toe: dan doet de pagina alsof het 20 minuten voor de aftrap is.</p>
+    <p class="hint" style="margin-top:14px">Voor twee streams tegelijk: zet de wedstrijd vast in de URL, bijvoorbeeld <span style="font-family:ui-monospace,monospace">…/stream.html?comp=men&amp;home=HUB&amp;away=PEL</span> (clubcodes). Alleen kijken hoe het eruitziet? Voeg <span style="font-family:ui-monospace,monospace">?sim=20</span> toe: dan doet de pagina alsof het 20 minuten voor de aanvang is.</p>
   </section>
 
   <div class="row"><span id="status" class="status"></span></div>
@@ -118,9 +118,9 @@
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const SCENES = [['round', 'Speelronde: alle wedstrijden (uitslagen + aftrap)'], ['h2h', 'Head to head van beide teams'], ['results', 'Uitslagen van de laatste speeldag'], ['standings', 'Stand'], ['title', 'Titel'], ['form', 'Vorm van beide teams'], ['schedule', 'Programma van de dag'], ['clean', 'Leeg (niets in beeld)']];
+  const SCENES = [['round', 'Speelronde: alle wedstrijden (uitslagen + aanvangstijd)'], ['h2h', 'Head to head van beide teams'], ['results', 'Uitslagen van de laatste speeldag'], ['standings', 'Stand'], ['title', 'Titel'], ['form', 'Vorm van beide teams'], ['schedule', 'Programma van de dag'], ['clean', 'Leeg (niets in beeld)']];
   const SCENE_SHORT = Object.fromEntries(SCENES);
-  const DEFAULT_SEGS = [{ from: 30, scene: 'round' }, { from: 22, scene: 'h2h' }, { from: 15, scene: 'standings' }, { from: 5, scene: 'title' }, { from: 1, scene: 'clean' }];
+  const DEFAULT_SEGS = [{ from: 30, scene: 'round' }, { from: 22, scene: 'h2h' }, { from: 15, scene: 'standings' }, { from: 5, scene: 'title' }, { from: 3, scene: 'clean' }];
   let cfg = null, matches = [], saveTimer = 0, loaded = false;
 
   const status = (txt, cls) => { const el = $('status'); el.textContent = txt; el.className = 'status' + (cls ? ' ' + cls : ''); };
@@ -163,7 +163,7 @@
       box.innerHTML = '';
       cfg.segments.forEach((sg, i) => {
         const row = document.createElement('div'); row.className = 'seg-row';
-        row.innerHTML = `<div class="when"><input type="number" min="0" max="240" step="1" value="${sg.from}" aria-label="Minuten voor de aftrap"><span class="hint">min. vóór</span></div>
+        row.innerHTML = `<div class="when"><input type="number" min="0" max="240" step="1" value="${sg.from}" aria-label="Minuten voor de aanvang"><span class="hint">min. vóór</span></div>
           <select aria-label="Beeld">${SCENES.map(([k, l]) => `<option value="${k}"${k === sg.scene ? ' selected' : ''}>${l}</option>`).join('')}</select>
           <button class="btn sm" type="button" aria-label="Stap verwijderen" title="Verwijderen">✕</button>`;
         row.querySelector('input').addEventListener('change', (e) => { sg.from = Math.max(0, Math.min(240, parseInt(e.target.value, 10) || 0)); cfg.segments.sort((a, b) => b.from - a.from); changed(); render(true); });
@@ -177,10 +177,10 @@
     segs.forEach((sg, i) => {
       const next = i + 1 < segs.length ? segs[i + 1].from : 0, d = document.createElement('div');
       d.className = 's-' + sg.scene; d.style.flex = String(Math.max(0.0001, sg.from - next)); d.textContent = `${({ round: 'Ronde', h2h: 'H2H', results: 'Uitslagen', standings: 'Stand', title: 'Titel', form: 'Vorm', schedule: 'Programma', clean: 'Leeg' })[sg.scene]} · ${sg.from - next}′`;
-      d.title = `${sg.from} → ${next} min vóór de aftrap`;
+      d.title = `${sg.from} → ${next} min vóór de aanvang`;
       tl.appendChild(d);
     });
-    $('tlStart').textContent = `${start} min vóór de aftrap`;
+    $('tlStart').textContent = `${start} min vóór de aanvang`;
     // url
     const url = location.origin + location.pathname.replace(/stream-setup\.html$/, 'stream.html');
     $('urlMain').textContent = url; $('openMain').href = url;
@@ -188,7 +188,7 @@
 
   function refreshPreview() {
     const t = parseFloat($('pvT').value);
-    $('pvOut').textContent = t >= 0 ? `T-${t} min` : `+${Math.abs(t)} min na aftrap`;
+    $('pvOut').textContent = t >= 0 ? `T-${t} min` : `+${Math.abs(t)} min na aanvang`;
     const q = `sim=${t}${cfgPassthrough()}`;
     if ($('pv').dataset.q !== q) { $('pv').dataset.q = q; $('pv').src = 'stream.html?' + q; }
   }
@@ -205,7 +205,7 @@
     playTimer = setInterval(() => {
       t -= 0.5;                                  // 1 minute per second, in half-minute steps
       if (t < parseFloat($('pvT').min)) { clearInterval(playTimer); playTimer = 0; $('pvPlay').textContent = '▶ Afspelen'; return; }
-      $('pvT').value = t; $('pvOut').textContent = t >= 0 ? `T-${t} min` : `+${Math.abs(t)} min na aftrap`;
+      $('pvT').value = t; $('pvOut').textContent = t >= 0 ? `T-${t} min` : `+${Math.abs(t)} min na aanvang`;
       $('pv').dataset.q = 'x'; $('pv').src = `stream.html?sim=${t}`;
     }, 500);
   });

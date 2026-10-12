@@ -46,8 +46,8 @@
     women: { DSVD: '#e1471c', 'E&O': '#00a456', FOR: '#b87cff', KWI: '#fa4234', MHV: '#008845', PSV: '#fa4234', QUI: '#008845', SEW: '#1330b4', 'V&L': '#005ba2', VEN: '#193676', VOC: '#4c8d40', VOL: '#f78823', VZV: '#ee2b07', WPK: '#3ca815' },
   };
   const TEXT = {
-    men: { results: 'Results', roundWord: 'Round', h2h: 'Head to head', stand: 'Standing', last: 'LAST RESULTS', prev: 'PREVIOUS MEETING', first: 'FIRST MEETING OF THE SEASON', vs: 'VS', round: 'Round', standings: 'Standings', next: 'Next up', kick: 'Kick-off in', form: 'Form', schedule: 'Today', pts: 'PTS', wait: 'No results yet', pos: '#', club: 'CLUB', id: 'Match', page: '', locale: 'en-GB' },
-    women: { results: 'Uitslagen', roundWord: 'Ronde', h2h: 'Head to head', stand: 'Stand', last: 'LAATSTE UITSLAGEN', prev: 'VORIGE ONTMOETING', first: 'EERSTE ONTMOETING VAN HET SEIZOEN', vs: 'VS', round: 'Ronde', standings: 'Stand', next: 'Zo meteen', kick: 'Aftrap over', form: 'Vorm', schedule: 'Vandaag', pts: 'PTN', wait: 'Nog geen uitslagen', pos: '#', club: 'CLUB', id: 'Wedstrijd', page: '', locale: 'nl-NL' },
+    men: { results: 'Results', roundWord: 'Round', h2h: 'Head to head', stand: 'Standing', last: 'LAST RESULTS', prev: 'PREVIOUS MEETING', first: 'FIRST MEETING OF THE SEASON', vs: 'VS', round: 'Round', standings: 'Standings', next: 'Next up', kick: 'Throw-off in', form: 'Form', schedule: 'Today', pts: 'PTS', wait: 'No results yet', pos: '#', club: 'CLUB', id: 'Match', page: '', locale: 'en-GB' },
+    women: { results: 'Uitslagen', roundWord: 'Ronde', h2h: 'Head to head', stand: 'Stand', last: 'LAATSTE UITSLAGEN', prev: 'VORIGE ONTMOETING', first: 'EERSTE ONTMOETING VAN HET SEIZOEN', vs: 'VS', round: 'Ronde', standings: 'Stand', next: 'Zo meteen', kick: 'Start over', form: 'Vorm', schedule: 'Vandaag', pts: 'PTN', wait: 'Nog geen uitslagen', pos: '#', club: 'CLUB', id: 'Wedstrijd', page: '', locale: 'nl-NL' },
   };
   const MONTHS = { men: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], women: ['JAN', 'FEB', 'MRT', 'APR', 'MEI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC'] };
   const span = (a, b) => {

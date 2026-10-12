@@ -500,13 +500,14 @@ def compute_movers(comp, since=0, force=False):
 # ---------------------------------------------------------------------------
 # Stream dashboard (stream.html): a full-screen page for a live stream that shows, relative to the kick-off of a match,
 # the other results, the standings, a big title and then nothing (clean). The planning is stored here (stream.json).
+# (In handball there is no kick-off: it is the throw-off. Variable names still say kickoff.)
 # ---------------------------------------------------------------------------
 STREAM_FILE = os.path.join(DATA_DIR, "stream.json")
 STREAM_SCENES = ("round", "results", "h2h", "standings", "title", "form", "schedule", "clean")
 STREAM_DEFAULT = {
     "match": {"mode": "auto", "comp": "men", "home": "", "away": "", "day": 0, "month": 0},   # auto: the next kick-off; comp men|women|both
     "segments": [{"from": 30, "scene": "round"}, {"from": 22, "scene": "h2h"}, {"from": 15, "scene": "standings"},
-                 {"from": 5, "scene": "title"}, {"from": 1, "scene": "clean"}],
+                 {"from": 5, "scene": "title"}, {"from": 3, "scene": "clean"}],
     "rotate": 12,          # seconds per page when a scene has more than fits
     "graceMin": 20,        # auto mode keeps a match selected this long after its kick-off
     "theme": "solid",      # solid | transparent (the scene backgrounds)

@@ -339,7 +339,7 @@
         <div class="field"><label for="hnlHomeName">Naam thuis (zoals op de visual)</label><input type="text" id="hnlHomeName" value="${esc(d.homeName)}"></div>
         <div class="field"><label for="hnlAway">Uitclub (logo)</label>${clubSelect('hnlAway', d.away)}</div>
         <div class="field"><label for="hnlAwayName">Naam uit</label><input type="text" id="hnlAwayName" value="${esc(d.awayName)}"></div>
-        <div class="field"><label for="hnlTime">Aftrap</label><input type="text" id="hnlTime" value="${esc(d.time)}" placeholder="19:00"></div>
+        <div class="field"><label for="hnlTime">Aanvang</label><input type="text" id="hnlTime" value="${esc(d.time)}" placeholder="19:00"></div>
         <div class="field"><label for="hnlDateISO">Datum</label><input type="date" id="hnlDateISO" value="${esc(d.dateISO)}"></div>
         <div class="field"><label for="hnlDate">Datumtekst (aanpasbaar)</label><input type="text" id="hnlDate" value="${esc(d.date)}"></div>
         <div class="field"><label for="hnlLabel">Competitietekst</label><input type="text" id="hnlLabel" value="${esc(d.label)}"></div>
