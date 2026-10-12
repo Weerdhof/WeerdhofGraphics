@@ -22,14 +22,14 @@
   }
   const logoCell = (logoKey, src, extra = '') => `<label class="set-logo" title="Klik om het logo te vervangen" data-logo="${esc(logoKey)}"><img src="${esc(src)}" alt="" ${extra}><input type="file" accept="image/*" hidden></label>`;
 
-  const ASSETS_LIST = () => [['results', 'Results'], ['schedule', 'Schedule'], ['ranking', 'Stand (Ranking)'], ['match', 'Match (aankondiging)'], ['matchresult', 'Matchresult (uitslag los)'], ['prediction', 'Prediction'], ['headtohead', 'Head to head'], ['playerweek', 'Speler / speelster van de week'], ['topscorer', 'Top scorer'], ['nowlive', 'Now live (SHL TV)']];
+  const ASSETS_LIST = () => [['results', 'Results'], ['schedule', 'Schedule'], ['ranking', 'Stand (Ranking)'], ['movers', 'Stand-movers'], ['match', 'Match (aankondiging)'], ['matchresult', 'Matchresult (uitslag los)'], ['prediction', 'Prediction'], ['headtohead', 'Head to head'], ['playerweek', 'Speler / speelster van de week'], ['topscorer', 'Top scorer'], ['nowlive', 'Now live (SHL TV)']];
   const DAYS_LIST = () => [['za', 'Zaterdag'], ['zo', 'Zondag'], ['ma', 'Maandag'], ['di', 'Dinsdag'], ['wo', 'Woensdag'], ['dovr', 'Donderdag en vrijdag']];
   function build() {
     const box = $('setBody'); if (!box) return;
     const head = (cols) => `<div class="set-row set-head"><span></span><span>${cols[0]}</span><span>${cols[1]}</span><span>${cols[2]}</span><span></span></div>`;
     let h = '';
     // --- Dashboard + visuals
-    const D = S.dash(), ASSETS = [['results', 'Results'], ['schedule', 'Schedule'], ['ranking', 'Stand (Ranking)'], ['match', 'Match (aankondiging)'], ['matchresult', 'Matchresult (uitslag los)'], ['prediction', 'Prediction'], ['headtohead', 'Head to head'], ['playerweek', 'Speler / speelster van de week'], ['topscorer', 'Top scorer']];
+    const D = S.dash(), ASSETS = [['results', 'Results'], ['schedule', 'Schedule'], ['ranking', 'Stand (Ranking)'], ['movers', 'Stand-movers'], ['match', 'Match (aankondiging)'], ['matchresult', 'Matchresult (uitslag los)'], ['prediction', 'Prediction'], ['headtohead', 'Head to head'], ['playerweek', 'Speler / speelster van de week'], ['topscorer', 'Top scorer']];
     const DAYS = [['za', 'Zaterdag'], ['zo', 'Zondag'], ['ma', 'Maandag'], ['di', 'Dinsdag'], ['wo', 'Woensdag'], ['dovr', 'Donderdag en vrijdag']];
     const opt = (list, v) => list.map(([k, l]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(l)}</option>`).join('');
     const FMTS = [['story', 'Story'], ['post', 'Post']];
@@ -44,6 +44,11 @@
       <div class="set-text"><label for="dashMatFmt">Klik op een wedstrijd uit het programma opent Match als</label><select id="dashMatFmt" data-dash="matchFmt">${opt(FMTS, D.matchFmt)}</select></div>
       <div class="set-text"><label for="dashLive">Minuten dat een wedstrijd "live" is (Now live, vanaf de aftrap)</label><input type="number" id="dashLive" data-dash="liveMinutes" min="30" max="240" step="5" value="${D.liveMinutes}"></div>
       <button class="btn btn-link" type="button" id="dashReset">↺ Dashboard-instellingen herstellen</button>
+    </details>`;
+    // --- Stream dashboard
+    h += `<details class="set-sec" open><summary>Stream-dashboard</summary>
+      <p class="sync-info">Een beeldvullende pagina voor je livestream (OBS Browser-bron, 1920×1080) die de aftrap van een wedstrijd volgt: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel en daarna schoon beeld. Wat je wanneer ziet stel je in op de aparte instellingenpagina.</p>
+      <div class="set-links"><a class="btn" href="stream-setup.html">⚙ Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html?sim=20&debug=1" target="_blank" rel="noopener">▶ Proefdraaien (20 min voor de aftrap)</a></div>
     </details>`;
     // --- HandbalNL clubs
     h += `<details class="set-sec" open><summary>Clubs HandbalNL (Next heren/dames en SHLW-logo's)</summary>

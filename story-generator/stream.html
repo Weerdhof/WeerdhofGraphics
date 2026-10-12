@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHL Stream-dashboard</title>
+<link rel="stylesheet" href="stream.css">
+</head>
+<body>
+<!--
+  Stream-dashboard: full-screen (1920x1080), made for an OBS "Browser" source or a screen next to the stream.
+  The scenes follow the kick-off of a match (set up at stream-setup.html): other results, standings, a big title, then clean.
+  URL parameters (all optional):
+    comp=men|women&home=HUB&away=PEL   fixed match (clubcodes) instead of the one from the setup page
+    sim=31                             test: pretend it is 31 minutes before kick-off (time then runs on)
+    speed=60                           with sim: run time 60x faster (1 minute per second)
+    debug=1                            show the time to kick-off and the active scene in a corner
+-->
+<div id="stage">
+  <div id="layers"></div>
+  <div id="wipe"></div>
+  <div id="debug" hidden></div>
+</div>
+<script src="stream.js"></script>
+</body>
+</html>

@@ -1146,3 +1146,6 @@ body:not(.set-open) .settings-view { display: none; }
 .set-learned-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .set-learned-note { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 @media (max-width: 640px) { .set-learned-row { grid-template-columns: 1fr; gap: 2px; } }
+
+.set-links { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0 4px; }
+.set-links .btn { text-decoration: none; display: inline-flex; align-items: center; }

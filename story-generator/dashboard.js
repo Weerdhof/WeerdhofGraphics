@@ -62,8 +62,8 @@
   }
 
   const GO = {
-    men: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['nowlive', '🔴', 'Now live'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speler van de week'], ['ranking', '📈', 'Ranking']],
-    women: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speelster van de week'], ['ranking', '📈', 'Ranking']],
+    men: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['nowlive', '🔴', 'Now live'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speler van de week'], ['ranking', '📈', 'Ranking'], ['movers', '↕️', 'Stand-movers']],
+    women: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speelster van de week'], ['ranking', '📈', 'Ranking'], ['movers', '↕️', 'Stand-movers']],
   };
   const chips = (list, prefix) => list.map(([id, icon, label]) => `<button type="button" class="dash-chip" data-dash-go="${prefix}:${id}"><span>${icon}</span>${esc(label)}</button>`).join('');
 
@@ -106,7 +106,7 @@
 
   // ---------- Uitgelicht: the weekly planning, each asset with a live preview (rendered on the server with the real data) ----------
   // The planning per weekday lives in the settings (default: your weekly planning); two assets per day, for men and women.
-  const TITLES = { results: 'Uitslagen', schedule: 'Schedule', ranking: 'Stand', match: 'Wedstrijdaankondiging', matchresult: 'Uitslag los', prediction: 'Prediction', headtohead: 'Head to head', playerweek: 'Speler / speelster van de week', topscorer: 'Top scorer' };
+  const TITLES = { results: 'Uitslagen', schedule: 'Schedule', ranking: 'Stand', match: 'Wedstrijdaankondiging', matchresult: 'Uitslag los', prediction: 'Prediction', headtohead: 'Head to head', playerweek: 'Speler / speelster van de week', topscorer: 'Top scorer', movers: 'Stand-movers' };
   const DOW_KEY = { 0: 'zo', 1: 'ma', 2: 'di', 3: 'wo', 4: 'dovr', 5: 'dovr', 6: 'za' };
   // the planning comes from the server (/api/plan): learned from what is used on this weekday, completed with the fixed planning
   let planInfo = null;

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream-dashboard instellingen</title>
+<style>
+  @font-face { font-family: 'ClashDisplay'; font-weight: 700; src: url(fonts/ClashDisplay-Bold.otf); }
+  @font-face { font-family: 'ClashDisplay'; font-weight: 600; src: url(fonts/ClashDisplay-Semibold.otf); }
+  :root { --bg: #12132b; --card: #1c1d3f; --line: rgba(255,255,255,.14); --text: #f3f4ff; --dim: #a7aad0; --acc: #caff1c; --accInk: #14142b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+  h1, h2 { font-family: 'ClashDisplay', system-ui, sans-serif; text-transform: uppercase; letter-spacing: .03em; margin: 0; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 18px; display: flex; gap: 10px; align-items: center; }
+  h2 .n { background: var(--acc); color: var(--accInk); width: 26px; height: 26px; display: grid; place-items: center; font-size: 15px; }
+  a.back { color: var(--dim); text-decoration: none; font-size: 14px; display: inline-block; margin-bottom: 10px; padding: 10px 0; }
+  p.lead { color: var(--dim); margin: 6px 0 22px; max-width: 760px; }
+  section { background: var(--card); border: 1px solid var(--line); padding: 20px; margin-bottom: 18px; }
+  section > p { color: var(--dim); margin: 8px 0 14px; }
+  label { display: block; font-weight: 600; margin: 10px 0 6px; }
+  select, input[type=number] { background: #101126; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font: inherit; min-height: 44px; max-width: 100%; }
+  input[type=range] { width: 100%; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--dim); border: 0; padding: 11px 16px; font: 600 14px 'ClashDisplay', system-ui, sans-serif; text-transform: uppercase; cursor: pointer; min-height: 44px; }
+  .seg button.on { background: var(--acc); color: var(--accInk); }
+  .btn { background: #2a2c5c; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px 16px; font: 600 14px system-ui; cursor: pointer; min-height: 44px; }
+  .btn.pri { background: var(--acc); color: var(--accInk); border-color: transparent; }
+  .btn.sm { padding: 6px 12px; min-height: 36px; }
+  .seg-row { display: grid; grid-template-columns: 110px 1fr 44px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .seg-row:first-of-type { border-top: 0; }
+  .seg-row .when { display: flex; align-items: center; gap: 8px; }
+  .seg-row input { width: 80px; }
+  .seg-row select { width: 100%; }
+  .tl { display: flex; height: 38px; margin: 16px 0 6px; border: 1px solid var(--line); overflow: hidden; }
+  .tl div { display: grid; place-items: center; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--accInk); min-width: 0; overflow: hidden; white-space: nowrap; }
+  .tl .s-results { background: #ffd23f; } .tl .s-standings { background: #6fe3ff; } .tl .s-title { background: var(--acc); } .tl .s-form { background: #ff9d6c; } .tl .s-schedule { background: #c9a6ff; } .tl .s-clean { background: #3a3c66; color: var(--dim); }
+  .tl-ends { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px; }
+  .url { background: #101126; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font: 13px ui-monospace, Menlo, monospace; word-break: break-all; margin: 8px 0; }
+  .hint { color: var(--dim); font-size: 13px; }
+  .status { color: var(--dim); font-size: 13px; margin-left: 10px; }
+  .status.ok { color: #7dffa0; } .status.err { color: #ff8e8e; }
+  .pv-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: repeating-conic-gradient(#2a2c4c 0% 25%, #202243 0% 50%) 50% / 24px 24px; border: 1px solid var(--line); overflow: hidden; }
+  .pv-wrap iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+  .pv-ctl { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+  .pv-ctl output { min-width: 110px; font-weight: 700; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) { .seg-row { grid-template-columns: 1fr; } .seg-row input { width: 100px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Terug naar het dashboard</a>
+  <h1>Stream-dashboard</h1>
+  <p class="lead">Een beeldvullende pagina die je als Browser-bron in OBS zet (1920×1080). Hij volgt de aftrap van een wedstrijd en wisselt vanzelf van beeld: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel, en op het laatst helemaal schoon.</p>
+
+  <section>
+    <h2><span class="n">1</span>Voor welke wedstrijd</h2>
+    <div class="row" style="margin-top:12px">
+      <div class="seg" id="modeSeg"><button data-mode="auto">Automatisch</button><button data-mode="manual">Zelf kiezen</button></div>
+    </div>
+    <div id="autoBox">
+      <p>Het dashboard pakt steeds de eerstvolgende aftrap en blijft die wedstrijd houden tot een paar minuten na de start. Je hoeft er niets voor te doen.</p>
+      <label for="comp">Competitie</label>
+      <select id="comp"><option value="men">Mannen</option><option value="women">Vrouwen</option><option value="both">Mannen en vrouwen (eerstvolgende van beide)</option></select>
+      <label for="grace">Houd de wedstrijd vast tot zoveel minuten na de aftrap</label>
+      <input type="number" id="grace" min="0" max="180" step="5"> <span class="hint">minuten</span>
+    </div>
+    <div id="manualBox" class="hidden">
+      <p>Kies de wedstrijd waar het dashboard op moet tellen.</p>
+      <label for="matchSel">Wedstrijd</label>
+      <select id="matchSel" style="width:100%"></select>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Wat zie je wanneer</h2>
+    <p>Elke stap begint zoveel minuten vóór de aftrap en duurt tot de volgende stap. Voor de eerste stap en na de aftrap is het beeld leeg (transparant).</p>
+    <div id="segs"></div>
+    <div class="row" style="margin-top:10px"><button class="btn sm" id="addSeg" type="button">+ Stap toevoegen</button><button class="btn sm" id="resetSeg" type="button">↺ Standaard terugzetten</button></div>
+    <div class="tl" id="tl"></div>
+    <div class="tl-ends"><span id="tlStart"></span><span>aftrap</span></div>
+    <p class="hint" style="margin-top:12px"><b>Beeld:</b> Uitslagen = de uitslagen van de laatste speeldag (zonder deze wedstrijd) · Stand = de ranglijst met beide teams gemarkeerd · Titel = grote wedstrijdtitel met logo's en ronde/wedstrijd-id · Vorm = laatste vijf uitslagen van beide teams · Programma = alle wedstrijden van die dag · Leeg = niets in beeld.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Weergave</h2>
+    <label for="rotate">Als er niet alles op één beeld past, wissel dan elke … seconden van pagina</label>
+    <input type="number" id="rotate" min="4" max="60" step="1"> <span class="hint">seconden</span>
+    <label>Achtergrond</label>
+    <div class="seg" id="themeSeg"><button data-theme="solid">Effen (donker/wit)</button><button data-theme="transparent">Transparant (over je beeld)</button></div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Proefdraaien</h2>
+    <p>Sleep de tijd om te zien wat er op elk moment in beeld komt. “Afspelen” laat de tijdlijn in sneltempo lopen (1 minuut per seconde).</p>
+    <div class="pv-wrap" id="pvWrap"><iframe id="pv" title="Voorbeeld"></iframe></div>
+    <div class="pv-ctl">
+      <input type="range" id="pvT" min="-3" max="45" step="0.5" value="31">
+      <output id="pvOut">T-31 min</output>
+      <button class="btn sm" id="pvPlay" type="button">▶ Afspelen</button>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>In OBS zetten</h2>
+    <p>Voeg een <b>Browser</b>-bron toe, breedte <b>1920</b>, hoogte <b>1080</b>, met deze URL. De pagina leest je instellingen hierboven zelf uit: wijzig je hier iets, dan volgt de stream binnen 30 seconden.</p>
+    <div class="url" id="urlMain"></div>
+    <div class="row"><button class="btn" id="copyMain" type="button">Kopieer URL</button><a class="btn" id="openMain" target="_blank" rel="noopener" style="text-decoration:none">Open in nieuw tabblad</a></div>
+    <p class="hint" style="margin-top:14px">Voor twee streams tegelijk: zet de wedstrijd vast in de URL, bijvoorbeeld <span style="font-family:ui-monospace,monospace">…/stream.html?comp=men&amp;home=HUB&amp;away=PEL</span> (clubcodes). Alleen kijken hoe het eruitziet? Voeg <span style="font-family:ui-monospace,monospace">?sim=20</span> toe: dan doet de pagina alsof het 20 minuten voor de aftrap is.</p>
+  </section>
+
+  <div class="row"><span id="status" class="status"></span></div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const SCENES = [['results', 'Uitslagen'], ['standings', 'Stand'], ['title', 'Titel'], ['form', 'Vorm van beide teams'], ['schedule', 'Programma van de dag'], ['clean', 'Leeg (niets in beeld)']];
+  const SCENE_SHORT = Object.fromEntries(SCENES);
+  const DEFAULT_SEGS = [{ from: 30, scene: 'results' }, { from: 15, scene: 'standings' }, { from: 5, scene: 'title' }, { from: 1, scene: 'clean' }];
+  let cfg = null, matches = [], saveTimer = 0, loaded = false;
+
+  const status = (txt, cls) => { const el = $('status'); el.textContent = txt; el.className = 'status' + (cls ? ' ' + cls : ''); };
+  async function save() {
+    status('Opslaan…');
+    try {
+      const r = await fetch('/api/stream-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+      const j = await r.json();
+      if (j.error) throw new Error(j.error);
+      cfg = j; status('✓ Opgeslagen', 'ok'); $('pv').dataset.q = '';
+    } catch (e) { status('✗ Opslaan mislukt: ' + e.message, 'err'); }
+    refreshPreview();
+  }
+  const changed = () => { render(false); clearTimeout(saveTimer); saveTimer = setTimeout(save, 500); };
+
+  const dayName = (d, m) => { const MN = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']; return `${d} ${MN[m - 1]}`; };
+  const matchKey = (m) => `${m.comp}|${m.homeCode || m.home}|${m.awayCode || m.away}|${m.day}|${m.month}`;
+  function matchOptions() {
+    const sel = $('matchSel'); sel.innerHTML = '';
+    if (!matches.length) { sel.innerHTML = '<option>Geen komende wedstrijden gevonden</option>'; return; }
+    matches.forEach(m => {
+      const o = document.createElement('option');
+      o.value = matchKey(m);
+      o.textContent = `${dayName(m.day, m.month)} ${m.time || ''} · ${m.comp === 'women' ? 'Vrouwen' : 'Mannen'} · ${m.homeCode || m.home} – ${m.awayCode || m.away}`;
+      sel.appendChild(o);
+    });
+    const cur = cfg.match, want = matches.find(m => m.comp === cur.comp && (m.homeCode === cur.home || m.home === cur.home) && (m.awayCode === cur.away || m.away === cur.away) && (!cur.day || m.day === cur.day));
+    sel.value = want ? matchKey(want) : matchKey(matches[0]);
+  }
+
+  function render(full) {
+    $('modeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === cfg.match.mode));
+    $('autoBox').classList.toggle('hidden', cfg.match.mode !== 'auto');
+    $('manualBox').classList.toggle('hidden', cfg.match.mode !== 'manual');
+    if (full) { $('comp').value = cfg.match.comp; $('grace').value = cfg.graceMin; $('rotate').value = cfg.rotate; }
+    $('themeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.theme === cfg.theme));
+    // steps
+    const box = $('segs');
+    if (full || box.children.length !== cfg.segments.length) {
+      box.innerHTML = '';
+      cfg.segments.forEach((sg, i) => {
+        const row = document.createElement('div'); row.className = 'seg-row';
+        row.innerHTML = `<div class="when"><input type="number" min="0" max="240" step="1" value="${sg.from}" aria-label="Minuten voor de aftrap"><span class="hint">min. vóór</span></div>
+          <select aria-label="Beeld">${SCENES.map(([k, l]) => `<option value="${k}"${k === sg.scene ? ' selected' : ''}>${l}</option>`).join('')}</select>
+          <button class="btn sm" type="button" aria-label="Stap verwijderen" title="Verwijderen">✕</button>`;
+        row.querySelector('input').addEventListener('change', (e) => { sg.from = Math.max(0, Math.min(240, parseInt(e.target.value, 10) || 0)); cfg.segments.sort((a, b) => b.from - a.from); changed(); render(true); });
+        row.querySelector('select').addEventListener('change', (e) => { sg.scene = e.target.value; changed(); });
+        row.querySelector('button').addEventListener('click', () => { if (cfg.segments.length > 1) { cfg.segments.splice(i, 1); changed(); render(true); } });
+        box.appendChild(row);
+      });
+    }
+    // timeline bar (from the first step to kick-off)
+    const segs = cfg.segments, start = segs[0].from || 1, tl = $('tl'); tl.innerHTML = '';
+    segs.forEach((sg, i) => {
+      const next = i + 1 < segs.length ? segs[i + 1].from : 0, d = document.createElement('div');
+      d.className = 's-' + sg.scene; d.style.flex = String(Math.max(0.0001, sg.from - next)); d.textContent = `${SCENE_SHORT[sg.scene].split(' ')[0]} · ${sg.from - next}′`;
+      d.title = `${sg.from} → ${next} min vóór de aftrap`;
+      tl.appendChild(d);
+    });
+    $('tlStart').textContent = `${start} min vóór de aftrap`;
+    // url
+    const url = location.origin + location.pathname.replace(/stream-setup\.html$/, 'stream.html');
+    $('urlMain').textContent = url; $('openMain').href = url;
+  }
+
+  function refreshPreview() {
+    const t = parseFloat($('pvT').value);
+    $('pvOut').textContent = t >= 0 ? `T-${t} min` : `+${Math.abs(t)} min na aftrap`;
+    const q = `sim=${t}${cfgPassthrough()}`;
+    if ($('pv').dataset.q !== q) { $('pv').dataset.q = q; $('pv').src = 'stream.html?' + q; }
+  }
+  // the preview always shows the saved planning for the chosen match
+  const cfgPassthrough = () => '';
+  const fitPv = () => { const w = $('pvWrap').clientWidth; $('pv').style.transform = `scale(${w / 1920})`; };
+  addEventListener('resize', fitPv);
+
+  let playTimer = 0;
+  $('pvPlay').addEventListener('click', () => {
+    if (playTimer) { clearInterval(playTimer); playTimer = 0; $('pvPlay').textContent = '▶ Afspelen'; return; }
+    $('pvPlay').textContent = '⏸ Pauze';
+    let t = parseFloat($('pvT').value); if (t <= 0) t = parseFloat($('pvT').max);
+    playTimer = setInterval(() => {
+      t -= 0.5;                                  // 1 minute per second, in half-minute steps
+      if (t < parseFloat($('pvT').min)) { clearInterval(playTimer); playTimer = 0; $('pvPlay').textContent = '▶ Afspelen'; return; }
+      $('pvT').value = t; $('pvOut').textContent = t >= 0 ? `T-${t} min` : `+${Math.abs(t)} min na aftrap`;
+      $('pv').dataset.q = 'x'; $('pv').src = `stream.html?sim=${t}`;
+    }, 500);
+  });
+  $('pvT').addEventListener('input', () => { if (playTimer) { clearInterval(playTimer); playTimer = 0; $('pvPlay').textContent = '▶ Afspelen'; } refreshPreview(); });
+
+  $('modeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    cfg.match.mode = b.dataset.mode;
+    if (b.dataset.mode === 'manual') applyManual();
+    changed();
+  });
+  function applyManual() {
+    const m = matches.find(x => matchKey(x) === $('matchSel').value); if (!m) return;
+    cfg.match.comp = m.comp; cfg.match.home = m.homeCode || m.home; cfg.match.away = m.awayCode || m.away; cfg.match.day = m.day; cfg.match.month = m.month;
+  }
+  $('matchSel').addEventListener('change', () => { applyManual(); changed(); });
+  $('comp').addEventListener('change', () => { cfg.match.comp = $('comp').value; changed(); });
+  $('grace').addEventListener('change', () => { cfg.graceMin = Math.max(0, Math.min(180, parseInt($('grace').value, 10) || 0)); changed(); });
+  $('rotate').addEventListener('change', () => { cfg.rotate = Math.max(4, Math.min(60, parseInt($('rotate').value, 10) || 12)); changed(); });
+  $('themeSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cfg.theme = b.dataset.theme; changed(); });
+  $('addSeg').addEventListener('click', () => { const last = cfg.segments[cfg.segments.length - 1]; cfg.segments.push({ from: Math.max(0, (last ? last.from : 10) - 1), scene: 'clean' }); cfg.segments.sort((a, b) => b.from - a.from); changed(); render(true); });
+  $('resetSeg').addEventListener('click', () => { cfg.segments = JSON.parse(JSON.stringify(DEFAULT_SEGS)); changed(); render(true); });
+  $('copyMain').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('urlMain').textContent); status('✓ URL gekopieerd', 'ok'); } catch (e) { status('Selecteer de URL en kopieer hem zelf', 'err'); } });
+
+  (async () => {
+    try {
+      const j = await (await fetch('/api/stream-matches', { cache: 'no-store' })).json();
+      cfg = j.config; matches = j.matches || [];
+    } catch (e) {
+      try { cfg = await (await fetch('/api/stream-config')).json(); } catch (e2) { status('Kon de instellingen niet laden', 'err'); return; }
+    }
+    matchOptions(); render(true); loaded = true; fitPv(); refreshPreview();
+  })();
+})();
+</script>
+</body>
+</html>

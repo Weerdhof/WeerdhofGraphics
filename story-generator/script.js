@@ -302,6 +302,11 @@
     // Player of the week: the player's club and name.
     pwTeam: '', pwName: '',
   };
+  // Ranking has two views: the table and the "movers" (risers and fallers since the previous matchday). The movers view is
+  // reached through its own tab/card (data-mode="movers"); mode stays 'ranking' so the shared Story/Post machinery applies.
+  var rankView = 'table', moversSince = 0;
+  const isMovers = () => mode === 'ranking' && rankView === 'movers';
+  const tabKey = () => isMovers() ? 'movers' : mode;
   // Results / Schedule / Ranking share the Story-or-Post choice (Post = left or right aligned, transparent).
   function isListMode() { return mode === 'results' || mode === 'schedule' || mode === 'ranking'; }
   function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'nowlive' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
@@ -822,6 +827,9 @@
     } else if (mode === 'topscorer') {
       matchesLabel.textContent = 'Top scorer & uitslag';
       modeHint.textContent = 'Kies een wedstrijd, vul de eindstand in en de gegevens van de topscorer. Upload bij Opmaak een spelersfoto.';
+    } else if (isMovers()) {
+      matchesLabel.textContent = 'Stand-movers — stijgers en dalers';
+      modeHint.textContent = 'De stijgers en dalers komen automatisch uit de stand en uitslagen van de server. Kies hieronder met welke speeldag je vergelijkt.';
     } else if (mode === 'ranking') {
       matchesLabel.textContent = 'Ranking — vul de stand in';
       modeHint.textContent = 'Vul per positie het team, gespeelde wedstrijden en punten in' +
@@ -992,7 +1000,7 @@
   // Where a background photo can be used: every single-match graphic, Results/Schedule
   // (Story and Post) and the Ranking Post.
   function photoModeActive() {
-    return (isSingleMode() && mode !== 'headtohead' && mode !== 'nowlive') || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post');
+    return (isSingleMode() && mode !== 'headtohead' && mode !== 'nowlive') || mode === 'results' || mode === 'schedule' || (mode === 'ranking' && resultsFormat === 'post' && !isMovers());
   }
   // In the Post formats the photo is drawn into the canvas (so PNG and MP4 contain it) with
   // a subtle navy gradient on the side the block sits on, keeping the rows readable.
@@ -1717,7 +1725,7 @@
       .catch(err => { if (!quiet) showStandingsStatus('✗ Ophalen mislukt: ' + err.message, 'warn'); })
       .finally(() => { if (!quiet) checkStandingsBtn.disabled = false; });
   }
-  if (checkStandingsBtn) checkStandingsBtn.addEventListener('click', () => fillRankingFromStore(true, false));
+  if (checkStandingsBtn) checkStandingsBtn.addEventListener('click', () => { fillRankingFromStore(true, false); if (isMovers()) moversEnsure(true); });
 
   // ---------- Site monitor info (the server checks the data sites every 30 min) ----------
   const siteSyncInfo = document.getElementById('siteSyncInfo');
@@ -1902,7 +1910,7 @@
       // Now live (SHL TV) only exists for Mannen — fall back to Match.
       if (compKey === 'women' && mode === 'nowlive') {
         mode = 'match';
-        modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+        modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === tabKey()));
         updateHint();
       }
       // Match/Matchresult exist for both competitions now, each with its
@@ -2146,7 +2154,8 @@
   modeTabs.forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.classList.contains('men-only-tab') && compKey !== 'men') return; // also hidden via CSS
-      mode = btn.dataset.mode;
+      rankView = btn.dataset.mode === 'movers' ? 'movers' : 'table';
+      mode = btn.dataset.mode === 'movers' ? 'ranking' : btn.dataset.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b === btn));
 
       if (isSingleMode()) {
@@ -2236,7 +2245,8 @@
 
   function buildMatchRows() {
     matchesList.innerHTML = '';
-    rankingHeader.hidden = mode !== 'ranking';
+    rankingHeader.hidden = mode !== 'ranking' || isMovers();
+    if (isMovers()) { buildMoversRow(); return; }
     if (mode === 'playerweek') { buildPlayerWeekRow(); return; }
     if (isSingleMode()) {
       buildSingleMatchRow();
@@ -2589,17 +2599,19 @@
     // the canvas) — the canvas pixels, and so the PNG/MP4 export, stay transparent.
     // (A photo, when present, is drawn into the canvas and covers it.)
     canvas.classList.toggle('canvas-checker',
-      !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post')));
+      !bgPhotoImg && (transparentBg || (['results', 'schedule', 'ranking'].includes(mode) && resultsFormat === 'post' && !isMovers())));
     predOptsField.hidden = mode !== 'prediction';
     batchField.hidden = mode !== 'prediction' && mode !== 'match' && mode !== 'headtohead' && mode !== 'nowlive';
     postDecorField.hidden = !((mode === 'results' && resultsFormat === 'post') || mode === 'playerweek');
-    bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post';
+    bgPhotoField.hidden = !photoModeActive() || mode === 'ranking' && resultsFormat !== 'post' || isMovers();
+    if (isMovers()) exportElementBtn.hidden = true;
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
     showDateField.hidden = true;
     checkScoresBtn.hidden = mode === 'ranking' || mode === 'playerweek';
     siteSyncInfo.hidden = checkScoresBtn.hidden || !siteSyncInfo.dataset.ready;
     refreshCheckButtonLabels();
     if (isSingleMode()) { renderSingleMatch(); return; }
+    if (isMovers()) { renderMovers(); return; }
     if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
     const C = comp();
     showDateField.hidden = mode !== 'results' && mode !== 'schedule';
@@ -3496,6 +3508,146 @@
       ctx.font = `700 34px "${fontFamily}"`; ctx.letterSpacing = '6px';
       ctx.fillText(tx.watch, W / 2, 1600);
     });
+    saveState();
+  }
+
+  // ---------- Stand-movers (a view of Ranking; Story and Post) ----------
+  // Risers and fallers since the chosen matchday. The earlier table is worked out by the server (/api/movers): the current
+  // table minus the results of that matchday, so it needs no typing. Men in English, women in Dutch.
+  var moversData = {}, moversLoading = {};   // 'comp:since' -> { ts, data }
+  function moversEnsure(force) {
+    const k = compKey + ':' + moversSince, hit = moversData[k];
+    if (!force && hit && Date.now() - hit.ts < 60000) return Promise.resolve();
+    if (moversLoading[k]) return moversLoading[k];
+    moversLoading[k] = fetch(`/api/movers?comp=${compKey}&since=${moversSince}${force ? '&refresh=1' : ''}`).then(r => r.json())
+      .then(j => { moversData[k] = { ts: Date.now(), data: j }; })
+      .catch(() => { moversData[k] = { ts: Date.now(), data: { error: 'Ophalen mislukt' } }; })
+      .finally(() => { delete moversLoading[k]; if (isMovers()) { fillMoversSelect(); render(); } });
+    return moversLoading[k];
+  }
+  const MOVERS_MONTHS = { en: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], nl: ['JAN', 'FEB', 'MRT', 'APR', 'MEI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC'] };
+  function moversSpan(c, women) {
+    const M = MOVERS_MONTHS[women ? 'nl' : 'en'], f = c.from, t = c.to;
+    return (f.day === t.day && f.month === t.month) ? `${f.day} ${M[f.month - 1]}` : (f.month === t.month ? `${f.day}–${t.day} ${M[t.month - 1]}` : `${f.day} ${M[f.month - 1]} – ${t.day} ${M[t.month - 1]}`);
+  }
+  function fillMoversSelect() {
+    const sel = document.getElementById('moversSince'), info = document.getElementById('moversInfo');
+    if (!sel) return;
+    const hit = moversData[compKey + ':' + moversSince], d = hit && hit.data;
+    if (!d || d.error || !d.clusters) { info.textContent = d && d.error ? 'Kon de gegevens niet ophalen: ' + d.error : 'Gegevens laden…'; return; }
+    const women = compKey === 'women', n = d.clusters.length;
+    sel.innerHTML = '';
+    for (let since = 0; since < Math.min(n, 6); since++) {
+      const c = d.clusters[n - 1 - since], o = document.createElement('option');
+      o.value = String(since);
+      o.textContent = `${since === 0 ? 'Laatste speeldag' : since + ' speeldagen terug'} — ${c.round != null ? 'ronde ' + c.round + ', ' : ''}${moversSpan(c, women).toLowerCase()} (${c.matches} wedstrijden)`;
+      sel.appendChild(o);
+    }
+    sel.value = String(moversSince);
+    info.textContent = 'Vergeleken met de stand vóór ' + (d.clusters[d.selected].round != null ? 'ronde ' + d.clusters[d.selected].round : moversSpan(d.clusters[d.selected], women).toLowerCase()) + '.' + (d.goalDiffRule ? '' : ' Teams met gelijke punten behouden hun onderlinge volgorde.');
+  }
+  function buildMoversRow() {
+    const node = document.createElement('div');
+    node.className = 'field movers-field';
+    node.innerHTML = '<label for="moversSince">Vergelijk met de stand vóór</label><select id="moversSince"></select><p class="sync-info" id="moversInfo"></p>';
+    matchesList.appendChild(node);
+    node.querySelector('#moversSince').addEventListener('change', (e) => { moversSince = parseInt(e.target.value, 10) || 0; moversEnsure(); render(); });
+    fillMoversSelect();
+    moversEnsure();
+  }
+
+  function renderMovers() {
+    const W = canvas.width, H = canvas.height, post = H < 1700, L = TS_MARGIN, R = W - TS_MARGIN, women = compKey === 'women';
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const T = women
+      ? { bg: '#ffffff', text: '#1a1b38', strip: '#eef0f8', ink: '#1a1b38', up: '#c93cf0', upInk: '#ffffff', down: '#fc7745', downInk: '#14142b', logo: 'assets/women/footer-logo-women.png', chev: 0.3 }
+      : { bg: COMPETITIONS.men.bgColor, text: '#ffffff', strip: '#ffffff', ink: '#1b2450', up: '#bdff00', upInk: '#14142b', down: '#fc7745', downInk: '#14142b', logo: 'assets/footer-logo.png', chev: 0.8 };
+    const names = women ? SMW_TEAM_NAMES : SM_TEAM_NAMES;
+    const tx = women
+      ? { title: 'STAND-MOVERS', after: 'NA', up: 'STIJGERS', down: 'DALERS', none: 'GEEN', quiet: 'GEEN VERSCHUIVINGEN IN DE STAND', load: 'GEGEVENS LADEN…', round: 'RONDE' }
+      : { title: 'STANDINGS MOVERS', after: 'AFTER', up: 'RISERS', down: 'FALLERS', none: 'NO', quiet: 'NO CHANGES IN THE STANDINGS', load: 'LOADING DATA…', round: 'ROUND' };
+    moversEnsure();
+    const hit = moversData[compKey + ':' + moversSince], data = hit && hit.data && !hit.data.error && hit.data.rows ? hit.data : null;
+    ctx.clearRect(0, 0, W, H);
+    if (!transparentBg) { ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H); }
+
+    // decoration: an up chevron (accent) bottom-left, a down one (orange) bottom-right
+    drawSmCardChevron(ctx, 40, H - (post ? 150 : 330), true, T.up, TS_CHEVRON_STATIC * 1.15, T.chev);
+    drawSmCardChevron(ctx, W - 40, H - (post ? 330 : 560), false, T.down, TS_CHEVRON_STATIC * 1.15, T.chev * 0.9);
+
+    // label: accent bar + title + what it is compared with (the top ~250px of a Story stay clear of Instagram's UI)
+    const top = post ? 70 : 230;
+    ctx.fillStyle = T.up; ctx.fillRect(L, top, 10, 78);
+    tsInkText(tx.title, L + 34, top + 35, `700 44px "${fontFamily}"`, T.text);
+    let sub = '';
+    if (data) {
+      const c = data.clusters[data.selected];
+      sub = `${tx.after} ${c.round != null ? tx.round + ' ' + c.round : moversSpan(c, women)}${c.round != null ? '  ·  ' + moversSpan(c, women) : ''}`;
+    }
+    tsInkText(sub, L + 34, top + 73, `500 28px "${fontFamily}"`, T.text, 'left', 0.8);
+
+    const crestSrc = (club) => { const c = h2hCrestCode(h2hCode(club)); return c ? loadImg(`${COMPETITIONS[compKey].teamsDir}/${c}.png`) : null; };
+    const rowH = post ? 112 : 134, gap = 12, nRows = post ? 3 : 4;
+    let y = top + 120, bottom = y;
+    const rows = data ? data.rows.filter(r => r.prevPos) : [];
+    const up = rows.filter(r => r.delta > 0).sort((a, b) => b.delta - a.delta || a.pos - b.pos).slice(0, nRows);
+    const down = rows.filter(r => r.delta < 0).sort((a, b) => a.delta - b.delta || a.pos - b.pos).slice(0, nRows);
+
+    // a small triangle (pointing up or down) drawn as a path, so it never depends on a font glyph
+    const tri = (cx, cy, size, upward, color) => {
+      ctx.save(); ctx.fillStyle = color; ctx.beginPath();
+      if (upward) { ctx.moveTo(cx, cy - size); ctx.lineTo(cx + size * 1.15, cy + size * 0.7); ctx.lineTo(cx - size * 1.15, cy + size * 0.7); }
+      else { ctx.moveTo(cx, cy + size); ctx.lineTo(cx + size * 1.15, cy - size * 0.7); ctx.lineTo(cx - size * 1.15, cy - size * 0.7); }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    };
+    const block = (label, list, upward) => {
+      const col = upward ? T.up : T.down, chipInk = upward ? T.upInk : T.downInk;
+      tri(L + 22, y + 22, 15, upward, col);
+      tsInkText(label, L + 58, y + 36, `700 38px "${fontFamily}"`, T.text);
+      y += 62;
+      if (!list.length) {
+        ctx.fillStyle = T.strip; ctx.fillRect(L, y, R - L, rowH * 0.7);
+        tsInkText(`${tx.none} ${label}`, W / 2, y + rowH * 0.7 / 2 + 11, `600 30px "${fontFamily}"`, T.ink, 'center', 0.55);
+        y += rowH * 0.7 + gap;
+      }
+      list.forEach(r => {
+        ctx.fillStyle = T.strip; ctx.fillRect(L, y, R - L, rowH);
+        ctx.fillStyle = col; ctx.fillRect(L, y, 170, rowH);                       // the change, in the block colour
+        tri(L + 50, y + rowH / 2, 15, upward, chipInk);
+        tsInkText(String(Math.abs(r.delta)), L + 84, y + rowH / 2 + 22, `700 66px "${fontFamily}"`, chipInk);
+        tsDrawCrest(crestSrc(r.club), L + 170 + 62, y + rowH / 2, 76);
+        const code = h2hCode(r.club), full = (names[code] || r.club.replace(/\s+(HS|DS)\d+\s*$/i, '')).toUpperCase();
+        const nm = tsFitClubName(full, 410, fontFamily), px = Math.min(nm.px, 40), lh = px * 1.08;
+        const y0 = y + rowH / 2 - ((nm.rows.length - 1) * lh) / 2 + px * 0.34;
+        nm.rows.forEach((row, i) => tsInkText(row, L + 170 + 122, y0 + i * lh, `700 ${px}px "${fontFamily}"`, T.ink));
+        // previous -> current position
+        const cur = String(r.pos), prev = String(r.prevPos);
+        tsInkText(cur, R - 26, y + rowH / 2 + 24, `700 70px "${fontFamily}"`, T.ink, 'right');
+        ctx.save(); ctx.font = `700 70px "${fontFamily}"`; const cw = ctx.measureText(cur).width; ctx.restore();
+        tsInkText('→', R - 26 - cw - 18, y + rowH / 2 + 16, `600 40px "${fontFamily}"`, T.ink, 'right', 0.45);
+        tsInkText(prev, R - 26 - cw - 18 - 50, y + rowH / 2 + 18, `600 46px "${fontFamily}"`, T.ink, 'right', 0.5);
+        y += rowH + gap;
+      });
+      y += 22;
+    };
+    if (!data) {
+      const err = hit && hit.data && hit.data.error;
+      tsInkText(err ? 'KON DE GEGEVENS NIET OPHALEN' : tx.load, W / 2, y + 60, `600 34px "${fontFamily}"`, T.text, 'center', 0.6);
+    } else if (!up.length && !down.length) {
+      tsInkText(tx.quiet, W / 2, y + 60, `600 34px "${fontFamily}"`, T.text, 'center', 0.7);
+    } else {
+      block(tx.up, up, true);
+      block(tx.down, down, false);
+    }
+    bottom = y;
+
+    // logo, kept above Instagram's bottom UI
+    const logo = loadImg(T.logo);
+    if (logo && logo.complete && logo.naturalWidth) {
+      const lh = post ? 88 : 130, lw = lh * logo.naturalWidth / logo.naturalHeight, ly = Math.min(Math.max(bottom + 14, post ? H - 190 : 1560), post ? H - 50 - lh : 1700 - lh);
+      ctx.save(); ctx.shadowColor = women ? 'transparent' : 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+      ctx.drawImage(logo, (W - lw) / 2, ly, lw, lh); ctx.restore();
+    }
     saveState();
   }
 
@@ -4582,6 +4734,7 @@
       const a = document.createElement('a');
       a.href = url;
       const nameBit = (isSingleMode()) ? (smState.id || 'match')
+        : isMovers() ? 'movers'
         : mode === 'ranking' ? 'ranking'
         : (state.date || 'story');
       const slug = (compKey + '-' + mode + '-' + nameBit).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -4653,7 +4806,7 @@
     const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
-      modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === tabKey()));
       if (isSingleMode()) {
         roundSelectLabel.textContent = 'Wedstrijd';
         checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek';
@@ -4929,10 +5082,10 @@
     if (HEADLESS) return;
     try {
       fetch('/api/usage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
-        body: JSON.stringify({ action, comp: comp || compKey, asset: asset || mode, format: fmt === undefined ? assetFmt() : fmt }) }).catch(() => {});
+        body: JSON.stringify({ action, comp: comp || compKey, asset: asset || tabKey(), format: fmt === undefined ? assetFmt() : fmt }) }).catch(() => {});
     } catch (e) { /* ignore */ }
   }
-  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', nowlive: 'Now live (SHL TV)', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
+  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', nowlive: 'Now live (SHL TV)', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking', movers: 'Stand-movers' };
   var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
   var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
 
@@ -4982,7 +5135,7 @@
   }
 
   function updateEditorBar() {
-    document.getElementById('editorAssetName').textContent = ASSET_NAMES[mode] || '';
+    document.getElementById('editorAssetName').textContent = ASSET_NAMES[tabKey()] || '';
     document.getElementById('editorCompName').textContent = COMPETITIONS[compKey].label;
     document.getElementById('editorSwitchBtn').textContent = compKey === 'men' ? '⇄ Vrouwen' : '⇄ Mannen';
   }

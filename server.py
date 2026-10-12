@@ -9,6 +9,8 @@ Everything else reads from that store:
     GET /api/results?comp=     played matches with scores     (?refresh=1 re-fetches the sites first)
     GET /api/schedule?comp=    full fixture list (played + upcoming)
     GET /api/standings?comp=   league table
+    GET /api/stream-state|stream-matches|stream-config, PUT /api/stream-config   stream dashboard (stream.html)
+    GET /api/movers?comp=&since=0  table before the latest matchday + position changes (since = matchdays back)
     GET /api/overview?comp=    results + upcoming for the home page and the ticker
     GET /api/sync-status       when each competition was last checked / last changed
 
@@ -211,6 +213,7 @@ import io
 import shutil
 import time
 import zipfile
+import unicodedata
 from datetime import datetime
 
 ITEM_DIR = os.path.join(DATA_DIR, "items")
@@ -391,6 +394,274 @@ def _en_date_label(m):
     return f"{wd} {m['day']} {_MONTH_EN[m['month'] - 1]}".strip()
 
 
+# club name (as the feeds write it) -> club code, to join the results feed with the standings feed (their names differ)
+CLUB_ALIASES = {
+    "men": {"SAB": ["bocholt"], "IZE": ["izegem"], "EUP": ["eupen"], "HCS": ["sprimont"], "BEV": ["bevo"], "PEL": ["pelt"],
+            "BWH": ["hercules", "whc"], "DFS": ["arnhem"], "HUP": ["hurry"], "HCV": ["vise"], "HVA": ["aalsmeer", "royalfloraholland"],
+            "HUB": ["hubo"], "VOL": ["volendam"], "TAC": ["tachos", "mossel", "witte ster"]},
+    "women": {"DSVD": ["dsvd", "aqqo"], "E&O": ["misker", "oosting"], "FOR": ["foreholte"], "KWI": ["kwiek"], "MHV": ["m.h.v"],
+              "PSV": ["hypotheekvisie", "eindhoven"], "QUI": ["quintus"], "SEW": ["westfriesland"], "V&L": ["geonius"],
+              "VEN": ["venlo", "cabooter"], "VOC": ["ruitenheer"], "VOL": ["volendam"], "VZV": ["juro"], "WPK": ["westlandia"]},
+}
+
+
+def _club_code(comp, name):
+    n = unicodedata.normalize("NFD", name or "")
+    n = "".join(ch for ch in n if not unicodedata.combining(ch)).lower()
+    for code, words in CLUB_ALIASES[comp].items():
+        if any(w in n for w in words):
+            return code
+    return None
+
+
+def _group_matchdays(comp, results):
+    """Results grouped into matchdays, oldest first: [(key, [results])]. Men: by round; women: by consecutive dates."""
+    by_round = comp == "men" and all(r.get("round") is not None for r in results)
+    groups = {}
+    if by_round:
+        for r in results:
+            groups.setdefault(("r", r["round"]), []).append(r)
+    else:
+        cluster, last = 0, None
+        for r in sorted(results, key=lambda x: x["ord"]):
+            if last is not None and r["ord"] - last > 1:
+                cluster += 1
+            last = r["ord"]
+            groups.setdefault(("d", cluster), []).append(r)
+    return sorted(groups.items(), key=lambda kv: max(x["ord"] for x in kv[1]))
+
+
+def compute_movers(comp, since=0, force=False):
+    """The table before the chosen matchday and the position changes since then.
+    The results are grouped into matchdays (men: by round, women: by consecutive dates); `since` counts back from the latest
+    matchday (0 = latest). The earlier table = current table minus the results of that matchday and everything after it
+    (win = 2 points, draw = 1)."""
+    d = get_comp_data(comp, force=force)
+    standings = d.get("standings") or []
+    results = [r for r in d.get("results", []) if r.get("homeScore") is not None and r.get("awayScore") is not None]
+    if not standings or not results:
+        raise RuntimeError("geen stand of uitslagen beschikbaar")
+    days = _group_matchdays(comp, results)
+    clusters = []
+    for idx, (key, items) in enumerate(days):
+        a, b = min(items, key=lambda x: x["ord"]), max(items, key=lambda x: x["ord"])
+        clusters.append({"id": idx, "round": key[1] if key[0] == "r" else None, "matches": len(items),
+                         "from": {"day": a["day"], "month": a["month"]}, "to": {"day": b["day"], "month": b["month"]}})
+    since = max(0, min(int(since or 0), len(clusters) - 1))
+    sel = len(clusters) - 1 - since
+    dropped = [r for i, (_k, items) in enumerate(days) if i >= sel for r in items]
+    kept = [r for i, (_k, items) in enumerate(days) if i < sel for r in items]
+
+    def num(v):
+        try:
+            return int(float(v))
+        except (TypeError, ValueError):
+            return 0
+
+    cur = []
+    for i, row in enumerate(standings):
+        cur.append({"club": row["club"], "code": _club_code(comp, row["club"]), "pos": i + 1,
+                    "points": num(row.get("points")), "played": num(row.get("played"))})
+    pts, played, gd = {}, {}, {}
+    for r in cur:
+        pts[r["code"]], played[r["code"]] = r["points"], r["played"]
+    for r in dropped:                                  # take the dropped matchdays back out of the table
+        h, a = _club_code(comp, r["home"]), _club_code(comp, r["away"])
+        hs, as_ = num(r["homeScore"]), num(r["awayScore"])
+        for code, mine, theirs in ((h, hs, as_), (a, as_, hs)):
+            if code in pts:
+                pts[code] -= 2 if mine > theirs else 1 if mine == theirs else 0
+                played[code] -= 1
+    for r in kept:
+        h, a = _club_code(comp, r["home"]), _club_code(comp, r["away"])
+        hs, as_ = num(r["homeScore"]), num(r["awayScore"])
+        gd[h] = gd.get(h, 0) + hs - as_
+        gd[a] = gd.get(a, 0) + as_ - hs
+    # Tie-break on goal difference only when that reproduces the site's current order; otherwise teams level on points keep
+    # their current relative order (no position change is claimed that the data cannot support).
+    gd_all = {}
+    for r in results:
+        h, a = _club_code(comp, r["home"]), _club_code(comp, r["away"])
+        hs, as_ = num(r["homeScore"]), num(r["awayScore"])
+        gd_all[h] = gd_all.get(h, 0) + hs - as_
+        gd_all[a] = gd_all.get(a, 0) + as_ - hs
+    gd_rule = [r["code"] for r in sorted(cur, key=lambda r: (-r["points"], -gd_all.get(r["code"], 0), r["pos"]))] == [r["code"] for r in cur]
+    order = sorted(cur, key=lambda r: (-pts.get(r["code"], 0), -gd.get(r["code"], 0) if gd_rule else 0, r["pos"]))
+    prev_pos = {r["code"]: i + 1 for i, r in enumerate(order)}
+    rows = []
+    for r in cur:
+        pp = prev_pos.get(r["code"]) if r["code"] else None
+        rows.append({**r, "prevPos": pp, "delta": (pp - r["pos"]) if pp else 0,
+                     "prevPoints": pts.get(r["code"]), "prevPlayed": played.get(r["code"])})
+    return {"comp": comp, "clusters": clusters, "selected": sel, "since": since, "goalDiffRule": gd_rule, "rows": rows,
+            "fetchedAt": d.get("fetchedAt")}
+
+
+# ---------------------------------------------------------------------------
+# Stream dashboard (stream.html): a full-screen page for a live stream that shows, relative to the kick-off of a match,
+# the other results, the standings, a big title and then nothing (clean). The planning is stored here (stream.json).
+# ---------------------------------------------------------------------------
+STREAM_FILE = os.path.join(DATA_DIR, "stream.json")
+STREAM_SCENES = ("results", "standings", "title", "form", "schedule", "clean")
+STREAM_DEFAULT = {
+    "match": {"mode": "auto", "comp": "men", "home": "", "away": "", "day": 0, "month": 0},   # auto: the next kick-off; comp men|women|both
+    "segments": [{"from": 30, "scene": "results"}, {"from": 15, "scene": "standings"},
+                 {"from": 5, "scene": "title"}, {"from": 1, "scene": "clean"}],
+    "rotate": 12,          # seconds per page when a scene has more than fits
+    "graceMin": 20,        # auto mode keeps a match selected this long after its kick-off
+    "theme": "solid",      # solid | transparent (the scene backgrounds)
+}
+
+
+def _clean_stream_config(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    d = json.loads(json.dumps(STREAM_DEFAULT))
+    m = raw.get("match") if isinstance(raw.get("match"), dict) else {}
+    d["match"]["mode"] = "manual" if m.get("mode") == "manual" else "auto"
+    d["match"]["comp"] = m.get("comp") if m.get("comp") in ("men", "women", "both") else "men"
+    for k in ("home", "away"):
+        d["match"][k] = re.sub(r"[^A-Za-z0-9&.\- ]", "", str(m.get(k) or ""))[:40]
+    for k, lo, hi in (("day", 0, 31), ("month", 0, 12)):
+        try:
+            d["match"][k] = max(lo, min(hi, int(m.get(k) or 0)))
+        except (TypeError, ValueError):
+            pass
+    segs = []
+    for x in (raw.get("segments") if isinstance(raw.get("segments"), list) else d["segments"])[:10]:
+        if isinstance(x, dict) and x.get("scene") in STREAM_SCENES:
+            try:
+                segs.append({"from": max(0, min(240, int(x.get("from")))), "scene": x["scene"]})
+            except (TypeError, ValueError):
+                pass
+    if segs:
+        d["segments"] = sorted(segs, key=lambda x: -x["from"])
+    for k, lo, hi in (("rotate", 4, 60), ("graceMin", 0, 180)):
+        try:
+            d[k] = max(lo, min(hi, int(raw.get(k, d[k]))))
+        except (TypeError, ValueError):
+            pass
+    d["theme"] = "transparent" if raw.get("theme") == "transparent" else "solid"
+    return d
+
+
+def stream_config():
+    try:
+        with open(STREAM_FILE, "r", encoding="utf-8") as f:
+            return _clean_stream_config(json.load(f))
+    except (OSError, ValueError):
+        return _clean_stream_config({})
+
+
+def _ams_now_parts(ts):
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.fromtimestamp(ts, ZoneInfo("Europe/Amsterdam"))
+    except Exception:
+        return datetime.fromtimestamp(ts)
+
+
+def _kickoff_epoch(day, month, hhmm, now=None):
+    """Unix time of a kick-off given as day, month and 'HH:MM' in Dutch local time (the year is inferred)."""
+    mt = re.match(r"^(\d{1,2})[:.](\d{2})", hhmm or "")
+    if not mt or not day or not month:
+        return None
+    now = now or time.time()
+    year = _ams_now_parts(now).year
+    for y in (year, year + 1, year - 1):
+        try:
+            naive = datetime(y, month, day, int(mt.group(1)), int(mt.group(2)))
+        except ValueError:
+            continue
+        try:
+            from zoneinfo import ZoneInfo
+            ts = naive.replace(tzinfo=ZoneInfo("Europe/Amsterdam")).timestamp()
+        except Exception:
+            ts = naive.timestamp()
+        if abs(ts - now) < 200 * 86400:
+            return ts
+    return None
+
+
+def _clean_club(name):
+    return re.sub(r"\s+(HS|DS)\d+\s*$", "", name or "").strip()
+
+
+def stream_matches(comps=("men", "women")):
+    """Upcoming matches (and the ones that started less than a day ago) of both competitions, by kick-off."""
+    out, now = [], time.time()
+    for comp in comps:
+        try:
+            d = get_comp_data(comp)
+        except Exception:
+            continue
+        for m in d.get("upcoming", []):
+            ko = _kickoff_epoch(m.get("day"), m.get("month"), m.get("time"), now)
+            out.append({"comp": comp, "home": _clean_club(m["home"]), "away": _clean_club(m["away"]),
+                        "homeCode": _club_code(comp, m["home"]), "awayCode": _club_code(comp, m["away"]),
+                        "day": m["day"], "month": m["month"], "time": m.get("time") or "", "round": m.get("round"),
+                        "kickoff": ko, "ord": m.get("ord", 0)})
+    out = [m for m in out if m["kickoff"] is None or m["kickoff"] > now - 86400]
+    out.sort(key=lambda m: (m["kickoff"] if m["kickoff"] is not None else 9e12, m["ord"]))
+    return out
+
+
+def _pick_match(cfg, query):
+    """The match the stream is about: ?comp=&home=&away= wins, then a manual choice, else the next kick-off."""
+    now = time.time()
+    mm = dict(cfg["match"])
+    if query.get("home") and query.get("away"):
+        mm = {"mode": "manual", "comp": query.get("comp", ["men"])[0], "home": query["home"][0], "away": query["away"][0], "day": 0, "month": 0}
+    if mm["mode"] == "manual":
+        comps = ("women",) if mm["comp"] == "women" else ("men",) if mm["comp"] == "men" else ("men", "women")
+        cands = [m for m in stream_matches(comps)
+                 if m["homeCode"] == mm["home"] and m["awayCode"] == mm["away"] or (m["home"] == mm["home"] and m["away"] == mm["away"])]
+        if mm.get("day"):
+            cands = [m for m in cands if m["day"] == mm["day"] and (not mm.get("month") or m["month"] == mm["month"])]
+        return cands[0] if cands else None
+    comps = ("women",) if mm["comp"] == "women" else ("men", "women") if mm["comp"] == "both" else ("men",)
+    grace = cfg["graceMin"] * 60
+    for m in stream_matches(comps):
+        if m["kickoff"] is not None and m["kickoff"] + grace >= now:
+            return m
+    return None
+
+
+def stream_state(query):
+    cfg = stream_config()
+    match = _pick_match(cfg, query)
+    state = {"now": int(time.time() * 1000), "config": cfg, "match": match}
+    if not match:
+        return state
+    comp = match["comp"]
+    d = get_comp_data(comp)
+    results = [r for r in d.get("results", []) if r.get("homeScore") is not None and r.get("awayScore") is not None]
+    days = _group_matchdays(comp, results)
+    latest = days[-1][1] if days else []
+    label = None
+    if days:
+        a, b = min(latest, key=lambda x: x["ord"]), max(latest, key=lambda x: x["ord"])
+        label = {"round": days[-1][0][1] if days[-1][0][0] == "r" else None, "from": {"day": a["day"], "month": a["month"]}, "to": {"day": b["day"], "month": b["month"]}}
+
+    def res_row(r):
+        return {"home": _clean_club(r["home"]), "away": _clean_club(r["away"]), "homeCode": _club_code(comp, r["home"]),
+                "awayCode": _club_code(comp, r["away"]), "homeScore": r["homeScore"], "awayScore": r["awayScore"], "day": r["day"], "month": r["month"]}
+
+    state["matchday"] = label
+    state["results"] = [res_row(r) for r in sorted(latest, key=lambda x: x["ord"])]
+    form = {}
+    for r in sorted(results, key=lambda x: x["ord"]):                      # last 5 results per club, oldest first
+        for code, mine, theirs in ((_club_code(comp, r["home"]), r["homeScore"], r["awayScore"]), (_club_code(comp, r["away"]), r["awayScore"], r["homeScore"])):
+            if code:
+                form.setdefault(code, []).append({"res": "W" if mine > theirs else "D" if mine == theirs else "L", "gf": mine, "ga": theirs,
+                                                  "opp": _club_code(comp, r["away"] if code == _club_code(comp, r["home"]) else r["home"])})
+    state["form"] = {k: v[-5:] for k, v in form.items()}
+    state["standings"] = [dict(x, code=_club_code(comp, x["club"]), name=_clean_club(x["club"]), pos=i + 1)
+                          for i, x in enumerate(d.get("standings") or [])]
+    day = [m for m in stream_matches((comp,)) if m["day"] == match["day"] and m["month"] == match["month"]]
+    state["schedule"] = day
+    return state
+
+
 def legacy_results(d):
     return [{"teamA": m["home"], "teamB": m["away"], "scoreA": m["homeScore"], "scoreB": m["awayScore"], "date": _en_date_label(m)}
             for m in d.get("results", []) if m.get("homeScore") is not None]
@@ -549,7 +820,7 @@ RENDERER = ThumbRenderer()
 # ---------------------------------------------------------------------------
 # "Uitgelicht": previews of the assets in the weekly planning, and a log of what is used when.
 # ---------------------------------------------------------------------------
-PREVIEW_ASSETS = {"results", "schedule", "ranking", "match", "matchresult", "prediction", "headtohead", "playerweek", "topscorer", "nowlive"}
+PREVIEW_ASSETS = {"movers", "results", "schedule", "ranking", "match", "matchresult", "prediction", "headtohead", "playerweek", "topscorer", "nowlive"}
 PREVIEW_TTL = 20 * 60
 preview_cache = {}               # (asset, comp, format) -> (time, webp bytes)
 preview_locks = {}
@@ -746,6 +1017,14 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_results()
         elif self.path.startswith("/api/standings"):
             self.handle_standings()
+        elif self.path.startswith("/api/movers"):
+            self.handle_movers()
+        elif self.path.startswith("/api/stream-state"):
+            self.handle_stream_state()
+        elif self.path.startswith("/api/stream-matches"):
+            self.handle_stream_matches()
+        elif self.path.startswith("/api/stream-config"):
+            self._json(200, stream_config())
         elif self.path.startswith("/api/schedule"):
             self.handle_schedule()
         elif self.path.startswith("/api/save"):
@@ -800,6 +1079,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_PUT(self):
         if self.path.startswith("/api/export"):
             self.handle_export_put()
+        elif self.path.startswith("/api/stream-config"):
+            self.handle_stream_config_put()
         elif self.path.startswith("/api/settings"):
             self.handle_settings_put()
         elif self.path.startswith("/api/logo"):
@@ -1345,6 +1626,41 @@ class Handler(SimpleHTTPRequestHandler):
         if qs.get("refresh", [""])[0] and comp in ("men", "women"):
             refresh_comp(comp)
         self._json(200, public_sync_status())
+
+    def handle_stream_state(self):
+        try:
+            self._json(200, stream_state(parse_qs(urlparse(self.path).query)))
+        except Exception as err:
+            self._json(502, {"error": str(err)})
+
+    def handle_stream_matches(self):
+        try:
+            self._json(200, {"matches": stream_matches(), "config": stream_config()})
+        except Exception as err:
+            self._json(502, {"error": str(err)})
+
+    def handle_stream_config_put(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > 20000:
+                return self._send_json(413, {"error": "te groot"})
+            cfg = _clean_stream_config(json.loads(self.rfile.read(length).decode("utf-8")))
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = STREAM_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(cfg, f)
+            os.replace(tmp, STREAM_FILE)
+            self._send_json(200, cfg)
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def handle_movers(self):
+        try:
+            qs = parse_qs(urlparse(self.path).query)
+            comp = "women" if qs.get("comp", [""])[0] == "women" else "men"
+            self._json(200, compute_movers(comp, qs.get("since", ["0"])[0], force=bool(qs.get("refresh", [""])[0])))
+        except Exception as err:
+            self._json(502, {"error": str(err)})
 
     def handle_results(self):
         try:
