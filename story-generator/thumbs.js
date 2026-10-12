@@ -490,8 +490,11 @@
     m = /^(\d{1,2})[-/.](\d{1,2})(?:[-/.]\d{2,4})?$/.exec(t); if (m) return { day: +m[1], month: +m[2] };
     return null;
   };
+  // the single-match editor uses a few other codes for the same clubs (SPR for HCS, ...): accept them too
+  const CODE_ALIAS = { men: { SPR: 'HCS' }, women: { ENO: 'E&O', FORE: 'FOR', FORV: 'VEN', VEL: 'V&L' } };
   const resolveCode = (cfg, v) => {
-    const t = String(v || '').trim(); if (!t) return null;
+    let t = String(v || '').trim(); if (!t) return null;
+    const al = (CODE_ALIAS[cfg.kind] || {})[t.toUpperCase()]; if (al) t = al;
     const hit = cfg.clubs.find(([c]) => c.toLowerCase() === t.toLowerCase()) || cfg.clubs.find(([c, n]) => norm(n) === norm(t));
     return hit ? hit[0] : codeOf(cfg, t);
   };
