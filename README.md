@@ -26,8 +26,8 @@ Everything the editor exports is also stored on the server and can be fetched wi
 | `GET /exports/<name>` | Download a stored export, e.g. `/exports/SHL_20261014_HUB-PEL.webp`. |
 | `GET /api/movers?comp=men&since=0` | Standings movers: the table before the chosen matchday and each club's position change (`since` = matchdays back, `refresh=1` re-fetches the sites first). |
 | `GET /api/plan` | The "Uitgelicht" planning per weekday: learned from the usage log (auto) or the fixed planning (manual). |
-| `GET /api/stream-state` | Everything the stream dashboard (`/stream.html`) shows, plus the server's clock: match, results of the latest matchday, standings, form, day schedule and the planning. Optional `comp=`, `home=`, `away=` (club codes) pick a fixed match. |
-| `GET /api/stream-matches` | Upcoming matches of both competitions (with start time) and the stream planning, for `/stream-setup.html`. |
+| `GET /api/stream-state` | Everything the stream dashboard (`/stream.html`) shows, plus the server's clock: match, results of the latest matchday, standings, form, day schedule and the planning. Optional `home=`, `away=` (club codes) pick a fixed match. Men only. |
+| `GET /api/stream-matches` | Upcoming men's matches (with start time) and the stream planning, for `/stream-setup.html`. |
 | `GET/PUT /api/stream-config` | The stream planning: which match (auto/manual), which scene from how many minutes before the start, page rotation, theme. |
 | `GET /api/exports` | List of stored exports (newest first) with their URLs. |
 | `PUT /api/export?name=<name>.png` | Store an image (the editor's Export buttons do this automatically). |
@@ -42,4 +42,4 @@ Locally the renderer needs Playwright; use the installed Chrome with `THUMB_BROW
 
 ## Stream dashboard
 
-`/stream.html` is a 1920x1080 page for an OBS Browser source. It follows the start of a match (chosen automatically or on `/stream-setup.html`) and switches scene by the minutes left: other results, standings, a big title, then clean (nothing). Test any moment with `?sim=20` (pretend 20 min before kick-off; add `&speed=60` to run through the timeline quickly, `&debug=1` to show the clock and scene). A fixed match: `?comp=men&home=HUB&away=PEL`.
+`/stream.html` is a 1920x1080 page for an OBS Browser source. It follows the start of a match (men only; chosen automatically or on `/stream-setup.html`) and switches scene by the minutes left: other results, standings, a big title, then clean (nothing). Test any moment with `?sim=20` (pretend 20 min before kick-off; add `&speed=60` to run through the timeline quickly, `&debug=1` to show the clock and scene). A fixed match: `?home=HUB&away=PEL`.

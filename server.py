@@ -499,18 +499,18 @@ def compute_movers(comp, since=0, force=False):
 
 # ---------------------------------------------------------------------------
 # Stream dashboard (stream.html): a full-screen page for a live stream that shows, relative to the kick-off of a match,
-# the other results, the standings, a big title and then nothing (clean). The planning is stored here (stream.json).
+# the other results, the standings, a big title and then nothing (clean). Men only. The planning is stored here (stream.json).
 # (In handball there is no kick-off: it is the throw-off. Variable names still say kickoff.)
 # ---------------------------------------------------------------------------
 STREAM_FILE = os.path.join(DATA_DIR, "stream.json")
 STREAM_SCENES = ("round", "results", "h2h", "standings", "title", "form", "schedule", "clean")
 STREAM_DEFAULT = {
-    "match": {"mode": "auto", "comp": "men", "home": "", "away": "", "day": 0, "month": 0},   # auto: the next kick-off; comp men|women|both
+    "match": {"mode": "auto", "comp": "men", "home": "", "away": "", "day": 0, "month": 0},   # auto: the next match to start (men only)
     "segments": [{"from": 30, "scene": "round"}, {"from": 22, "scene": "h2h"}, {"from": 15, "scene": "standings"},
                  {"from": 5, "scene": "title"}, {"from": 3, "scene": "clean"}],
     "rotate": 12,          # seconds per page when a scene has more than fits
     "graceMin": 20,        # auto mode keeps a match selected this long after its kick-off
-    "theme": "solid",      # solid | transparent (the scene backgrounds)
+    "theme": "transparent",  # transparent (graphics over the live picture) | solid (with a background colour)
 }
 
 
@@ -519,7 +519,7 @@ def _clean_stream_config(raw):
     d = json.loads(json.dumps(STREAM_DEFAULT))
     m = raw.get("match") if isinstance(raw.get("match"), dict) else {}
     d["match"]["mode"] = "manual" if m.get("mode") == "manual" else "auto"
-    d["match"]["comp"] = m.get("comp") if m.get("comp") in ("men", "women", "both") else "men"
+    d["match"]["comp"] = "men"        # the stream dashboard is for the men's competition only
     for k in ("home", "away"):
         d["match"][k] = re.sub(r"[^A-Za-z0-9&.\- ]", "", str(m.get(k) or ""))[:40]
     for k, lo, hi in (("day", 0, 31), ("month", 0, 12)):
@@ -541,7 +541,7 @@ def _clean_stream_config(raw):
             d[k] = max(lo, min(hi, int(raw.get(k, d[k]))))
         except (TypeError, ValueError):
             pass
-    d["theme"] = "transparent" if raw.get("theme") == "transparent" else "solid"
+    d["theme"] = raw.get("theme") if raw.get("theme") in ("solid", "transparent") else d["theme"]
     return d
 
 
@@ -587,8 +587,8 @@ def _clean_club(name):
     return re.sub(r"\s+(HS|DS)\d+\s*$", "", name or "").strip()
 
 
-def stream_matches(comps=("men", "women")):
-    """Upcoming matches (and the ones that started less than a day ago) of both competitions, by kick-off."""
+def stream_matches(comps=("men",)):
+    """Upcoming matches (and the ones that started less than a day ago) of the men's competition, by start time."""
     out, now = [], time.time()
     for comp in comps:
         try:
@@ -611,17 +611,15 @@ def _pick_match(cfg, query):
     now = time.time()
     mm = dict(cfg["match"])
     if query.get("home") and query.get("away"):
-        mm = {"mode": "manual", "comp": query.get("comp", ["men"])[0], "home": query["home"][0], "away": query["away"][0], "day": 0, "month": 0}
+        mm = {"mode": "manual", "comp": "men", "home": query["home"][0], "away": query["away"][0], "day": 0, "month": 0}
     if mm["mode"] == "manual":
-        comps = ("women",) if mm["comp"] == "women" else ("men",) if mm["comp"] == "men" else ("men", "women")
-        cands = [m for m in stream_matches(comps)
+        cands = [m for m in stream_matches()
                  if m["homeCode"] == mm["home"] and m["awayCode"] == mm["away"] or (m["home"] == mm["home"] and m["away"] == mm["away"])]
         if mm.get("day"):
             cands = [m for m in cands if m["day"] == mm["day"] and (not mm.get("month") or m["month"] == mm["month"])]
         return cands[0] if cands else None
-    comps = ("women",) if mm["comp"] == "women" else ("men", "women") if mm["comp"] == "both" else ("men",)
     grace = cfg["graceMin"] * 60
-    for m in stream_matches(comps):
+    for m in stream_matches():
         if m["kickoff"] is not None and m["kickoff"] + grace >= now:
             return m
     return None

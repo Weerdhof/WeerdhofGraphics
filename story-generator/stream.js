@@ -1,21 +1,23 @@
-// SHL stream dashboard: follows the kick-off of one match. See stream.html for the URL parameters.
-// Data and planning come from the server (/api/stream-state): the server also supplies "now", so a wrong clock on the
-// streaming computer cannot shift the scenes.
+// SHL stream dashboard: follows the start of one match. See stream.html for the URL parameters.
+// The look follows the real SHL stream overlays: off-white bars, a lime tab and caption bar, the SHL icon between the teams
+// inside a lime chevron frame, the white logo in the corner. Data and planning come from the server (/api/stream-state);
+// the server also supplies "now", so a wrong clock on the streaming computer cannot shift the scenes.
 (() => {
   const q = new URLSearchParams(location.search);
-  const SIM = q.has('sim') ? parseFloat(q.get('sim')) : null;          // minutes before kick-off (test)
+  const SIM = q.has('sim') ? parseFloat(q.get('sim')) : null;          // minutes before the start (test)
   const SPEED = Math.max(1, parseFloat(q.get('speed') || '1') || 1);
   const DEBUG = q.get('debug') === '1';
   const $ = (id) => document.getElementById(id);
-  const stage = $('stage'), layers = $('layers'), wipe = $('wipe'), dbg = $('debug');
+  const stage = $('stage'), layers = $('layers'), dbg = $('debug');
 
   const fit = () => { stage.style.transform = `scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`; };
   addEventListener('resize', fit); fit();
   if (DEBUG) dbg.hidden = false;
+  if (q.get('bg')) document.body.style.background = q.get('bg');       // test: a colour behind the overlay (e.g. bg=%23446)
 
   // ---------- data ----------
   let S = null, skew = 0, simStart = Date.now(), lastSig = '';
-  const passthrough = ['comp', 'home', 'away'].filter(k => q.get(k)).map(k => `${k}=${encodeURIComponent(q.get(k))}`).join('&');
+  const passthrough = ['home', 'away'].filter(k => q.get(k)).map(k => `${k}=${encodeURIComponent(q.get(k))}`).join('&');
   async function load() {
     try {
       const r = await fetch(q.get('mock') || '/api/stream-state' + (passthrough ? '?' + passthrough : ''), { cache: 'no-store' });
@@ -41,181 +43,191 @@
   // ---------- helpers ----------
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const comp = () => (S && S.match && S.match.comp) || 'men';
-  const COLORS = {
+  const women = () => comp() === 'women';
+  const ICON = 'assets/singlematch/mark.png';
+  const NAMES = {
+    men: { SAB: 'Achilles Bocholt', IZE: 'HBC Izegem', EUP: 'KTSV Eupen', HCS: 'Sprimont', BEV: 'Bevo HC', PEL: 'Sporting Pelt', BWH: 'Hercules', DFS: 'DFS Arnhem', HUP: 'Hurry-Up', HCV: 'HC Visé', HVA: 'HV Aalsmeer', HUB: 'HUBO Handbal', VOL: 'KRAS/Volendam', TAC: 'Tachos' },
+    women: { DSVD: 'DSVD', 'E&O': 'E&O', FOR: 'Foreholte', KWI: 'Kwiek', MHV: 'MHV', PSV: 'PSV', QUI: 'Quintus', SEW: 'SEW', 'V&L': 'V&L', VEN: 'Fortes Venlo', VOC: 'VOC', VOL: 'Volendam', VZV: 'VZV', WPK: 'Westlandia' },
+  };
+  const CLUB_COLORS = {
     men: { BEV: '#fddb75', BWH: '#6f84ba', DFS: '#ae5b53', EUP: '#fd7e79', HCS: '#f8d168', HCV: '#76b1dc', HUB: '#727ab3', HUP: '#fdb875', HVA: '#edd7aa', IZE: '#7396ba', PEL: '#db7169', SAB: '#5096dc', TAC: '#6fac94', VOL: '#fd9652' },
     women: { DSVD: '#e1471c', 'E&O': '#00a456', FOR: '#b87cff', KWI: '#fa4234', MHV: '#008845', PSV: '#fa4234', QUI: '#008845', SEW: '#1330b4', 'V&L': '#005ba2', VEN: '#193676', VOC: '#4c8d40', VOL: '#f78823', VZV: '#ee2b07', WPK: '#3ca815' },
   };
-  const TEXT = {
-    men: { results: 'Results', roundWord: 'Round', h2h: 'Head to head', stand: 'Standing', last: 'LAST RESULTS', prev: 'PREVIOUS MEETING', first: 'FIRST MEETING OF THE SEASON', vs: 'VS', round: 'Round', standings: 'Standings', next: 'Next up', kick: 'Throw-off in', form: 'Form', schedule: 'Today', pts: 'PTS', wait: 'No results yet', pos: '#', club: 'CLUB', id: 'Match', page: '', locale: 'en-GB' },
-    women: { results: 'Uitslagen', roundWord: 'Ronde', h2h: 'Head to head', stand: 'Stand', last: 'LAATSTE UITSLAGEN', prev: 'VORIGE ONTMOETING', first: 'EERSTE ONTMOETING VAN HET SEIZOEN', vs: 'VS', round: 'Ronde', standings: 'Stand', next: 'Zo meteen', kick: 'Start over', form: 'Vorm', schedule: 'Vandaag', pts: 'PTN', wait: 'Nog geen uitslagen', pos: '#', club: 'CLUB', id: 'Wedstrijd', page: '', locale: 'nl-NL' },
+  const TX = {
+    men: { round: 'Round', matchday: 'Matchday', results: 'Results', today: 'Today', stand: 'Standings', h2h: 'Head to head', pts: 'PTS', prev: 'Previous meeting', first: 'First meeting of the season', none: 'No results yet',
+           cap: 'Coinmerce Super Handball League - Regular season' },
+    women: { round: 'Ronde', matchday: 'Speelronde', results: 'Uitslagen', today: 'Vandaag', stand: 'Stand', h2h: 'Head to head', pts: 'PTN', prev: 'Vorige ontmoeting', first: 'Eerste ontmoeting van het seizoen', none: 'Nog geen uitslagen',
+             cap: 'Coinmerce Super Handball League Women - Regular season' },
   };
+  const DAYS = { men: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'], women: ['ZONDAG', 'MAANDAG', 'DINSDAG', 'WOENSDAG', 'DONDERDAG', 'VRIJDAG', 'ZATERDAG'] };
   const MONTHS = { men: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], women: ['JAN', 'FEB', 'MRT', 'APR', 'MEI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC'] };
+  const MONTHS_FULL = { men: ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'], women: ['JANUARI', 'FEBRUARI', 'MAART', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AUGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DECEMBER'] };
+  const T_ = () => TX[comp()];
+  const dateOf = (d, m) => { const now = new Date(); let y = now.getFullYear(); const t = new Date(y, m - 1, d); if (t - now > 200 * 864e5) y--; else if (now - t > 200 * 864e5) y++; return new Date(y, m - 1, d); };
   const span = (a, b) => {
     const M = MONTHS[comp()];
     if (!a) return '';
     if (!b || (a.day === b.day && a.month === b.month)) return `${a.day} ${M[a.month - 1]}`;
     return a.month === b.month ? `${a.day}–${b.day} ${M[b.month - 1]}` : `${a.day} ${M[a.month - 1]} – ${b.day} ${M[b.month - 1]}`;
   };
+  const longDate = (d, m) => `${DAYS[comp()][dateOf(d, m).getDay()]} ${d} ${MONTHS_FULL[comp()][m - 1]}`;
+  const nameOf = (code, feed) => (NAMES[comp()][code] || String(feed || code || '').replace(/\s+(HS|DS)\d+\s*$/i, '')).toUpperCase();
+  const sizeCls = (name, a, b) => name.length <= a ? '' : name.length <= b ? ' m' : ' s';
   const crest = (code, size) => {
-    const dir = comp() === 'women' ? 'assets/women/teams' : 'assets/teams', s = size / 158;
+    const dir = women() ? 'assets/women/teams' : 'assets/teams', s = size / 158;
     const img = code ? `background-image:url('${dir}/${encodeURIComponent(code)}.png');background-size:${1200 * s}px ${200 * s}px;background-position:0 ${-19 * s}px;` : '';
     return `<span class="crest" style="width:${size}px;height:${Math.round(159 * s)}px;${img}"></span>`;
   };
-  const nameBr = (n) => esc(n).replace(/\//g, '/<wbr>');   // long names may break after a slash
-  const logo = () => comp() === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png';
-  const fmtClock = (min) => { const sec = Math.max(0, Math.ceil(min * 60)); return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`; };
-  const matchLine = () => { const m = S.match; return `${esc(m.homeCode || m.home)} – ${esc(m.awayCode || m.away)}${m.time ? ' · ' + esc(m.time) : ''}`; };
+  const logoSrc = () => women() ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png';
 
-  const header = (title, sub) => `
-    <div class="hd">
-      <div class="hd-label"><i></i><div><b>${esc(title)}</b><span>${esc(sub || '')}</span></div></div>
-      <div class="cd" data-cd><small>${esc(TEXT[comp()].kick)}</small><b data-cd-t>--:--</b><em>${matchLine()}</em></div>
-    </div>`;
-  const footer = () => `<img class="ft" src="${logo()}" alt="">`;
-  const pageDots = (page, pages) => pages > 1 ? `<div class="pg">${page + 1} / ${pages}</div>` : '';
+  // the lime chevron frame around the score / time: an outline that draws itself
+  const frame = (w, h, slant) => `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true"><polygon class="draw" pathLength="1" points="${slant},1.5 ${w - slant},1.5 ${w - 1.5},${h - 1.5} 1.5,${h - 1.5}" fill="none" stroke="var(--acc)" stroke-width="3.5" stroke-linejoin="round"/></svg>`;
+  const logo = () => `<img class="lg" src="${logoSrc()}" alt="">`;
+  const tab = (main, small) => `<div class="tab">${esc(main)}${small ? `<small>${esc(small)}</small>` : ''}</div>`;
+  const cap = (text) => `<div class="cap"><span>${esc(text)}</span></div>`;
+
+  // match rows, built like the Results graphic (played: crest badges, winner arrow in the club colour, icon, big scores) and the
+  // Schedule graphic (still to play: the two team strips with the start time in the middle)
+  const stripUrl = (code) => `url('${women() ? 'assets/women/teams' : 'assets/teams'}/${encodeURIComponent(code || '')}.png')`;
+  function row(m, i, firstDay) {
+    const played = m.played !== false && m.homeScore != null && m.awayScore != null;
+    if (!played) {
+      const other = firstDay && (m.day !== firstDay.day || m.month !== firstDay.month);
+      return `<div class="rr sched${m.me ? ' me' : ''}" style="--i:${i}"><div class="half l" style="background-image:${stripUrl(m.homeCode)}"></div><div class="half r" style="background-image:${stripUrl(m.awayCode)}"></div>
+        <div class="tm${other ? ' d' : ''}">${other ? `<small>${esc(span({ day: m.day, month: m.month }))}</small>` : ''}${esc(m.time || '–')}</div></div>`;
+    }
+    const hs = parseFloat(m.homeScore), as = parseFloat(m.awayScore), win = hs > as ? 'links' : as > hs ? 'rechts' : null;
+    const col = CLUB_COLORS[comp()], wc = win ? col[win === 'links' ? m.homeCode : m.awayCode] : null;
+    return `<div class="rr${m.me ? ' me' : ''}" style="--i:${i}">${win ? `<div class="arw" style="--mask:url(assets/arrows/winst-${win}.png);--wc:${wc || 'var(--acc)'}"></div>` : ''}
+      <div class="bd l">${crest(m.homeCode, 130)}</div><div class="bd r">${crest(m.awayCode, 130)}</div><div class="ic"><i></i></div>
+      <div class="s h${hs <= as ? ' lo' : ''}">${esc(m.homeScore)}</div><div class="s a${as <= hs ? ' lo' : ''}">${esc(m.awayScore)}</div></div>`;
+  }
+  // the matches as one narrow list, left-aligned (the rest of the picture stays free): the rows at half size; more than 8 would scroll
+  const VISIBLE_ROWS = 8;
+  const rowsPanel = (title, small, list) => {
+    const items = list.slice(0, 12), n = items.length, vis = Math.min(Math.max(n, 1), VISIBLE_ROWS);
+    const full = (k) => k * 148 + (k - 1) * 14, dist = Math.max(0, full(n) - full(vis)) / 2;
+    const cells = n ? items.map((m, i) => row(m, i, items[0])).join('') : `<div class="rr empty">${esc(T_().none)}</div>`;
+    return `<div class="pn left sm" style="top:110px;width:440px">${tab(title, small)}<div class="lst${n > vis ? ' scroll' : ''}" style="--h:${full(vis) / 2}px;--dist:${dist}px"><div class="mg-in"><div class="mg">${cells}</div></div></div>${cap(T_().cap)}</div>`;
+  };
 
   // ---------- scenes ----------
   const scenes = {
-    results(page) {
-      const T = TEXT[comp()], list = S.results.filter(r => !(r.homeCode === S.match.homeCode && r.awayCode === S.match.awayCode));
-      const PER = 8, pages = Math.max(1, Math.ceil(list.length / PER)), items = list.slice(page * PER, page * PER + PER);
-      const md = S.matchday, sub = md ? `${md.round != null ? T.round + ' ' + md.round + '  ·  ' : ''}${span(md.from, md.to)}` : '';
-      const cards = items.length ? items.map(r => {
-        const hw = r.homeScore > r.awayScore, aw = r.awayScore > r.homeScore, draw = r.homeScore === r.awayScore;
-        return `<div class="res">
-          <div class="side">${crest(r.homeCode, 100)}<div class="nm">${esc(r.homeCode || r.home)}</div></div>
-          <div class="sc"><span class="${!hw && !draw ? 'lo' : ''}">${r.homeScore}</span><i>–</i><span class="${!aw && !draw ? 'lo' : ''}">${r.awayScore}</span></div>
-          <div class="side r">${crest(r.awayCode, 100)}<div class="nm">${esc(r.awayCode || r.away)}</div></div>
-        </div>`;
-      }).join('') : `<div class="res empty">${esc(T.wait)}</div>`;
-      return { pages, html: `${header(T.results, sub)}<div class="res-grid">${cards}</div>${footer()}${pageDots(page, pages)}` };
+    // all matches of the round of this match: the score when played, the start time when not
+    round() {
+      const r = S.round || { matches: [] }, list = r.matches, first = list[0], last = list[list.length - 1];
+      const title = r.round != null ? `${T_().round} ${r.round}` : T_().matchday;
+      return `${logo()}${rowsPanel(title, first ? span({ day: first.day, month: first.month }, { day: last.day, month: last.month }) : '', list)}`;
     },
-    round(page) {
-      const T = TEXT[comp()], r = S.round || { matches: [] }, list = r.matches;
-      const PER = 8, pages = Math.max(1, Math.ceil(list.length / PER)), items = list.slice(page * PER, page * PER + PER);
-      const first = list[0], last = list[list.length - 1];
-      const title = r.round != null ? `${T.roundWord} ${r.round}` : (comp() === 'women' ? 'Speelronde' : 'Matchday');
-      const sub = first ? span({ day: first.day, month: first.month }, { day: last.day, month: last.month }) : '';
-      const cards = items.length ? items.map(m => {
-        const mid = m.played
-          ? `<div class="sc"><span class="${m.homeScore < m.awayScore ? 'lo' : ''}">${m.homeScore}</span><i>–</i><span class="${m.awayScore < m.homeScore ? 'lo' : ''}">${m.awayScore}</span></div>`
-          : `<div class="ko"><b>${esc(m.time || '–')}</b><small>${esc(span({ day: m.day, month: m.month }))}</small></div>`;
-        return `<div class="res${m.me ? ' me' : ''}${m.played ? '' : ' todo'}">
-          <div class="side">${crest(m.homeCode, 100)}<div class="nm">${esc(m.homeCode || m.home)}</div></div>${mid}
-          <div class="side r">${crest(m.awayCode, 100)}<div class="nm">${esc(m.awayCode || m.away)}</div></div></div>`;
-      }).join('') : `<div class="res empty">${esc(T.wait)}</div>`;
-      return { pages, html: `${header(title, sub)}<div class="res-grid">${cards}</div>${footer()}${pageDots(page, pages)}` };
-    },
-    h2h() {
-      const T = TEXT[comp()], m = S.match, c = COLORS[comp()], women = comp() === 'women';
-      const st = (code) => S.standings.find(x => x.code === code);
-      const ink = (hex) => { const n = parseInt((hex || '#ffffff').slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.6 ? '#1b2450' : '#ffffff'; };
-      const col = (code, name) => {
-        const row = st(code), color = c[code] || '#8a93c8', games = (S.form[code] || []).slice(-3).reverse();
-        const rows = [0, 1, 2].map(i => {
-          const g = games[i];
-          return g ? `<div class="hh-row"><span>${crest(g.opp, 56)}</span><span class="opp">${esc(g.opp || '')}</span><span class="sc">${g.gf} – ${g.ga}</span><span class="chip ${g.res}">${g.res}</span></div>`
-                   : `<div class="hh-row empty">${i === 0 ? esc(T.wait) : ''}</div>`;
-        }).join('');
-        return `<div class="hh-col"><div class="hh-top"><div class="tile">${crest(code, 190)}</div><div class="nm">${nameBr(name)}</div></div>
-          <div class="hh-stand" style="background:${color};color:${ink(color)}"><b>${row ? '#' + row.pos : '–'}</b><span>${row ? esc(row.points) + ' ' + T.pts : ''}<small>${row ? esc(row.w) + 'W ' + esc(row.d) + 'D ' + esc(row.l) + 'L' : ''}</small></span></div>
-          <div class="hh-lbl">${esc(T.last)}</div>${rows}</div>`;
-      };
-      const mt = S.meeting;
-      const meet = mt
-        ? `<div class="hh-meet"><span>${crest(mt.homeCode, 70)}</span><div><small>${esc(T.prev)} · ${esc(span({ day: mt.day, month: mt.month }))}</small><b>${mt.homeScore} – ${mt.awayScore}</b></div><span>${crest(mt.awayCode, 70)}</span></div>`
-        : `<div class="hh-meet"><div><small>${esc(T.first)}</small></div></div>`;
-      return { pages: 1, html: `${header(T.h2h, matchLine().replace(/<[^>]+>/g, ''))}
-        <div class="hh">${col(m.homeCode, m.home)}<div class="hh-vs">${T.vs}</div>${col(m.awayCode, m.away)}</div>${meet}` };
-    },
-    standings() {
-      const T = TEXT[comp()], m = S.match, rows = S.standings;
-      const body = rows.map(r => {
-        const me = r.code && (r.code === m.homeCode || r.code === m.awayCode);
-        return `<div class="st-r${me ? ' me' : ''}"><span class="pos">${r.pos}</span><span>${crest(r.code, 40)}</span><span class="nm">${esc(r.name)}</span><span>${esc(r.played)}</span><span>${esc(r.w)}</span><span>${esc(r.d)}</span><span>${esc(r.l)}</span><span class="pts">${esc(r.points)}</span></div>`;
-      }).join('');
-      return { pages: 1, html: `${header(T.standings, '')}
-        <div class="st"><div class="st-h"><span>${T.pos}</span><span></span><span>${T.club}</span><span>P</span><span>W</span><span>D</span><span>L</span><span>${T.pts}</span></div>${body}</div>
-        <div class="next"><small>${esc(T.next)}</small><div class="pair">${crest(m.homeCode, 150)}<span class="vs">VS</span>${crest(m.awayCode, 150)}</div>
-          <div class="names">${esc(m.home)}<br>${esc(m.away)}</div><div class="when">${esc(m.time || '')}</div><img src="${logo()}" alt="" style="height:70px;margin-top:10px"></div>` };
-    },
-    title() {
-      const T = TEXT[comp()], m = S.match, c = COLORS[comp()], cl = (code) => c[code] || '#8a93c8';
-      const id = [m.round != null ? `${T.round} ${m.round}` : null, `${m.homeCode || m.home} – ${m.awayCode || m.away}`].filter(Boolean).join('  ·  ');
-      const glowA = comp() === 'women' ? 0.28 : 0.5;
-      const glow = `radial-gradient(900px 700px at 0% 0%, ${cl(m.homeCode)}${Math.round(glowA * 255).toString(16).padStart(2, '0')}, transparent 70%), radial-gradient(900px 700px at 100% 0%, ${cl(m.awayCode)}${Math.round(glowA * 255).toString(16).padStart(2, '0')}, transparent 70%)`;
-      return { pages: 1, html: `<div class="ti"><div class="ti-glow" style="background:${glow}"></div>
-        <div class="ti-top">${esc(span({ day: m.day, month: m.month }))}${m.time ? '  ·  ' + esc(m.time) : ''}</div>
-        <div class="ti-cd" data-cd><span data-cd-t></span></div>
-        <div class="ti-main">
-          <div class="ti-team"><div class="tile">${crest(m.homeCode, 300)}</div><div class="nm">${nameBr(m.home)}</div></div>
-          <div class="ti-vs">VS</div>
-          <div class="ti-team"><div class="tile">${crest(m.awayCode, 300)}</div><div class="nm">${nameBr(m.away)}</div></div>
-        </div>
-        <div class="ti-id"><small>${esc(T.id)}</small><span>${esc(id)}</span></div></div>` };
-    },
-    form() {
-      const T = TEXT[comp()], m = S.match, st = (code) => S.standings.find(x => x.code === code);
-      const col = (code, name) => {
-        const row = st(code), games = (S.form[code] || []).slice().reverse();      // newest first
-        return `<div class="fm-col"><div class="fm-head">${crest(code, 88)}<div class="nm">${esc(name)}</div>
-          <div class="pp">${row ? `<b>#${row.pos}</b>${esc(row.points)} ${T.pts}` : ''}</div></div>
-          ${games.length ? games.map(g => `<div class="fm-row"><span class="chip ${g.res}">${g.res}</span><span class="opp">${esc(g.opp || '')}</span><span class="sc">${g.gf} – ${g.ga}</span></div>`).join('') : `<div class="fm-row">${esc(T.wait)}</div>`}</div>`;
-      };
-      return { pages: 1, html: `${header(T.form, '')}<div class="fm">${col(m.homeCode, m.home)}${col(m.awayCode, m.away)}</div>${footer()}` };
+    results() {
+      const md = S.matchday, list = S.results || [];
+      return `${logo()}${rowsPanel(T_().results, md ? `${md.round != null ? T_().round + ' ' + md.round + ' · ' : ''}${span(md.from, md.to)}` : '', list.map(x => Object.assign({ played: true }, x)))}`;
     },
     schedule() {
-      const T = TEXT[comp()], m = S.match;
-      const rows = (S.schedule || []).slice(0, 6).map(x => {
-        const me = x.homeCode === m.homeCode && x.awayCode === m.awayCode;
-        return `<div class="sd-r${me ? ' me' : ''}"><span class="t">${esc(x.time || '')}</span><div class="side">${crest(x.homeCode, 80)}<span>${esc(x.home)}</span></div><span class="vs">VS</span><div class="side r">${crest(x.awayCode, 80)}<span>${esc(x.away)}</span></div></div>`;
-      }).join('');
-      return { pages: 1, html: `${header(T.schedule, span({ day: m.day, month: m.month }))}<div class="sd">${rows}</div>${footer()}` };
+      const list = (S.schedule || []).map(x => Object.assign({ played: false, me: x.homeCode === S.match.homeCode && x.awayCode === S.match.awayCode }, x));
+      return `${logo()}${rowsPanel(T_().today, span({ day: S.match.day, month: S.match.month }), list)}`;
     },
-    clean() { return { pages: 1, html: '' }; },
+    standings() {
+      const m = S.match, rows = (S.standings || []).slice(0, 14).map((r, i) => {
+        const me = r.code && (r.code === m.homeCode || r.code === m.awayCode), nm = nameOf(r.code, r.name);
+        return `<div class="st-r${me ? ' me' : ''}" style="--i:${i}"><span class="pos">${r.pos}</span>${crest(r.code, 30)}<span class="nm">${esc(nm)}</span><span>${esc(r.played)}</span><span>${esc(r.w)}</span><span>${esc(r.d)}</span><span>${esc(r.l)}</span><span class="pts">${esc(r.points)}</span></div>`;
+      }).join('');
+      return `${logo()}<div class="pn left sm" style="top:110px;width:550px">${tab(T_().stand, '')}
+        <div class="st-head"><span>#</span><span></span><span>CLUB</span><span>P</span><span>W</span><span>D</span><span>L</span><span>${T_().pts}</span></div>${rows}${cap(T_().cap)}</div>`;
+    },
+    h2h() {
+      const m = S.match, st = (code) => (S.standings || []).find(x => x.code === code), mt = S.meeting;
+      const col = (code) => {
+        const row = st(code), games = ((S.form || {})[code] || []).slice(-3).reverse();
+        const lines = [0, 1, 2].map(i => {
+          const g = games[i];
+          return g ? `<div class="hh-g"><span class="chip ${g.res}">${g.res}</span>${crest(g.opp, 36)}<span class="opp">${esc(g.opp || '')}</span><span class="res">${g.gf} – ${g.ga}</span></div>`
+                   : `<div class="hh-g none">${i === 0 ? esc(T_().none) : '&nbsp;'}</div>`;
+        }).join('');
+        return `<div class="hh-col"><div class="hh-top"><span>${row ? '#' + row.pos + ' · ' + esc(row.points) + ' ' + T_().pts : '–'}</span><small>${row ? esc(row.w) + 'W ' + esc(row.d) + 'D ' + esc(row.l) + 'L' : ''}</small></div>${lines}</div>`;
+      };
+      const meet = mt ? `${T_().prev} · ${span({ day: mt.day, month: mt.month })} · ${mt.homeCode || mt.home} ${mt.homeScore} – ${mt.awayScore} ${mt.awayCode || mt.away}` : T_().first;
+      return `${logo()}<div class="pn" style="top:230px;width:1200px">${tab(T_().h2h, '')}
+        <div class="hh-bar"><div class="half l" style="background-image:${stripUrl(m.homeCode)}"></div><div class="half r" style="background-image:${stripUrl(m.awayCode)}"></div><div class="ic"><i></i></div></div>
+        <div class="hh-det">${col(m.homeCode)}${col(m.awayCode)}</div>${cap(meet)}</div>`;
+    },
+    // the match title is the Match graphic itself: its own team pieces, mark, time and date at their original positions, scaled up
+    title() {
+      const m = S.match, d = dateOf(m.day, m.month), wd = DAYS[comp()][d.getDay()].slice(0, 3), dd = String(m.day).padStart(2, '0') + '-' + String(m.month).padStart(2, '0');
+      const sub = `${wd} ${dd}${m.round != null ? ' | ' + T_().round.toUpperCase() + ' ' + m.round : ''}`;
+      if (!women()) {
+        // the Match graphic stretched: the two team pieces stay as they are and the centre of the piece is stretched between them.
+        // Everything is painted into one bitmap on whole pixels, so there is no seam where the parts meet.
+        const k = 560 / 483, H = Math.round(256 * k);
+        return `${logo()}<div class="ti-wrap" style="left:60px;top:700px;width:1800px;height:${H}px;transform:none">
+          <canvas class="tcv" width="1800" height="${H}" data-home="${esc(m.homeCode)}" data-away="${esc(m.awayCode)}" style="left:0;top:0"></canvas>
+          <img class="mk" src="assets/singlematch/mark.png" alt="" style="left:${(900 - 181 * k / 2).toFixed(1)}px;top:0;width:${(181 * k).toFixed(1)}px;height:${(156 * k).toFixed(1)}px">
+          <div class="tt" style="top:${(186 * k).toFixed(1)}px;font-size:${(61 * k).toFixed(1)}px">${esc(m.time || '')}</div><div class="dd" style="top:${(227 * k).toFixed(1)}px;font-size:${(26 * k).toFixed(1)}px">${esc(sub)}</div></div>`;
+      }
+      const WCODE = { 'E&O': 'ENO', FOR: 'FORE', VEN: 'FORV', 'V&L': 'VEL' }, wc = (c) => WCODE[c] || c;
+      return `${logo()}<div class="ti-wrap" style="width:967px;height:281px;transform:translateX(-50%) scale(1.55)">
+        <img src="assets/women/singlematch/bar.png" alt="" style="left:0;top:102px;width:967px;height:179px">
+        <img src="assets/women/singlematch/teams/${encodeURIComponent(wc(m.homeCode))}.png" alt="" style="left:24px;top:0;width:242px;height:258px">
+        <img src="assets/women/singlematch/teams/${encodeURIComponent(wc(m.awayCode))}.png" alt="" style="left:697px;top:1px;width:243px;height:260px">
+        <img class="mk" src="assets/women/singlematch/mark.png" alt="" style="left:420px;top:29px;width:126px;height:145px">
+        <div class="tt" style="top:184px">${esc(m.time || '')}</div><div class="dd" style="top:244px;font-size:32px">${esc(sub)}</div></div>`;
+    },
+    form() { return scenes.h2h(); },
+    clean() { return ''; },
   };
 
   // ---------- rendering + transitions ----------
-  let cur = null, curPage = 0, sceneSince = Date.now(), curPages = 1;
-  function build(scene, page) {
-    const out = scenes[scene](page);
-    const solid = S.config.theme !== 'transparent';
+  let cur = null;
+  const sceneHtml = (scene) => {
+    const html = scenes[scene] ? scenes[scene]() : '';
+    return scene === 'clean' || !html ? '' : `<div class="scene ${comp()}${S.config.theme !== 'transparent' ? ' solid' : ''}">${html}</div>`;
+  };
+  // paints the stretched Match graphic (title scene) into its canvas
+  function paintTitle(root) {
+    root.querySelectorAll('canvas.tcv').forEach(cv => {
+      const load = (code) => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = `assets/singlematch/teams/${encodeURIComponent(code)}.png`; });
+      Promise.all([load(cv.dataset.home), load(cv.dataset.away)]).then(([h, a]) => {
+        if (!h || !a || !cv.isConnected) return;
+        const c = cv.getContext('2d'), w = 560, ph = cv.height;
+        c.imageSmoothingQuality = 'high';
+        c.drawImage(h, 0, 0, 966, 510, 0, 0, w, ph);                              // home piece
+        c.drawImage(a, 966, 0, 966, 510, cv.width - w, 0, w, ph);                 // away piece
+        c.drawImage(h, 964, 0, 2, 510, w, 0, cv.width - 2 * w, ph);               // the centre between them
+      });
+    });
+  }
+  // team names shrink until they fit their space
+  function fitNames(root) {
+    root.querySelectorAll('.nm').forEach(el => {
+      let fs = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollWidth > el.clientWidth + 1 && fs > 16) { fs -= 2; el.style.fontSize = fs + 'px'; }
+    });
+  }
+  function show(scene) {
+    const old = [...layers.children];
     const root = document.createElement('div');
     root.className = 'layer';
-    root.innerHTML = scene === 'clean' ? '' : `<div class="scene ${comp()}${solid ? ' solid' : ''}">${out.html}</div>`;
-    return { root, pages: out.pages };
+    root.innerHTML = sceneHtml(scene);
+    layers.appendChild(root); fitNames(root); paintTitle(root);
+    old.forEach(o => { o.classList.add('leave'); setTimeout(() => o.remove(), 400); });
   }
-  function show(scene, page, how) {
-    const { root, pages } = build(scene, page);
-    const old = [...layers.children];
-    root.classList.add(how === 'flip' ? 'flip' : 'enter');
-    layers.appendChild(root);
-    old.forEach(o => { o.classList.add('leave'); setTimeout(() => o.remove(), 500); });
-    if (how === 'wipe') { wipe.classList.remove('go'); void wipe.offsetWidth; wipe.style.setProperty('--acc', comp() === 'women' ? '#c93cf0' : '#caff1c'); wipe.classList.add('go'); }
-    curPages = pages;
-  }
-  const dataSig = () => S ? JSON.stringify([S.match && [S.match.homeCode, S.match.awayCode, S.match.time], S.results, S.standings, S.schedule, S.config.theme]) : '';
+  const dataSig = () => S ? JSON.stringify([S.match && [S.match.homeCode, S.match.awayCode, S.match.time], S.results, S.standings, S.schedule, S.round, S.meeting, S.config.theme]) : '';
 
   function tick() {
     if (!S) return;
-    const T = minutesLeft(), scene = pickScene(T), rotate = (S.config.rotate || 12) * 1000;
-    const page = curPages > 1 ? Math.floor((Date.now() - sceneSince) / rotate) % curPages : 0;
-    const sig = dataSig();
+    const T = minutesLeft(), scene = pickScene(T), sig = dataSig();
     if (scene !== cur) {
-      const first = cur === null;
-      cur = scene; curPage = 0; sceneSince = Date.now(); lastSig = sig;
-      show(scene, 0, first || scene === 'clean' ? 'enter' : 'wipe');
-    } else if (page !== curPage) {
-      curPage = page; show(scene, page, 'flip');
+      cur = scene; lastSig = sig;
+      show(scene);
     } else if (sig !== lastSig) {
-      lastSig = sig;
-      const { root, pages } = build(scene, curPage); curPages = pages;      // new data: swap quietly, no animation
-      [...layers.children].forEach(o => o.remove()); layers.appendChild(root);
+      lastSig = sig;                       // new data: swap quietly, without restarting the entrance animations
+      const old = [...layers.children];
+      const root = document.createElement('div'); root.className = 'layer';
+      root.innerHTML = sceneHtml(scene);
+      root.querySelectorAll('*').forEach(el => { el.style.animation = 'none'; });
+      layers.appendChild(root); fitNames(root); paintTitle(root); old.forEach(o => o.remove());
     }
-    // countdown
-    document.querySelectorAll('[data-cd-t]').forEach(el => { el.textContent = T == null ? '' : T <= 0 ? '' : fmtClock(T); });
-    document.querySelectorAll('.cd').forEach(el => el.classList.toggle('soon', T != null && T <= 5));
-    if (DEBUG) dbg.textContent = `T-${T == null ? '?' : T.toFixed(2)} min · scene ${scene}${curPages > 1 ? ` (${curPage + 1}/${curPages})` : ''}${S.match ? ' · ' + S.match.home + ' – ' + S.match.away : ' · geen wedstrijd'}${SIM != null ? ' · sim x' + SPEED : ''}`;
+    if (DEBUG) dbg.textContent = `T-${T == null ? '?' : T.toFixed(2)} min · scene ${scene}${S.match ? ' · ' + S.match.home + ' – ' + S.match.away : ' · geen wedstrijd'}${SIM != null ? ' · sim x' + SPEED : ''}`;
   }
 
   load().then(() => { tick(); });

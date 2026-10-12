@@ -62,9 +62,7 @@
       <div class="seg" id="modeSeg"><button data-mode="auto">Automatisch</button><button data-mode="manual">Zelf kiezen</button></div>
     </div>
     <div id="autoBox">
-      <p>Het dashboard pakt steeds de eerstvolgende wedstrijd en blijft die wedstrijd houden tot een paar minuten na de start. Je hoeft er niets voor te doen.</p>
-      <label for="comp">Competitie</label>
-      <select id="comp"><option value="men">Mannen</option><option value="women">Vrouwen</option><option value="both">Mannen en vrouwen (eerstvolgende van beide)</option></select>
+      <p>Het dashboard (alleen voor de mannen) pakt steeds de eerstvolgende wedstrijd en blijft die wedstrijd houden tot een paar minuten na de start. Je hoeft er niets voor te doen.</p>
       <label for="grace">Houd de wedstrijd vast tot zoveel minuten na de aanvang</label>
       <input type="number" id="grace" min="0" max="180" step="5"> <span class="hint">minuten</span>
     </div>
@@ -109,7 +107,7 @@
     <p>Voeg een <b>Browser</b>-bron toe, breedte <b>1920</b>, hoogte <b>1080</b>, met deze URL. De pagina leest je instellingen hierboven zelf uit: wijzig je hier iets, dan volgt de stream binnen 30 seconden.</p>
     <div class="url" id="urlMain"></div>
     <div class="row"><button class="btn" id="copyMain" type="button">Kopieer URL</button><a class="btn" id="openMain" target="_blank" rel="noopener" style="text-decoration:none">Open in nieuw tabblad</a></div>
-    <p class="hint" style="margin-top:14px">Voor twee streams tegelijk: zet de wedstrijd vast in de URL, bijvoorbeeld <span style="font-family:ui-monospace,monospace">…/stream.html?comp=men&amp;home=HUB&amp;away=PEL</span> (clubcodes). Alleen kijken hoe het eruitziet? Voeg <span style="font-family:ui-monospace,monospace">?sim=20</span> toe: dan doet de pagina alsof het 20 minuten voor de aanvang is.</p>
+    <p class="hint" style="margin-top:14px">Voor twee streams tegelijk: zet de wedstrijd vast in de URL, bijvoorbeeld <span style="font-family:ui-monospace,monospace">…/stream.html?home=HUB&amp;away=PEL</span> (clubcodes). Alleen kijken hoe het eruitziet? Voeg <span style="font-family:ui-monospace,monospace">?sim=20</span> toe: dan doet de pagina alsof het 20 minuten voor de aanvang is.</p>
   </section>
 
   <div class="row"><span id="status" class="status"></span></div>
@@ -144,7 +142,7 @@
     matches.forEach(m => {
       const o = document.createElement('option');
       o.value = matchKey(m);
-      o.textContent = `${dayName(m.day, m.month)} ${m.time || ''} · ${m.comp === 'women' ? 'Vrouwen' : 'Mannen'} · ${m.homeCode || m.home} – ${m.awayCode || m.away}`;
+      o.textContent = `${dayName(m.day, m.month)} ${m.time || ''} · ${m.homeCode || m.home} – ${m.awayCode || m.away}`;
       sel.appendChild(o);
     });
     const cur = cfg.match, want = matches.find(m => m.comp === cur.comp && (m.homeCode === cur.home || m.home === cur.home) && (m.awayCode === cur.away || m.away === cur.away) && (!cur.day || m.day === cur.day));
@@ -155,7 +153,7 @@
     $('modeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === cfg.match.mode));
     $('autoBox').classList.toggle('hidden', cfg.match.mode !== 'auto');
     $('manualBox').classList.toggle('hidden', cfg.match.mode !== 'manual');
-    if (full) { $('comp').value = cfg.match.comp; $('grace').value = cfg.graceMin; $('rotate').value = cfg.rotate; }
+    if (full) { $('grace').value = cfg.graceMin; $('rotate').value = cfg.rotate; }
     $('themeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.theme === cfg.theme));
     // steps
     const box = $('segs');
@@ -222,7 +220,6 @@
     cfg.match.comp = m.comp; cfg.match.home = m.homeCode || m.home; cfg.match.away = m.awayCode || m.away; cfg.match.day = m.day; cfg.match.month = m.month;
   }
   $('matchSel').addEventListener('change', () => { applyManual(); changed(); });
-  $('comp').addEventListener('change', () => { cfg.match.comp = $('comp').value; changed(); });
   $('grace').addEventListener('change', () => { cfg.graceMin = Math.max(0, Math.min(180, parseInt($('grace').value, 10) || 0)); changed(); });
   $('rotate').addEventListener('change', () => { cfg.rotate = Math.max(4, Math.min(60, parseInt($('rotate').value, 10) || 12)); changed(); });
   $('themeSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cfg.theme = b.dataset.theme; changed(); });
