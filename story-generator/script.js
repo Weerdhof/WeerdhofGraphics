@@ -152,7 +152,8 @@
       mark: { x: SM_MARK.x, y: SM_MARK.y + 250, w: SM_MARK.w, h: SM_MARK.h },
       // Story has a lot more room below the cards, so the footer logo can
       // be a good deal bigger here than the Post floor allows.
-      footer: { x: 193, y: SM_FOOTER.y + 469, w: 694, h: 170 },
+      // kept above Instagram's bottom UI (the bottom ~250px of a Story can be covered): ends at y 1646
+      footer: { x: 193, y: 1476, w: 694, h: 170 },
       timeY: SM_TIME_Y + 250, dateY: SM_DATE_Y + 250,
       cardChevronYExtra: 250, cardChevronScale: 1.35,
     },
@@ -198,7 +199,7 @@
       teamRight: { x: 755, y: 1133, w: 243, h: 260 },
       mark: { x: 475, y: 1160, w: 126, h: 145 },
       bar: { x: 55, y: 1233, w: 967, h: 179 },
-      footer: { x: 222, y: 1660, w: 637, h: 134 },
+      footer: { x: 222, y: 1500, w: 637, h: 134 },   // ends at y 1634, above Instagram's bottom UI
       centerX: 540, timeY: 1315, timeFont: 61, dateY: 1375, dateFont: 32,
     },
     post: {
