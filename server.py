@@ -557,9 +557,9 @@ preview_locks_guard = threading.Lock()
 WEEK_PLAN = {
     5: [("results", "story"), ("prediction", "story")],
     6: [("matchresult", "story"), ("ranking", "story")],
-    0: [("results", "post")],
+    0: [("results", "post"), ("results", "story")],
     1: [("playerweek", "post"), ("ranking", "post")],
-    2: [("schedule", "story")],
+    2: [("schedule", "story"), ("schedule", "post")],
     3: [("match", "story"), ("headtohead", "story")],
     4: [("match", "story"), ("headtohead", "story")],
 }

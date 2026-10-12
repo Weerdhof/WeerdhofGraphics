@@ -107,9 +107,9 @@
   const PLAN = [
     { key: 'za', label: 'Zaterdag', dows: [6], items: [['results', 'story', 'Uitslagen'], ['prediction', 'story', 'Prediction']] },
     { key: 'zo', label: 'Zondag', dows: [0], items: [['matchresult', 'story', 'Uitslag los'], ['ranking', 'story', 'Stand']] },
-    { key: 'ma', label: 'Maandag', dows: [1], items: [['results', 'post', 'Uitslagen']] },
+    { key: 'ma', label: 'Maandag', dows: [1], items: [['results', 'post', 'Uitslagen'], ['results', 'story', 'Uitslagen']] },   // + the story, to make it 4
     { key: 'di', label: 'Dinsdag', dows: [2], items: [['playerweek', 'post', 'Speler / speelster van de week'], ['ranking', 'post', 'Stand']] },
-    { key: 'wo', label: 'Woensdag', dows: [3], items: [['schedule', 'story', 'Schedule']] },
+    { key: 'wo', label: 'Woensdag', dows: [3], items: [['schedule', 'story', 'Schedule'], ['schedule', 'post', 'Schedule']] },   // + the post, to make it 4
     { key: 'dovr', label: 'Do / vr', dows: [4, 5], items: [['match', 'story', 'Wedstrijdaankondiging'], ['headtohead', 'story', 'Head to head']] },
   ];
   const todayKey = () => (PLAN.find(p => p.dows.includes(new Date().getDay())) || PLAN[0]).key;
