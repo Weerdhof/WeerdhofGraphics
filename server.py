@@ -12,7 +12,17 @@ Everything else reads from that store:
     GET /api/overview?comp=    results + upcoming for the home page and the ticker
     GET /api/sync-status       when each competition was last checked / last changed
 
-Plus per-item persistence (/api/item, /api/photo, /api/items, /api/backup, /api/restore). No headless browser needed.
+Plus per-item persistence (/api/item, /api/photo, /api/items, /api/backup, /api/restore).
+
+Exports (so images can be fetched with a plain download, without driving the browser):
+
+    PUT  /api/export?name=X.webp   every Export button also stores its image here (DATA_DIR/exports)
+    GET  /exports/X.webp           download a stored export
+    GET  /api/exports              list of stored exports (newest first)
+    GET|POST /api/thumbnail        render a livestream thumbnail server-side with a headless browser (Playwright) from
+                                   kind=shl|shlw|nextmen|nextwomen, home, away, date (YYYY-MM-DD or DD-MM), time,
+                                   format=webp|jpg|png (+ optional title, label, variant=highlights, homeLabel, awayLabel,
+                                   homeName, awayName); answers with the image, or JSON with its URL when json=1.
 
 Usage:
     python3 server.py [port]
@@ -20,14 +30,17 @@ Usage:
 The port can also be supplied via the PORT environment variable (Railway sets it).
 """
 
+import base64
 import html
 import json
 import os
+import queue
 import re
 import sys
 import threading
+import time
 import urllib.request
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "story-generator")
@@ -198,6 +211,11 @@ from datetime import datetime
 
 ITEM_DIR = os.path.join(DATA_DIR, "items")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")
+EXPORT_DIR = os.path.join(DATA_DIR, "exports")
+MAX_EXPORT_BYTES = 64 * 1024 * 1024
+EXPORT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}\.(png|jpe?g|webp|zip|mp4|webm)$", re.I)
+EXPORT_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "zip": "application/zip",
+                "mp4": "video/mp4", "webm": "video/webm"}
 LOGO_DIR = os.path.join(DATA_DIR, "logos")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 MAX_SETTINGS_BYTES = 1024 * 1024
@@ -409,6 +427,117 @@ def _monitor_loop():
         time.sleep(MONITOR_INTERVAL)
 
 
+
+# ---------------------------------------------------------------------------
+# Server-side thumbnail rendering. The drawing code lives in the browser (canvas), so a real headless browser
+# (Playwright, already in the Docker image) opens the app once, keeps it open, and calls window.ThumbAPI.render(...).
+# One worker thread owns the browser (Playwright's sync API is bound to its thread); requests queue up behind it.
+# Locally, set THUMB_BROWSER_CHANNEL=chrome to use the installed Google Chrome instead of Playwright's own Chromium.
+# ---------------------------------------------------------------------------
+class RendererBusy(Exception):
+    pass
+
+
+class RendererUnavailable(Exception):
+    pass
+
+
+class ThumbError(Exception):
+    """A problem with the request (unknown club, bad date, ...): shown to the caller as a 400."""
+
+
+class ThumbRenderer:
+    MAX_PENDING = 6
+
+    def __init__(self):
+        self.jobs = queue.Queue()
+        self.lock = threading.Lock()
+        self.pending = 0
+        self.thread = None
+        self.unavailable = None
+
+    def render(self, params, timeout=120):
+        if self.unavailable:
+            raise RendererUnavailable(self.unavailable)
+        with self.lock:
+            if self.pending >= self.MAX_PENDING:
+                raise RendererBusy("te druk: probeer het over een paar seconden opnieuw")
+            self.pending += 1
+            if self.thread is None:
+                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread.start()
+        job = {"params": params, "done": threading.Event(), "result": None, "error": None}
+        self.jobs.put(job)
+        try:
+            if not job["done"].wait(timeout):
+                raise RendererUnavailable("renderen duurde te lang")
+        finally:
+            with self.lock:
+                self.pending -= 1
+        if job["error"]:
+            raise job["error"]
+        return job["result"]
+
+    def _open(self):
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        kw = {"args": ["--no-sandbox", "--disable-dev-shm-usage"]}
+        if os.environ.get("THUMB_BROWSER_CHANNEL"):
+            kw["channel"] = os.environ["THUMB_BROWSER_CHANNEL"]
+        browser = pw.chromium.launch(**kw)
+        page = browser.new_page(viewport={"width": 1280, "height": 900})
+        page.goto(f"http://127.0.0.1:{PORT}/?thumbapi=1", wait_until="load", timeout=60000)
+        page.wait_for_function("window.ThumbAPI !== undefined", timeout=60000)
+        page.evaluate("() => window.ThumbAPI.ready")
+        return pw, browser, page
+
+    @staticmethod
+    def _close(pw, browser):
+        for closer in (lambda: browser and browser.close(), lambda: pw and pw.stop()):
+            try:
+                closer()
+            except Exception:
+                pass
+
+    def _run(self):
+        pw = browser = page = None
+        while True:
+            job = self.jobs.get()
+            try:
+                if page is None:
+                    try:
+                        pw, browser, page = self._open()
+                    except ImportError:
+                        self.unavailable = "Playwright is niet geïnstalleerd op deze server"
+                        raise RendererUnavailable(self.unavailable)
+                    except Exception as err:
+                        self._close(pw, browser)
+                        pw = browser = page = None
+                        raise RendererUnavailable(f"browser starten mislukt: {err}")
+                job["result"] = page.evaluate("p => window.ThumbAPI.render(p)", job["params"])
+            except RendererUnavailable as err:
+                job["error"] = err
+            except Exception as err:
+                msg = str(err)
+                m = re.search(r"ThumbAPI: ([^\n]*)", msg)
+                if m:
+                    job["error"] = ThumbError(m.group(1).strip())
+                else:
+                    job["error"] = RuntimeError(msg.splitlines()[0][:300] if msg else "renderen mislukt")
+                    self._close(pw, browser)       # start from a clean browser next time
+                    pw = browser = page = None
+            finally:
+                job["done"].set()
+
+
+RENDERER = ThumbRenderer()
+
+
+def _safe_export_name(name):
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name or "")
+    return name if EXPORT_NAME_RE.match(name) else None
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -430,6 +559,12 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_settings_get()
         elif self.path.startswith("/api/logo"):
             self.handle_logo_get()
+        elif self.path.startswith("/api/exports"):
+            self.handle_exports_list()
+        elif self.path.startswith("/api/thumbnail"):
+            self.handle_thumbnail()
+        elif self.path.startswith("/exports/"):
+            self.handle_export_get()
         elif self.path.startswith("/api/items"):
             self.handle_items_list()
         elif self.path.startswith("/api/item"):
@@ -450,11 +585,15 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_photo_put()
         elif self.path.startswith("/api/item"):
             self.handle_item_put()
+        elif self.path.startswith("/api/thumbnail"):
+            self.handle_thumbnail()
         else:
             self.send_error(404)
 
     def do_PUT(self):
-        if self.path.startswith("/api/settings"):
+        if self.path.startswith("/api/export"):
+            self.handle_export_put()
+        elif self.path.startswith("/api/settings"):
             self.handle_settings_put()
         elif self.path.startswith("/api/logo"):
             self.handle_logo_put()
@@ -474,6 +613,100 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_item_delete()
         else:
             self.send_error(404)
+
+
+    # --- exports (stored images) ---
+    def _public_base(self):
+        proto = (self.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip()
+        host = self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or f"localhost:{PORT}"
+        return f"{proto}://{host}"
+
+    def _store_export(self, name, data):
+        os.makedirs(EXPORT_DIR, exist_ok=True)
+        tmp = os.path.join(EXPORT_DIR, name + ".tmp")
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, os.path.join(EXPORT_DIR, name))
+        return {"name": name, "path": "/exports/" + name, "url": self._public_base() + "/exports/" + name, "bytes": len(data)}
+
+    def handle_export_put(self):
+        name = _safe_export_name(parse_qs(urlparse(self.path).query).get("name", [""])[0])
+        if not name:
+            return self._send_json(400, {"error": "name ontbreekt of is ongeldig (png, jpg, webp, zip, mp4 of webm)"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > MAX_EXPORT_BYTES:
+                return self._send_json(413, {"error": "bestand te groot of leeg"})
+            self._send_json(200, self._store_export(name, self.rfile.read(length)))
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
+
+    def handle_export_get(self):
+        name = _safe_export_name(unquote(urlparse(self.path).path[len("/exports/"):]))
+        path = os.path.join(EXPORT_DIR, name) if name else None
+        if not path or not os.path.isfile(path):
+            return self._send_json(404, {"error": "niet gevonden"})
+        with open(path, "rb") as f:
+            data = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", EXPORT_TYPES.get(name.rsplit(".", 1)[-1].lower(), "application/octet-stream"))
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", f'inline; filename="{name}"')
+        self.end_headers()
+        self.wfile.write(data)
+
+    def handle_exports_list(self):
+        base = self._public_base()
+        rows = []
+        try:
+            for name in os.listdir(EXPORT_DIR):
+                p = os.path.join(EXPORT_DIR, name)
+                if os.path.isfile(p) and EXPORT_NAME_RE.match(name):
+                    st = os.stat(p)
+                    rows.append({"name": name, "path": "/exports/" + name, "url": base + "/exports/" + name, "bytes": st.st_size, "modified": int(st.st_mtime)})
+        except OSError:
+            pass
+        rows.sort(key=lambda r: r["modified"], reverse=True)
+        self._send_json(200, {"exports": rows[:300]})
+
+    # --- server-side thumbnail rendering ---
+    def handle_thumbnail(self):
+        params = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+        if self.command == "POST":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if 0 < length < 100_000 else {}
+                if isinstance(body, dict):
+                    params.update({k: v for k, v in body.items() if isinstance(v, (str, int, float))})
+            except ValueError:
+                return self._send_json(400, {"error": "ongeldige JSON"})
+        want_json = str(params.pop("json", "")).lower() in ("1", "true", "yes")
+        params = {k: str(v) for k, v in params.items() if len(str(v)) <= 200}
+        try:
+            result = RENDERER.render(params)
+        except ThumbError as err:
+            return self._send_json(400, {"error": str(err)})
+        except RendererBusy as err:
+            return self._send_json(429, {"error": str(err)})
+        except RendererUnavailable as err:
+            return self._send_json(501, {"error": str(err)})
+        except Exception as err:
+            return self._send_json(500, {"error": str(err)})
+        try:
+            data = base64.b64decode(result["dataUrl"].split(",", 1)[1])
+            name = _safe_export_name(result.get("fileName")) or ("thumbnail-%d.%s" % (int(time.time()), result.get("format", "webp")))
+            saved = self._store_export(name, data)
+        except Exception as err:
+            return self._send_json(500, {"error": "opslaan mislukt: " + str(err)})
+        if want_json:
+            return self._send_json(200, {**saved, "format": result.get("format"), "data": result.get("data")})
+        self.send_response(200)
+        self.send_header("Content-Type", EXPORT_TYPES.get(name.rsplit(".", 1)[-1].lower(), "application/octet-stream"))
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", f'inline; filename="{name}"')
+        self.send_header("X-Export-Url", saved["url"])
+        self.end_headers()
+        self.wfile.write(data)
 
     # --- per-item storage ---
     def _query_key(self):

@@ -201,14 +201,19 @@
   }
   function shlDefaults() { return { hasPhoto: false, photoPos: { z: 1, x: 0, y: 0 }, home: '', away: '', date: '', time: '', title: SETTINGS.text('th.title', 'Livestream'), variant: 'live', label: SETTINGS.text('th.label', 'Regular season'), homeLabel: '', awayLabel: '', fixture: '' }; }
 
-  async function loadFixtures(kind) {
+  const byDate = (a, b) => (((a.month + 4) % 12) * 100 + a.day) - (((b.month + 4) % 12) * 100 + b.day) || (a.time || '').localeCompare(b.time || '');
+  // every fixture of the competition from the server's own store (played + upcoming), with our club codes
+  async function fetchAllFixtures(kind) {
     const cfg = kind === 'shl' ? MEN : WOMEN;
+    const r = await fetch('/api/schedule?comp=' + (kind === 'shl' ? 'men' : 'women'));
+    const data = await r.json();
+    return (data.fixtures || []).map(f => ({ ...f, hc: codeOf(cfg, f.home), ac: codeOf(cfg, f.away) })).filter(f => f.hc && f.ac && f.hc !== f.ac).sort(byDate);
+  }
+  async function loadFixtures(kind) {
     try {
-      const r = await fetch('/api/schedule?comp=' + (kind === 'shl' ? 'men' : 'women'));
-      const data = await r.json();
-      const fx = (data.fixtures || []).map(f => ({ ...f, hc: codeOf(cfg, f.home), ac: codeOf(cfg, f.away) })).filter(f => f.hc && f.ac && f.hc !== f.ac);
+      const fx = await fetchAllFixtures(kind);
       const upcoming = fx.filter(f => !f.played);
-      cur.fixtures = (upcoming.length ? upcoming : fx).sort((a, b) => (((a.month + 4) % 12) * 100 + a.day) - (((b.month + 4) % 12) * 100 + b.day) || (a.time || '').localeCompare(b.time || ''));
+      cur.fixtures = upcoming.length ? upcoming : fx;
     } catch (e) { cur.fixtures = []; }
     const map = new Map();
     cur.fixtures.forEach(f => { const k = f.month * 100 + f.day; if (!map.has(k)) map.set(k, { key: k, day: f.day, month: f.month, items: [] }); map.get(k).items.push(f); });
@@ -343,10 +348,21 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   }
   const status = (t) => { const el = $('thStatus'); if (el) { el.textContent = t; el.hidden = !t; } };
+  // Every export also goes to the server (/exports/<name>), so it can be fetched with a plain download (also by other tools).
+  async function saveOnServer(blob, name) {
+    try {
+      const r = await fetch('/api/export?name=' + enc(name), { method: 'PUT', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch (e) { return null; }
+  }
   async function exportOne() {
     flushSave();
     const blob = await blobFor(cur.kind, cur.d, exportFmt);
-    download(blob, `${fileName(cur.kind, cur.d)}.${EXT[exportFmt]}`);
+    const name = `${fileName(cur.kind, cur.d)}.${EXT[exportFmt]}`;
+    download(blob, name);
+    const saved = await saveOnServer(blob, name);
+    status(saved ? `✓ Gedownload en op de server: ${saved.path}` : '✓ Gedownload (opslaan op de server mislukte)');
   }
   async function exportDay() {
     const day = cur.days.find(x => String(x.key) === String(cur.d.dayKey)) || cur.days[0];
@@ -359,8 +375,12 @@
       files.push({ name: `${fileName(cur.kind, d)}.${EXT[exportFmt]}`, data: new Uint8Array(await blob.arrayBuffer()) });
     }
     const zip = makeZip(files);
-    download(new Blob([zip], { type: 'application/zip' }), `${cur.kind === 'shl' ? 'SHL' : 'SHLW'}_thumbnails_${day.day}-${day.month}.zip`);
-    status(`✓ ${files.length} thumbnails in de zip`);
+    const zipName = `${cur.kind === 'shl' ? 'SHL' : 'SHLW'}_thumbnails_${day.day}-${day.month}.zip`, zipBlob = new Blob([zip], { type: 'application/zip' });
+    download(zipBlob, zipName);
+    // the single images go to the server too, so each match has its own URL
+    let saved = 0;
+    for (const f of files) { if (await saveOnServer(new Blob([f.data], { type: MIME[exportFmt] }), f.name)) saved++; }
+    status(`✓ ${files.length} thumbnails in de zip${saved ? ` · ${saved} ook op de server (/exports/)` : ''}`);
   }
 
   // minimal store-only zip writer
@@ -457,6 +477,68 @@
     const end = () => { if (!drag) return; drag = null; cv.style.cursor = ''; scheduleSave(); };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   }
+
+
+  // ---------- Headless API ----------
+  // Used by the server (POST/GET /api/thumbnail renders with a real browser and calls this): the same drawing code as the
+  // editor, driven by parameters instead of the UI. Returns the image as a data URL + the file name.
+  const apiReady = Promise.all([fontsReady, nextReady, SETTINGS.ready]);
+  const apiErr = (m) => new Error('ThumbAPI: ' + m);
+  const parseDM = (v) => {   // "2026-10-17", "17-10", "17/10", "17-10-2026" -> { day, month }
+    const t = String(v || '').trim(); if (!t) return null;
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t); if (m) return { day: +m[3], month: +m[2] };
+    m = /^(\d{1,2})[-/.](\d{1,2})(?:[-/.]\d{2,4})?$/.exec(t); if (m) return { day: +m[1], month: +m[2] };
+    return null;
+  };
+  const resolveCode = (cfg, v) => {
+    const t = String(v || '').trim(); if (!t) return null;
+    const hit = cfg.clubs.find(([c]) => c.toLowerCase() === t.toLowerCase()) || cfg.clubs.find(([c, n]) => norm(n) === norm(t));
+    return hit ? hit[0] : codeOf(cfg, t);
+  };
+  const resolveNext = (men, v) => {
+    const t = norm(String(v || '').trim()); if (!t) return null;
+    const hit = nextClubs.find(c => norm(c.id) === t || norm(c.label || '') === t || norm(c.name || '') === t);
+    return hit ? hit.id : null;
+  };
+  window.ThumbAPI = {
+    ready: apiReady,
+    async render(p) {
+      await apiReady;
+      p = p || {};
+      const kind = p.kind; if (!KINDS[kind]) throw apiErr('kind moet shl, shlw, nextmen of nextwomen zijn');
+      let fmt = String(p.format || 'webp').toLowerCase(); if (fmt === 'jpg') fmt = 'jpeg';
+      if (!MIME[fmt]) throw apiErr('format moet jpg, webp of png zijn');
+      const K = KINDS[kind], dm = parseDM(p.date);
+      if (p.date && !dm) throw apiErr('date: gebruik YYYY-MM-DD of DD-MM');
+      let d;
+      if (K.next) {
+        const home = resolveNext(K.men, p.home), away = resolveNext(K.men, p.away);
+        if (!home || !away) throw apiErr(`onbekende club (home=${p.home}, away=${p.away}); beschikbaar: ${nextClubs.map(c => c.id).join(', ')}`);
+        d = nextDefaults(kind);
+        const dateText = dm ? (() => { const dt = seasonDate(dm.day, dm.month); return `${DAYS_NL_LOWER[dt.getDay()]} ${dm.day} ${MONTHS_NL_LOWER[dm.month - 1]}`; })() : (p.dateText || d.date);
+        Object.assign(d, { home, away, homeName: p.homeName || SETTINGS.name('hnl:' + home, (nextById[home] || {}).name || home), awayName: p.awayName || SETTINGS.name('hnl:' + away, (nextById[away] || {}).name || away), date: dateText, time: p.time || d.time });
+        if (dm) { d.day = dm.day; d.month = dm.month; }
+      } else {
+        const cfg = kind === 'shl' ? MEN : WOMEN;
+        const home = resolveCode(cfg, p.home), away = resolveCode(cfg, p.away);
+        if (!home || !away || home === away) throw apiErr(`onbekende club (home=${p.home}, away=${p.away}); codes: ${cfg.clubs.map(c => c[0]).join(', ')}`);
+        const all = await fetchAllFixtures(kind);
+        const same = all.filter(f => f.hc === home && f.ac === away && (!dm || (f.day === dm.day && f.month === dm.month)));
+        const f = same.find(x => !x.played) || same[0] || null;
+        const day = dm ? dm.day : (f && f.day), month = dm ? dm.month : (f && f.month);
+        if (!day || !month) throw apiErr(`geen wedstrijd ${home}-${away} gevonden in het programma; geef date mee (YYYY-MM-DD)`);
+        d = shlDefaults();
+        Object.assign(d, { home, away, date: fmtDate(cfg, day, month), time: p.time || (f && f.time) || '', homeLabel: p.homeLabel || labelOf(cfg, home), awayLabel: p.awayLabel || labelOf(cfg, away), day, month, round: f && f.round || null });
+        if (p.title != null && p.title !== '') d.title = p.title;
+        if (p.label != null && p.label !== '') d.label = p.label;
+        if (kind === 'shl' && p.variant === 'highlights') d.variant = 'highlights';
+        d.fixtureFound = !!f;
+      }
+      const blob = await blobFor(kind, d, fmt, false);
+      const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error('lezen mislukt')); fr.readAsDataURL(blob); });
+      return { dataUrl, fileName: `${fileName(kind, d)}.${EXT[fmt]}`, format: fmt, data: { home: d.home, away: d.away, date: d.date, time: d.time, round: d.round || null, fixtureFound: !!d.fixtureFound } };
+    },
+  };
 
   window.TH = {
     NAMES,

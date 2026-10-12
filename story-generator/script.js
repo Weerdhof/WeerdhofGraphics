@@ -4530,6 +4530,8 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      // every export also gets a copy on the server (/exports/<name>), fetchable with a plain download
+      fetch('/api/export?name=' + encodeURIComponent(`${slug}.png`), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob }).catch(() => {});
     }, 'image/png');
   });
 
