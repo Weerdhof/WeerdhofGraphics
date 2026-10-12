@@ -92,6 +92,7 @@
 
   function render() {
     const box = $('dashPanels'); if (!box) return;
+    buildFeatured(false);
     box.innerHTML = panelHtml(COMPS.men) + panelHtml(COMPS.women);
     const more = $('dashMore');
     if (more && !more.dataset.built) {
@@ -101,10 +102,58 @@
     }
   }
 
+
+  // ---------- Uitgelicht: the weekly planning, each asset with a live preview (rendered on the server with the real data) ----------
+  const PLAN = [
+    { key: 'za', label: 'Zaterdag', dows: [6], items: [['results', 'story', 'Uitslagen'], ['prediction', 'story', 'Prediction']] },
+    { key: 'zo', label: 'Zondag', dows: [0], items: [['matchresult', 'story', 'Uitslag los'], ['ranking', 'story', 'Stand']] },
+    { key: 'ma', label: 'Maandag', dows: [1], items: [['results', 'post', 'Uitslagen']] },
+    { key: 'di', label: 'Dinsdag', dows: [2], items: [['playerweek', 'post', 'Speler / speelster van de week'], ['ranking', 'post', 'Stand']] },
+    { key: 'wo', label: 'Woensdag', dows: [3], items: [['schedule', 'story', 'Schedule']] },
+    { key: 'dovr', label: 'Do / vr', dows: [4, 5], items: [['match', 'story', 'Wedstrijdaankondiging'], ['headtohead', 'story', 'Head to head']] },
+  ];
+  const todayKey = () => (PLAN.find(p => p.dows.includes(new Date().getDay())) || PLAN[0]).key;
+  let usage = null;
+  const whenText = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts * 1000), tz = 'Europe/Amsterdam', clock = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+    const dayOf = (x) => x.toLocaleDateString('nl-NL', { timeZone: tz }), now = new Date();
+    if (dayOf(d) === dayOf(now)) return 'vandaag ' + clock;
+    if (dayOf(d) === dayOf(new Date(now - 864e5))) return 'gisteren ' + clock;
+    return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', timeZone: tz }) + ' ' + clock;
+  };
+  function usageLine(comp, asset, fmt) {
+    const u = usage && usage.last && usage.last[`${comp}:${asset}:${fmt}`];
+    if (!u) return 'nog niet gebruikt';
+    const parts = [];
+    if (u.export) parts.push('geëxporteerd ' + whenText(u.export));
+    else if (u.open) parts.push('geopend ' + whenText(u.open));
+    return 'laatst ' + parts.join('');
+  }
+  function featuredHtml() {
+    const day = PLAN.find(p => p.key === todayKey());   // just today's planning, no day selector
+    const cards = day.items.map(([asset, fmt, title]) => ['men', 'women'].map(comp => {
+      const c = COMPS[comp], q = `asset=${asset}&comp=${comp}&format=${fmt}`;
+      return `<button type="button" class="feat-card" style="--acc:${c.accent}" data-dash-go="${comp}:${asset}:${fmt}">
+        <span class="feat-img feat-${fmt}"><img loading="lazy" alt="" src="/api/preview?${q}" onload="this.classList.add('ready');this.parentNode.classList.add('loaded')" onerror="this.parentNode.classList.add('feat-fail')"><span class="feat-spin"></span></span>
+        <span class="feat-cap"><b>${esc(title)}</b><span>${fmt === 'post' ? 'Post' : 'Story'} · ${comp === 'men' ? 'Mannen' : 'Vrouwen'}</span><small data-usage="${comp}:${asset}:${fmt}">${esc(usageLine(comp, asset, fmt))}</small></span>
+      </button>`;
+    }).join('')).join('');
+    return `<div class="feat-cards">${cards}</div>`;
+  }
+  function buildFeatured(force) {
+    const box = $('dashFeatured'); if (!box) return;
+    if (!force && box.dataset.built) return;
+    box.dataset.built = '1'; box.innerHTML = featuredHtml();
+  }
+  function updateUsage() {
+    document.querySelectorAll('[data-usage]').forEach(el => { const [comp, asset, fmt] = el.dataset.usage.split(':'); el.textContent = usageLine(comp, asset, fmt); });
+  }
+
   async function refresh() {
     await S.ready;
-    await Promise.all([fetchComp('men'), fetchComp('women'), fetch('/api/sync-status').then(r => r.json()).then(j => { data.sync = j; }).catch(() => {})]);
-    render();
+    await Promise.all([fetchComp('men'), fetchComp('women'), fetch('/api/sync-status').then(r => r.json()).then(j => { data.sync = j; }).catch(() => {}), fetch('/api/usage?limit=1').then(r => r.json()).then(j => { usage = j; }).catch(() => {})]);
+    render(); updateUsage();
   }
   function show() { visible = true; render(); const p = refresh(); clearInterval(timer); timer = setInterval(() => { if (visible) refresh(); }, 60000); return Promise.race([p, new Promise(r => setTimeout(r, 4000))]); }
   function hide() { visible = false; clearInterval(timer); }

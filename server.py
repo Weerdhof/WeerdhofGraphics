@@ -19,6 +19,9 @@ Exports (so images can be fetched with a plain download, without driving the bro
     PUT  /api/export?name=X.webp   every Export button also stores its image here (DATA_DIR/exports)
     GET  /exports/X.webp           download a stored export
     GET  /api/exports              list of stored exports (newest first)
+    GET  /api/preview?asset=results&comp=men&format=story
+                                   small preview image of any asset, rendered with real data (cached ~20 min)
+    POST /api/usage, GET /api/usage  log of what was opened/exported when (for the "Uitgelicht" section)
     GET|POST /api/thumbnail        render a livestream thumbnail server-side with a headless browser (Playwright) from
                                    kind=shl|shlw|nextmen|nextwomen, home, away, date (YYYY-MM-DD or DD-MM), time,
                                    format=webp|jpg|png (+ optional title, label, variant=highlights, homeLabel, awayLabel,
@@ -212,6 +215,7 @@ from datetime import datetime
 ITEM_DIR = os.path.join(DATA_DIR, "items")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")
 EXPORT_DIR = os.path.join(DATA_DIR, "exports")
+USAGE_FILE = os.path.join(DATA_DIR, "usage.json")
 MAX_EXPORT_BYTES = 64 * 1024 * 1024
 EXPORT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}\.(png|jpe?g|webp|zip|mp4|webm)$", re.I)
 EXPORT_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "zip": "application/zip",
@@ -424,6 +428,8 @@ def _monitor_loop():
                 refresh_comp(comp)
             except Exception:
                 pass
+        # then get today's planned assets ready (preview + pre-filled data) in the background
+        threading.Thread(target=lambda: (time.sleep(2), warm_previews()), daemon=True).start()
         time.sleep(MONITOR_INTERVAL)
 
 
@@ -456,7 +462,7 @@ class ThumbRenderer:
         self.thread = None
         self.unavailable = None
 
-    def render(self, params, timeout=120):
+    def render(self, params, timeout=120, op="thumb"):
         if self.unavailable:
             raise RendererUnavailable(self.unavailable)
         with self.lock:
@@ -466,7 +472,7 @@ class ThumbRenderer:
             if self.thread is None:
                 self.thread = threading.Thread(target=self._run, daemon=True)
                 self.thread.start()
-        job = {"params": params, "done": threading.Event(), "result": None, "error": None}
+        job = {"params": params, "op": op, "done": threading.Event(), "result": None, "error": None}
         self.jobs.put(job)
         try:
             if not job["done"].wait(timeout):
@@ -514,12 +520,18 @@ class ThumbRenderer:
                         self._close(pw, browser)
                         pw = browser = page = None
                         raise RendererUnavailable(f"browser starten mislukt: {err}")
-                job["result"] = page.evaluate("p => window.ThumbAPI.render(p)", job["params"])
+                if job["op"] == "asset":
+                    # an asset preview drives the editor itself: start from a fresh page every time
+                    page.goto(f"http://127.0.0.1:{PORT}/?thumbapi=1", wait_until="load", timeout=60000)
+                    page.wait_for_function("window.AssetAPI !== undefined", timeout=60000)
+                    job["result"] = page.evaluate("p => window.AssetAPI.render(p)", job["params"])
+                else:
+                    job["result"] = page.evaluate("p => window.ThumbAPI.render(p)", job["params"])
             except RendererUnavailable as err:
                 job["error"] = err
             except Exception as err:
                 msg = str(err)
-                m = re.search(r"ThumbAPI: ([^\n]*)", msg)
+                m = re.search(r"(?:ThumbAPI|AssetAPI): ([^\n]*)", msg)
                 if m:
                     job["error"] = ThumbError(m.group(1).strip())
                 else:
@@ -531,6 +543,89 @@ class ThumbRenderer:
 
 
 RENDERER = ThumbRenderer()
+
+
+# ---------------------------------------------------------------------------
+# "Uitgelicht": previews of the assets in the weekly planning, and a log of what is used when.
+# ---------------------------------------------------------------------------
+PREVIEW_ASSETS = {"results", "schedule", "ranking", "match", "matchresult", "prediction", "headtohead", "playerweek", "topscorer", "nowlive"}
+PREVIEW_TTL = 20 * 60
+preview_cache = {}               # (asset, comp, format) -> (time, webp bytes)
+preview_locks = {}
+preview_locks_guard = threading.Lock()
+# weekday (0 = Monday) -> the assets of that day's planning; warmed up in the background so a click shows data at once
+WEEK_PLAN = {
+    5: [("results", "story"), ("prediction", "story")],
+    6: [("matchresult", "story"), ("ranking", "story")],
+    0: [("results", "post")],
+    1: [("playerweek", "post"), ("ranking", "post")],
+    2: [("schedule", "story")],
+    3: [("match", "story"), ("headtohead", "story")],
+    4: [("match", "story"), ("headtohead", "story")],
+}
+
+
+def get_preview(asset, comp, fmt, fresh=False):
+    key = (asset, comp, fmt)
+    with preview_locks_guard:
+        lock = preview_locks.setdefault(key, threading.Lock())
+    with lock:
+        hit = preview_cache.get(key)
+        if hit and not fresh and time.time() - hit[0] < PREVIEW_TTL:
+            return hit[1], int(time.time() - hit[0])
+        result = RENDERER.render({"asset": asset, "comp": comp, "format": fmt}, timeout=90, op="asset")
+        data = base64.b64decode(result["dataUrl"].split(",", 1)[1])
+        preview_cache[key] = (time.time(), data)
+        return data, 0
+
+
+def warm_previews():
+    """Render today's planned assets (both competitions) so the preview and the pre-filled data are ready."""
+    if RENDERER.unavailable or RENDERER.pending:
+        return
+    for asset, fmt in WEEK_PLAN.get(datetime.now().weekday(), []):
+        for comp in ("men", "women"):
+            try:
+                get_preview(asset, comp, fmt)
+            except Exception:
+                pass
+
+
+usage_lock = threading.Lock()
+
+
+def _usage_read():
+    try:
+        with open(USAGE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def usage_add(entry):
+    with usage_lock:
+        log = _usage_read()
+        log.append(entry)
+        log = log[-3000:]
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = USAGE_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(log, f)
+            os.replace(tmp, USAGE_FILE)
+        except OSError:
+            pass
+
+
+def usage_summary(limit=40):
+    log = _usage_read()
+    last, counts = {}, {}
+    for e in log:
+        k = f"{e.get('comp')}:{e.get('asset')}:{e.get('format') or ''}"
+        last.setdefault(k, {})[e.get("action", "open")] = e.get("t")
+        counts[k] = counts.get(k, 0) + 1
+    return {"recent": log[-limit:][::-1], "last": last, "counts": counts}
 
 
 def _safe_export_name(name):
@@ -561,6 +656,10 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_logo_get()
         elif self.path.startswith("/api/exports"):
             self.handle_exports_list()
+        elif self.path.startswith("/api/preview"):
+            self.handle_preview()
+        elif self.path.startswith("/api/usage"):
+            self._send_json(200, usage_summary(int((parse_qs(urlparse(self.path).query).get("limit", ["40"])[0] or 40))))
         elif self.path.startswith("/api/thumbnail"):
             self.handle_thumbnail()
         elif self.path.startswith("/exports/"):
@@ -587,6 +686,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_item_put()
         elif self.path.startswith("/api/thumbnail"):
             self.handle_thumbnail()
+        elif self.path.startswith("/api/usage"):
+            self.handle_usage_post()
         else:
             self.send_error(404)
 
@@ -614,6 +715,44 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+
+
+    # --- previews + usage ---
+    def handle_preview(self):
+        q = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+        asset, comp, fmt = q.get("asset", ""), q.get("comp", "men"), q.get("format", "")
+        if asset not in PREVIEW_ASSETS or comp not in ("men", "women") or fmt not in ("", "story", "post"):
+            return self._send_json(400, {"error": "asset, comp (men|women) of format (story|post) ongeldig"})
+        try:
+            data, age = get_preview(asset, comp, fmt, fresh=q.get("fresh") == "1")
+        except ThumbError as err:
+            return self._send_json(400, {"error": str(err)})
+        except RendererBusy as err:
+            return self._send_json(429, {"error": str(err)})
+        except RendererUnavailable as err:
+            return self._send_json(501, {"error": str(err)})
+        except Exception as err:
+            return self._send_json(500, {"error": str(err)})
+        self.send_response(200)
+        self.send_header("Content-Type", "image/webp")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Preview-Age", str(age))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def handle_usage_post(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if 0 < length < 5000 else {}
+            clean = lambda v: re.sub(r"[^a-z0-9_-]", "", str(v or "").lower())[:30]
+            asset, comp = clean(body.get("asset")), clean(body.get("comp"))
+            if not asset or comp not in ("men", "women", "hnl", "th"):
+                return self._send_json(400, {"error": "asset en comp nodig"})
+            action = clean(body.get("action")) or "open"
+            usage_add({"t": int(time.time()), "asset": asset, "comp": comp, "format": clean(body.get("format")), "action": action})
+            self._send_json(200, {"ok": True})
+        except ValueError:
+            self._send_json(400, {"error": "ongeldige JSON"})
 
     # --- exports (stored images) ---
     def _public_base(self):

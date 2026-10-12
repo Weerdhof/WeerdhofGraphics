@@ -1,4 +1,6 @@
 (() => {
+  // The server's preview renderer opens the app with ?thumbapi=1: it must not log usage.
+  const HEADLESS = /[?&]thumbapi=1/.test(location.search);
   // ---------- Shared layout (identical grid for every competition) ----------
   const CANVAS_W = 1080, CANVAS_H = 1920;
   const ROW_H = 148;
@@ -977,6 +979,7 @@
   });
 
   removeBgPhotoBtn.addEventListener('click', () => {
+    photoRemoved = true;
     bgPhotoImg = null;
     bgPhotoInput.value = '';
     bgPhotoControls.hidden = true;
@@ -1487,7 +1490,7 @@
   function autoFillScores() {
     if (mode !== 'results' && mode !== 'matchresult' && mode !== 'topscorer') return;
     const k = compKey, m = mode;
-    Promise.resolve(checkScoresStep(true)).then(() => { if (compKey === k && mode === m) { buildMatchRows(); render(); } }).catch(() => {});
+    Promise.resolve(checkScoresStep(true)).then(() => { if (compKey === k && mode === m) { autoFillSig = scoreSig(); buildMatchRows(); render(); } }).catch(() => {});
   }
 
   // One button: schema first (rounds/dates/times may change), then the scores of the (new) round.
@@ -1623,11 +1626,16 @@
 
   // Runs automatically whenever an asset is opened: waits for its data to load, then
   // jumps to the nearest date — unless the round/match on screen already has typed data.
+  // Scores that were filled in automatically from the server's data do not count as "typed": the jump to the
+  // nearest round/match must still happen (otherwise the pre-filled first round would block it).
+  var autoFillSig = '';
+  const scoreSig = () => (isSingleMode() ? [smState.homeScore, smState.awayScore].join('|') : state.matches.map(m => m.homeScore + '-' + m.awayScore).join(','));
   function hasTypedData() {
     if (isSingleMode()) {
-      return !!(smState.homeScore || smState.awayScore || smState.tsGoals || smState.tsLast || smState.pwName);
+      const scores = !!(smState.homeScore || smState.awayScore) && scoreSig() !== autoFillSig;
+      return !!(scores || smState.tsGoals || smState.tsLast || smState.pwName);
     }
-    return state.matches.some(m => m.homeScore !== '' || m.awayScore !== '');
+    return state.matches.some(m => m.homeScore !== '' || m.awayScore !== '') && scoreSig() !== autoFillSig;
   }
   function jumpWhenReady(attempt = 0) {
     if (mode === 'ranking' || mode === 'playerweek') return;
@@ -1647,39 +1655,39 @@
     checkStandingsStatus.hidden = false;
   }
 
-  if (checkStandingsBtn) {
-    checkStandingsBtn.addEventListener('click', () => {
-      const aliases = comp().resultAliases;
-      checkStandingsBtn.disabled = true;
-      showStandingsStatus(`Stand ophalen van ${SITE_LABEL[compKey]}…`);
-      fetch('/api/standings?comp=' + compKey + '&refresh=1')
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(data => {
-          if (data.error) throw new Error(data.error);
-          const standings = data.standings || [];
-          let filled = 0;
-          const menRanking = rankState[compKey];
-          standings.forEach((s, i) => {
-            if (i >= menRanking.length) return;
-            const code = matchCodeByAlias(aliases, s.club);
-            if (!code) return;
-            menRanking[i].code = code;
-            menRanking[i].p = s.played;
-            menRanking[i].pts = s.points;
-            filled++;
-          });
-          if (filled > 0) {
-            buildMatchRows();
-            render();
-            showStandingsStatus(`✓ ${filled} van ${standings.length} teams ingevuld`, 'ok');
-          } else {
-            showStandingsStatus(`Geen bijpassende teams gevonden op ${SITE_LABEL[compKey]}`, 'warn');
-          }
-        })
-        .catch(err => showStandingsStatus('✗ Ophalen mislukt: ' + err.message, 'warn'))
-        .finally(() => { checkStandingsBtn.disabled = false; });
-    });
+  // Fills the ranking from the server's standings (its own store, synced with the site). refresh = ask the site first.
+  function fillRankingFromStore(refresh, quiet) {
+    const aliases = comp().resultAliases, k = compKey;
+    if (!quiet) { checkStandingsBtn.disabled = true; showStandingsStatus(`Stand ophalen van ${SITE_LABEL[compKey]}…`); }
+    return fetch('/api/standings?comp=' + compKey + (refresh ? '&refresh=1' : ''))
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        if (k !== compKey) return;
+        const standings = data.standings || [];
+        let filled = 0;
+        const menRanking = rankState[compKey];
+        standings.forEach((s2, i) => {
+          if (i >= menRanking.length) return;
+          const code = matchCodeByAlias(aliases, s2.club);
+          if (!code) return;
+          menRanking[i].code = code;
+          menRanking[i].p = s2.played;
+          menRanking[i].pts = s2.points;
+          filled++;
+        });
+        if (filled > 0) {
+          buildMatchRows();
+          render();
+          if (!quiet) showStandingsStatus(`✓ ${filled} van ${standings.length} teams ingevuld`, 'ok');
+        } else if (!quiet) {
+          showStandingsStatus(`Geen bijpassende teams gevonden op ${SITE_LABEL[compKey]}`, 'warn');
+        }
+      })
+      .catch(err => { if (!quiet) showStandingsStatus('✗ Ophalen mislukt: ' + err.message, 'warn'); })
+      .finally(() => { if (!quiet) checkStandingsBtn.disabled = false; });
   }
+  if (checkStandingsBtn) checkStandingsBtn.addEventListener('click', () => fillRankingFromStore(true, false));
 
   // ---------- Site monitor info (the server checks the data sites every 30 min) ----------
   const siteSyncInfo = document.getElementById('siteSyncInfo');
@@ -4503,6 +4511,7 @@
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
       say(`✓ ${files.length} stories in de zip`);
+      trackUse('export');
     } catch (e) {
       console.error(e); say('⚠ Zip maken mislukt: ' + e.message);
     } finally {
@@ -4530,6 +4539,7 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      trackUse('export');
       // every export also gets a copy on the server (/exports/<name>), fetchable with a plain download
       fetch('/api/export?name=' + encodeURIComponent(`${slug}.png`), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob }).catch(() => {});
     }, 'image/png');
@@ -4651,6 +4661,7 @@
     const common = {
       v: 1, transparentBg,
       photo: bgPhotoImg ? { scale: bgPhotoScale, x: bgPhotoOffsetX, y: bgPhotoOffsetY } : null,
+      photoRemoved,
     };
     if (mode === 'results' || mode === 'schedule') {
       return {
@@ -4670,6 +4681,7 @@
   }
 
   function applyItem(d) {
+    photoRemoved = !!d.photoRemoved;
     if (typeof d.transparentBg === 'boolean') { transparentBg = d.transparentBg; transparentBgToggle.checked = transparentBg; }
     if (typeof d.postDecor === 'boolean') { postDecor = d.postDecor; postDecorToggle.checked = postDecor; }
     if (d.kind === 'round') {
@@ -4689,6 +4701,8 @@
       const sm = d.sm || {};
       Object.keys(sm).forEach(k => { if (sm[k] !== undefined) smState[k] = sm[k]; });
     }
+    // opened from a card with a fixed format (Story / Post): that wins over the format this item was last saved in
+    if (pendingFmt) { if (isListMode()) resultsFormat = pendingFmt; else if (!postOnlyMode()) smFormat = pendingFmt; }
     syncFormatButtons();
     { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
   }
@@ -4699,8 +4713,8 @@
     canvas.classList.remove('bg-photo-draggable');
   }
 
-  function loadPhotoFromServer(k, meta) {
-    return fetch('/api/photo?key=' + itemEnc(k))
+  function loadPhotoFromServer(k, meta, srcKey) {
+    return fetch('/api/photo?key=' + itemEnc(srcKey || k))
       .then(r => (r.ok ? r.blob() : null))
       .then(blob => new Promise(resolve => {
         if (!blob || k !== lastItemKey) return resolve();
@@ -4725,6 +4739,8 @@
       .then(async data => {
         if (k !== lastItemKey) return;
         clearPhotoLocal();                       // a photo belongs to one item
+        photoRemoved = false;
+        autoFillSig = '';
         if (data && data.kind) {
           applyItem(data);
           if (data.photo) await loadPhotoFromServer(k, data.photo);
@@ -4733,11 +4749,16 @@
           smState.pwName = ''; smState.pwTeam = '';
         }
         if (k !== lastItemKey) return;
+        // no photo of its own: use the one last used for this asset (same competition, graphic and format)
+        if (!bgPhotoImg && !photoRemoved && photoModeActive()) await inheritAssetPhoto(k);
+        if (k !== lastItemKey) return;
         itemLoaded = true;
         buildMatchRows();
         render();
         lastSavedItemJson = JSON.stringify(collectItem());
         autoFillScores();
+        if (mode === 'ranking') fillRankingFromStore(false, true);       // the standings come from the server's own data too
+        if (bgPhotoImg && !(data && data.photo)) uploadItemPhoto();      // give this item its own copy of the inherited photo
         setSaveState(data && data.kind ? 'saved' : 'idle');
       })
       .catch(() => { if (k === lastItemKey) { itemLoaded = true; setSaveState('error'); } });
@@ -4771,7 +4792,7 @@
     lastSavedItemJson = json;
     setSaveState('saving');
     fetch('/api/item?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: json, keepalive: !!keepalive })
-      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); if (k === lastItemKey) setSaveState('saved'); })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); if (k === lastItemKey) setSaveState('saved'); if (bgPhotoImg) scheduleAssetMeta(); })
       .catch(() => { lastSavedItemJson = ''; setSaveState('error'); });
   }
 
@@ -4783,9 +4804,32 @@
   }
   window.addEventListener('pagehide', () => { if (itemSaveTimer) { clearTimeout(itemSaveTimer); itemSaveTimer = null; } flushItemSave(true); });
 
+  // ---------- One photo per asset ----------
+  // The photo you used last for an asset (competition + graphic + format) is remembered on the server and shows up
+  // by itself when you open that asset for another round or match, with the same position and zoom.
+  var photoRemoved = false;       // (var: collectItem can run early) you removed the photo of this item on purpose: do not hand it the asset's photo again
+  const assetFmt = () => ((mode === 'headtohead' || mode === 'nowlive') ? 'story' : postOnlyMode() ? 'post' : (isListMode() ? resultsFormat : smFormat));
+  const assetPhotoKey = () => `asset:${compKey}:${mode}:${assetFmt()}`;
+  let assetMetaTimer = null;
+  function saveAssetPhotoMeta() {
+    if (!bgPhotoImg || !photoModeActive()) return;
+    const k = assetPhotoKey(), body = JSON.stringify({ kind: 'asset-photo', photo: { scale: bgPhotoScale, x: bgPhotoOffsetX, y: bgPhotoOffsetY } });
+    fetch('/api/item?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
+  }
+  const scheduleAssetMeta = () => { clearTimeout(assetMetaTimer); assetMetaTimer = setTimeout(saveAssetPhotoMeta, 1200); };
+  async function inheritAssetPhoto(itemK) {
+    try {
+      const ak = assetPhotoKey();
+      const meta = await fetch('/api/item?key=' + itemEnc(ak)).then(r => (r.ok ? r.json() : null));
+      if (!meta || !meta.photo || itemK !== lastItemKey || bgPhotoImg) return;
+      await loadPhotoFromServer(itemK, meta.photo, ak);
+    } catch (e) { /* no photo for this asset yet */ }
+  }
+
   function uploadItemPhoto() {
     const k = lastItemKey;
     if (!k || !bgPhotoImg) return;
+    photoRemoved = false;
     const maxSide = 2200, sc = Math.min(1, maxSide / Math.max(bgPhotoImg.naturalWidth, bgPhotoImg.naturalHeight));
     const c = document.createElement('canvas');
     c.width = Math.round(bgPhotoImg.naturalWidth * sc); c.height = Math.round(bgPhotoImg.naturalHeight * sc);
@@ -4793,9 +4837,11 @@
     c.toBlob(blob => {
       if (!blob) return;
       setSaveState('saving');
+      const ak = assetPhotoKey();   // keep the asset's own copy too, so the next round/match starts with this photo
       fetch('/api/photo?key=' + itemEnc(k), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); lastSavedItemJson = ''; scheduleServerSave(); flushItemSave(false); })
         .catch(() => setSaveState('error'));
+      fetch('/api/photo?key=' + itemEnc(ak), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob }).then(saveAssetPhotoMeta).catch(() => {});
     }, 'image/jpeg', 0.92);
   }
 
@@ -4812,6 +4858,14 @@
 
   // ---------- Home menu (start page) ----------
   const homeMenu = document.getElementById('homeMenu');
+  // What is opened/exported when: logged on the server for the "Uitgelicht" section (not by the preview renderer).
+  function trackUse(action, comp, asset, fmt) {
+    if (HEADLESS) return;
+    try {
+      fetch('/api/usage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+        body: JSON.stringify({ action, comp: comp || compKey, asset: asset || mode, format: fmt === undefined ? assetFmt() : fmt }) }).catch(() => {});
+    } catch (e) { /* ignore */ }
+  }
   const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', nowlive: 'Now live (SHL TV)', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking' };
   var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
   var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
@@ -4867,9 +4921,13 @@
     document.getElementById('editorSwitchBtn').textContent = compKey === 'men' ? '⇄ Vrouwen' : '⇄ Mannen';
   }
 
-  function openAssetNow(comp, assetMode, fromMenu) {
+  var pendingFmt = null, pendingFmtTimer = 0;   // the format a card asked for, until the items have loaded
+  function openAssetNow(comp, assetMode, fromMenu, fmt) {
     document.querySelector(`[data-competition="${comp}"]`).click();
     document.querySelector(`[data-mode="${assetMode}"]`).click();
+    if (fmt) { const fb = document.querySelector(`[data-smw-format="${fmt}"]`); if (fb) fb.click(); }   // Story or Post
+    pendingFmt = fmt || null; clearTimeout(pendingFmtTimer); if (fmt) pendingFmtTimer = setTimeout(() => { pendingFmt = null; }, 8000);
+    trackUse('open', comp, assetMode);
     document.body.classList.remove('menu-open');
     updateEditorBar();
     jumpWhenReady();
@@ -5001,10 +5059,45 @@
     history.pushState({ editor: true }, '');
     popIn(document.getElementById('hnlApp'));
   }
-  function openAsset(comp, assetMode, fromMenu) {
-    if (fromMenu && document.body.classList.contains('menu-open')) navSweep('forward', () => openAssetNow(comp, assetMode, fromMenu), accentFor(comp));
-    else openAssetNow(comp, assetMode, fromMenu);
+  function openAsset(comp, assetMode, fromMenu, fmt) {
+    if (fromMenu && document.body.classList.contains('menu-open')) navSweep('forward', () => openAssetNow(comp, assetMode, fromMenu, fmt), accentFor(comp));
+    else openAssetNow(comp, assetMode, fromMenu, fmt);
   }
+
+
+  // Headless API for the server's preview renderer (GET /api/preview): opens an asset exactly like a click would
+  // (competition, graphic, format, nearest round/match, pre-filled scores) and returns a small picture of the canvas.
+  window.AssetAPI = {
+    async render(p) {
+      p = p || {};
+      const comp = p.comp === 'women' ? 'women' : 'men', asset = p.asset;
+      if (!document.querySelector(`[data-mode="${asset}"]`)) throw new Error('AssetAPI: onbekende asset ' + asset);
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+      await SETTINGS.ready;
+      openAssetNow(comp, asset, false, p.format || '');
+      // wait for the data, the logos and the pre-filled scores: the canvas has to stop changing
+      const sig = () => { try { return canvas.width + 'x' + canvas.height + ':' + canvas.toDataURL('image/jpeg', 0.3).length; } catch (e) { return ''; } };
+      let last = '', stable = 0; const t0 = Date.now();
+      while (Date.now() - t0 < 15000) {
+        await sleep(400);
+        const now = sig();
+        stable = now === last ? stable + 1 : 0; last = now;
+        if (stable >= 3 && Date.now() - t0 > 3500) break;
+      }
+      // an item remembers the format it was saved in and applies it when it loads: enforce the requested one
+      if (p.format && !postOnlyMode() && assetFmt() !== p.format) {
+        const fb = document.querySelector(`[data-smw-format="${p.format}"]`); if (fb) fb.click();
+        let l2 = '', st2 = 0; const t1 = Date.now();
+        while (Date.now() - t1 < 8000) { await sleep(400); const now = sig(); st2 = now === l2 ? st2 + 1 : 0; l2 = now; if (st2 >= 2 && Date.now() - t1 > 1500) break; }
+      }
+      const width = Math.min(480, canvas.width), height = Math.round(canvas.height * width / canvas.width);
+      const out = document.createElement('canvas'); out.width = width; out.height = height;
+      const octx = out.getContext('2d');
+      octx.fillStyle = '#1a1b38'; octx.fillRect(0, 0, width, height);   // transparent backgrounds get the brand navy
+      octx.drawImage(canvas, 0, 0, width, height);
+      return { dataUrl: out.toDataURL('image/webp', 0.82), width, height, format: assetFmt(), mode, comp: compKey };
+    },
+  };
 
   homeMenu.querySelectorAll('[data-home-comp]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -5028,9 +5121,9 @@
   const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff' };
   // shortcuts on the dashboard
   document.addEventListener('dash-go', (e) => {
-    const [group, id] = String(e.detail).split(':');
+    const [group, id, fmt] = String(e.detail).split(':');
     lastHome = 'dash';
-    if (group === 'men' || group === 'women') openAsset(group, id, true);
+    if (group === 'men' || group === 'women') openAsset(group, id, true, fmt);
     else if (group === 'hnl') navSweep('forward', () => openHnlNow(id), accentFor('hnl'));
     else if (group === 'th') navSweep('forward', () => openThNow(id), TH_ACCENT[id] || accentFor('th'));
   });

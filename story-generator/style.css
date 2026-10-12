@@ -1044,3 +1044,28 @@ body:not(.set-open) .settings-view { display: none; }
   .home-comp-tab { font-size: 11px !important; padding: 10px 4px !important; }
   .dash-table .dash-form-h, .dash-table .dash-form { display: none; }
 }
+
+
+/* ---- Uitgelicht: the weekly planning with previews ---- */
+.dash-featured { margin-bottom: 18px; }
+.feat-days { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.feat-day { position: relative; background: rgba(0,0,0,.25); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.feat-day.active { background: #caff1c; border-color: #caff1c; color: #1a1b38; }
+.feat-day i { font-style: normal; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; margin-left: 8px; padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,.35); color: #fff; }
+.feat-day.active i { background: #1a1b38; color: #caff1c; }
+.feat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 210px)); gap: 14px; }
+.feat-card { display: flex; flex-direction: column; gap: 8px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 10px; font: inherit; text-align: left; cursor: pointer; transition: transform .12s ease, border-color .12s ease; }
+.feat-card:hover { transform: translateY(-3px); border-color: var(--acc, #caff1c); }
+.feat-img { position: relative; display: block; width: 100%; background: #14152e; border-radius: 2px; overflow: hidden; }
+.feat-img.feat-story { aspect-ratio: 9 / 16; }
+.feat-img.feat-post { aspect-ratio: 4 / 5; }
+.feat-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .25s ease; }
+.feat-img img.ready { opacity: 1; }
+.feat-spin { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 3px solid rgba(255,255,255,.2); border-top-color: var(--acc, #caff1c); border-radius: 50%; animation: featspin .8s linear infinite; }
+.feat-img.loaded .feat-spin, .feat-img.feat-fail .feat-spin { display: none; }
+.feat-img.feat-fail::after { content: "geen preview"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: .55; }
+@keyframes featspin { to { transform: rotate(360deg); } }
+.feat-cap { display: flex; flex-direction: column; gap: 2px; }
+.feat-cap b { font-family: "ClashDisplay", sans-serif; font-size: 14px; }
+.feat-cap span { font-size: 12px; opacity: .75; }
+.feat-cap small { font-size: 11px; opacity: .55; }
