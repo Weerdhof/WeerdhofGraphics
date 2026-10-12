@@ -134,9 +134,9 @@
     const day = PLAN.find(p => p.key === todayKey());   // just today's planning, no day selector
     const cards = day.items.map(([asset, fmt, title]) => ['men', 'women'].map(comp => {
       const c = COMPS[comp], q = `asset=${asset}&comp=${comp}&format=${fmt}`;
-      return `<button type="button" class="feat-card" style="--acc:${c.accent}" data-dash-go="${comp}:${asset}:${fmt}">
+      return `<button type="button" class="feat-card feat-${comp}" style="--acc:${c.accent}" data-dash-go="${comp}:${asset}:${fmt}">
         <span class="feat-img feat-${fmt}"><img loading="lazy" alt="" src="/api/preview?${q}" onload="this.classList.add('ready');this.parentNode.classList.add('loaded')" onerror="this.parentNode.classList.add('feat-fail')"><span class="feat-spin"></span></span>
-        <span class="feat-cap"><b>${esc(title)}</b><span>${fmt === 'post' ? 'Post' : 'Story'} · ${comp === 'men' ? 'Mannen' : 'Vrouwen'}</span><small data-usage="${comp}:${asset}:${fmt}">${esc(usageLine(comp, asset, fmt))}</small></span>
+        <span class="feat-cap"><span class="feat-pill">${comp === 'men' ? 'Mannen' : 'Vrouwen'}</span><b>${esc(title)}</b><span>${fmt === 'post' ? 'Post' : 'Story'}</span><small data-usage="${comp}:${asset}:${fmt}">${esc(usageLine(comp, asset, fmt))}</small></span>
       </button>`;
     }).join('')).join('');
     return `<div class="feat-cards">${cards}</div>`;

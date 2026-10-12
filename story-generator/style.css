@@ -1069,3 +1069,10 @@ body:not(.set-open) .settings-view { display: none; }
 .feat-cap b { font-family: "ClashDisplay", sans-serif; font-size: 14px; }
 .feat-cap span { font-size: 12px; opacity: .75; }
 .feat-cap small { font-size: 11px; opacity: .55; }
+
+/* men = SHL green, women = purple: a soft colour, glow and a label on every featured card */
+.feat-card { position: relative; border-color: color-mix(in srgb, var(--acc) 30%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 7%, var(--panel)) 0%, var(--panel) 60%); box-shadow: 0 0 16px -10px var(--acc), inset 0 2px 0 color-mix(in srgb, var(--acc) 80%, transparent); }
+.feat-card:hover { box-shadow: 0 0 22px -8px var(--acc), inset 0 2px 0 var(--acc); }
+.feat-card .feat-img { box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent); }
+.feat-pill { align-self: flex-start; background: var(--acc); color: #1a1b38; font-family: "ClashDisplay", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; opacity: 1 !important; }
+.feat-women .feat-pill { color: #fff; }
