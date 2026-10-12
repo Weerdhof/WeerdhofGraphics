@@ -579,11 +579,31 @@ def get_preview(asset, comp, fmt, fresh=False):
         return data, 0
 
 
+DAY_WEEKDAYS = {"za": [5], "zo": [6], "ma": [0], "di": [1], "wo": [2], "dovr": [3, 4]}
+
+
+def _plan_for_today():
+    """Today's [asset, format] list: from the settings page (dash.plan) when set, else the built-in WEEK_PLAN."""
+    wd = datetime.now().weekday()
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            plan = (json.load(f).get("dash") or {}).get("plan") or {}
+        for key, wds in DAY_WEEKDAYS.items():
+            if wd in wds and isinstance(plan.get(key), list):
+                items = [(a, f) for a, f in (tuple(x) for x in plan[key] if isinstance(x, (list, tuple)) and len(x) == 2)
+                         if a in PREVIEW_ASSETS and f in ("story", "post", "")]
+                if items:
+                    return items
+    except (OSError, ValueError, TypeError):
+        pass
+    return WEEK_PLAN.get(wd, [])
+
+
 def warm_previews():
     """Render today's planned assets (both competitions) so the preview and the pre-filled data are ready."""
     if RENDERER.unavailable or RENDERER.pending:
         return
-    for asset, fmt in WEEK_PLAN.get(datetime.now().weekday(), []):
+    for asset, fmt in _plan_for_today():
         for comp in ("men", "women"):
             try:
                 get_preview(asset, comp, fmt)

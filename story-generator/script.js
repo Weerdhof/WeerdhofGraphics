@@ -1274,7 +1274,7 @@
         smState.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
         buildMatchRows();
         render();
-        return { text: `uitslag ingevuld (${smState.homeScore} – ${smState.awayScore})`, cls: 'ok' };
+        return { text: `uitslag ingevuld (${smState.homeScore} – ${smState.awayScore})`, cls: 'ok', filled: 1 };
       })
       .catch(err => ({ text: 'uitslagen ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
@@ -1320,7 +1320,7 @@
       if (filled > 0) {
         buildMatchRows();
         render();
-        return { text: `${filled} van ${state.matches.length} uitslagen ingevuld`, cls: 'ok' };
+        return { text: `${filled} van ${state.matches.length} uitslagen ingevuld`, cls: 'ok', filled };
       }
       return { text: `geen uitslagen gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
     })
@@ -1487,11 +1487,23 @@
       .catch(err => ({ text: 'programma ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
 
+  // ---------- What was filled in automatically: always shown, never a surprise ----------
+  var autoNotes = {};
+  function noteAuto(type, text, warn) { autoNotes[type] = { text, warn: !!warn }; renderAutoNote(); }
+  function renderAutoNote() {
+    const el = document.getElementById('autoNote'); if (!el) return;
+    const items = Object.values(autoNotes);
+    el.hidden = !items.length;
+    el.textContent = '';
+    items.forEach(n => { const c = document.createElement('span'); c.className = 'auto-chip' + (n.warn ? ' warn' : ''); c.textContent = (n.warn ? '✎ ' : '✓ ') + n.text; el.appendChild(c); });
+  }
+  var rankManual = { men: false, women: false };   // the ranking was edited by hand: do not overwrite it on opening
+
   // Own data first: opening a round/match fills the played scores from the server's store (empty fields only).
   function autoFillScores() {
     if (mode !== 'results' && mode !== 'matchresult' && mode !== 'topscorer') return;
     const k = compKey, m = mode;
-    Promise.resolve(checkScoresStep(true)).then(() => { if (compKey === k && mode === m) { autoFillSig = scoreSig(); buildMatchRows(); render(); } }).catch(() => {});
+    Promise.resolve(checkScoresStep(true)).then((r) => { if (compKey === k && mode === m) { autoFillSig = scoreSig(); buildMatchRows(); render(); if (r && r.filled) noteAuto('scores', `${r.filled} ${r.filled === 1 ? 'uitslag' : 'uitslagen'} automatisch ingevuld uit de server-data`); } }).catch(() => {});
   }
 
   // One button: schema first (rounds/dates/times may change), then the scores of the (new) round.
@@ -1692,10 +1704,12 @@
           menRanking[i].pts = s2.points;
           filled++;
         });
+        rankManual[compKey] = false;
         if (filled > 0) {
           buildMatchRows();
           render();
           if (!quiet) showStandingsStatus(`✓ ${filled} van ${standings.length} teams ingevuld`, 'ok');
+          else noteAuto('ranking', 'stand automatisch ingevuld uit de server-data');
         } else if (!quiet) {
           showStandingsStatus(`Geen bijpassende teams gevonden op ${SITE_LABEL[compKey]}`, 'warn');
         }
@@ -1755,7 +1769,7 @@
     q('.ds-changed').textContent = st.changedAt ? `${fmtWhen(st.changedAt)}${changeBits(st.changes).length ? ' · ' + changeBits(st.changes).join(', ') : ''}` : 'nog niets sinds de server draait';
     q('.ds-how-text').textContent = `De server haalt uitslagen, stand en programma zelf elke 30 minuten op van ${site} en bewaart ze. ` +
       `Open je een ronde of wedstrijd, dan worden de uitslagen, de stand en het programma daaruit automatisch ingevuld; wat je zelf typt blijft staan. ` +
-      `"Gegevens verversen" haalt ze direct opnieuw op.`;
+      `"Gegevens verversen" haalt ze direct opnieuw op. De previews bij Uitgelicht op het dashboard vullen de uitslagen van vandaag alvast in en bewaren die op de server.`;
     const seen = readSeen(), fresh = st.changedAt && seen && st.changedAt * 1000 > seen;
     q('.ds-new').hidden = !fresh;
     siteSyncInfo.classList.toggle('fresh', !!fresh);
@@ -2492,9 +2506,9 @@
       pInput.value = row.p;
       ptsInput.value = row.pts;
 
-      select.addEventListener('change', () => { row.code = select.value; render(); });
-      pInput.addEventListener('input', () => { row.p = pInput.value; render(); });
-      ptsInput.addEventListener('input', () => { row.pts = ptsInput.value; render(); });
+      select.addEventListener('change', () => { row.code = select.value; rankManual[compKey] = true; render(); });
+      pInput.addEventListener('input', () => { row.p = pInput.value; rankManual[compKey] = true; render(); });
+      ptsInput.addEventListener('input', () => { row.pts = ptsInput.value; rankManual[compKey] = true; render(); });
 
       // Echoes the poster's own zone dividers (after position 8 and 10).
       if (i === 8 || i === 10) node.classList.add('zone-start');
@@ -3386,12 +3400,12 @@
     const onDate = list.length > 0;
     if (!onDate && cur) list = smMatches.filter(m => dayKey(m.dateRound) === dayKey(cur.dateRound));   // nothing on that date: show the selected match's day
     list = list.sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))).slice(0, 7);
-    const nowMin = toMin(smState.nlTime);
-    const isLive = (m) => onDate && nowMin != null && toMin(m.time) != null && toMin(m.time) <= nowMin && nowMin < toMin(m.time) + NL_MATCH_MIN;
+    const nowMin = toMin(smState.nlTime), liveMin = (window.SETTINGS && SETTINGS.dash && SETTINGS.dash().liveMinutes) || NL_MATCH_MIN;   // minutes after kick-off: see the settings
+    const isLive = (m) => onDate && nowMin != null && toMin(m.time) != null && toMin(m.time) <= nowMin && nowMin < toMin(m.time) + liveMin;
     const liveList = list.filter(isLive);
     const info = document.querySelector('.nl-info');
     if (info) info.textContent = !onDate ? `Geen wedstrijden op ${smState.nlDate || 'die datum'} — de dag van de gekozen wedstrijd wordt getoond.`
-      : liveList.length ? `Live om ${smState.nlTime}: ${liveList.map(m => `${m.home}–${m.away}`).join(', ')} (${NL_MATCH_MIN} min na de aftrap)`
+      : liveList.length ? `Live om ${smState.nlTime}: ${liveList.map(m => `${m.home}–${m.away}`).join(', ')} (${liveMin} min na de aftrap)`
       : `Om ${smState.nlTime} is er geen wedstrijd live.`;
 
     // ---- animation helpers (el == null: static design) ----
@@ -4710,7 +4724,7 @@
       };
     }
     if (mode === 'ranking') {
-      return { ...common, kind: 'ranking', format: resultsFormat, rows: rankState[compKey].map(r => ({ ...r })) };
+      return { ...common, kind: 'ranking', format: resultsFormat, manual: !!rankManual[compKey], rows: rankState[compKey].map(r => ({ ...r })) };
     }
     const sm = {};
     ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName', 'nlDate', 'nlTime'].forEach(k => { sm[k] = smState[k]; });
@@ -4733,6 +4747,7 @@
     } else if (d.kind === 'ranking') {
       if (d.format === 'story' || d.format === 'post') resultsFormat = d.format;
       (d.rows || []).forEach((r, i) => { if (rankState[compKey][i]) Object.assign(rankState[compKey][i], r); });
+      rankManual[compKey] = !!d.manual;
     } else if (d.kind === 'single') {
       if (d.format === 'story' || d.format === 'post') smFormat = d.format;
       const sm = d.sm || {};
@@ -4778,6 +4793,7 @@
         clearPhotoLocal();                       // a photo belongs to one item
         photoRemoved = false;
         autoFillSig = '';
+        autoNotes = {}; renderAutoNote();
         if (data && data.kind) {
           applyItem(data);
           if (data.photo) await loadPhotoFromServer(k, data.photo);
@@ -4794,7 +4810,10 @@
         render();
         lastSavedItemJson = JSON.stringify(collectItem());
         autoFillScores();
-        if (mode === 'ranking') fillRankingFromStore(false, true);       // the standings come from the server's own data too
+        if (mode === 'ranking') {                                          // the standings come from the server's own data too
+          if (rankManual[compKey]) noteAuto('ranking', 'stand handmatig aangepast: "Stand verversen" neemt de stand van de site over', true);
+          else fillRankingFromStore(false, true);
+        }
         if (bgPhotoImg && !(data && data.photo)) uploadItemPhoto();      // give this item its own copy of the inherited photo
         setSaveState(data && data.kind ? 'saved' : 'idle');
       })
@@ -4869,6 +4888,7 @@
       const meta = await fetch('/api/item?key=' + itemEnc(ak)).then(r => (r.ok ? r.json() : null));
       if (!meta || !meta.photo || itemK !== lastItemKey || bgPhotoImg) return;
       await loadPhotoFromServer(itemK, meta.photo, ak);
+      if (bgPhotoImg) noteAuto('photo', 'foto overgenomen van deze asset (zelfde formaat)');
     } catch (e) { /* no photo for this asset yet */ }
   }
 

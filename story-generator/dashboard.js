@@ -105,15 +105,10 @@
 
 
   // ---------- Uitgelicht: the weekly planning, each asset with a live preview (rendered on the server with the real data) ----------
-  const PLAN = [
-    { key: 'za', label: 'Zaterdag', dows: [6], items: [['results', 'story', 'Uitslagen'], ['prediction', 'story', 'Prediction']] },
-    { key: 'zo', label: 'Zondag', dows: [0], items: [['matchresult', 'story', 'Uitslag los'], ['ranking', 'story', 'Stand']] },
-    { key: 'ma', label: 'Maandag', dows: [1], items: [['results', 'post', 'Uitslagen'], ['results', 'story', 'Uitslagen']] },   // + the story, to make it 4
-    { key: 'di', label: 'Dinsdag', dows: [2], items: [['playerweek', 'post', 'Speler / speelster van de week'], ['ranking', 'post', 'Stand']] },
-    { key: 'wo', label: 'Woensdag', dows: [3], items: [['schedule', 'story', 'Schedule'], ['schedule', 'post', 'Schedule']] },   // + the post, to make it 4
-    { key: 'dovr', label: 'Do / vr', dows: [4, 5], items: [['match', 'story', 'Wedstrijdaankondiging'], ['headtohead', 'story', 'Head to head']] },
-  ];
-  const todayKey = () => (PLAN.find(p => p.dows.includes(new Date().getDay())) || PLAN[0]).key;
+  // The planning per weekday lives in the settings (default: your weekly planning); two assets per day, for men and women.
+  const TITLES = { results: 'Uitslagen', schedule: 'Schedule', ranking: 'Stand', match: 'Wedstrijdaankondiging', matchresult: 'Uitslag los', prediction: 'Prediction', headtohead: 'Head to head', playerweek: 'Speler / speelster van de week', topscorer: 'Top scorer' };
+  const DOW_KEY = { 0: 'zo', 1: 'ma', 2: 'di', 3: 'wo', 4: 'dovr', 5: 'dovr', 6: 'za' };
+  const todayItems = () => ((S.dash().plan[DOW_KEY[new Date().getDay()]]) || []).map(([asset, fmt]) => [asset, fmt, TITLES[asset] || asset]);
   let usage = null;
   const whenText = (ts) => {
     if (!ts) return '';
@@ -132,8 +127,7 @@
     return 'laatst ' + parts.join('');
   }
   function featuredHtml() {
-    const day = PLAN.find(p => p.key === todayKey());   // just today's planning, no day selector
-    const cards = day.items.map(([asset, fmt, title]) => ['men', 'women'].map(comp => {
+    const cards = todayItems().map(([asset, fmt, title]) => ['men', 'women'].map(comp => {
       const c = COMPS[comp], q = `asset=${asset}&comp=${comp}&format=${fmt}`;
       return `<button type="button" class="feat-card feat-${comp}" style="--acc:${c.accent}" data-dash-go="${comp}:${asset}:${fmt}">
         <span class="feat-img feat-${fmt}"><img loading="lazy" alt="" src="/api/preview?${q}" onload="this.classList.add('ready');this.parentNode.classList.add('loaded')" onerror="this.parentNode.classList.add('feat-fail')"><span class="feat-spin"></span></span>
@@ -142,8 +136,10 @@
     }).join('')).join('');
     return `<div class="feat-cards">${cards}</div>`;
   }
+  let settingsReady = false;   // the planning comes from the settings: do not build (and fetch previews) before they have loaded
+  S.ready.then(() => { settingsReady = true; buildFeatured(true); });
   function buildFeatured(force) {
-    const box = $('dashFeatured'); if (!box) return;
+    const box = $('dashFeatured'); if (!box || !settingsReady) return;
     if (!force && box.dataset.built) return;
     box.dataset.built = '1'; box.innerHTML = featuredHtml();
   }
@@ -175,7 +171,8 @@
   // a match row: open Matchresult (played) or Match (to come) with exactly that match selected
   function openMatch(row) {
     window.DASH_TARGET = { home: row.dataset.mh, away: row.dataset.ma, day: +row.dataset.md, month: +row.dataset.mm };
-    document.dispatchEvent(new CustomEvent('dash-go', { detail: `${row.dataset.mc}:${row.dataset.mk === 'result' ? 'matchresult' : 'match'}:story` }));
+    const D = S.dash(), result = row.dataset.mk === 'result';
+    document.dispatchEvent(new CustomEvent('dash-go', { detail: `${row.dataset.mc}:${result ? 'matchresult' : 'match'}:${result ? D.resultFmt : D.matchFmt}` }));
   }
   document.addEventListener('click', (e) => { const r = e.target.closest('.dash-match-go'); if (r) openMatch(r); });
   document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('dash-match-go')) { e.preventDefault(); openMatch(e.target); } });
@@ -185,6 +182,6 @@
     const b = e.target.closest('[data-dash-go]'); if (!b) return;
     document.dispatchEvent(new CustomEvent('dash-go', { detail: b.dataset.dashGo }));
   });
-  S.onChange((what) => { if (what === 'change' && visible) render(); });
+  S.onChange((what) => { if (what === 'change') { buildFeatured(true); if (visible) render(); } });
   window.DASH = { show, hide, refresh };
 })();

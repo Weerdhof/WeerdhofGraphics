@@ -26,6 +26,19 @@
     const box = $('setBody'); if (!box) return;
     const head = (cols) => `<div class="set-row set-head"><span></span><span>${cols[0]}</span><span>${cols[1]}</span><span>${cols[2]}</span><span></span></div>`;
     let h = '';
+    // --- Dashboard + visuals
+    const D = S.dash(), ASSETS = [['results', 'Results'], ['schedule', 'Schedule'], ['ranking', 'Stand (Ranking)'], ['match', 'Match (aankondiging)'], ['matchresult', 'Matchresult (uitslag los)'], ['prediction', 'Prediction'], ['headtohead', 'Head to head'], ['playerweek', 'Speler / speelster van de week'], ['topscorer', 'Top scorer']];
+    const DAYS = [['za', 'Zaterdag'], ['zo', 'Zondag'], ['ma', 'Maandag'], ['di', 'Dinsdag'], ['wo', 'Woensdag'], ['dovr', 'Donderdag en vrijdag']];
+    const opt = (list, v) => list.map(([k, l]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(l)}</option>`).join('');
+    const FMTS = [['story', 'Story'], ['post', 'Post']];
+    h += `<details class="set-sec" open><summary>Dashboard en visuals</summary>
+      <p class="sync-info">Wat je op het dashboard onder "Uitgelicht" ziet (per dag twee assets, telkens voor mannen en vrouwen) en wat een klik op een wedstrijd opent.</p>
+      <div class="set-plan">${DAYS.map(([k, label]) => `<div class="set-plan-row"><b>${label}</b>${[0, 1].map(i => { const [a, f] = D.plan[k][i]; return `<span class="set-plan-slot"><select data-plan="${k}:${i}:asset" aria-label="${label}, asset ${i + 1}">${opt(ASSETS, a)}</select><select data-plan="${k}:${i}:fmt" aria-label="${label}, formaat ${i + 1}">${opt(FMTS, f)}</select></span>`; }).join('')}</div>`).join('')}</div>
+      <div class="set-text"><label for="dashResFmt">Klik op een uitslag op het dashboard opent Matchresult als</label><select id="dashResFmt" data-dash="resultFmt">${opt(FMTS, D.resultFmt)}</select></div>
+      <div class="set-text"><label for="dashMatFmt">Klik op een wedstrijd uit het programma opent Match als</label><select id="dashMatFmt" data-dash="matchFmt">${opt(FMTS, D.matchFmt)}</select></div>
+      <div class="set-text"><label for="dashLive">Minuten dat een wedstrijd "live" is (Now live, vanaf de aftrap)</label><input type="number" id="dashLive" data-dash="liveMinutes" min="30" max="240" step="5" value="${D.liveMinutes}"></div>
+      <button class="btn btn-link" type="button" id="dashReset">↺ Dashboard-instellingen herstellen</button>
+    </details>`;
     // --- HandbalNL clubs
     h += `<details class="set-sec" open><summary>Clubs HandbalNL (Next heren/dames en SHLW-logo's)</summary>
       <p class="sync-info">Het logo, de naam in de lijsten, de standaardnaam op de visual (sponsornaam) en de code in de bestandsnaam. Leeg laten = standaard.</p>
@@ -81,6 +94,22 @@
       try { await S.uploadLogo(key, f); build(); } catch (e) { window.alert('Logo uploaden mislukt'); }
     }));
     box.querySelectorAll('input[data-text]').forEach(inp => inp.addEventListener('input', () => S.setText(inp.dataset.text, inp.value)));
+    // dashboard + visuals
+    const FIXED = { headtohead: 'story', playerweek: 'post', topscorer: 'post' };   // graphics that only exist in one format
+    box.querySelectorAll('select[data-plan]').forEach(sel => sel.addEventListener('change', () => {
+      const plan = {};
+      box.querySelectorAll('.set-plan-row').forEach(row => {
+        const key = row.querySelector('select').dataset.plan.split(':')[0];
+        plan[key] = [0, 1].map(i => {
+          const a = row.querySelector(`select[data-plan="${key}:${i}:asset"]`), f = row.querySelector(`select[data-plan="${key}:${i}:fmt"]`);
+          if (FIXED[a.value]) f.value = FIXED[a.value];
+          return [a.value, f.value];
+        });
+      });
+      S.setDash({ plan });
+    }));
+    box.querySelectorAll('[data-dash]').forEach(el => el.addEventListener('change', () => S.setDash({ [el.dataset.dash]: el.type === 'number' ? parseInt(el.value, 10) : el.value })));
+    const dr = box.querySelector('#dashReset'); if (dr) dr.addEventListener('click', () => { S.resetDash(); setTimeout(build, 50); });
   }
 
   async function open() {
@@ -93,7 +122,7 @@
     if (!window.confirm('ALLE instellingen (namen, codes, teksten en eigen logo\'s) terugzetten naar de standaard?')) return;
     const logos = Object.keys(S.data.clubs).filter(k => S.data.clubs[k].logo);
     await Promise.all(logos.map(k => S.removeLogo(k)));
-    S.data.clubs = {}; S.data.texts = {}; await S.save(); build();
+    S.data.clubs = {}; S.data.texts = {}; S.data.dash = {}; await S.save(); build();
   });
   window.SETUI = { open, close() { return S.save(); } };
 })();

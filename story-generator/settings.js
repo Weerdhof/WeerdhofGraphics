@@ -15,6 +15,19 @@
       women: { DSVD: ['dsvd', 'aqqo'], 'E&O': ['misker', 'oosting'], FOR: ['foreholte'], KWI: ['kwiek'], MHV: ['m.h.v'], PSV: ['hypotheekvisie', 'eindhoven'], QUI: ['quintus'], SEW: ['westfriesland'], 'V&L': ['geonius'], VEN: ['venlo', 'cabooter'], VOC: ['ruitenheer'], VOL: ['volendam'], VZV: ['juro'], WPK: ['westlandia'] },
     },
     hnlCode: { artemis: 'ART', bfc: 'BFC', bevo: 'BEV', 'dfs-arnhem': 'DFS', dsvd: 'DSVD', dws: 'DWS', dalfsen: 'DAL', dynamico: 'DYN', 'e-o': 'OEO', foreholte: 'FORE', 'fortes-venlo': 'VEN', fortissimo: 'FTS', 'handbal-aalsmeer': 'HVA', hellas: 'HEL', hercules: 'BWH', houten: 'HOU', 'hurry-up': 'HUP', 'kwiek-r': 'KWI', mhv: 'MHV', 'psv-handbal': 'PSV', quintus: 'QUI', 'rotterdam-handbal': 'ROT', sew: 'SEW', tachos: 'TAC', us: 'USH', unitas: 'UNI', velo: 'VEL', voc: 'VOC', vvw: 'VVW', vzv: 'VZV', 'vlug-en-lenig': 'VEL', volendam: 'VOL', westlandia: 'WPK', zap: 'ZAP', zvbb21: 'ZVB' },
+    // Dashboard + visuals: what the "Uitgelicht" section shows per weekday ([asset, format] x 2, shown for men and women),
+    // what a click on a match row on the dashboard opens, and how long a match counts as live (Now live).
+    dash: {
+      liveMinutes: 90, resultFmt: 'story', matchFmt: 'story',
+      plan: {
+        za: [['results', 'story'], ['prediction', 'story']],
+        zo: [['matchresult', 'story'], ['ranking', 'story']],
+        ma: [['results', 'post'], ['results', 'story']],
+        di: [['playerweek', 'post'], ['ranking', 'post']],
+        wo: [['schedule', 'story'], ['schedule', 'post']],
+        dovr: [['match', 'story'], ['headtohead', 'story']],
+      },
+    },
     texts: [
       ['th.title', 'Thumbnails SHL/SHLW — titel onderin', 'Livestream'],
       ['th.label', 'Thumbnails SHL — label in de highlights-balk', 'Regular season'],
@@ -34,9 +47,9 @@
   };
 
   // ---------- Store ----------
-  let data = { clubs: {}, texts: {} };
+  let data = { clubs: {}, texts: {}, dash: {} };
   const listeners = new Set();
-  const ready = fetch('/api/settings', { cache: 'no-store' }).then(r => r.json()).then(d => { data = { clubs: (d && d.clubs) || {}, texts: (d && d.texts) || {} }; }).catch(() => {});
+  const ready = fetch('/api/settings', { cache: 'no-store' }).then(r => r.json()).then(d => { data = { clubs: (d && d.clubs) || {}, texts: (d && d.texts) || {}, dash: (d && d.dash) || {} }; }).catch(() => {});
   let saveTimer = 0, state = 'idle';
   const emit = (what) => listeners.forEach(fn => { try { fn(what); } catch (e) { /* ignore */ } });
   const club = (key) => data.clubs[key] || {};
@@ -67,6 +80,19 @@
     hasLogo: (key) => !!club(key).logo,
     // the logo override (cache-busted by its upload time) or the built-in file
     logo: (key, fallback) => (club(key).logo ? `/api/logo?id=${encodeURIComponent(key)}&v=${club(key).logo}` : fallback),
+    // the dashboard settings: the built-in defaults with whatever was changed on the settings page on top
+    dash() {
+      const o = data.dash || {}, d = DEF.dash;
+      const live = parseInt(o.liveMinutes, 10);
+      return {
+        liveMinutes: live >= 30 && live <= 240 ? live : d.liveMinutes,
+        resultFmt: o.resultFmt === 'post' ? 'post' : d.resultFmt,
+        matchFmt: o.matchFmt === 'post' ? 'post' : d.matchFmt,
+        plan: Object.keys(d.plan).reduce((p, k) => { const v = o.plan && o.plan[k]; p[k] = Array.isArray(v) && v.length === 2 ? v : d.plan[k]; return p; }, {}),
+      };
+    },
+    setDash(patch) { data.dash = Object.assign(data.dash || {}, patch); scheduleSave(); emit('change'); },
+    resetDash() { data.dash = {}; scheduleSave(); emit('change'); },
     text: (key, def) => (data.texts[key] != null && data.texts[key] !== '' ? data.texts[key] : def),
     setClub(key, field, value) {
       const c = ensure(key);
