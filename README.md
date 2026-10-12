@@ -43,3 +43,5 @@ Locally the renderer needs Playwright; use the installed Chrome with `THUMB_BROW
 ## Stream dashboard
 
 `/stream.html` is a 1920x1080 page for an OBS Browser source. It follows the start of a match (men only; chosen automatically or on `/stream-setup.html`) and switches scene by the minutes left: other results, standings, a big title, then clean (nothing). Test any moment with `?sim=20` (pretend 20 min before kick-off; add `&speed=60` to run through the timeline quickly, `&debug=1` to show the clock and scene). A fixed match: `?home=HUB&away=PEL`.
+
+Option "cycle" (stream-config): the title stays on screen from `start` to `end` minutes before the start and every `every` minutes cycles through `scenes` (`seconds` per slide); after `end` the normal steps apply.

@@ -35,6 +35,14 @@
   const minutesLeft = () => (S && S.match && S.match.kickoff) ? (S.match.kickoff * 1000 - nowMs()) / 60000 : null;
   function pickScene(T) {
     if (!S || !S.match || T == null || T <= 0) return 'clean';
+    const cy = S.config.cycle;
+    if (cy && cy.on && T > cy.start) return 'clean';
+    if (cy && cy.on && T > cy.end) {
+      // the title all the way, and every `every` minutes a round through the other slides (`seconds` each)
+      const el = (cy.start - T) * 60, per = cy.every * 60, k = Math.floor(el / per), within = el - k * per, n = cy.scenes.length;
+      if (k >= 1 && within < n * cy.seconds) return cy.scenes[Math.floor(within / cy.seconds)];
+      return 'title';
+    }
     let active = null;
     for (const sg of S.config.segments) if (T <= sg.from) active = sg.scene;   // sorted from big to small: the last match is the closest one
     return active || 'clean';

@@ -508,6 +508,9 @@ STREAM_DEFAULT = {
     "match": {"mode": "auto", "comp": "men", "home": "", "away": "", "day": 0, "month": 0},   # auto: the next match to start (men only)
     "segments": [{"from": 30, "scene": "round"}, {"from": 22, "scene": "h2h"}, {"from": 15, "scene": "standings"},
                  {"from": 5, "scene": "title"}, {"from": 3, "scene": "clean"}],
+    # option: the title all the way from `start` to `end` minutes before the start, cycling through `scenes` every `every` minutes
+    # (`seconds` per slide); after `end` the steps above (title, then clean) apply as usual
+    "cycle": {"on": False, "start": 30, "end": 5, "every": 5, "seconds": 30, "scenes": ["round", "h2h", "standings"]},
     "rotate": 12,          # seconds per page when a scene has more than fits
     "graceMin": 20,        # auto mode keeps a match selected this long after its kick-off
     "theme": "transparent",  # transparent (graphics over the live picture) | solid (with a background colour)
@@ -536,6 +539,17 @@ def _clean_stream_config(raw):
                 pass
     if segs:
         d["segments"] = sorted(segs, key=lambda x: -x["from"])
+    cy = raw.get("cycle") if isinstance(raw.get("cycle"), dict) else {}
+    dc = d["cycle"]
+    dc["on"] = cy.get("on") is True
+    for k, lo, hi in (("start", 2, 240), ("end", 0, 239), ("every", 1, 60), ("seconds", 5, 120)):
+        try:
+            dc[k] = max(lo, min(hi, int(cy.get(k, dc[k]))))
+        except (TypeError, ValueError):
+            pass
+    dc["end"] = min(dc["end"], dc["start"] - 1)
+    sc = [x for x in (cy.get("scenes") if isinstance(cy.get("scenes"), list) else dc["scenes"]) if x in STREAM_SCENES and x not in ("clean", "title")]
+    dc["scenes"] = sc[:6] or ["round", "h2h", "standings"]
     for k, lo, hi in (("rotate", 4, 60), ("graceMin", 0, 180)):
         try:
             d[k] = max(lo, min(hi, int(raw.get(k, d[k]))))
