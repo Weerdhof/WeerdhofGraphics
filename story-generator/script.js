@@ -2662,12 +2662,12 @@
       const footerImg = loadImg(C.footerLogo);
       if (footerImg && footerImg.complete && footerImg.naturalWidth) {
         // Results/Schedule are made for Stories: a big logo at the bottom like "Who takes the win", but ending at y 1700
-        // (Instagram's bottom UI can cover what is below) and under the last row (a full list of 7 rows leaves ~148px).
-        const F = C.footer, MAX_BOTTOM = 1700;
+        // (Instagram's bottom UI can cover what is below) and under the last row (a full list of 7 rows leaves ~114px).
+        const F = C.footer, MAX_BOTTOM = 1690, AIR = 38;   // AIR: breathing room between the last row and the logo
         const n = shownMatches.length;
         const lastBottom = n > 0 ? visibleRowY(n - 1, n) + ROW_H / 2 : 0;
         let fh = F.h, fy = Math.min(F.y, MAX_BOTTOM - fh);
-        if (fy < lastBottom + 14) { fh = Math.max(70, MAX_BOTTOM - (lastBottom + 14)); fy = MAX_BOTTOM - fh; }
+        if (fy < lastBottom + AIR) { fh = Math.max(70, MAX_BOTTOM - (lastBottom + AIR)); fy = MAX_BOTTOM - fh; }
         const fw = F.w * fh / F.h;
         ctx.drawImage(footerImg, F.x + (F.w - fw) / 2, fy, fw, fh);
       }
