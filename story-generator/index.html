@@ -262,10 +262,18 @@
       </div>
 
       <div class="field">
-        <button class="btn btn-link" id="checkScoresBtn" type="button">🔗 Check score SHL site</button>
+        <button class="btn btn-link" id="checkScoresBtn" type="button">↻ Gegevens verversen</button>
         <p class="save-status" id="checkScoresStatus" hidden></p>
-        <p class="sync-info" id="siteSyncInfo" hidden></p>
-        <button class="btn btn-link" id="checkStandingsBtn" type="button" hidden>🔗 Vul in vanuit SHL site</button>
+        <div class="data-source" id="siteSyncInfo" hidden>
+          <div class="ds-head"><span class="ds-dot"></span><b class="ds-title">Gegevens van de site</b></div>
+          <div class="ds-row"><span>Laatst opgehaald</span><b class="ds-fetched"></b></div>
+          <div class="ds-row"><span>Laatste wijziging op de site</span><b class="ds-changed"></b></div>
+          <p class="ds-new" hidden>● Nieuw op de site sinds je laatste keer verversen: druk op de knop om het over te nemen.</p>
+          <details class="ds-how"><summary>Waar komt dit vandaan?</summary>
+            <p class="ds-how-text"></p>
+          </details>
+        </div>
+        <button class="btn btn-link" id="checkStandingsBtn" type="button" hidden>↻ Stand verversen</button>
         <p class="save-status" id="checkStandingsStatus" hidden></p>
       </div>
     </section>

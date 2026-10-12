@@ -1085,3 +1085,17 @@ body:not(.set-open) .settings-view { display: none; }
   .feat-cap span, .feat-cap small { font-size: 10.5px; }
   .feat-pill { font-size: 9.5px; padding: 2px 6px; }
 }
+
+/* "Gegevens van de site": where the data comes from, in a few short rows instead of a block of text */
+.data-source { margin: 8px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,.18); font-size: 12px; line-height: 1.45; }
+.ds-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ds-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #caff1c); box-shadow: 0 0 8px var(--accent, #caff1c); }
+.ds-title { font-family: "ClashDisplay", sans-serif; font-size: 12.5px; letter-spacing: .02em; }
+.ds-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; color: var(--muted, #8b93a7); }
+.ds-row b { color: var(--text); font-weight: 600; text-align: right; }
+.ds-row b.warn { color: #ff6b6b; }
+.ds-new { margin: 6px 0 0; color: #ffb347; font-weight: 600; }
+.data-source.fresh { border-color: rgba(255,179,71,.5); }
+.ds-how { margin-top: 6px; color: var(--muted, #8b93a7); }
+.ds-how summary { cursor: pointer; font-weight: 600; color: var(--text); opacity: .8; }
+.ds-how p { margin: 6px 0 0; }

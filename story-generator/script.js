@@ -112,7 +112,7 @@
       },
     },
   };
-  const SITE_LABEL = { men: 'SHL site', women: 'shlw.nl' };
+  const SITE_LABEL = { men: 'superhandballeague.com', women: 'shlw.nl' };
 
   // ---------- Single-match template (Mannen only) ----------
   // A separate one-off graphic (Instagram feed post, 1080x1350) built from
@@ -1267,16 +1267,16 @@
             && (parseInt(sm[1], 10) === parseInt(dm[1], 10) || parseInt(sm[1], 10) === parseInt(dm[1], 10) + 1);
         }) : null;
         const hit = sameDay || pair[0];
-        if (!hit) return { text: `Nog geen uitslag gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
+        if (!hit) return { text: `nog geen uitslag op ${SITE_LABEL[compKey]}`, cls: 'warn' };
         if (onlyEmpty && (smState.homeScore !== '' || smState.awayScore !== '')) return { text: '', cls: 'ok' };
         const homeIsA = toSingle(hit.teamA) === smState.home;
         smState.homeScore = String(homeIsA ? hit.scoreA : hit.scoreB);
         smState.awayScore = String(homeIsA ? hit.scoreB : hit.scoreA);
         buildMatchRows();
         render();
-        return { text: `✓ Uitslag ingevuld: ${smState.homeScore} – ${smState.awayScore}`, cls: 'ok' };
+        return { text: `uitslag ingevuld (${smState.homeScore} – ${smState.awayScore})`, cls: 'ok' };
       })
-      .catch(err => ({ text: '✗ Score ophalen mislukt: ' + err.message, cls: 'warn' }));
+      .catch(err => ({ text: 'uitslagen ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
 
   // Scores step of the combined "Check" button -> Promise<{text, cls}>.
@@ -1320,11 +1320,11 @@
       if (filled > 0) {
         buildMatchRows();
         render();
-        return { text: `✓ ${filled} van ${state.matches.length} scores ingevuld`, cls: 'ok' };
+        return { text: `${filled} van ${state.matches.length} uitslagen ingevuld`, cls: 'ok' };
       }
-      return { text: `Geen bijpassende scores gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
+      return { text: `geen uitslagen gevonden op ${SITE_LABEL[compKey]}`, cls: 'warn' };
     })
-    .catch(err => ({ text: '✗ Score ophalen mislukt: ' + err.message, cls: 'warn' }));
+    .catch(err => ({ text: 'uitslagen ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
 
   // ---------- Schedule sync with the site ----------
@@ -1481,10 +1481,10 @@
   function checkScheduleStep() {   // -> Promise<{text, cls}>
     return fetchAndApplySchedule()
       .then(r => ({
-        text: r.changed ? `✓ Schema vervangen: ${r.changed} wedstrijden gewijzigd (${r.total} totaal)` : '✓ Schema klopt al',
+        text: r.changed ? `programma bijgewerkt (${r.changed} van ${r.total} wedstrijden gewijzigd)` : 'programma was al actueel',
         cls: 'ok',
       }))
-      .catch(err => ({ text: '✗ Schema ophalen mislukt: ' + err.message, cls: 'warn' }));
+      .catch(err => ({ text: 'programma ophalen mislukt: ' + err.message, cls: 'warn' }));
   }
 
   // Own data first: opening a round/match fills the played scores from the server's store (empty fields only).
@@ -1519,8 +1519,8 @@
   function checkSite() {
     if (checkScoresBtn.disabled) return;
     const startedAt = Date.now();
-    btnBusy(checkScoresBtn, 'Controleren…');
-    showCheckStatus(`Ophalen van ${SITE_LABEL[compKey]}…`);
+    btnBusy(checkScoresBtn, 'Verversen…');
+    showCheckStatus(`Gegevens ophalen van ${SITE_LABEL[compKey]}…`);
     const withScores = !isMatchLike();   // a fixture has no score yet
     // refresh the server's data store from the sites first; schedule and scores below are then read from it
     fetchSyncStatus(true).catch(() => {})
@@ -1528,12 +1528,12 @@
       .then(sr => (withScores ? checkScoresStep() : Promise.resolve(null)).then(cr => [sr, cr].filter(Boolean)))
       .then(parts => {
         const warn = parts.some(p => p.cls === 'warn');
-        showCheckStatus(`Gecontroleerd om ${clockNow()} — ` + parts.map(p => p.text).join(' · '), warn ? 'warn' : 'ok');
+        showCheckStatus(`${warn ? '⚠' : '✓'} Bijgewerkt om ${clockNow()}: ` + parts.map(p => p.text).join(' · '), warn ? 'warn' : 'ok');
         markSiteChecked();
         return new Promise(r => setTimeout(r, Math.max(0, 700 - (Date.now() - startedAt)))).then(() => warn);   // keep the spinner visible at least a moment
       })
-      .then(warn => btnDone(checkScoresBtn, !warn, warn ? '⚠ Gecontroleerd — zie melding' : '✓ Gecontroleerd', refreshCheckButtonLabels),
-        () => btnDone(checkScoresBtn, false, '⚠ Controle mislukt', refreshCheckButtonLabels));
+      .then(warn => btnDone(checkScoresBtn, !warn, warn ? '⚠ Zie de melding' : '✓ Bijgewerkt', refreshCheckButtonLabels),
+        () => btnDone(checkScoresBtn, false, '⚠ Verversen mislukt', refreshCheckButtonLabels));
   }
   if (checkScoresBtn) checkScoresBtn.addEventListener('click', checkSite);
 
@@ -1708,33 +1708,43 @@
     if (dayOf(d) === dayOf(new Date(now - 864e5))) return 'gisteren ' + clock;
     return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', timeZone: tz }) + ' ' + clock;
   }
+  // Two short lines about the data (used by the home overview too).
   function syncLines(key) {
     const st = syncStatus && syncStatus.status && syncStatus.status[key];
     if (!st || !st.checkedAt) return null;
-    const lines = [`Server controleert de site elk half uur · laatst ${fmtWhen(st.checkedAt)}`];
-    if (st.error) lines[0] += ' (⚠ laatste poging mislukt)';
-    if (st.changedAt) {
-      const c = st.changes || {};
-      const bits = [];
-      if (c.results) bits.push(`${c.results} uitslag${c.results === 1 ? '' : 'en'}`);
-      if (c.schedule) bits.push(`${c.schedule} in schema`);
-      if (c.standings) bits.push('stand');
-      lines.push(`Laatste wijziging op de site: ${fmtWhen(st.changedAt)}${bits.length ? ' (' + bits.join(', ') + ')' : ''}`);
-    } else {
-      lines.push('Nog geen wijzigingen op de site gezien sinds de server draait');
-    }
-    return lines;
+    const bits = changeBits(st.changes);
+    return [
+      `Server haalt de gegevens elk half uur op · laatst ${fmtWhen(st.checkedAt)}${st.error ? ' (laatste poging mislukt)' : ''}`,
+      st.changedAt ? `Laatste wijziging op de site: ${fmtWhen(st.changedAt)}${bits.length ? ' (' + bits.join(', ') + ')' : ''}` : 'Nog geen wijzigingen op de site gezien sinds de server draait',
+    ];
+  }
+
+  // The "Gegevens van de site" block: where the data comes from, when it was fetched and when the site last changed.
+  function changeBits(c) {
+    c = c || {};
+    const bits = [];
+    if (c.results) bits.push(`${c.results} uitslag${c.results === 1 ? '' : 'en'}`);
+    if (c.schedule) bits.push(`${c.schedule} in het programma`);
+    if (c.standings) bits.push('stand');
+    return bits;
   }
   function renderSyncInfo() {
     if (!siteSyncInfo) return;
     const st = syncStatus && syncStatus.status && syncStatus.status[compKey];
-    const lines = syncLines(compKey);
-    if (!lines) { siteSyncInfo.textContent = ''; siteSyncInfo.hidden = true; renderOverviewMeta(); return; }
-    const seen = readSeen();
-    const fresh = st.changedAt && seen && st.changedAt * 1000 > seen;
-    siteSyncInfo.textContent = lines.join('\n');
+    if (!st || !st.checkedAt) { siteSyncInfo.dataset.ready = ''; siteSyncInfo.hidden = true; renderOverviewMeta(); return; }
+    const site = SITE_LABEL[compKey] || 'de site';
+    const q = (sel) => siteSyncInfo.querySelector(sel);
+    q('.ds-title').textContent = `Gegevens van ${site}`;
+    q('.ds-fetched').textContent = fmtWhen(st.checkedAt) + (st.error ? ' (laatste poging mislukt)' : '');
+    q('.ds-fetched').classList.toggle('warn', !!st.error);
+    q('.ds-changed').textContent = st.changedAt ? `${fmtWhen(st.changedAt)}${changeBits(st.changes).length ? ' · ' + changeBits(st.changes).join(', ') : ''}` : 'nog niets sinds de server draait';
+    q('.ds-how-text').textContent = `De server haalt uitslagen, stand en programma zelf elke 30 minuten op van ${site} en bewaart ze. ` +
+      `Open je een ronde of wedstrijd, dan worden de uitslagen, de stand en het programma daaruit automatisch ingevuld; wat je zelf typt blijft staan. ` +
+      `"Gegevens verversen" haalt ze direct opnieuw op.`;
+    const seen = readSeen(), fresh = st.changedAt && seen && st.changedAt * 1000 > seen;
+    q('.ds-new').hidden = !fresh;
     siteSyncInfo.classList.toggle('fresh', !!fresh);
-    if (fresh) siteSyncInfo.textContent += '\n● Nieuw op de site sinds je laatste check — druk op de knop om het over te nemen';
+    siteSyncInfo.dataset.ready = '1';
     siteSyncInfo.hidden = checkScoresBtn.hidden;
     renderOverviewMeta();
   }
@@ -1747,9 +1757,8 @@
   setInterval(() => fetchSyncStatus(false), 60000);
 
   function refreshCheckButtonLabels() {
-    const label = SITE_LABEL[compKey] || 'SHL site';
-    if (checkScoresBtn && !checkScoresBtn.dataset.lock) checkScoresBtn.textContent = `\u{1F517} Check ${isMatchLike() ? 'schema' : 'score & schema'} ${label}`;
-    if (checkStandingsBtn) checkStandingsBtn.textContent = `\u{1F517} Vul in vanuit ${label}`;
+    if (checkScoresBtn && !checkScoresBtn.dataset.lock) checkScoresBtn.textContent = '\u21BB Gegevens verversen';
+    if (checkStandingsBtn) checkStandingsBtn.textContent = '\u21BB Stand verversen';
     renderSyncInfo();
   }
 
@@ -2559,7 +2568,7 @@
     photoBtnText.textContent = bgPhotoImg ? 'Foto vervangen' : 'Foto toevoegen';
     showDateField.hidden = true;
     checkScoresBtn.hidden = mode === 'ranking' || mode === 'playerweek';
-    siteSyncInfo.hidden = checkScoresBtn.hidden || !siteSyncInfo.textContent;
+    siteSyncInfo.hidden = checkScoresBtn.hidden || !siteSyncInfo.dataset.ready;
     refreshCheckButtonLabels();
     if (isSingleMode()) { renderSingleMatch(); return; }
     if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
@@ -2620,13 +2629,25 @@
       ? performance.now() - animStartTs : null;
 
     const shownMatches = visibleMatches();
+    // Story: fewer than 7 matches are centred between the title (or date bar) and the footer logo, so the free space is
+    // the same above and below the list (a full list of 7 keeps its fixed positions).
+    let rowY = visibleRowY;
+    if (!post) {
+      const n0 = shownMatches.length, F0 = C.footer;
+      const regTop = C.titleY + (dateInfo.mode === 'header' ? 104 : 62) + 20, regBottom = Math.min(F0.y, 1690 - F0.h) - 20;
+      const rowsH = n0 * ROW_H + Math.max(0, n0 - 1) * (ROW_PITCH - ROW_H);
+      if (n0 > 0 && rowsH < regBottom - regTop) {
+        const top0 = regTop + (regBottom - regTop - rowsH) / 2;
+        rowY = (i) => top0 + ROW_H / 2 + i * ROW_PITCH;
+      }
+    }
     if (post) {
       ctx.save();
       ctx.translate(RP_CX - ROW_CENTER * RP_SCALE, RP_Y0 + rpShift - ROW_Y[0] * RP_SCALE);
       ctx.scale(RP_SCALE, RP_SCALE);
     }
     shownMatches.forEach((m, i) => {
-      const cy = visibleRowY(i, shownMatches.length);
+      const cy = rowY(i, shownMatches.length);
       let anim = null;
       if (animElapsed != null) {
         anim = resultRowAnimState(animElapsed, i, shownMatches.length);
@@ -2674,7 +2695,7 @@
         // (Instagram's bottom UI can cover what is below) and under the last row (a full list of 7 rows leaves ~114px).
         const F = C.footer, MAX_BOTTOM = 1690, AIR = 38;   // AIR: breathing room between the last row and the logo
         const n = shownMatches.length;
-        const lastBottom = n > 0 ? visibleRowY(n - 1, n) + ROW_H / 2 : 0;
+        const lastBottom = n > 0 ? rowY(n - 1, n) + ROW_H / 2 : 0;
         let fh = F.h, fy = Math.min(F.y, MAX_BOTTOM - fh);
         if (fy < lastBottom + AIR) { fh = Math.max(70, MAX_BOTTOM - (lastBottom + AIR)); fy = MAX_BOTTOM - fh; }
         const fw = F.w * fh / F.h;
