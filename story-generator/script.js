@@ -1638,10 +1638,25 @@
     }
     return state.matches.some(m => m.homeScore !== '' || m.awayScore !== '') && scoreSig() !== autoFillSig;
   }
+  // A match clicked on the dashboard: select exactly that match (same two clubs on that day) instead of the nearest date.
+  function selectPendingTarget() {
+    const t = pendingTarget; if (!t || !isSingleMode()) return false;
+    pendingTarget = null;
+    const aliases = comp().resultAliases;
+    const toSingle = (name) => { const c = matchCodeByAlias(aliases, name); return (SINGLE_CODE[compKey] && SINGLE_CODE[compKey][c]) || c; };
+    const h = toSingle(t.home), a = toSingle(t.away);
+    const dm = (m) => { const x = /(\d+)-(\d+)/.exec(m.dateRound || ''); return x ? `${+x[1]}-${+x[2]}` : ''; };
+    const m = smMatches.find(x => x.home === h && x.away === a && dm(x) === `${t.day}-${t.month}`) || smMatches.find(x => x.home === h && x.away === a);
+    if (!m) return false;
+    roundSelect.value = m.id;
+    roundSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
   function jumpWhenReady(attempt = 0) {
     if (mode === 'ranking' || mode === 'playerweek') return;
     const ready = isSingleMode() ? (smMatches.length > 0 && smLoadedKey === compKey) : rounds.length > 0 && roundsCompKey === compKey && state.matches.length > 0;
     if (!ready) { if (attempt < 25) setTimeout(() => jumpWhenReady(attempt + 1), 150); return; }
+    if (selectPendingTarget()) return;
     if (!hasTypedData()) jumpToNearestDate();
   }
 
@@ -4952,6 +4967,7 @@
     document.getElementById('editorSwitchBtn').textContent = compKey === 'men' ? '⇄ Vrouwen' : '⇄ Mannen';
   }
 
+  var pendingTarget = null;   // { home, away, day, month } from a dashboard match row
   var pendingFmt = null, pendingFmtTimer = 0;   // the format a card asked for, until the items have loaded
   function openAssetNow(comp, assetMode, fromMenu, fmt) {
     document.querySelector(`[data-competition="${comp}"]`).click();
@@ -5154,6 +5170,7 @@
   document.addEventListener('dash-go', (e) => {
     const [group, id, fmt] = String(e.detail).split(':');
     lastHome = 'dash';
+    pendingTarget = window.DASH_TARGET || null; window.DASH_TARGET = null;   // a match row on the dashboard: open that match
     if (group === 'men' || group === 'women') openAsset(group, id, true, fmt);
     else if (group === 'hnl') navSweep('forward', () => openHnlNow(id), accentFor('hnl'));
     else if (group === 'th') navSweep('forward', () => openThNow(id), TH_ACCENT[id] || accentFor('th'));

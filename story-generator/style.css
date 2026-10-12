@@ -1099,3 +1099,7 @@ body:not(.set-open) .settings-view { display: none; }
 .ds-how { margin-top: 6px; color: var(--muted, #8b93a7); }
 .ds-how summary { cursor: pointer; font-weight: 600; color: var(--text); opacity: .8; }
 .ds-how p { margin: 6px 0 0; }
+
+/* dashboard match rows are clickable: result -> Matchresult, programme -> Match */
+.dash-match-go { cursor: pointer; border-radius: 4px; transition: background .12s ease; }
+.dash-match-go:hover, .dash-match-go:focus-visible { background: color-mix(in srgb, var(--acc, #caff1c) 14%, transparent); outline: none; }

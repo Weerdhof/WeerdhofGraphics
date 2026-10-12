@@ -52,7 +52,8 @@
     const hn = hc ? labelOf(c, hc) : m.home, an = ac ? labelOf(c, ac) : m.away;
     const mid = kind === 'result' ? `<b class="dash-score">${esc(m.homeScore)} – ${esc(m.awayScore)}</b>` : `<span class="dash-time">${esc(m.time || '–')}</span>`;
     const hw = kind === 'result' && m.homeScore > m.awayScore, aw = kind === 'result' && m.awayScore > m.homeScore;
-    return `<div class="dash-match"><span class="dash-home${hw ? ' win' : ''}"><span>${esc(hn)}</span>${crest(c, hc)}</span>${mid}<span class="dash-away${aw ? ' win' : ''}">${crest(c, ac)}<span>${esc(an)}</span></span></div>`;
+    const tip = kind === 'result' ? 'Maak de uitslag-visual van deze wedstrijd' : 'Maak de aankondiging van deze wedstrijd';
+    return `<div class="dash-match dash-match-go" role="button" tabindex="0" title="${tip}" data-mc="${c.key}" data-mk="${kind}" data-mh="${esc(m.home)}" data-ma="${esc(m.away)}" data-md="${esc(m.day)}" data-mm="${esc(m.month)}"><span class="dash-home${hw ? ' win' : ''}"><span>${esc(hn)}</span>${crest(c, hc)}</span>${mid}<span class="dash-away${aw ? ' win' : ''}">${crest(c, ac)}<span>${esc(an)}</span></span></div>`;
   }
   function groupBy(list, limitGroups, limitRows) {
     const groups = [];
@@ -82,10 +83,10 @@
     </div>`;
     return `<section class="dash-panel" style="--acc:${c.accent}">
       <header class="dash-head"><h2>${c.short}</h2><small>${c.title}</small><span class="dash-sync">${when ? 'gecontroleerd ' + when : ''}</span></header>
-      ${kpis}
-      <div class="dash-block"><h3>Stand</h3>${standingsHtml(c, d.standings)}</div>
       <div class="dash-block"><h3>Laatste uitslagen</h3>${rg.length ? rg.map(g => `<div class="dash-day">${esc(dateLabel(g.m))}${g.m.round ? ' · ronde ' + esc(g.m.round) : ''}</div>${g.items.map(m => matchRow(c, m, 'result')).join('')}`).join('') : '<p class="dash-empty">Nog geen uitslagen.</p>'}</div>
       <div class="dash-block"><h3>Programma</h3>${upcoming.length ? groupBy(upcoming, 2, 8).map(g => `<div class="dash-day">${esc(dateLabel(g.m))}${g.m.round ? ' · ronde ' + esc(g.m.round) : ''}</div>${g.items.map(m => matchRow(c, m, 'upcoming')).join('')}`).join('') : '<p class="dash-empty">Geen wedstrijden gepland.</p>'}</div>
+      ${kpis}
+      <div class="dash-block"><h3>Stand</h3>${standingsHtml(c, d.standings)}</div>
       <div class="dash-block dash-go"><h3>Maak een visual</h3><div class="dash-chips">${chips(GO[c.key], c.key)}</div></div>
     </section>`;
   }
@@ -170,6 +171,14 @@
   }
   function show() { visible = true; render(); const p = refresh(); clearInterval(timer); timer = setInterval(() => { if (visible) refresh(); }, 60000); return Promise.race([p, new Promise(r => setTimeout(r, 4000))]); }
   function hide() { visible = false; clearInterval(timer); }
+
+  // a match row: open Matchresult (played) or Match (to come) with exactly that match selected
+  function openMatch(row) {
+    window.DASH_TARGET = { home: row.dataset.mh, away: row.dataset.ma, day: +row.dataset.md, month: +row.dataset.mm };
+    document.dispatchEvent(new CustomEvent('dash-go', { detail: `${row.dataset.mc}:${row.dataset.mk === 'result' ? 'matchresult' : 'match'}:story` }));
+  }
+  document.addEventListener('click', (e) => { const r = e.target.closest('.dash-match-go'); if (r) openMatch(r); });
+  document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('dash-match-go')) { e.preventDefault(); openMatch(e.target); } });
 
   // shortcuts: let the navigation code in script.js do the work
   document.addEventListener('click', (e) => {
