@@ -502,10 +502,10 @@ def compute_movers(comp, since=0, force=False):
 # the other results, the standings, a big title and then nothing (clean). The planning is stored here (stream.json).
 # ---------------------------------------------------------------------------
 STREAM_FILE = os.path.join(DATA_DIR, "stream.json")
-STREAM_SCENES = ("results", "standings", "title", "form", "schedule", "clean")
+STREAM_SCENES = ("round", "results", "h2h", "standings", "title", "form", "schedule", "clean")
 STREAM_DEFAULT = {
     "match": {"mode": "auto", "comp": "men", "home": "", "away": "", "day": 0, "month": 0},   # auto: the next kick-off; comp men|women|both
-    "segments": [{"from": 30, "scene": "results"}, {"from": 15, "scene": "standings"},
+    "segments": [{"from": 30, "scene": "round"}, {"from": 22, "scene": "h2h"}, {"from": 15, "scene": "standings"},
                  {"from": 5, "scene": "title"}, {"from": 1, "scene": "clean"}],
     "rotate": 12,          # seconds per page when a scene has more than fits
     "graceMin": 20,        # auto mode keeps a match selected this long after its kick-off
@@ -659,6 +659,38 @@ def stream_state(query):
                           for i, x in enumerate(d.get("standings") or [])]
     day = [m for m in stream_matches((comp,)) if m["day"] == match["day"] and m["month"] == match["month"]]
     state["schedule"] = day
+
+    # the whole round of this match: played ones with their score, the rest with the kick-off time
+    def rm(m, played):
+        return {"home": _clean_club(m["home"]), "away": _clean_club(m["away"]), "homeCode": _club_code(comp, m["home"]),
+                "awayCode": _club_code(comp, m["away"]), "day": m["day"], "month": m["month"], "time": m.get("time") or "",
+                "played": played, "homeScore": m.get("homeScore") if played else None, "awayScore": m.get("awayScore") if played else None,
+                "ord": m.get("ord", 0), "round": m.get("round")}
+    pool = [rm(m, True) for m in d.get("results", []) if m.get("homeScore") is not None] + [rm(m, False) for m in d.get("upcoming", [])]
+    me_ord = _season_order(match["day"], match["month"])
+    if comp == "men" and match.get("round") is not None:
+        rnd = [m for m in pool if m["round"] == match["round"]]
+    else:
+        near, last = [], None
+        for m in sorted(pool, key=lambda x: x["ord"]):
+            if last is None or m["ord"] - last > 1:
+                near.append([])
+            near[-1].append(m)
+            last = m["ord"]
+        rnd = next((g for g in near if any(x["ord"] == me_ord for x in g)), [])
+    rnd.sort(key=lambda x: (x["ord"], x["time"] or "99:99"))
+    for m in rnd:
+        m["me"] = m["homeCode"] == match["homeCode"] and m["awayCode"] == match["awayCode"]
+    state["round"] = {"round": match.get("round"), "matches": rnd}
+
+    # previous meeting of the two clubs this season (most recent first)
+    meet = None
+    for r in sorted(results, key=lambda x: -x["ord"]):
+        pair = {_club_code(comp, r["home"]), _club_code(comp, r["away"])}
+        if pair == {match["homeCode"], match["awayCode"]}:
+            meet = res_row(r)
+            break
+    state["meeting"] = meet
     return state
 
 

@@ -18,7 +18,7 @@
   const passthrough = ['comp', 'home', 'away'].filter(k => q.get(k)).map(k => `${k}=${encodeURIComponent(q.get(k))}`).join('&');
   async function load() {
     try {
-      const r = await fetch('/api/stream-state' + (passthrough ? '?' + passthrough : ''), { cache: 'no-store' });
+      const r = await fetch(q.get('mock') || '/api/stream-state' + (passthrough ? '?' + passthrough : ''), { cache: 'no-store' });
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       skew = j.now - Date.now();
@@ -46,8 +46,8 @@
     women: { DSVD: '#e1471c', 'E&O': '#00a456', FOR: '#b87cff', KWI: '#fa4234', MHV: '#008845', PSV: '#fa4234', QUI: '#008845', SEW: '#1330b4', 'V&L': '#005ba2', VEN: '#193676', VOC: '#4c8d40', VOL: '#f78823', VZV: '#ee2b07', WPK: '#3ca815' },
   };
   const TEXT = {
-    men: { results: 'Results', round: 'Round', standings: 'Standings', next: 'Next up', kick: 'Kick-off in', form: 'Form', schedule: 'Today', pts: 'PTS', wait: 'No results yet', pos: '#', club: 'CLUB', id: 'Match', page: '', locale: 'en-GB' },
-    women: { results: 'Uitslagen', round: 'Ronde', standings: 'Stand', next: 'Zo meteen', kick: 'Aftrap over', form: 'Vorm', schedule: 'Vandaag', pts: 'PTN', wait: 'Nog geen uitslagen', pos: '#', club: 'CLUB', id: 'Wedstrijd', page: '', locale: 'nl-NL' },
+    men: { results: 'Results', roundWord: 'Round', h2h: 'Head to head', stand: 'Standing', last: 'LAST RESULTS', prev: 'PREVIOUS MEETING', first: 'FIRST MEETING OF THE SEASON', vs: 'VS', round: 'Round', standings: 'Standings', next: 'Next up', kick: 'Kick-off in', form: 'Form', schedule: 'Today', pts: 'PTS', wait: 'No results yet', pos: '#', club: 'CLUB', id: 'Match', page: '', locale: 'en-GB' },
+    women: { results: 'Uitslagen', roundWord: 'Ronde', h2h: 'Head to head', stand: 'Stand', last: 'LAATSTE UITSLAGEN', prev: 'VORIGE ONTMOETING', first: 'EERSTE ONTMOETING VAN HET SEIZOEN', vs: 'VS', round: 'Ronde', standings: 'Stand', next: 'Zo meteen', kick: 'Aftrap over', form: 'Vorm', schedule: 'Vandaag', pts: 'PTN', wait: 'Nog geen uitslagen', pos: '#', club: 'CLUB', id: 'Wedstrijd', page: '', locale: 'nl-NL' },
   };
   const MONTHS = { men: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], women: ['JAN', 'FEB', 'MRT', 'APR', 'MEI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC'] };
   const span = (a, b) => {
@@ -89,6 +89,44 @@
         </div>`;
       }).join('') : `<div class="res empty">${esc(T.wait)}</div>`;
       return { pages, html: `${header(T.results, sub)}<div class="res-grid">${cards}</div>${footer()}${pageDots(page, pages)}` };
+    },
+    round(page) {
+      const T = TEXT[comp()], r = S.round || { matches: [] }, list = r.matches;
+      const PER = 8, pages = Math.max(1, Math.ceil(list.length / PER)), items = list.slice(page * PER, page * PER + PER);
+      const first = list[0], last = list[list.length - 1];
+      const title = r.round != null ? `${T.roundWord} ${r.round}` : (comp() === 'women' ? 'Speelronde' : 'Matchday');
+      const sub = first ? span({ day: first.day, month: first.month }, { day: last.day, month: last.month }) : '';
+      const cards = items.length ? items.map(m => {
+        const mid = m.played
+          ? `<div class="sc"><span class="${m.homeScore < m.awayScore ? 'lo' : ''}">${m.homeScore}</span><i>–</i><span class="${m.awayScore < m.homeScore ? 'lo' : ''}">${m.awayScore}</span></div>`
+          : `<div class="ko"><b>${esc(m.time || '–')}</b><small>${esc(span({ day: m.day, month: m.month }))}</small></div>`;
+        return `<div class="res${m.me ? ' me' : ''}${m.played ? '' : ' todo'}">
+          <div class="side">${crest(m.homeCode, 100)}<div class="nm">${esc(m.homeCode || m.home)}</div></div>${mid}
+          <div class="side r">${crest(m.awayCode, 100)}<div class="nm">${esc(m.awayCode || m.away)}</div></div></div>`;
+      }).join('') : `<div class="res empty">${esc(T.wait)}</div>`;
+      return { pages, html: `${header(title, sub)}<div class="res-grid">${cards}</div>${footer()}${pageDots(page, pages)}` };
+    },
+    h2h() {
+      const T = TEXT[comp()], m = S.match, c = COLORS[comp()], women = comp() === 'women';
+      const st = (code) => S.standings.find(x => x.code === code);
+      const ink = (hex) => { const n = parseInt((hex || '#ffffff').slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.6 ? '#1b2450' : '#ffffff'; };
+      const col = (code, name) => {
+        const row = st(code), color = c[code] || '#8a93c8', games = (S.form[code] || []).slice(-3).reverse();
+        const rows = [0, 1, 2].map(i => {
+          const g = games[i];
+          return g ? `<div class="hh-row"><span>${crest(g.opp, 56)}</span><span class="opp">${esc(g.opp || '')}</span><span class="sc">${g.gf} – ${g.ga}</span><span class="chip ${g.res}">${g.res}</span></div>`
+                   : `<div class="hh-row empty">${i === 0 ? esc(T.wait) : ''}</div>`;
+        }).join('');
+        return `<div class="hh-col"><div class="hh-top"><div class="tile">${crest(code, 190)}</div><div class="nm">${nameBr(name)}</div></div>
+          <div class="hh-stand" style="background:${color};color:${ink(color)}"><b>${row ? '#' + row.pos : '–'}</b><span>${row ? esc(row.points) + ' ' + T.pts : ''}<small>${row ? esc(row.w) + 'W ' + esc(row.d) + 'D ' + esc(row.l) + 'L' : ''}</small></span></div>
+          <div class="hh-lbl">${esc(T.last)}</div>${rows}</div>`;
+      };
+      const mt = S.meeting;
+      const meet = mt
+        ? `<div class="hh-meet"><span>${crest(mt.homeCode, 70)}</span><div><small>${esc(T.prev)} · ${esc(span({ day: mt.day, month: mt.month }))}</small><b>${mt.homeScore} – ${mt.awayScore}</b></div><span>${crest(mt.awayCode, 70)}</span></div>`
+        : `<div class="hh-meet"><div><small>${esc(T.first)}</small></div></div>`;
+      return { pages: 1, html: `${header(T.h2h, matchLine().replace(/<[^>]+>/g, ''))}
+        <div class="hh">${col(m.homeCode, m.home)}<div class="hh-vs">${T.vs}</div>${col(m.awayCode, m.away)}</div>${meet}` };
     },
     standings() {
       const T = TEXT[comp()], m = S.match, rows = S.standings;
