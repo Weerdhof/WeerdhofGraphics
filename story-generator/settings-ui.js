@@ -22,6 +22,8 @@
   }
   const logoCell = (logoKey, src, extra = '') => `<label class="set-logo" title="Klik om het logo te vervangen" data-logo="${esc(logoKey)}"><img src="${esc(src)}" alt="" ${extra}><input type="file" accept="image/*" hidden></label>`;
 
+  const ASSETS_LIST = () => [['results', 'Results'], ['schedule', 'Schedule'], ['ranking', 'Stand (Ranking)'], ['match', 'Match (aankondiging)'], ['matchresult', 'Matchresult (uitslag los)'], ['prediction', 'Prediction'], ['headtohead', 'Head to head'], ['playerweek', 'Speler / speelster van de week'], ['topscorer', 'Top scorer'], ['nowlive', 'Now live (SHL TV)']];
+  const DAYS_LIST = () => [['za', 'Zaterdag'], ['zo', 'Zondag'], ['ma', 'Maandag'], ['di', 'Dinsdag'], ['wo', 'Woensdag'], ['dovr', 'Donderdag en vrijdag']];
   function build() {
     const box = $('setBody'); if (!box) return;
     const head = (cols) => `<div class="set-row set-head"><span></span><span>${cols[0]}</span><span>${cols[1]}</span><span>${cols[2]}</span><span></span></div>`;
@@ -33,6 +35,10 @@
     const FMTS = [['story', 'Story'], ['post', 'Post']];
     h += `<details class="set-sec" open><summary>Dashboard en visuals</summary>
       <p class="sync-info">Wat je op het dashboard onder "Uitgelicht" ziet (per dag twee assets, telkens voor mannen en vrouwen) en wat een klik op een wedstrijd opent.</p>
+      <div class="set-text"><label for="dashPlanMode">Planning</label><select id="dashPlanMode" data-dash="planMode">${opt([['auto', 'Automatisch: leert van wat ik gebruik'], ['manual', 'Handmatig: alleen mijn vaste planning']], D.planMode)}</select></div>
+      <p class="sync-info">Automatisch: de twee assets die je op een weekdag het vaakst opent of exporteert (minstens 2 verschillende dagen, recente dagen tellen zwaarder) komen vooraan; de vaste planning hieronder vult aan. Wat nu op het dashboard staat:</p>
+      <div class="set-learned" id="planLearned">Laden…</div>
+      <p class="sync-info">Vaste planning (vult aan als er nog te weinig gebruik is):</p>
       <div class="set-plan">${DAYS.map(([k, label]) => `<div class="set-plan-row"><b>${label}</b>${[0, 1].map(i => { const [a, f] = D.plan[k][i]; return `<span class="set-plan-slot"><select data-plan="${k}:${i}:asset" aria-label="${label}, asset ${i + 1}">${opt(ASSETS, a)}</select><select data-plan="${k}:${i}:fmt" aria-label="${label}, formaat ${i + 1}">${opt(FMTS, f)}</select></span>`; }).join('')}</div>`).join('')}</div>
       <div class="set-text"><label for="dashResFmt">Klik op een uitslag op het dashboard opent Matchresult als</label><select id="dashResFmt" data-dash="resultFmt">${opt(FMTS, D.resultFmt)}</select></div>
       <div class="set-text"><label for="dashMatFmt">Klik op een wedstrijd uit het programma opent Match als</label><select id="dashMatFmt" data-dash="matchFmt">${opt(FMTS, D.matchFmt)}</select></div>
@@ -109,6 +115,25 @@
       S.setDash({ plan });
     }));
     box.querySelectorAll('[data-dash]').forEach(el => el.addEventListener('change', () => S.setDash({ [el.dataset.dash]: el.type === 'number' ? parseInt(el.value, 10) : el.value })));
+    // what the dashboard shows per day now, and which of those come from your usage
+    const NAMES = Object.fromEntries(ASSETS_LIST()), DAYNAMES = Object.fromEntries(DAYS_LIST());
+    const fillLearned = async () => {
+      const el = box.querySelector('#planLearned'); if (!el) return;
+      try {
+        const j = await (await fetch('/api/plan', { cache: 'no-store' })).json();
+        el.innerHTML = DAYS_LIST().map(([k, label]) => `<div class="set-learned-row"><b>${label}</b><span>${(j.plan[k] || []).map(p => `${p.source === 'usage' ? '★ ' : ''}${esc(NAMES[p.asset] || p.asset)} (${p.format === 'post' ? 'Post' : 'Story'})`).join(' · ')}</span></div>`).join('')
+          + `<div class="set-learned-note">★ = gekozen op basis van je gebruik${j.mode === 'manual' ? ' (staat nu uit: handmatig)' : ''}</div>`
+          + (j.mode === 'auto' ? '<button class="btn btn-link" type="button" id="planFreeze">Deze planning vastzetten als vaste planning</button>' : '');
+        const fz = el.querySelector('#planFreeze');
+        if (fz) fz.addEventListener('click', () => {
+          const plan = {}; Object.keys(j.plan).forEach(k => { plan[k] = j.plan[k].slice(0, 2).map(p => [p.asset, p.format]); while (plan[k].length < 2) plan[k].push(S.dash().plan[k][plan[k].length]); });
+          S.setDash({ plan, planMode: 'manual' }); setTimeout(build, 50);
+        });
+      } catch (e) { el.textContent = 'Kon de planning niet laden.'; }
+    };
+    fillLearned();
+    const pm = box.querySelector('#dashPlanMode'); if (pm) pm.addEventListener('change', () => setTimeout(fillLearned, 1500));
+    box.querySelectorAll('select[data-plan]').forEach(sel => sel.addEventListener('change', () => setTimeout(fillLearned, 1500)));
     const dr = box.querySelector('#dashReset'); if (dr) dr.addEventListener('click', () => { S.resetDash(); setTimeout(build, 50); });
   }
 

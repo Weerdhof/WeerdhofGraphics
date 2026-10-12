@@ -1078,6 +1078,7 @@ body:not(.set-open) .settings-view { display: none; }
 .feat-card .feat-img { box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent); }
 .feat-pill { align-self: flex-start; background: var(--acc); color: #1a1b38; font-family: "ClashDisplay", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; opacity: 1 !important; }
 .feat-women .feat-pill { color: #fff; }
+.feat-learned { color: var(--acc); font-weight: 600; white-space: nowrap; }
 
 /* phones: the featured assets sit next to each other (two per row) instead of under each other */
 @media (max-width: 640px) {
@@ -1139,3 +1140,9 @@ body:not(.set-open) .settings-view { display: none; }
   #roundSelect, .smw-format-tab, summary { min-height: 44px; }
   .smw-format-tab { display: inline-flex; align-items: center; justify-content: center; }
 }
+
+/* settings: what the dashboard shows per day, learned from usage */
+.set-learned { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 12px; font-size: 13px; }
+.set-learned-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.set-learned-note { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+@media (max-width: 640px) { .set-learned-row { grid-template-columns: 1fr; gap: 2px; } }

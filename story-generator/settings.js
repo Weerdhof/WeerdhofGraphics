@@ -18,7 +18,7 @@
     // Dashboard + visuals: what the "Uitgelicht" section shows per weekday ([asset, format] x 2, shown for men and women),
     // what a click on a match row on the dashboard opens, and how long a match counts as live (Now live).
     dash: {
-      liveMinutes: 90, resultFmt: 'story', matchFmt: 'story',
+      liveMinutes: 90, resultFmt: 'story', matchFmt: 'story', planMode: 'auto',
       plan: {
         za: [['results', 'story'], ['prediction', 'story']],
         zo: [['matchresult', 'story'], ['ranking', 'story']],
@@ -88,6 +88,7 @@
         liveMinutes: live >= 30 && live <= 240 ? live : d.liveMinutes,
         resultFmt: o.resultFmt === 'post' ? 'post' : d.resultFmt,
         matchFmt: o.matchFmt === 'post' ? 'post' : d.matchFmt,
+        planMode: o.planMode === 'manual' ? 'manual' : 'auto',
         plan: Object.keys(d.plan).reduce((p, k) => { const v = o.plan && o.plan[k]; p[k] = Array.isArray(v) && v.length === 2 ? v : d.plan[k]; return p; }, {}),
       };
     },

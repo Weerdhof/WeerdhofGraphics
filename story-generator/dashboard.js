@@ -108,7 +108,15 @@
   // The planning per weekday lives in the settings (default: your weekly planning); two assets per day, for men and women.
   const TITLES = { results: 'Uitslagen', schedule: 'Schedule', ranking: 'Stand', match: 'Wedstrijdaankondiging', matchresult: 'Uitslag los', prediction: 'Prediction', headtohead: 'Head to head', playerweek: 'Speler / speelster van de week', topscorer: 'Top scorer' };
   const DOW_KEY = { 0: 'zo', 1: 'ma', 2: 'di', 3: 'wo', 4: 'dovr', 5: 'dovr', 6: 'za' };
-  const todayItems = () => ((S.dash().plan[DOW_KEY[new Date().getDay()]]) || []).map(([asset, fmt]) => [asset, fmt, TITLES[asset] || asset]);
+  // the planning comes from the server (/api/plan): learned from what is used on this weekday, completed with the fixed planning
+  let planInfo = null;
+  const todaySlots = () => {
+    const key = DOW_KEY[new Date().getDay()], list = planInfo && planInfo.plan && planInfo.plan[key];
+    if (list && list.length) return list.map(p => ({ asset: p.asset, fmt: p.format, source: p.source }));
+    return ((S.dash().plan[key]) || []).map(([asset, fmt]) => ({ asset, fmt: fmt || 'story', source: 'fixed' }));
+  };
+  const todayItems = () => todaySlots().map(({ asset, fmt }) => [asset, fmt, TITLES[asset] || asset]);
+  const planSig = () => JSON.stringify(todaySlots());
   let usage = null;
   const whenText = (ts) => {
     if (!ts) return '';
@@ -127,21 +135,31 @@
     return 'laatst ' + parts.join('');
   }
   function featuredHtml() {
-    const cards = todayItems().map(([asset, fmt, title]) => ['men', 'women'].map(comp => {
+    const cards = todaySlots().map(({ asset, fmt, source }) => [asset, fmt, TITLES[asset] || asset, source]).map(([asset, fmt, title, source]) => ['men', 'women'].map(comp => {
       const c = COMPS[comp], q = `asset=${asset}&comp=${comp}&format=${fmt}`;
       return `<button type="button" class="feat-card feat-${comp}" style="--acc:${c.accent}" data-dash-go="${comp}:${asset}:${fmt}">
         <span class="feat-img feat-${fmt}"><img loading="lazy" alt="" src="/api/preview?${q}" onload="this.classList.add('ready');this.parentNode.classList.add('loaded')" onerror="this.parentNode.classList.add('feat-fail')"><span class="feat-spin"></span></span>
-        <span class="feat-cap"><span class="feat-pill">${comp === 'men' ? 'Mannen' : 'Vrouwen'}</span><b>${esc(title)}</b><span>${fmt === 'post' ? 'Post' : 'Story'}</span><small data-usage="${comp}:${asset}:${fmt}">${esc(usageLine(comp, asset, fmt))}</small></span>
+        <span class="feat-cap"><span class="feat-pill">${comp === 'men' ? 'Mannen' : 'Vrouwen'}</span><b>${esc(title)}</b><span>${fmt === 'post' ? 'Post' : 'Story'}${source === 'usage' ? ' · <span class="feat-learned" title="Staat hier omdat je dit vaak op deze dag gebruikt">★ jouw gebruik</span>' : ''}</span><small data-usage="${comp}:${asset}:${fmt}">${esc(usageLine(comp, asset, fmt))}</small></span>
       </button>`;
     }).join('')).join('');
     return `<div class="feat-cards">${cards}</div>`;
   }
   let settingsReady = false;   // the planning comes from the settings: do not build (and fetch previews) before they have loaded
-  S.ready.then(() => { settingsReady = true; buildFeatured(true); });
+  // build the cards once the settings AND the planning are known (but do not wait longer than 2 s for the server)
+  const planFetched = fetch('/api/plan').then(r => r.json()).then(j => { planInfo = j; }).catch(() => {});
+  Promise.all([S.ready, Promise.race([planFetched, new Promise(r => setTimeout(r, 2000))])]).then(() => { settingsReady = true; buildFeatured(true); });
   function buildFeatured(force) {
     const box = $('dashFeatured'); if (!box || !settingsReady) return;
     if (!force && box.dataset.built) return;
-    box.dataset.built = '1'; box.innerHTML = featuredHtml();
+    box.dataset.built = '1'; box.dataset.sig = planSig(); box.innerHTML = featuredHtml();
+    const hint = document.getElementById('dashFeatHint');
+    if (hint) {
+      const n = todaySlots().filter(x => x.source === 'usage').length;
+      hint.textContent = planInfo && planInfo.mode === 'auto'
+        ? (n ? `Je planning voor vandaag, met de actuele uitslagen en stand al ingevuld. ${n === todaySlots().length ? 'Dit is wat' : n + ' van de ' + todaySlots().length + ' is wat'} je op deze dag het vaakst gebruikt (★)${n === todaySlots().length ? '' : '; de rest komt uit je vaste planning'}.`
+              : 'Je planning voor vandaag, met de actuele uitslagen en stand al ingevuld. Zodra je op deze weekdag dezelfde assets vaker gebruikt, past de planning zich vanzelf aan.')
+        : 'Je vaste planning voor vandaag, met de actuele uitslagen en stand al ingevuld. Stel hem in bij Instellingen.';
+    }
   }
   const photoSeen = {};   // 'comp:asset:format' -> time of the photo change the shown preview already includes
   function updateUsage() {
@@ -162,8 +180,10 @@
 
   async function refresh() {
     await S.ready;
-    await Promise.all([fetchComp('men'), fetchComp('women'), fetch('/api/sync-status').then(r => r.json()).then(j => { data.sync = j; }).catch(() => {}), fetch('/api/usage?limit=1').then(r => r.json()).then(j => { usage = j; }).catch(() => {})]);
+    await Promise.all([fetchComp('men'), fetchComp('women'), fetch('/api/sync-status').then(r => r.json()).then(j => { data.sync = j; }).catch(() => {}), fetch('/api/usage?limit=1').then(r => r.json()).then(j => { usage = j; }).catch(() => {}), fetch('/api/plan').then(r => r.json()).then(j => { planInfo = j; }).catch(() => {})]);
     render(); updateUsage();
+    // the learned planning changed (or arrived after the first build): rebuild the cards
+    const box = $('dashFeatured'); if (settingsReady && box && box.dataset.built && box.dataset.sig !== planSig()) buildFeatured(true);
   }
   function show() { visible = true; render(); const p = refresh(); clearInterval(timer); timer = setInterval(() => { if (visible) refresh(); }, 60000); return Promise.race([p, new Promise(r => setTimeout(r, 4000))]); }
   function hide() { visible = false; clearInterval(timer); }

@@ -22,6 +22,7 @@ Exports (so images can be fetched with a plain download, without driving the bro
     GET  /api/preview?asset=results&comp=men&format=story
                                    small preview image of any asset, rendered with real data (cached ~20 min)
     POST /api/usage, GET /api/usage  log of what was opened/exported when (for the "Uitgelicht" section)
+    GET /api/plan                    the planning of the "Uitgelicht" section: learned from the usage log (auto) or the fixed planning
     GET|POST /api/thumbnail        render a livestream thumbnail server-side with a headless browser (Playwright) from
                                    kind=shl|shlw|nextmen|nextwomen, home, away, date (YYYY-MM-DD or DD-MM), time,
                                    format=webp|jpg|png (+ optional title, label, variant=highlights, homeLabel, awayLabel,
@@ -580,23 +581,105 @@ def get_preview(asset, comp, fmt, fresh=False):
 
 
 DAY_WEEKDAYS = {"za": [5], "zo": [6], "ma": [0], "di": [1], "wo": [2], "dovr": [3, 4]}
+PLAN_MIN_DAYS = 2            # an asset must have been used on at least this many different days of that weekday group to count
+PLAN_HALF_LIFE_DAYS = 28.0   # recent use counts more than old use
+PLAN_WINDOW_DAYS = 120
+USE_WEIGHT = {"open": 1.0, "export": 3.0}
+
+
+def _day_key(wd):
+    for key, wds in DAY_WEEKDAYS.items():
+        if wd in wds:
+            return key
+    return None
+
+
+def _dash_settings():
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f).get("dash") or {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def _manual_plan():
+    """Per day group the [asset, format] list from the settings page (dash.plan), else the built-in WEEK_PLAN."""
+    saved = _dash_settings().get("plan") or {}
+    plan = {}
+    for key, wds in DAY_WEEKDAYS.items():
+        items = []
+        if isinstance(saved.get(key), list):
+            items = [(a, f) for a, f in (tuple(x) for x in saved[key] if isinstance(x, (list, tuple)) and len(x) == 2)
+                     if a in PREVIEW_ASSETS and f in ("story", "post", "")]
+        plan[key] = items or list(WEEK_PLAN.get(wds[0], []))
+    return plan
+
+
+def _local_day(ts):
+    """(date, weekday) of a unix time in Dutch local time."""
+    try:
+        from zoneinfo import ZoneInfo
+        d = datetime.fromtimestamp(ts, ZoneInfo("Europe/Amsterdam"))
+    except Exception:
+        d = datetime.fromtimestamp(ts)
+    return d.date(), d.weekday()
+
+
+def learned_plan(now=None):
+    """What is really used per weekday group, from the usage log: {key: [{asset, format, score, days}] best first}.
+    One day counts once per asset (an export outweighs an open); recent days count more than old ones."""
+    now = now or time.time()
+    best = {}                                  # (key, asset, fmt, date) -> weight of that day
+    for e in _usage_read():
+        t, asset, action = e.get("t"), e.get("asset"), e.get("action", "open")
+        if not isinstance(t, (int, float)) or asset not in PREVIEW_ASSETS or e.get("comp") not in ("men", "women"):
+            continue
+        w = USE_WEIGHT.get(action)
+        age = (now - t) / 86400.0
+        if not w or age > PLAN_WINDOW_DAYS or age < 0:
+            continue
+        day, wd = _local_day(t)
+        key = _day_key(wd)
+        fmt = e.get("format") if e.get("format") in ("story", "post") else "story"
+        k = (key, asset, fmt, day)
+        best[k] = max(best.get(k, 0.0), w * 0.5 ** (age / PLAN_HALF_LIFE_DAYS))
+    agg = {}
+    for (key, asset, fmt, _day), score in best.items():
+        a = agg.setdefault((key, asset, fmt), {"score": 0.0, "days": 0})
+        a["score"] += score
+        a["days"] += 1
+    out = {key: [] for key in DAY_WEEKDAYS}
+    for (key, asset, fmt), a in agg.items():
+        out[key].append({"asset": asset, "format": fmt, "score": round(a["score"], 2), "days": a["days"]})
+    for key in out:
+        out[key].sort(key=lambda x: (-x["score"], x["asset"]))
+    return out
+
+
+def effective_plan():
+    """The planning shown on the dashboard: in 'auto' mode the two most used assets of that weekday (when each has been
+    used on at least PLAN_MIN_DAYS days), completed from the fixed planning; in 'manual' mode only the fixed planning."""
+    mode = "manual" if _dash_settings().get("planMode") == "manual" else "auto"
+    manual, learned = _manual_plan(), learned_plan()
+    plan = {}
+    for key in DAY_WEEKDAYS:
+        picks = []
+        if mode == "auto":
+            picks = [{"asset": x["asset"], "format": x["format"], "source": "usage", "score": x["score"], "days": x["days"]}
+                     for x in learned[key] if x["days"] >= PLAN_MIN_DAYS][:2]
+        for asset, fmt in manual[key]:
+            if len(picks) >= 2:
+                break
+            if not any(p["asset"] == asset and p["format"] == (fmt or "story") for p in picks):
+                picks.append({"asset": asset, "format": fmt or "story", "source": "fixed"})
+        plan[key] = picks
+    return {"mode": mode, "plan": plan, "learned": learned, "minDays": PLAN_MIN_DAYS}
 
 
 def _plan_for_today():
-    """Today's [asset, format] list: from the settings page (dash.plan) when set, else the built-in WEEK_PLAN."""
-    wd = datetime.now().weekday()
-    try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            plan = (json.load(f).get("dash") or {}).get("plan") or {}
-        for key, wds in DAY_WEEKDAYS.items():
-            if wd in wds and isinstance(plan.get(key), list):
-                items = [(a, f) for a, f in (tuple(x) for x in plan[key] if isinstance(x, (list, tuple)) and len(x) == 2)
-                         if a in PREVIEW_ASSETS and f in ("story", "post", "")]
-                if items:
-                    return items
-    except (OSError, ValueError, TypeError):
-        pass
-    return WEEK_PLAN.get(wd, [])
+    """Today's [asset, format] list (the effective planning)."""
+    key = _day_key(datetime.now().weekday())
+    return [(p["asset"], p["format"]) for p in effective_plan()["plan"].get(key, [])]
 
 
 def warm_previews():
@@ -679,6 +762,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_exports_list()
         elif self.path.startswith("/api/preview"):
             self.handle_preview()
+        elif self.path.startswith("/api/plan"):
+            self._send_json(200, effective_plan())
         elif self.path.startswith("/api/usage"):
             self._send_json(200, usage_summary(int((parse_qs(urlparse(self.path).query).get("limit", ["40"])[0] or 40))))
         elif self.path.startswith("/api/thumbnail"):
