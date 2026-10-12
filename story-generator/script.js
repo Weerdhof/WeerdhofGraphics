@@ -2661,7 +2661,15 @@
     } else {
       const footerImg = loadImg(C.footerLogo);
       if (footerImg && footerImg.complete && footerImg.naturalWidth) {
-        ctx.drawImage(footerImg, C.footer.x, C.footer.y, C.footer.w, C.footer.h);
+        // Instagram can cover the bottom ~250px of a Story: keep the logo above y 1650, and under the last row
+        // (a full list of 7 rows leaves less room, so the logo gets a bit smaller instead of overlapping).
+        const F = C.footer, MAX_BOTTOM = 1650;
+        const n = shownMatches.length;
+        const lastBottom = n > 0 ? visibleRowY(n - 1, n) + ROW_H / 2 : 0;
+        let fh = F.h, fy = Math.min(F.y, MAX_BOTTOM - fh);
+        if (fy < lastBottom + 18) { fh = Math.max(70, MAX_BOTTOM - (lastBottom + 18)); fy = MAX_BOTTOM - fh; }
+        const fw = F.w * fh / F.h;
+        ctx.drawImage(footerImg, F.x + (F.w - fw) / 2, fy, fw, fh);
       }
     }
 
