@@ -3944,7 +3944,7 @@
           drawCrest(crestSrc(home), L + 80, pmY + pmH / 2, 84);
           drawCrest(crestSrc(away), R - 80, pmY + pmH / 2, 84);
           ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = ac * 0.55; ctx.font = `600 24px "${fontFamily}"`;
-          ctx.fillText(`${tx.prev}  ·  ${(meet.date || '').toUpperCase()}`, W / 2, pmY + 34); ctx.restore();
+          ctx.fillText(`${tx.prev}  ·  ${localizeSiteDate(meet.date)}`, W / 2, pmY + 34); ctx.restore();
           tsInkText(`${meet.gf} – ${meet.ga}`, W / 2, pmY + 100, `700 62px "${fontFamily}"`, T.ink, 'center');
         } else {
           ctx.textAlign = 'center'; ctx.fillStyle = T.ink; ctx.globalAlpha = ac * 0.6; ctx.font = `600 30px "${fontFamily}"`;
