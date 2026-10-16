@@ -823,7 +823,7 @@
       modeHint.textContent = 'Kies de wedstrijd die nu live is: die wordt gemarkeerd. De andere wedstrijden van die dag staan er klein onder. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'headtohead') {
       matchesLabel.textContent = 'Head to head';
-      modeHint.textContent = 'Kies een wedstrijd: stand, laatste uitslagen en onderlinge duels komen automatisch van de site. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
+      modeHint.textContent = 'Kies een wedstrijd: stand, laatste uitslagen en onderlinge duels komen automatisch van de site. In de lijst staat per wedstrijd of het interessant wordt (🔥 kraker, ⚡ interessant, anders minder). Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'topscorer') {
       matchesLabel.textContent = 'Top scorer & uitslag';
       modeHint.textContent = 'Kies een wedstrijd, vul de eindstand in en de gegevens van de topscorer. Upload bij Opmaak een spelersfoto.';
@@ -1991,6 +1991,19 @@
       opt.textContent = `Ronde ${m.roundNum}: ${m.home} vs ${m.away} — ${m.dateRound.split('|')[0].trim()}`;
       roundSelect.appendChild(opt);
     });
+    labelInterest();
+  }
+  // Head to head: say in the list whether a match is going to be interesting (needs the standings and results, loaded a moment later)
+  function labelInterest() {
+    if (mode !== 'headtohead') return;
+    const apply = () => {
+      if (mode !== 'headtohead') return;
+      smMatches.forEach(m => {
+        const opt = [...roundSelect.options].find(o => o.value === m.id);
+        if (opt) opt.textContent = `Ronde ${m.roundNum}: ${m.home} vs ${m.away} — ${m.dateRound.split('|')[0].trim()}${interestText(m)}`;
+      });
+    };
+    if (h2h.comp === compKey) apply(); else h2hEnsure().then(apply);
   }
 
   function loadSingleMatch(m, restore) {
@@ -3690,6 +3703,48 @@
     const idx = h2h.standings.findIndex(x => h2hCode(x.club) === code);
     const row = idx >= 0 ? h2h.standings[idx] : null;
     return { games, gf, ga, n: games.length, pos: idx + 1, row };
+  }
+
+  // How interesting is a match? Worked out from the standings and the recent results (the same data as the Head to head story):
+  // two teams at the top, close in the table, a tight fight at the bottom or a close first meeting all count; a big gap counts against.
+  function matchInterest(m) {
+    if (h2h.comp !== compKey || !h2h.standings.length) return null;
+    const rows = h2h.standings, n = rows.length;
+    const at = (code) => { const i = rows.findIndex(x => h2hCode(x.club) === code); return i < 0 ? null : { pos: i + 1, pts: parseInt(rows[i].points, 10) || 0, played: parseInt(rows[i].played, 10) || 0 }; };
+    const a = at(m.home), b = at(m.away);
+    if (!a || !b || Math.min(a.played, b.played) < 2) return null;     // too early in the season to say anything
+    const gap = Math.abs(a.pos - b.pos), ptsGap = Math.abs(a.pts - b.pts), top = Math.max(3, Math.round(n * 0.3)), worst = Math.max(a.pos, b.pos), best = Math.min(a.pos, b.pos);
+    let score = 0; const why = [];
+    if (worst <= top) { score += 45; why.push('twee teams uit de top'); }
+    else if (best <= top && gap <= 3) { score += 25; why.push('topploeg tegen een directe achtervolger'); }
+    if (gap <= 2) { score += 25; why.push(gap === 1 ? 'naast elkaar in de stand' : 'dicht bij elkaar in de stand'); }
+    if (ptsGap <= 2) { score += 15; why.push(ptsGap === 0 ? 'gelijk aantal punten' : `${ptsGap} punt${ptsGap === 1 ? '' : 'en'} verschil`); }
+    if (best > n - 4 && gap <= 3) { score += 25; why.push('strijd onderin'); }
+    const wins = (code) => h2hTeam(code).games.slice(0, 3).filter(g => g.res === 'W').length;
+    if (wins(m.home) >= 2 && wins(m.away) >= 2) { score += 10; why.push('beide teams in vorm'); }
+    const meet = h2hTeam(m.home).games.find(g => g.opp === m.away);
+    if (meet && Math.abs(meet.gf - meet.ga) <= 2) { score += 10; why.push('vorige keer nipt'); }
+    if (gap >= 8) { score -= 20; why.push('groot verschil in de stand'); }
+    score = Math.max(0, Math.min(100, score));
+    const tier = score >= 60 ? 'topper' : score >= 35 ? 'interessant' : 'rustig';
+    return { score, tier, why, a, b };
+  }
+  const INTEREST_LABEL = { topper: '🔥 Kraker', interessant: '⚡ Interessant', rustig: '· Minder interessant' };
+  // only matches still to come get a label: the standings of today say nothing about a match that was played weeks ago
+  function matchIsPast(m) {
+    const d = /(\d+)-(\d+)/.exec(m.dateRound || '');
+    if (!d) return false;
+    const now = new Date(), day = +d[1], month = +d[2];
+    let y = now.getFullYear(); const t = new Date(y, month - 1, day, 23, 59);
+    if (t - now > 200 * 864e5) y--; else if (now - t > 200 * 864e5) y++;
+    return new Date(y, month - 1, day, 23, 59) < now;
+  }
+  function interestText(m) {
+    if (matchIsPast(m)) return '';
+    const r = matchInterest(m);
+    if (!r) return '';
+    const reason = r.tier === 'rustig' ? (Math.abs(r.a.pos - r.b.pos) >= 6 ? 'groot verschil in de stand' : '') : (r.why[0] || '');
+    return ` · ${INTEREST_LABEL[r.tier]} (#${r.a.pos} – #${r.b.pos}${reason ? ', ' + reason : ''})`;
   }
 
   // Head to head animation (15 s, most of it holding the finished graphic): glows + corner chevrons sweep in, label bar grows, the two crest tiles slide in
