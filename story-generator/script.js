@@ -3087,9 +3087,8 @@
     const streak = (t) => {
       const g = t.games; if (!g.length) return '';
       let n = 0; while (n < g.length && g[n].res === g[0].res) n++;
-      if (n < 2) return '';
-      const w = { W: nl ? 'WINSTEN' : 'WINS', D: nl ? 'GELIJKSPELEN' : 'DRAWS', L: nl ? 'VERLIEZEN' : 'LOSSES' }[g[0].res];
-      return `${n} ${w} ${nl ? 'OP RIJ' : 'IN A ROW'}`;
+      if (n < 2 || g[0].res !== 'W') return '';   // only a winning streak is mentioned, never a losing or drawing one
+      return `${n} ${nl ? 'WINSTEN' : 'WINS'} ${nl ? 'OP RIJ' : 'IN A ROW'}`;
     };
     let cxL, cxR, ink = '#14142b', inkH = '#14142b', inkA = '#14142b', colH, colA, centreX = W / 2, widthL = () => 270, widthR = () => 270;
     const lumOf = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
