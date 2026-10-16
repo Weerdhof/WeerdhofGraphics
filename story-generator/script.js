@@ -2982,7 +2982,7 @@
   // poll sticker below it (the footer logo stays where it is).
   function predLayout(L) {
     if (mode !== 'prediction') return L;
-    const dy = L.canvasH > 1500 ? -480 : -340, S = (o) => ({ ...o, y: o.y + dy });
+    const dy = (L.canvasH > 1500 ? -480 : -340) - predInfoHeight(), S = (o) => ({ ...o, y: o.y + dy });
     const n = { ...L, timeY: L.timeY + dy, dateY: L.dateY + dy, mark: S(L.mark) };
     if (L.teamY !== undefined) n.teamY = L.teamY + dy;
     if (L.teamLeft) { n.teamLeft = S(L.teamLeft); n.teamRight = S(L.teamRight); n.bar = S(L.bar); }
@@ -3025,21 +3025,23 @@
     ctx.globalAlpha = 1;
     ctx.restore();
   }
-  function predictionHeadline(W, H, barTop, barBottom, accent, light) {
+  function predictionHeadline(W, H, barTop, barBottom, accent, light, geom) {
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     // the women's story is in Dutch, the men's in English
     const nl = compKey === 'women', k = nl ? 'pr.w.' : 'pr.';
     const l1 = predText(k + 'l1', nl ? 'Wie pakt' : 'Who takes').toUpperCase(), l2 = predText(k + 'l2', nl ? 'de winst?' : 'the win?').toUpperCase();
-    const b2 = barTop - 120, b1 = b2 - 136;
+    // with extra information the bar moved up: the title gets smaller so everything still fits above it and the poll zone stays put
+    const info = predInfoHeight(), sc = Math.max(0.5, (366 - info) / 366);
+    const b2 = barTop - 120 * sc, b1 = b2 - 136 * sc;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     if (!light) { ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6; }
     const fit = (str, px) => { ctx.font = `700 ${px}px "${fontFamily}"`; const w = ctx.measureText(str).width; return w > W - 140 ? px * (W - 140) / w : px; };
-    ctx.font = `700 ${fit(l1, 150)}px "${fontFamily}"`; ctx.fillStyle = light ? '#1a1b38' : '#ffffff'; ctx.fillText(l1, W / 2, b1);
-    ctx.font = `700 ${fit(l2, 150)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
+    ctx.font = `700 ${fit(l1, 150 * sc)}px "${fontFamily}"`; ctx.fillStyle = light ? '#1a1b38' : '#ffffff'; ctx.fillText(l1, W / 2, b1);
+    ctx.font = `700 ${fit(l2, 150 * sc)}px "${fontFamily}"`; ctx.fillStyle = accent; ctx.fillText(l2, W / 2, b2);
     ctx.shadowColor = 'transparent';
     const story = H > 1500, pw = story ? 440 : 380, ph = story ? 200 : 150;   // a small poll sticker
-    PRED_POLL = { x: (W - pw) / 2, y: barBottom + (story ? 70 : 50), w: pw, h: ph };
+    PRED_POLL = { x: (W - pw) / 2, y: barBottom + (story ? 70 : 50) + info, w: pw, h: ph };   // the information strip sits between the bar and this zone
     if (predGuide) {   // marks the free spot for the Instagram poll sticker
       const P = PRED_POLL;
       ctx.setLineDash([16, 14]); ctx.lineWidth = 3; ctx.strokeStyle = light ? 'rgba(26,27,56,0.4)' : 'rgba(255,255,255,0.55)';
@@ -3048,8 +3050,120 @@
       ctx.fillText(predText('pr.hint', 'Poll sticker').toUpperCase(), W / 2 + 2, P.y + P.h / 2 + 9);
     }
     ctx.restore();
+    if (info && geom) predictionInfo(W, barBottom, info, accent, light, geom);
   }
 
+  // ---- extra information on the Prediction: stand (position + points), reeks (last 5 results + streak) and the previous meeting ----
+  const predMore = { stand: false, reeks: false, meet: false };
+  try { Object.assign(predMore, JSON.parse(localStorage.getItem('pred-more') || '{}')); } catch (e) { /* ignore */ }
+  const predMoreOn = () => mode === 'prediction' && (predMore.stand || predMore.reeks || predMore.meet);
+  // The extra information is a strip that continues the match bar downwards (same slanted sides), in the colours of the two clubs.
+  const predInfoScale = () => canvas.height > 1500 ? 1 : 0.85;   // the Post has less room than the Story
+  function predInfoHeight() {
+    if (!predMoreOn()) return 0;
+    if (h2h.comp !== compKey) h2hEnsure();   // the standings and results come from the server; the card redraws when they arrive
+    let rows = (predMore.stand ? 50 : 0) + (predMore.reeks ? 64 : 0);
+    if (predMore.meet && rows < 74) rows = 74;
+    return Math.round((rows + 12) * predInfoScale());
+  }
+  const predEdgeCache = new Map();
+  // the colour at the bottom edge of a team piece (outer end and inner end of each half): the lightest pixels are the white lines, so take the darkest
+  function predPieceEdges(img, key) {
+    if (predEdgeCache.has(key)) return predEdgeCache.get(key);
+    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = 1;
+    const x = cv.getContext('2d'); x.drawImage(img, 0, img.naturalHeight - 3, img.naturalWidth, 1, 0, 0, cv.width, 1);
+    const d = x.getImageData(0, 0, cv.width, 1).data, half = cv.width / 2;
+    const px = (i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2], d[i * 4 + 3]], lum = (p) => 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2];
+    const pick = (from, to) => { let best = null; for (let i = Math.round(from); i <= Math.round(to); i += 3) { const p = px(i); if (p[3] > 200 && (!best || lum(p) < lum(best))) best = p; } return best; };
+    const r = { homeOuter: pick(30, 90), homeInner: pick(300, 380), awayInner: pick(half + 586, half + 666), awayOuter: pick(cv.width - 100, cv.width - 40) };
+    if (r.homeOuter && r.homeInner && r.awayInner && r.awayOuter) predEdgeCache.set(key, r);
+    return r;
+  }
+  function predictionInfo(W, barBottom, info, accent, light, geom) {
+    if (h2h.comp !== compKey || !h2h.standings.length) return;
+    const nl = compKey === 'women', fontFamily = fontReady ? 'ClashDisplay' : 'Arial', k = predInfoScale();
+    const A = h2hTeam(smState.home), B = h2hTeam(smState.away), y0 = barBottom, hS = info - 8;
+    const rgb = (p, a) => `rgba(${p[0]},${p[1]},${p[2]},${a == null ? (p[3] == null ? 1 : p[3] / 255) : a})`;   // the pieces are slightly see-through: the strip has to be the same
+    const streak = (t) => {
+      const g = t.games; if (!g.length) return '';
+      let n = 0; while (n < g.length && g[n].res === g[0].res) n++;
+      if (n < 2) return '';
+      const w = { W: nl ? 'WINSTEN' : 'WINS', D: nl ? 'GELIJKSPELEN' : 'DRAWS', L: nl ? 'VERLIEZEN' : 'LOSSES' }[g[0].res];
+      return `${n} ${w} ${nl ? 'OP RIJ' : 'IN A ROW'}`;
+    };
+    let cxL, cxR, ink = '#14142b', colH, colA, centreX = W / 2;
+    ctx.save();
+    if (geom.men) {
+      // the strip: left half pale, right half in the club colour, white in the middle, with the slanted edges of the bar continued downwards
+      const x0 = geom.x0, x1 = geom.x1, slope = 0.74, hx = (y) => x0 + 272 - slope * (y - y0), ax = (y) => x1 - 272 + slope * (y - y0);
+      const hi = loadImg(`assets/singlematch/teams/${smState.home}.png`), ai = loadImg(`assets/singlematch/teams/${smState.away}.png`);
+      const he = hi && hi.complete && hi.naturalWidth ? predPieceEdges(hi, smState.home) : null, ae = ai && ai.complete && ai.naturalWidth ? predPieceEdges(ai, smState.away) : null;
+      const fallH = SM_TEAM_COLORS[smState.home] || '#c9cde0', fallA = SM_TEAM_COLORS[smState.away] || '#4a90d9';
+      const gH = ctx.createLinearGradient(x0, 0, hx(y0), 0), gA = ctx.createLinearGradient(x1, 0, ax(y0), 0);
+      if (he && he.homeOuter) { gH.addColorStop(0, rgb(he.homeOuter)); gH.addColorStop(1, rgb(he.homeInner)); } else { gH.addColorStop(0, fallH); gH.addColorStop(1, fallH); }
+      if (ae && ae.awayOuter) { gA.addColorStop(0, rgb(ae.awayOuter)); gA.addColorStop(1, rgb(ae.awayInner)); } else { gA.addColorStop(0, fallA); gA.addColorStop(1, fallA); }
+      const poly = (pts, fill) => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
+      poly([[x0, y0], [hx(y0), y0], [hx(y0 + hS), y0 + hS], [x0, y0 + hS]], gH);
+      poly([[x1, y0], [ax(y0), y0], [ax(y0 + hS), y0 + hS], [x1, y0 + hS]], gA);
+      poly([[hx(y0) - 0.5, y0], [ax(y0) + 0.5, y0], [ax(y0 + hS) + 0.5, y0 + hS], [hx(y0 + hS) - 0.5, y0 + hS]], 'rgba(249,250,255,0.9)');
+      ctx.fillStyle = accent; ctx.fillRect(x0, y0 - 2, x1 - x0, 5);   // a thin line in the colour of "the win" between the original block and the statistics
+      cxL = x0 + 128; cxR = x1 - 128; centreX = (x0 + x1) / 2;
+      colH = colA = null;
+    } else {
+      // Vrouwen: the white bar continues downwards with rounded corners
+      const x0 = geom.x0, w = geom.x1 - geom.x0, r = 34;
+      ctx.shadowColor = light ? 'rgba(26,27,56,0.14)' : 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
+      roundedRectPath(ctx, x0, y0 - 14, w, hS + 14, r); ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.shadowColor = 'transparent';
+      cxL = geom.cxL; cxR = geom.cxR; centreX = x0 + w / 2;
+      colH = SMW_TEAM_COLORS[smState.home] || '#1a1b38'; colA = SMW_TEAM_COLORS[smState.away] || '#1a1b38';
+    }
+    const block = (cx, y, fn) => { ctx.save(); ctx.translate(cx, y); ctx.scale(k, k); ctx.textBaseline = 'alphabetic'; fn(); ctx.restore(); };
+    let y = y0 + 6 * k;
+    const chipFill = (res, club) => geom.men ? { W: ['#14142b', '#ffffff'], D: ['rgba(20,20,43,0.32)', '#14142b'], L: [null, '#14142b'] }[res] : { W: [club, '#ffffff'], D: ['#c9cde0', '#1a1b38'], L: ['#1a1b38', '#ffffff'] }[res];
+    if (predMore.stand) {
+      [[A, cxL, colH], [B, cxR, colA]].forEach(([t, cx, club]) => {
+        if (!t.pos) return;
+        block(cx, y, () => {
+          const pos = `#${t.pos}`, pts = t.row ? `${t.row.points} ${nl ? 'PTN' : 'PTS'}` : '';
+          ctx.font = `700 42px "${fontFamily}"`; const w1 = ctx.measureText(pos).width;
+          ctx.font = `600 24px "${fontFamily}"`; const w2 = pts ? ctx.measureText(pts).width : 0, gap = pts ? 12 : 0, x0 = -(w1 + gap + w2) / 2;
+          ctx.textAlign = 'left'; ctx.font = `700 42px "${fontFamily}"`; ctx.fillStyle = geom.men ? ink : club; ctx.fillText(pos, x0, 36);
+          ctx.font = `600 24px "${fontFamily}"`; ctx.fillStyle = ink; ctx.fillText(pts, x0 + w1 + gap, 36);
+        });
+      });
+      y += 50 * k;
+    }
+    if (predMore.reeks) {
+      [[A, cxL, colH], [B, cxR, colA]].forEach(([t, cx, club]) => {
+        block(cx, y, () => {
+          const g = t.games.slice(0, 5).reverse(), sz = 28, gap = 6, w = g.length * sz + (g.length - 1) * gap;   // oldest left, newest right
+          g.forEach((x, i) => {
+            const px = -w / 2 + i * (sz + gap), [bg, fg] = chipFill(x.res, club);
+            if (bg) { ctx.fillStyle = bg; ctx.fillRect(px, 2, sz, sz); } else { ctx.strokeStyle = '#14142b'; ctx.lineWidth = 2.5; ctx.strokeRect(px + 1.25, 3.25, sz - 2.5, sz - 2.5); }
+            ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.font = `700 18px "${fontFamily}"`; ctx.fillText(x.res, px + sz / 2, 2 + sz * 0.72);
+          });
+          const st = streak(t);
+          if (st) { ctx.textAlign = 'center'; ctx.font = `600 17px "${fontFamily}"`; ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.fillText(st, 0, 2 + sz + 22); }
+        });
+      });
+      y += 64 * k;
+    }
+    if (predMore.meet) {
+      const meet = A.games.find(g => g.opp === smState.away);
+      block(centreX, y0 + 6 * k, () => {
+        ctx.textAlign = 'center'; ctx.fillStyle = ink;
+        if (meet) {
+          ctx.font = `600 16px "${fontFamily}"`; ctx.globalAlpha = 0.7;
+          ctx.fillText(`${nl ? 'VORIGE ONTMOETING' : 'PREVIOUS MEETING'} · ${localizeSiteDate(meet.date)}`, 0, 22);
+          ctx.globalAlpha = 1; ctx.font = `700 44px "${fontFamily}"`; ctx.fillText(`${meet.gf} – ${meet.ga}`, 0, 66);
+        } else {
+          ctx.font = `600 17px "${fontFamily}"`; ctx.globalAlpha = 0.75; ctx.fillText(nl ? 'EERSTE ONTMOETING' : 'FIRST MEETING', 0, 36); ctx.fillText(nl ? 'VAN HET SEIZOEN' : 'OF THE SEASON', 0, 58);
+        }
+      });
+    }
+    ctx.restore();
+  }
   const predOptsField = document.getElementById('predOptsField');
   const predGuideToggle = document.getElementById('predGuideToggle');
   predGuideToggle.addEventListener('change', () => { predGuide = predGuideToggle.checked; render(); });
@@ -3058,6 +3172,22 @@
   let predShowTime = true;
   try { predShowTime = localStorage.getItem('pred-time') !== '0'; } catch (e) { /* ignore */ }
   predTimeToggle.checked = predShowTime;
+  // the "meer informatie" button opens the toggles for the extra information
+  const predMoreBtn = document.getElementById('predMoreBtn'), predMoreBox = document.getElementById('predMoreBox');
+  const syncPredMore = () => {
+    ['stand', 'reeks', 'meet'].forEach(k => { const el = document.getElementById('pred' + k[0].toUpperCase() + k.slice(1)); if (el) el.checked = !!predMore[k]; });
+    const any = predMore.stand || predMore.reeks || predMore.meet;
+    predMoreBtn.textContent = predMoreBox.hidden ? (any ? '＋ Meer informatie (aan)' : '＋ Meer informatie toevoegen') : '－ Minder opties';
+    predMoreBtn.setAttribute('aria-expanded', predMoreBox.hidden ? 'false' : 'true');
+  };
+  predMoreBox.hidden = !(predMore.stand || predMore.reeks || predMore.meet);
+  syncPredMore();
+  predMoreBtn.addEventListener('click', () => { predMoreBox.hidden = !predMoreBox.hidden; syncPredMore(); });
+  [['stand', 'predStand'], ['reeks', 'predReeks'], ['meet', 'predMeet']].forEach(([k, id]) => document.getElementById(id).addEventListener('change', (e) => {
+    predMore[k] = e.target.checked;
+    try { localStorage.setItem('pred-more', JSON.stringify(predMore)); } catch (err) { /* ignore */ }
+    syncPredMore(); if (predMoreOn() && h2h.comp !== compKey) h2hEnsure(); render();
+  }));
   predTimeToggle.addEventListener('change', () => {
     predShowTime = predTimeToggle.checked;
     try { localStorage.setItem('pred-time', predShowTime ? '1' : '0'); } catch (e) { /* ignore */ }
@@ -3676,7 +3806,7 @@
     const get = (u) => fetch(u).then(r => r.json()).catch(() => ({}));
     h2h.loading = Promise.all([get('/api/results?comp=' + k), get('/api/standings?comp=' + k)]).then(([r, st]) => {
       h2h.comp = k; h2h.ts = Date.now(); h2h.results = r.results || []; h2h.standings = st.standings || [];
-    }).finally(() => { h2h.loading = null; if (mode === 'headtohead') render(); });
+    }).finally(() => { h2h.loading = null; if (mode === 'headtohead' || mode === 'prediction') render(); });
     return h2h.loading;
   }
   // site team name -> single-match code (SPR, ENO, ...)
@@ -4203,7 +4333,7 @@
       ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamY, L.teamY + SM_TEAM_H, '#caff1c');
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamY, L.teamY + SM_TEAM_H, '#caff1c', false, { men: true, x0: SM_TEAM_LEFT_X, x1: SM_TEAM_RIGHT_X + SM_TEAM_W });
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
@@ -4363,7 +4493,7 @@
       ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
     }
 
-    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamLeft.y, L.bar.y + L.bar.h, predLight ? '#c93cf0' : '#e34fff', predLight);
+    if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamLeft.y, L.bar.y + L.bar.h, predLight ? '#c93cf0' : '#e34fff', predLight, { men: false, x0: L.bar.x, x1: L.bar.x + L.bar.w, cxL: L.teamLeft.x + L.teamLeft.w / 2, cxR: L.teamRight.x + L.teamRight.w / 2 });
 
     const footerImg = loadImg(predLight ? 'assets/women/footer-logo-women.png' : 'assets/women/singlematch/footer-white.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
