@@ -3106,7 +3106,7 @@
       poly([[x0, y0], [hx(y0), y0], [hx(y0 + hS), y0 + hS], [x0, y0 + hS]], gH);
       poly([[x1, y0], [ax(y0), y0], [ax(y0 + hS), y0 + hS], [x1, y0 + hS]], gA);
       poly([[hx(y0) - 0.5, y0], [ax(y0) + 0.5, y0], [ax(y0 + hS) + 0.5, y0 + hS], [hx(y0 + hS) - 0.5, y0 + hS]], 'rgba(249,250,255,0.9)');
-      ctx.fillStyle = accent; ctx.fillRect(x0, y0 - 2, x1 - x0, 5);   // a thin line in the colour of "the win" between the original block and the statistics
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(x0, y0 - 2, x1 - x0, 5);   // a thin white line between the original block and the statistics
       cxL = x0 + 128; cxR = x1 - 128; centreX = (x0 + x1) / 2;
       colH = colA = null;
     } else {
