@@ -3054,7 +3054,7 @@
   }
 
   // ---- extra information on the Prediction: stand (position + points), reeks (last 5 results + streak) and the previous meeting ----
-  const predMore = { stand: false, reeks: false, meet: false };
+  const predMore = { stand: false, reeks: false, meet: false, line: true };   // line: the white line between the bar and the statistics
   try { Object.assign(predMore, JSON.parse(localStorage.getItem('pred-more') || '{}')); } catch (e) { /* ignore */ }
   const predMoreOn = () => mode === 'prediction' && (predMore.stand || predMore.reeks || predMore.meet);
   // The extra information is a strip that continues the match bar downwards (same slanted sides), in the colours of the two clubs.
@@ -3091,7 +3091,10 @@
       const w = { W: nl ? 'WINSTEN' : 'WINS', D: nl ? 'GELIJKSPELEN' : 'DRAWS', L: nl ? 'VERLIEZEN' : 'LOSSES' }[g[0].res];
       return `${n} ${w} ${nl ? 'OP RIJ' : 'IN A ROW'}`;
     };
-    let cxL, cxR, ink = '#14142b', colH, colA, centreX = W / 2;
+    let cxL, cxR, ink = '#14142b', inkH = '#14142b', inkA = '#14142b', colH, colA, centreX = W / 2, widthL = () => 270, widthR = () => 270;
+    const lumOf = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    // navy on light colours, white on dark ones, whichever reads better
+    const inkFor = (c) => { const l = lumOf(c), cn = (l + 0.05) / (lumOf([20, 20, 43]) + 0.05), cw = 1.05 / (l + 0.05); return cw > cn * 1.25 ? '#ffffff' : '#14142b'; };
     ctx.save();
     if (geom.men) {
       // the strip: left half pale, right half in the club colour, white in the middle, with the slanted edges of the bar continued downwards
@@ -3106,45 +3109,54 @@
       poly([[x0, y0], [hx(y0), y0], [hx(y0 + hS), y0 + hS], [x0, y0 + hS]], gH);
       poly([[x1, y0], [ax(y0), y0], [ax(y0 + hS), y0 + hS], [x1, y0 + hS]], gA);
       poly([[hx(y0) - 0.5, y0], [ax(y0) + 0.5, y0], [ax(y0 + hS) + 0.5, y0 + hS], [hx(y0 + hS) - 0.5, y0 + hS]], 'rgba(249,250,255,0.9)');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(x0, y0 - 2, x1 - x0, 5);   // a thin white line between the original block and the statistics
-      cxL = x0 + 128; cxR = x1 - 128; centreX = (x0 + x1) / 2;
-      colH = colA = null;
+      if (predMore.line) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x0, y0 - 2, x1 - x0, 5); }   // a thin white line between the original block and the statistics (can be switched off)
+      // the information is centred in the part of the colour that is really there at that height (the slanted edges eat into it lower down)
+      cxL = (y) => (x0 + hx(y)) / 2; cxR = (y) => (ax(y) + x1) / 2; widthL = (y) => hx(y) - x0; widthR = (y) => x1 - ax(y);
+      centreX = (x0 + x1) / 2; colH = colA = null;
+      const avg = (a, b, f) => a && b ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2] : f;
+      const hexRgb = (h) => { const n = parseInt(String(h).slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+      inkH = inkFor(avg(he && he.homeOuter, he && he.homeInner, hexRgb(fallH))); inkA = inkFor(avg(ae && ae.awayOuter, ae && ae.awayInner, hexRgb(fallA)));
     } else {
       // Vrouwen: the white bar continues downwards with rounded corners
       const x0 = geom.x0, w = geom.x1 - geom.x0, r = 34;
       ctx.shadowColor = light ? 'rgba(26,27,56,0.14)' : 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
       roundedRectPath(ctx, x0, y0 - 14, w, hS + 14, r); ctx.fillStyle = '#ffffff'; ctx.fill();
       ctx.shadowColor = 'transparent';
-      cxL = geom.cxL; cxR = geom.cxR; centreX = x0 + w / 2;
+      cxL = () => geom.cxL; cxR = () => geom.cxR; centreX = x0 + w / 2;
       colH = SMW_TEAM_COLORS[smState.home] || '#1a1b38'; colA = SMW_TEAM_COLORS[smState.away] || '#1a1b38';
     }
     const block = (cx, y, fn) => { ctx.save(); ctx.translate(cx, y); ctx.scale(k, k); ctx.textBaseline = 'alphabetic'; fn(); ctx.restore(); };
     let y = y0 + 6 * k;
-    const chipFill = (res, club) => geom.men ? { W: ['#14142b', '#ffffff'], D: ['rgba(20,20,43,0.32)', '#14142b'], L: [null, '#14142b'] }[res] : { W: [club, '#ffffff'], D: ['#c9cde0', '#1a1b38'], L: ['#1a1b38', '#ffffff'] }[res];
+    const chipFill = (res, club, inkc) => geom.men ? (inkc === '#ffffff' ? { W: ['#ffffff', '#14142b'], D: ['rgba(255,255,255,0.35)', '#ffffff'], L: [null, '#ffffff'] } : { W: ['#14142b', '#ffffff'], D: ['rgba(20,20,43,0.32)', '#14142b'], L: [null, '#14142b'] })[res] : { W: [club, '#ffffff'], D: ['#c9cde0', '#1a1b38'], L: ['#1a1b38', '#ffffff'] }[res];
     if (predMore.stand) {
-      [[A, cxL, colH], [B, cxR, colA]].forEach(([t, cx, club]) => {
+      [[A, cxL, colH, inkH], [B, cxR, colA, inkA]].forEach(([t, cxf, club, inkc]) => {
         if (!t.pos) return;
-        block(cx, y, () => {
+        block(cxf(y + 42 * k), y, () => {
           const pos = `#${t.pos}`, pts = t.row ? `${t.row.points} ${nl ? 'PTN' : 'PTS'}` : '';
           ctx.font = `700 42px "${fontFamily}"`; const w1 = ctx.measureText(pos).width;
           ctx.font = `600 24px "${fontFamily}"`; const w2 = pts ? ctx.measureText(pts).width : 0, gap = pts ? 12 : 0, x0 = -(w1 + gap + w2) / 2;
-          ctx.textAlign = 'left'; ctx.font = `700 42px "${fontFamily}"`; ctx.fillStyle = geom.men ? ink : club; ctx.fillText(pos, x0, 36);
-          ctx.font = `600 24px "${fontFamily}"`; ctx.fillStyle = ink; ctx.fillText(pts, x0 + w1 + gap, 36);
+          ctx.textAlign = 'left'; ctx.font = `700 42px "${fontFamily}"`; ctx.fillStyle = geom.men ? inkc : club; ctx.fillText(pos, x0, 36);
+          ctx.font = `600 24px "${fontFamily}"`; ctx.fillStyle = geom.men ? inkc : ink; ctx.fillText(pts, x0 + w1 + gap, 36);
         });
       });
       y += 50 * k;
     }
     if (predMore.reeks) {
-      [[A, cxL, colH], [B, cxR, colA]].forEach(([t, cx, club]) => {
-        block(cx, y, () => {
+      [[A, cxL, colH, inkH, widthL], [B, cxR, colA, inkA, widthR]].forEach(([t, cxf, club, inkc, widthf]) => {
+        const maxW = (widthf(y + 56 * k) - 22) / k;
+        block(cxf(y + 56 * k), y, () => {
           const g = t.games.slice(0, 5).reverse(), sz = 28, gap = 6, w = g.length * sz + (g.length - 1) * gap;   // oldest left, newest right
           g.forEach((x, i) => {
-            const px = -w / 2 + i * (sz + gap), [bg, fg] = chipFill(x.res, club);
-            if (bg) { ctx.fillStyle = bg; ctx.fillRect(px, 2, sz, sz); } else { ctx.strokeStyle = '#14142b'; ctx.lineWidth = 2.5; ctx.strokeRect(px + 1.25, 3.25, sz - 2.5, sz - 2.5); }
+            const px = -w / 2 + i * (sz + gap), [bg, fg] = chipFill(x.res, club, inkc);
+            if (bg) { ctx.fillStyle = bg; ctx.fillRect(px, 2, sz, sz); } else { ctx.strokeStyle = fg; ctx.lineWidth = 2.5; ctx.strokeRect(px + 1.25, 3.25, sz - 2.5, sz - 2.5); }
             ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.font = `700 18px "${fontFamily}"`; ctx.fillText(x.res, px + sz / 2, 2 + sz * 0.72);
           });
           const st = streak(t);
-          if (st) { ctx.textAlign = 'center'; ctx.font = `600 17px "${fontFamily}"`; ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.fillText(st, 0, 2 + sz + 22); }
+          if (st) {
+            ctx.textAlign = 'center'; ctx.font = `600 17px "${fontFamily}"`;
+            const tw = ctx.measureText(st).width, px17 = tw > maxW ? 17 * maxW / tw : 17;   // shrink to fit the colour
+            ctx.font = `600 ${px17}px "${fontFamily}"`; ctx.fillStyle = geom.men ? inkc : ink; ctx.globalAlpha = 0.9; ctx.fillText(st, 0, 2 + sz + 22);
+          }
         });
       });
       y += 64 * k;
@@ -3175,7 +3187,7 @@
   // the "meer informatie" button opens the toggles for the extra information
   const predMoreBtn = document.getElementById('predMoreBtn'), predMoreBox = document.getElementById('predMoreBox');
   const syncPredMore = () => {
-    ['stand', 'reeks', 'meet'].forEach(k => { const el = document.getElementById('pred' + k[0].toUpperCase() + k.slice(1)); if (el) el.checked = !!predMore[k]; });
+    ['stand', 'reeks', 'meet', 'line'].forEach(k => { const el = document.getElementById('pred' + k[0].toUpperCase() + k.slice(1)); if (el) el.checked = !!predMore[k]; });
     const any = predMore.stand || predMore.reeks || predMore.meet;
     predMoreBtn.textContent = predMoreBox.hidden ? (any ? '＋ Meer informatie (aan)' : '＋ Meer informatie toevoegen') : '－ Minder opties';
     predMoreBtn.setAttribute('aria-expanded', predMoreBox.hidden ? 'false' : 'true');
@@ -3183,7 +3195,7 @@
   predMoreBox.hidden = !(predMore.stand || predMore.reeks || predMore.meet);
   syncPredMore();
   predMoreBtn.addEventListener('click', () => { predMoreBox.hidden = !predMoreBox.hidden; syncPredMore(); });
-  [['stand', 'predStand'], ['reeks', 'predReeks'], ['meet', 'predMeet']].forEach(([k, id]) => document.getElementById(id).addEventListener('change', (e) => {
+  [['stand', 'predStand'], ['reeks', 'predReeks'], ['meet', 'predMeet'], ['line', 'predLine']].forEach(([k, id]) => document.getElementById(id).addEventListener('change', (e) => {
     predMore[k] = e.target.checked;
     try { localStorage.setItem('pred-more', JSON.stringify(predMore)); } catch (err) { /* ignore */ }
     syncPredMore(); if (predMoreOn() && h2h.comp !== compKey) h2hEnsure(); render();
