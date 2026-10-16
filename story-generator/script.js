@@ -4275,7 +4275,8 @@
     }
 
     const mark = loadImg('assets/singlematch/mark.png');
-    if (mark && mark.complete && mark.naturalWidth) {
+    const drawMark = () => {
+      if (!(mark && mark.complete && mark.naturalWidth)) return;
       const smElapsed = smCycleElapsed();
       const iconScale = smRepeatingIconScale(smElapsed, SM_BEATS, ICON_MS);
       // Prediction without the kick-off time: the icon grows and takes the time's spot, centred in the bar
@@ -4290,7 +4291,8 @@
       }
       ctx.drawImage(mark, mx, my, mw, mh);
       if (iconScale !== 1) ctx.restore();
-    }
+    };
+    drawMark();
 
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
     ctx.textAlign = 'center';
@@ -4334,6 +4336,7 @@
     }
 
     if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamY, L.teamY + SM_TEAM_H, '#caff1c', false, { men: true, x0: SM_TEAM_LEFT_X, x1: SM_TEAM_RIGHT_X + SM_TEAM_W });
+    if (mode === 'prediction' && predInfoHeight()) drawMark();   // the icon lies over the white line of the information strip
 
     const footerImg = loadImg('assets/footer-logo.png');
     if (footerImg && footerImg.complete && footerImg.naturalWidth) {
