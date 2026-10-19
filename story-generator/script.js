@@ -5299,16 +5299,17 @@
     homeMenu.classList.toggle('theme-women', menuComp === 'women');
     homeMenu.classList.toggle('theme-hnl', menuComp === 'hnl');
     homeMenu.classList.toggle('theme-th', menuComp === 'th');
+    homeMenu.classList.toggle('theme-lvl', menuComp === 'lvl');
     homeMenu.classList.toggle('theme-dash', menuComp === 'dash');
     const tagline = homeMenu.querySelector('.home-head p'); if (tagline) tagline.textContent = menuComp === 'dash' ? 'Stand van zaken' : 'Wat wil je maken?';
     if (window.DASH) { if (menuComp === 'dash') lastTickerReady = window.DASH.show(); else window.DASH.hide(); }
     homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="nowlive"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
-    if (logo) logo.setAttribute('src', menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
+    if (logo) logo.setAttribute('src', menuComp === 'lvl' ? 'assets/lvl/logo.svg' : menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
     const tk = document.getElementById('homeTicker');
     const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
-    if (menuComp !== 'hnl' && menuComp !== 'th' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
+    if (menuComp !== 'hnl' && menuComp !== 'th' && menuComp !== 'lvl' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
       lastTickerReady = new Promise(res => { tickerWaiter = { comp: menuComp, res }; setTimeout(res, 4500); });
       tk.setAttribute('src', tkSrc);
     }
@@ -5444,7 +5445,7 @@
     const minHold = new Promise(r => setTimeout(r, 350));
     holdThenLift(Promise.all([lastTickerReady, document.fonts && document.fonts.ready, minHold]), false, () => { navBusy = false; navPhase = ''; });
   }
-  const accentFor = (c) => (c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'th' ? '#f55c6e' : '#caff1c');
+  const accentFor = (c) => (c === 'lvl' ? '#1096dc' : c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'th' ? '#f55c6e' : '#caff1c');
 
   function showMenu() {
     if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
@@ -5524,7 +5525,7 @@
       if (next === homeTarget) return;   // compare with where we are heading, not with the not-yet-swapped state
       homeTarget = next;
       // men -> women sweeps left to right in purple, women -> men back in SHL green
-      const order = { dash: 0, men: 1, women: 2, hnl: 3, th: 4 };
+      const order = { dash: 0, men: 1, women: 2, hnl: 3, th: 4, lvl: 5 };
       navSweep(order[next] > order[menuComp] ? 'forward' : 'back', () => {
         menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
         return lastTickerReady;
@@ -5537,7 +5538,7 @@
   homeMenu.querySelectorAll('.menu-card[data-go-hnl]').forEach(card => {
     card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')); });
   });
-  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff' };
+  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#1096dc', lvlw: '#c15bff' };
   // shortcuts on the dashboard
   document.addEventListener('dash-go', (e) => {
     const [group, id, fmt] = String(e.detail).split(':');
@@ -5648,7 +5649,7 @@
 
   function loadOverview(force) {
     const key = menuComp;
-    if (key === 'hnl' || key === 'th' || key === 'dash') return;   // no site data for these tabs
+    if (key === 'hnl' || key === 'th' || key === 'lvl' || key === 'dash') return;   // no site data for these tabs
     const e = overviewData[key];
     if (e && !e.error && !force && Date.now() - e.at < 60000) { renderOverview(); return; }
     if (!e) renderOverview();

@@ -45,3 +45,7 @@ Locally the renderer needs Playwright; use the installed Chrome with `THUMB_BROW
 `/stream.html` is a 1920x1080 page for an OBS Browser source. It follows the start of a match (men only; chosen automatically or on `/stream-setup.html`) and switches scene by the minutes left: other results, standings, a big title, then clean (nothing). Test any moment with `?sim=20` (pretend 20 min before kick-off; add `&speed=60` to run through the timeline quickly, `&debug=1` to show the clock and scene). A fixed match: `?home=HUB&away=PEL`.
 
 Option "cycle" (stream-config): the title stays on screen from `start` to `end` minutes before the start and every `every` minutes cycles through `scenes` (`seconds` per slide); after `end` the normal steps apply.
+
+## Lotto Volley League thumbnails
+
+Home tab "Volley": `LVL Heren` and `LVL Dames` (1920x1080, Monologue font). The assets come from `Lotto Volley/thumbnail2026` (background, crests, the dark wave from the PSD) in `story-generator/assets/lvl/`. The programme is a CSV (`Naam,bg,LogoLinks,LogoRechts,TijdText`) that can be read in again in the editor; it is stored on the server. Via the API: `/api/thumbnail?kind=lvlm&home=MEN&away=ROE&dt=16/10 - 20:30` (or `date=` and `time=`); club codes are the file names of the crests (MEN, ROE, CGENT, ANT, ...).

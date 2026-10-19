@@ -9,14 +9,17 @@
     shlw:      { title: 'SHLW',       sub: 'Super Handball League Women', comp: 'women' },
     nextmen:   { title: 'Next heren', sub: 'HandbalNL', next: true, men: true },
     nextwomen: { title: 'Next dames', sub: 'HandbalNL', next: true, men: false },
+    lvlm:      { title: 'LVL Heren',  sub: 'Lotto Volley League Men', lvl: true },
+    lvlw:      { title: 'LVL Dames',  sub: 'Lotto Volley League Women', lvl: true },
   };
-  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames' };
+  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames' };
 
   // ---------- Fonts (Clash is registered by script.js; the HandbalNL ones are loaded here) ----------
   const FONT_FILES = [
     ['TuskerGrotesk4', 'fonts/hnl/TuskerGrotesk-4700Bold.otf', '700'],
     ['MeticulaR', 'fonts/hnl/Meticula-Regular.ttf', '400'],
     ['MeticulaXB', 'fonts/hnl/Meticula-ExtraBold.ttf', '800'],
+    ['Monologue', 'fonts/lvl/Monologue-Regular.woff2', '400'],   // Lotto Volley League
   ];
   const fontsReady = Promise.all(FONT_FILES.map(([fam, url, w]) => new FontFace(fam, `url(${url})`, { weight: w }).load().then(f => document.fonts.add(f)).catch(() => {})))
     .then(() => Promise.all([document.fonts.load('700 40px ClashDisplay'), document.fonts.load('600 40px ClashDisplay')]).catch(() => {}));
@@ -67,6 +70,7 @@
     ctx.textAlign = 'left';
     if (opt.center != null) { const m = ctx.measureText(str); tx = opt.center - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2 + m.actualBoundingBoxLeft; }
     else if (opt.inkLeft != null) { const m = ctx.measureText(str); tx = opt.inkLeft + m.actualBoundingBoxLeft; }
+    else if (opt.inkRight != null) { const m = ctx.measureText(str); tx = opt.inkRight - m.actualBoundingBoxRight; }
     if (opt.maxWidth) { const w = ctx.measureText(str).width; if (w > opt.maxWidth) { ctx.translate(tx, baseline); ctx.scale(opt.maxWidth / w, 1); ctx.translate(-tx, -baseline); } }
     ctx.fillText(str, tx, baseline);
     ctx.restore();
@@ -98,9 +102,55 @@
     ctx.drawImage(img, r.left, r.top, r.dw, r.dh);
   }
 
+  // ---------- Lotto Volley League (men and women): background + two round crests + date/time in Monologue ----------
+  // Positions come from the PSD (LVL_thumbnails_workfile2026.psd): crests 401x401 at (53,309) and (634,309), the time text centred
+  // on x 542 with its figures on y 960, the season in the top right (20% navy).
+  const LVL = {
+    lvlm: { bg: 'assets/lvl/bg_men.png', prefix: 'LVLM', tag: '[LVLM]', clubs: [['MEN', 'Decospan Volley Team Menen'], ['ROE', 'Knack Roeselare'], ['CGENT', 'Caruur Volley Gent'], ['ANT', 'SAB Diving Brabo Antwerp VT'], ['WAR', 'Waremme Volley'], ['MAA', 'VC Greenyard Maaseik'], ['GUI', 'VBC Guibertin'], ['AAL', 'Lindemans Aalst'], ['LEU', 'Golazo Haasrode Leuven'], ['ACH', 'Tectum Achel'], ['GEE', 'VC Geel']] },
+    lvlw: { bg: 'assets/lvl/bg_women.png', prefix: 'LVLW', tag: '[LVLW]', clubs: [['NOO', 'Volley Noorderkempen'], ['DROE', 'Darta Bevo Roeselare'], ['ZOE', 'KwadrO Amigos Sint-Antonius Zoersel'], ['MIC', 'Vlavo Saturnus Michelbeke'], ['CHA', 'ES Charleroi Volley'], ['TCH', 'CapitalAtWork Tchalou Volley'], ['GEND', 'Damesvolley Dok Noord Gent'], ['BEV', 'Asterix AVO Beveren'], ['HEL', 'HVC Helchteren Oben ramen & deuren'], ['OUD', 'VC Oudegem'], ['SGW', 'Vamos Stekene - Sint-Gillis-Waas'], ['ANT', 'SAB Diving Brabo Antwerp VT']] },
+  };
+  const lvlName = (kind, code) => (LVL[kind].clubs.find(c => c[0] === code) || [0, code])[1];
+  async function renderLvl(kind, d, ctx) {
+    await fontsReady;
+    try { await document.fonts.load('400 160px Monologue'); } catch (e) { /* ignore */ }
+    ctx.clearRect(0, 0, W, H);
+    const bg = await loadImg(LVL[kind].bg); if (bg) ctx.drawImage(bg, 0, 0, W, H);
+    const vorm = await loadImg('assets/lvl/vorm.png'); if (vorm) ctx.drawImage(vorm, 0, 0, W, H);   // the dark wave in the bottom right (layer "Vorm 1" of the PSD)
+    if (d.season) text(ctx, d.season, 0, 226, '400 247px "Monologue"', '#012243', { inkRight: 1870, alpha: 0.16 });
+    for (const [code, x] of [[d.home, 53], [d.away, 634]]) {
+      const im = code ? await loadImg(`assets/lvl/teams/${code}.png`) : null;
+      if (im) ctx.drawImage(im, x, 309, 401, 401);   // the crest files include their white circle
+    }
+    if (d.dt) text(ctx, d.dt, 0, 960, '400 160px "Monologue"', '#fff', { center: 542 });
+  }
+  // the weekly programme: a CSV with Naam,bg,LogoLinks,LogoRechts,TijdText (as made for the Photoshop data merge)
+  const lvlSeasonOrder = (dt) => { const m = /(\d{1,2})\/(\d{1,2})/.exec(dt || ''); return m ? ((+m[2] + 4) % 12) * 100 + +m[1] : 9999; };
+  const lvlRowFor = (r) => ({ left: String(r.LogoLinks || '').replace(/\.png$/i, ''), right: String(r.LogoRechts || '').replace(/\.png$/i, ''), dt: r.TijdText || '', women: /women/i.test(r.bg || '') || /^\[LVLW\]/.test(r.Naam || '') });
+  function parseCsv(textIn) {
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < textIn.length; i++) {
+      const ch = textIn[i];
+      if (q) { if (ch === '"') { if (textIn[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"') q = true; else if (ch === ',') { row.push(cell); cell = ''; } else if (ch === '\n' || ch === '\r') { if (ch === '\r' && textIn[i + 1] === '\n') i++; row.push(cell); cell = ''; if (row.some(c => c !== '')) rows.push(row); row = []; } else cell += ch;
+    }
+    row.push(cell); if (row.some(c => c !== '')) rows.push(row);
+    const head = (rows.shift() || []).map(h => h.trim());
+    return rows.map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] || '').trim()])));
+  }
+  const decodeCsv = (buf) => { try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { return new TextDecoder('windows-1252').decode(buf); } };
+  async function loadLvlRows(kind) {
+    let rows = null;
+    try { const r = await fetch('/api/item?key=' + enc('lvl:schedule'), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data && Array.isArray(j.data.rows) && j.data.rows.length) rows = j.data.rows; } } catch (e) { /* offline */ }
+    if (!rows) { try { rows = parseCsv(await (await fetch('assets/lvl/schedule.csv')).text()); } catch (e) { rows = []; } }
+    const women = kind === 'lvlw';
+    cur.lvlRows = rows.map(lvlRowFor).filter(r => r.women === women && r.left && r.right).sort((a, b) => lvlSeasonOrder(a.dt) - lvlSeasonOrder(b.dt) || a.dt.localeCompare(b.dt));
+    cur.lvlAll = rows;
+  }
+
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
+    if (KINDS[kind].lvl) { await renderLvl(kind, d, ctx); return; }
     const scene = await loadScene(kind);
     ctx.clearRect(0, 0, W, H);
     ThumbScene.base = SCENES[kind];
@@ -199,6 +249,7 @@
     const home = men ? 'artemis' : 'dalfsen', away = men ? 'dws' : 'bfc';
     return { home, away, homeName: SETTINGS.name('hnl:' + home, (nextById[home] || {}).name || home), awayName: SETTINGS.name('hnl:' + away, (nextById[away] || {}).name || away), date: 'zaterdag 5 september', time: men ? '20:00' : '20:15' };
   }
+  function lvlDefaults(kind) { const c = LVL[kind].clubs; return { home: c[0][0], away: c[1][0], dt: '', season: '2026/2027', fixture: '' }; }
   function shlDefaults() { return { hasPhoto: false, photoPos: { z: 1, x: 0, y: 0 }, home: '', away: '', date: '', time: '', title: SETTINGS.text('th.title', 'Livestream'), variant: 'live', label: SETTINGS.text('th.label', 'Regular season'), homeLabel: '', awayLabel: '', fixture: '' }; }
 
   const byDate = (a, b) => (((a.month + 4) % 12) * 100 + a.day) - (((b.month + 4) % 12) * 100 + b.day) || (a.time || '').localeCompare(b.time || '');
@@ -235,7 +286,22 @@
     const box = $('thControls'); if (!box || !cur.d) return;
     const d = cur.d, K = KINDS[cur.kind];
     let html = '';
-    if (K.next) {
+    if (K.lvl) {
+      const clubs = LVL[cur.kind].clubs, rows = cur.lvlRows || [];
+      const sel = (id, v) => `<select id="${id}">${clubs.map(([c, n]) => `<option value="${esc(c)}"${c === v ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+      const mOpts = rows.map((r, i) => `<option value="${i}"${d.fixture === `${r.left}-${r.right}|${r.dt}` ? ' selected' : ''}>${esc(r.dt)} · ${esc(lvlName(cur.kind, r.left))} – ${esc(lvlName(cur.kind, r.right))}</option>`).join('');
+      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijd</div>
+        ${rows.length ? `<div class="field"><label for="thLvlMatch">Wedstrijd uit het programma</label><select id="thLvlMatch"><option value="">— zelf invullen —</option>${mOpts}</select></div>` : '<p class="hint">Geen programma geladen: kies hieronder zelf de clubs.</p>'}
+        <div class="field"><label for="thLvlHome">Thuisclub</label>${sel('thLvlHome', d.home)}</div>
+        <div class="field"><label for="thLvlAway">Uitclub</label>${sel('thLvlAway', d.away)}</div>
+        <button class="btn btn-link" id="thLvlSwap" type="button">⇄ Thuis en uit omdraaien</button>
+        <div class="field"><label for="thLvlDt">Datum en tijd</label><input type="text" id="thLvlDt" value="${esc(d.dt)}" placeholder="17/10 - 20:30"></div>
+        <div class="field"><label for="thLvlSeason">Seizoen (grote tekst rechtsboven)</label><input type="text" id="thLvlSeason" value="${esc(d.season)}"></div></div>
+        <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Programma</div>
+        <label class="photo-btn" id="thLvlDrop" for="thLvlCsv"><span class="photo-btn-icon">📄</span><span class="photo-btn-text">Nieuw programma inlezen (CSV)</span><span class="photo-btn-sub">${rows.length} wedstrijden geladen · kolommen: Naam, bg, LogoLinks, LogoRechts, TijdText</span></label>
+        <input type="file" id="thLvlCsv" accept=".csv,text/csv" hidden>
+        <p class="hint">Een nieuwe CSV vervangt het programma voor heren én dames; de wedstrijden van deze competitie verschijnen in de lijst hierboven.</p></div>`;
+    } else if (K.next) {
       html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijd</div>
         <div class="field"><label for="thSlot">Opslagplek</label><select id="thSlot">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}"${i + 1 === cur.slot ? ' selected' : ''}>Slot ${i + 1}</option>`).join('')}</select></div>
         <div class="field"><label for="thHome">Thuisclub (logo)</label>${nextSelect('thHome', d.home)}</div>
@@ -268,10 +334,10 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.next ? 2 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.next ? 2 : K.lvl ? 3 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">⬇ Exporteer deze thumbnail</button>
-      ${K.next ? '' : '<button class="btn btn-link" id="thExportDay" type="button">⬇ Hele speeldag (zip)</button>'}
+      ${K.next ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">⬇ Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">⬇ Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     box.innerHTML = html;
     bind();
@@ -307,8 +373,29 @@
       ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag-over'); }));
       drop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f && /^image\//.test(f.type)) uploadPhoto(f); });
     }
+    // Lotto Volley League
+    const applyLvlRow = (r) => { Object.assign(d, { home: r.left, away: r.right, dt: r.dt, fixture: `${r.left}-${r.right}|${r.dt}` }); };
+    on('thLvlMatch', 'change', (e) => { const r = (cur.lvlRows || [])[parseInt(e.target.value, 10)]; if (r) { applyLvlRow(r); scheduleRender(); scheduleSave(); buildControls(); } else set({ fixture: '' }); });
+    on('thLvlHome', 'change', (e) => set({ home: e.target.value, fixture: '' }));
+    on('thLvlAway', 'change', (e) => set({ away: e.target.value, fixture: '' }));
+    on('thLvlSwap', 'click', () => set({ home: d.away, away: d.home, fixture: '' }, true));
+    on('thLvlDt', 'input', (e) => set({ dt: e.target.value, fixture: '' }));
+    on('thLvlSeason', 'input', (e) => set({ season: e.target.value }));
+    on('thLvlCsv', 'change', async (e) => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      try {
+        const rows = parseCsv(decodeCsv(await f.arrayBuffer())).filter(r => r.LogoLinks && r.LogoRechts && r.TijdText);
+        if (!rows.length) { status('⚠ Geen wedstrijden gevonden: controleer de kolommen (Naam, bg, LogoLinks, LogoRechts, TijdText)'); return; }
+        const r = await fetch('/api/item?key=' + enc('lvl:schedule'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'lvl-schedule', v: 1, data: { rows, at: Date.now() } }) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        await loadLvlRows(cur.kind);
+        const first = cur.lvlRows[0]; if (first) applyLvlRow(first);
+        buildControls(); scheduleRender(); scheduleSave();
+        status(`✓ Programma ingelezen: ${rows.length} wedstrijden (${cur.lvlRows.length} voor deze competitie)`);
+      } catch (err) { status('⚠ Inlezen mislukt: ' + err.message); }
+    });
     on('thExport', 'click', exportOne);
-    on('thExportDay', 'click', exportDay);
+    on('thExportDay', 'click', KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
   }
 
   // ---------- Export ----------
@@ -331,6 +418,10 @@
   }
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    if (KINDS[kind].lvl) {
+      const m = /(\d{1,2})\/(\d{1,2})/.exec(d.dt || ''), stamp = m ? `${seasonDate(+m[1], +m[2]).getFullYear()}${String(+m[2]).padStart(2, '0')}${String(+m[1]).padStart(2, '0')}` : 'datum';
+      return `${LVL[kind].prefix}_${stamp}_${d.home}-${d.away}`;
+    }
     let prefix, ca, cb;
     if (KINDS[kind].next) {
       const code = (id) => SETTINGS.code('hnl:' + id, NEXT_CODE[id] || String(id).toUpperCase());
@@ -363,6 +454,20 @@
     download(blob, name);
     const saved = await saveOnServer(blob, name);
     status(saved ? `✓ Gedownload en op de server: ${saved.path}` : '✓ Gedownload (opslaan op de server mislukte)');
+  }
+  async function exportLvlAll() {
+    const rows = cur.lvlRows || []; if (!rows.length) { status('⚠ Geen programma geladen'); return; }
+    const files = [];
+    for (let i = 0; i < rows.length; i++) {
+      status(`Thumbnail ${i + 1} van ${rows.length} maken…`);
+      const d = { ...cur.d, home: rows[i].left, away: rows[i].right, dt: rows[i].dt };
+      const blob = await blobFor(cur.kind, d, exportFmt, false);
+      files.push({ name: `${fileName(cur.kind, d)}.${EXT[exportFmt]}`, data: new Uint8Array(await blob.arrayBuffer()) });
+    }
+    download(new Blob([makeZip(files)], { type: 'application/zip' }), `${LVL[cur.kind].prefix}_thumbnails.zip`);
+    let saved = 0;
+    for (const f of files) { if (await saveOnServer(new Blob([f.data], { type: MIME[exportFmt] }), f.name)) saved++; }
+    status(`✓ ${files.length} thumbnails in de zip${saved ? ` · ${saved} ook op de server (/exports/)` : ''}`);
   }
   async function exportDay() {
     const day = cur.days.find(x => String(x.key) === String(cur.d.dayKey)) || cur.days[0];
@@ -413,12 +518,18 @@
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }
     if (k !== itemKey()) return;
-    cur.d = Object.assign(K.next ? nextDefaults(kind) : shlDefaults(), data || {});
+    cur.d = Object.assign(K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
-    if (cur.d.hasPhoto) {
+    if (cur.d.hasPhoto && !K.lvl) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
-    if (!K.next) {
+    if (K.lvl) {
+      await loadLvlRows(kind);
+      // nothing chosen yet (or the saved match is no longer in the programme): the first match that has not started yet
+      const rows = cur.lvlRows || [], today = new Date(), tOrder = ((today.getMonth() + 5) % 12) * 100 + today.getDate();
+      const keep = rows.find(r => cur.d.fixture === `${r.left}-${r.right}|${r.dt}`);
+      if (!keep && !cur.d.dt && rows.length) { const r = rows.find(x => lvlSeasonOrder(x.dt) >= tOrder) || rows[rows.length - 1]; Object.assign(cur.d, { home: r.left, away: r.right, dt: r.dt, fixture: `${r.left}-${r.right}|${r.dt}` }); }
+    } else if (!K.next) {
       await loadFixtures(kind);
       // default: the first upcoming matchday (or keep the saved one when it still exists)
       const today = new Date();
@@ -508,13 +619,23 @@
     async render(p) {
       await apiReady;
       p = p || {};
-      const kind = p.kind; if (!KINDS[kind]) throw apiErr('kind moet shl, shlw, nextmen of nextwomen zijn');
+      const kind = p.kind; if (!KINDS[kind]) throw apiErr('kind moet shl, shlw, nextmen, nextwomen, lvlm of lvlw zijn');
       let fmt = String(p.format || 'webp').toLowerCase(); if (fmt === 'jpg') fmt = 'jpeg';
       if (!MIME[fmt]) throw apiErr('format moet jpg, webp of png zijn');
       const K = KINDS[kind], dm = parseDM(p.date);
       if (p.date && !dm) throw apiErr('date: gebruik YYYY-MM-DD of DD-MM');
       let d;
-      if (K.next) {
+      if (K.lvl) {
+        const clubs = LVL[kind].clubs, find = (v) => { const t = String(v || '').trim().toLowerCase(); const h = clubs.find(([c, n]) => c.toLowerCase() === t || norm(n) === norm(t)); return h ? h[0] : null; };
+        const home = find(p.home), away = find(p.away);
+        if (!home || !away || home === away) throw apiErr(`onbekende club (home=${p.home}, away=${p.away}); codes: ${clubs.map(c => c[0]).join(', ')}`);
+        await loadLvlRows(kind);
+        const dmv = parseDM(p.date), dtText = p.dt || (dmv ? `${String(dmv.day).padStart(2, '0')}/${String(dmv.month).padStart(2, '0')}${p.time ? ' - ' + p.time : ''}` : '');
+        const row = (cur.lvlRows || []).find(r => r.left === home && r.right === away && (!dtText || r.dt.startsWith(dtText.slice(0, 5))));
+        d = lvlDefaults(kind); Object.assign(d, { home, away, dt: dtText || (row && row.dt) || '', season: p.season || d.season });
+        if (!d.dt) throw apiErr(`geen wedstrijd ${home}-${away} in het programma; geef date (DD-MM of YYYY-MM-DD) en time mee, of dt="17/10 - 20:30"`);
+        d.fixtureFound = !!row;
+      } else if (K.next) {
         const home = resolveNext(K.men, p.home), away = resolveNext(K.men, p.away);
         if (!home || !away) throw apiErr(`onbekende club (home=${p.home}, away=${p.away}); beschikbaar: ${nextClubs.map(c => c.id).join(', ')}`);
         d = nextDefaults(kind);
@@ -539,7 +660,7 @@
       }
       const blob = await blobFor(kind, d, fmt, false);
       const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error('lezen mislukt')); fr.readAsDataURL(blob); });
-      return { dataUrl, fileName: `${fileName(kind, d)}.${EXT[fmt]}`, format: fmt, data: { home: d.home, away: d.away, date: d.date, time: d.time, round: d.round || null, fixtureFound: !!d.fixtureFound } };
+      return { dataUrl, fileName: `${fileName(kind, d)}.${EXT[fmt]}`, format: fmt, data: { home: d.home, away: d.away, date: d.date, time: d.time, dt: d.dt, round: d.round || null, fixtureFound: !!d.fixtureFound } };
     },
   };
 
