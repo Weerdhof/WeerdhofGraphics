@@ -62,10 +62,10 @@
   }
 
   const GO = {
-    men: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['nowlive', '🔴', 'Now live'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speler van de week'], ['ranking', '📈', 'Ranking'], ['movers', '↕️', 'Stand-movers']],
-    women: [['results', '🏆', 'Results'], ['schedule', '📅', 'Schedule'], ['match', '⚡', 'Match'], ['matchresult', '🎯', 'Matchresult'], ['prediction', '🔮', 'Prediction'], ['headtohead', '🆚', 'Head to head'], ['topscorer', '🥅', 'Top scorer'], ['playerweek', '⭐', 'Speelster van de week'], ['ranking', '📈', 'Ranking'], ['movers', '↕️', 'Stand-movers']],
+    men: [['results', '', 'Results'], ['schedule', '', 'Schedule'], ['match', '', 'Match'], ['matchresult', '', 'Matchresult'], ['prediction', '', 'Prediction'], ['headtohead', '', 'Head to head'], ['nowlive', '', 'Now live'], ['topscorer', '', 'Top scorer'], ['playerweek', '', 'Speler van de week'], ['ranking', '', 'Ranking'], ['movers', '', 'Stand-movers']],
+    women: [['results', '', 'Results'], ['schedule', '', 'Schedule'], ['match', '', 'Match'], ['matchresult', '', 'Matchresult'], ['prediction', '', 'Prediction'], ['headtohead', '', 'Head to head'], ['topscorer', '', 'Top scorer'], ['playerweek', '', 'Speelster van de week'], ['ranking', '', 'Ranking'], ['movers', '', 'Stand-movers']],
   };
-  const chips = (list, prefix) => list.map(([id, icon, label]) => `<button type="button" class="dash-chip" data-dash-go="${prefix}:${id}"><span>${icon}</span>${esc(label)}</button>`).join('');
+  const chips = (list, prefix) => list.map(([id, , label]) => `<button type="button" class="dash-chip" data-dash-go="${prefix}:${id}">${esc(label)}</button>`).join('');
 
   function panelHtml(c) {
     const d = data[c.key];
@@ -98,8 +98,8 @@
     const more = $('dashMore');
     if (more && !more.dataset.built) {
       more.dataset.built = '1';
-      more.innerHTML = `<div class="dash-more-col"><h3>HandbalNL</h3><div class="dash-chips">${chips([['announce', '📣', 'Aankondiging'], ['nextmen', '⚡', 'Next heren'], ['nextwomen', '⚡', 'Next dames']], 'hnl')}</div></div>
-        <div class="dash-more-col"><h3>Thumbnails</h3><div class="dash-chips">${chips([['shl', '🖼️', 'SHL'], ['shlw', '🖼️', 'SHLW'], ['nextmen', '🖼️', 'Next heren'], ['nextwomen', '🖼️', 'Next dames']], 'th')}</div></div>`;
+      more.innerHTML = `<div class="dash-more-col dm-hnl"><h3>HandbalNL</h3><div class="dash-chips">${chips([['announce', '', 'Aankondiging'], ['nextmen', '', 'Next heren'], ['nextwomen', '', 'Next dames']], 'hnl')}</div></div>
+        <div class="dash-more-col dm-th"><h3>Thumbnails</h3><div class="dash-chips">${chips([['shl', '', 'SHL'], ['shlw', '', 'SHLW'], ['nextmen', '', 'Next heren'], ['nextwomen', '', 'Next dames'], ['lvlm', '', 'LVL heren'], ['lvlw', '', 'LVL dames']], 'th')}</div></div>`;
     }
   }
 

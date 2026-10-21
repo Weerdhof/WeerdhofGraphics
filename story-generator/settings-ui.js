@@ -5,7 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let hnlClubs = [];
-  const STATE_LABEL = { idle: '', pending: '● Wijzigingen worden opgeslagen…', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: '⚠ Opslaan mislukt' };
+  const STATE_LABEL = { idle: '', pending: '● Wijzigingen worden opgeslagen…', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: 'Opslaan mislukt' };
 
   S.onChange((what) => {
     if (what === 'state') { const el = $('setSave'); if (el) { el.dataset.state = S.state; el.textContent = STATE_LABEL[S.state] || ''; } }
@@ -48,7 +48,7 @@
     // --- Stream dashboard
     h += `<details class="set-sec" open><summary>Stream-dashboard</summary>
       <p class="sync-info">Een beeldvullende pagina voor je livestream (OBS Browser-bron, 1920×1080) die de aanvang van een wedstrijd volgt: eerst de andere uitslagen, dan de stand, vlak voor de start een grote titel en daarna schoon beeld. Wat je wanneer ziet stel je in op de aparte instellingenpagina.</p>
-      <div class="set-links"><a class="btn" href="stream-setup.html">⚙ Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html?sim=20&debug=1" target="_blank" rel="noopener">▶ Proefdraaien (20 min voor de aanvang)</a></div>
+      <div class="set-links"><a class="btn" href="stream-setup.html">Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html?sim=20&debug=1" target="_blank" rel="noopener">▶ Proefdraaien (20 min voor de aanvang)</a></div>
     </details>`;
     // --- HandbalNL clubs
     h += `<details class="set-sec" open><summary>Clubs HandbalNL (Next heren/dames en SHLW-logo's)</summary>

@@ -3,43 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>SHL Visuals Dashboard</title>
+<title>ByTomorrow Graphics</title>
+<link rel="icon" type="image/svg+xml" href="assets/bt-icon.svg">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="bytomorrow.css">
 </head>
 <body class="menu-open">
 
-<!-- ===================== HOME MENU ===================== -->
-<div class="home-menu" id="homeMenu">
-  <div class="home-inner">
-    <div class="home-head">
-      <button class="home-settings-btn" id="openSettings" type="button">⚙ Instellingen</button>
-      <img class="home-logo" id="homeLogo" src="assets/footer-logo.png" alt="Coinmerce Super Handball League">
-      <h1>SHL Visuals Dashboard</h1>
-      <iframe id="homeTicker" class="home-ticker" title="Liveticker" tabindex="-1"></iframe>
-      <p>Stand van zaken</p>
-    </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="bt-logo" viewBox="0 0 475.8 92" fill="currentColor"><path d="M105.7,21h15.8c8.3,0,14.2,4.9,14.2,12.1s-2.1,8.2-5.4,10c4,1.9,6.7,5.5,6.7,10.9s-6.3,12.6-15.1,12.6h-16.2V21ZM121.4,30.2h-6.2v8.4h6.2c2.5,0,4.5-1.3,4.5-4.2s-1.9-4.2-4.5-4.2ZM121.9,47.8h-6.7v9.6h6.7c3,0,5.3-1.5,5.3-4.8s-2.3-4.8-5.3-4.8Z"/><path d="M152,64.1l-12.3-30.8h10.2l7,19.3,7.4-19.3h10.3l-19.8,47.1h-10.6l7.6-16.3Z"/><path d="M184.7,30.2h-11.1v-9.2h31.6v9.2h-11.1v36.4h-9.5V30.2Z"/><path d="M221.4,32.6c9.8,0,17.4,7.6,17.4,17.3s-7.6,17.4-17.4,17.4-17.3-7.6-17.3-17.4,7.6-17.3,17.3-17.3ZM221.4,58.4c4.7,0,8-3.9,8-8.5s-3.3-8.4-8-8.4-8.1,3.8-8.1,8.4,3.5,8.5,8.1,8.5Z"/><path d="M254,37.2c1.7-2.7,4.6-4.6,8.5-4.6s8.4,2.1,10.2,6c1.6-3.4,4.8-6,9.8-6s11.5,5.1,11.5,12.3v21.8h-9.1v-19.2c0-3.8-2.1-6-5.4-6s-5.6,2.2-5.6,6v19.2h-9.1v-19.2c0-3.8-2.1-6-5.4-6s-5.4,2-5.6,5.5v19.6h-9.1v-33.4h9.1v4Z"/><path d="M317.1,32.6c9.8,0,17.3,7.6,17.3,17.3s-7.6,17.4-17.3,17.4-17.4-7.6-17.4-17.4,7.6-17.3,17.4-17.3ZM317.1,58.4c4.7,0,8-3.9,8-8.5s-3.3-8.4-8-8.4-8.1,3.8-8.1,8.4,3.5,8.5,8.1,8.5Z"/><path d="M349.2,36.9c1.6-2.5,4.2-4.3,7.9-4.3s1.9,0,2.6.2v9.7c-1.3-.6-2.9-1-4.9-1-3.2,0-5.4,2.2-5.6,5.8v19.4h-9.1v-33.4h9.1v3.6Z"/><path d="M373.6,36.9c1.6-2.5,4.2-4.3,7.9-4.3s1.9,0,2.6.2v9.7c-1.3-.6-2.9-1-4.9-1-3.2,0-5.4,2.2-5.6,5.8v19.4h-9.1v-33.4h9.1v3.6Z"/><path d="M404.3,32.6c9.8,0,17.3,7.6,17.3,17.3s-7.6,17.4-17.3,17.4-17.4-7.6-17.4-17.4,7.6-17.3,17.4-17.3ZM404.3,58.4c4.7,0,8-3.9,8-8.5s-3.3-8.4-8-8.4-8.1,3.8-8.1,8.4,3.5,8.5,8.1,8.5Z"/><path d="M433.6,33.2l5.9,22.2,5.9-17.6-1.6-4.6h9l7.8,22.2,5.8-22.2h9.4l-9.9,33.4h-9.5l-6.6-18.3-6.2,18.3h-9.6l-9.8-33.4h9.4Z"/><path d="M77.5,51.6c-1.8-3-4.1-5.5-6.8-7.3,0,0,0,0,0,0,1.9-1.5,3.4-3.2,4.7-5.1,2.1-3.3,3.2-7,3.2-11.1C78.5,10.5,65.9,0,44.9,0H0s0,0,0,0v21h0s27.4,0,27.4,0h23.3c3.6,0,6.5,2.9,6.5,6.5v.3c0,3.6-2.9,6.5-6.5,6.5H0v57.6s0,0,0,0h24.7v-22.8h-12.6c-3.7,0-6.6-3-6.6-6.6s3-6.6,6.6-6.6h38.4c3.7,0,6.6,3,6.6,6.6s-3,6.6-6.6,6.6h-12.6v22.8h10.7c8.9-.5,16-2.5,21.3-6,7.3-4.8,11.1-12.4,11.1-22.4s-1.4-8.3-3.6-12Z"/></symbol><symbol id="bt-mark" viewBox="0 0 80 92" fill="currentColor"><path d="M77.5,51.6c-1.8-3-4.1-5.5-6.8-7.3,0,0,0,0,0,0,1.9-1.5,3.4-3.2,4.7-5.1,2.1-3.3,3.2-7,3.2-11.1C78.5,10.5,65.9,0,44.9,0H0s0,0,0,0v21h0s27.4,0,27.4,0h23.3c3.6,0,6.5,2.9,6.5,6.5v.3c0,3.6-2.9,6.5-6.5,6.5H0v57.6s0,0,0,0h24.7v-22.8h-12.6c-3.7,0-6.6-3-6.6-6.6s3-6.6,6.6-6.6h38.4c3.7,0,6.6,3,6.6,6.6s-3,6.6-6.6,6.6h-12.6v22.8h10.7c8.9-.5,16-2.5,21.3-6,7.3-4.8,11.1-12.4,11.1-22.4s-1.4-8.3-3.6-12Z"/></symbol></defs></svg>
 
-    <div class="home-comp" role="tablist">
-      <button class="home-comp-tab active" data-home-comp="dash" type="button">Dashboard</button>
-      <button class="home-comp-tab" data-home-comp="men" type="button">Mannen</button>
-      <button class="home-comp-tab" data-home-comp="women" type="button">Vrouwen</button>
-      <button class="home-comp-tab" data-home-comp="hnl" type="button">HandbalNL</button>
-      <button class="home-comp-tab" data-home-comp="th" type="button">Thumbnails</button>
-      <button class="home-comp-tab" data-home-comp="lvl" type="button">Volley</button>
+<!-- ===================== HOME MENU (ByTomorrow Graphics) ===================== -->
+<div class="home-menu theme-dash" id="homeMenu">
+  <div class="bt-bar">
+    <div class="bt-bar-in">
+      <button class="bt-brand" data-home-comp="dash" type="button" aria-label="ByTomorrow Graphics, naar Home">
+        <svg class="bt-logo" viewBox="0 0 475.8 92" aria-hidden="true"><use href="#bt-logo"/></svg>
+        <span class="bt-pill">Graphics</span>
+      </button>
+      <nav class="home-comp" role="tablist" aria-label="Klanten">
+        <button class="home-comp-tab active" data-home-comp="dash" type="button">Home</button>
+        <button class="home-comp-tab" data-home-comp="men" type="button">SHL</button>
+        <button class="home-comp-tab" data-home-comp="women" type="button">SHLW</button>
+        <button class="home-comp-tab" data-home-comp="hnl" type="button">HandbalNL</button>
+        <button class="home-comp-tab" data-home-comp="lvl" type="button"><span class="l-long">Lotto Volley League</span><span class="l-short">LVL</span></button>
+      </nav>
+      <button class="home-settings-btn" id="openSettings" type="button">Instellingen</button>
     </div>
+  </div>
+
+  <div class="home-inner">
+    <header class="home-head" id="homeHead">
+      <div class="hero-crumb" id="heroCrumb"><button type="button" data-home-comp="dash">ByTomorrow Graphics</button><span>/</span><b id="heroCrumbName"></b></div>
+      <img class="home-logo" id="homeLogo" src="assets/footer-logo.png" alt="">
+      <span class="hero-pill" id="heroPill">Graphics</span>
+      <h1 id="heroTitle">ByTomorrow Graphics</h1>
+      <p id="heroSub">Alle visuals van onze klanten, op één plek.</p>
+      <iframe id="homeTicker" class="home-ticker" title="Liveticker" tabindex="-1"></iframe>
+    </header>
 
     <div class="home-dash">
+      <h2 class="home-group">Klanten</h2>
+      <div class="client-grid">
+        <button class="client-card cc-men" data-home-comp="men" type="button">
+          <span class="cc-logo"><img src="assets/footer-logo.png" alt=""></span>
+          <span class="cc-body">
+            <span class="cc-pill">Heren</span>
+            <span class="cc-name">SHL</span>
+            <span class="cc-desc">Coinmerce Super Handball League. Uitslagen, stand, wedstrijden en thumbnails.</span>
+            <span class="cc-go">Open landingspagina <i>→</i></span>
+          </span>
+        </button>
+        <button class="client-card cc-women" data-home-comp="women" type="button">
+          <span class="cc-logo"><img src="assets/women/footer-logo-women.png" alt=""></span>
+          <span class="cc-body">
+            <span class="cc-pill">Vrouwen</span>
+            <span class="cc-name">SHLW</span>
+            <span class="cc-desc">Super Handball League Women. Dezelfde graphics, in de eigen huisstijl.</span>
+            <span class="cc-go">Open landingspagina <i>→</i></span>
+          </span>
+        </button>
+        <button class="client-card cc-hnl" data-home-comp="hnl" type="button">
+          <span class="cc-logo"><img src="assets/hnl/logo-next-light.png" alt=""></span>
+          <span class="cc-body">
+            <span class="cc-pill">HandbalNL.TV</span>
+            <span class="cc-name">HandbalNL</span>
+            <span class="cc-desc">Aankondigingen en de Next Handball League, voor heren en dames.</span>
+            <span class="cc-go">Open landingspagina <i>→</i></span>
+          </span>
+        </button>
+        <button class="client-card cc-lvl" data-home-comp="lvl" type="button">
+          <span class="cc-logo"><img src="assets/lvl/logo.svg" alt=""></span>
+          <span class="cc-body">
+            <span class="cc-pill">Volleybal</span>
+            <span class="cc-name">Lotto Volley League</span>
+            <span class="cc-desc">Wedstrijdthumbnails voor heren en dames, uit het programma.</span>
+            <span class="cc-go">Open landingspagina <i>→</i></span>
+          </span>
+        </button>
+      </div>
+
       <h2 class="home-group">Uitgelicht</h2>
       <p class="dash-hint" id="dashFeatHint">Je planning voor vandaag, met de actuele uitslagen en stand al ingevuld. De planning stel je in bij Instellingen.</p>
       <div class="dash-featured" id="dashFeatured"></div>
-      <h2 class="home-group">Dashboard</h2>
+      <h2 class="home-group">Stand van zaken</h2>
       <div class="dash-panels" id="dashPanels"></div>
-      <h2 class="home-group">Meer visuals</h2>
+      <h2 class="home-group">Snel naar</h2>
       <div class="dash-more" id="dashMore"></div>
-      <h2 class="home-group">Livestream</h2>
-      <div class="dash-stream">
-        <p class="dash-hint">Een beeldvullende pagina voor OBS die de aanvang van een wedstrijd volgt: uitslagen, stand, grote titel en dan schoon beeld.</p>
-        <div class="set-links"><a class="btn" href="stream-setup.html">⚙ Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html" target="_blank" rel="noopener">Openen ↗</a></div>
+
+      <h2 class="home-group">Opslag &amp; back-up</h2>
+      <div class="storage-panel" id="storagePanel">
+        <p class="storage-summary" id="storageSummary">Laden…</p>
+        <div class="storage-actions">
+          <a class="btn btn-primary storage-btn" id="backupBtn" href="/api/backup" download>Back-up downloaden</a>
+          <label class="btn btn-link storage-btn" for="restoreInput">Back-up terugzetten</label>
+          <input type="file" id="restoreInput" accept=".zip,application/zip" hidden>
+          <button class="btn btn-link storage-btn" id="toggleStorageList" type="button">Beheer opgeslagen onderdelen</button>
+        </div>
+        <p class="save-status" id="storageStatus" hidden></p>
+        <div id="storageList" hidden>
+          <div class="storage-clean">
+            <label>Verwijder alles ouder dan
+              <select id="cleanDays"><option value="7">7 dagen</option><option value="30" selected>30 dagen</option><option value="90">90 dagen</option></select>
+            </label>
+            <button class="btn btn-link" id="cleanOldBtn" type="button">Opruimen</button>
+          </div>
+          <ul class="storage-rows" id="storageRows"></ul>
+        </div>
       </div>
     </div>
 
@@ -47,13 +116,11 @@
     <h2 class="home-group">Per speelronde</h2>
     <div class="home-cards">
       <button class="menu-card" data-go-mode="results" type="button">
-        <span class="menu-icon">🏆</span>
         <span class="menu-title">Results</span>
         <span class="menu-desc">Alle uitslagen van een speelronde</span>
         <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
       </button>
       <button class="menu-card" data-go-mode="schedule" type="button">
-        <span class="menu-icon">📅</span>
         <span class="menu-title">Schedule</span>
         <span class="menu-desc">Het programma van een speelronde</span>
         <span class="menu-tags"><i>Story</i><i>Post</i></span>
@@ -63,37 +130,31 @@
     <h2 class="home-group">Per wedstrijd</h2>
     <div class="home-cards">
       <button class="menu-card" data-go-mode="match" type="button">
-        <span class="menu-icon">⚡</span>
         <span class="menu-title">Match</span>
         <span class="menu-desc">Aankondiging: teams, tijd en datum</span>
         <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
       </button>
       <button class="menu-card" data-go-mode="prediction" type="button">
-        <span class="menu-icon">🔮</span>
         <span class="menu-title">Prediction</span>
         <span class="menu-desc">"Who takes the win?" per wedstrijd, alle wedstrijden van een speeldag in één zip</span>
         <span class="menu-tags"><i>Story</i><i>PNG</i><i>Zip per speeldag</i></span>
       </button>
       <button class="menu-card" data-go-mode="headtohead" type="button">
-        <span class="menu-icon">🆚</span>
         <span class="menu-title">Head to head</span>
         <span class="menu-desc">Stand, laatste uitslagen en onderling duel van twee teams</span>
         <span class="menu-tags"><i>Story</i><i>PNG</i><i>Animatie</i><i>Zip per speeldag</i></span>
       </button>
       <button class="menu-card" data-go-mode="nowlive" type="button">
-        <span class="menu-icon">🔴</span>
         <span class="menu-title">Now live</span>
         <span class="menu-desc">SHL TV: "Now live" met de wedstrijden van de dag klein erbij</span>
         <span class="menu-tags"><i>Story</i><i>PNG</i><i>Animatie</i><i>Zip per speeldag</i><i class="menu-men-only">Alleen Mannen</i></span>
       </button>
       <button class="menu-card" data-go-mode="matchresult" type="button">
-        <span class="menu-icon">🎯</span>
         <span class="menu-title">Matchresult</span>
         <span class="menu-desc">De eindstand met winnaar-chevron</span>
         <span class="menu-tags"><i>Story</i><i>Post</i><i>Animatie</i></span>
       </button>
       <button class="menu-card" data-go-mode="topscorer" type="button">
-        <span class="menu-icon">🥅</span>
         <span class="menu-title">Top scorer</span>
         <span class="menu-desc">Topscorer van de wedstrijd met foto en goals</span>
         <span class="menu-tags"><i>Post</i><i>Animatie</i></span>
@@ -103,7 +164,6 @@
     <h2 class="home-group">Per speler</h2>
     <div class="home-cards">
       <button class="menu-card" data-go-mode="playerweek" type="button">
-        <span class="menu-icon">⭐</span>
         <span class="menu-title">Speler van de week</span>
         <span class="menu-desc">Spelersfoto met naam en club, in de huisstijl</span>
         <span class="menu-tags"><i>Post</i><i>Animatie</i></span>
@@ -113,17 +173,37 @@
     <h2 class="home-group">Seizoen</h2>
     <div class="home-cards">
       <button class="menu-card" data-go-mode="ranking" type="button">
-        <span class="menu-icon">📈</span>
         <span class="menu-title">Ranking</span>
         <span class="menu-desc">De stand van de competitie, ophaalbaar van de site</span>
         <span class="menu-tags"><i>Story</i></span>
       </button>
       <button class="menu-card" data-go-mode="movers" type="button">
-        <span class="menu-icon">↕️</span>
         <span class="menu-title">Stand-movers</span>
         <span class="menu-desc">Stijgers en dalers sinds de vorige speeldag, automatisch uitgerekend</span>
         <span class="menu-tags"><i>Story</i><i>Post</i></span>
       </button>
+    </div>
+
+    <h2 class="home-group">Thumbnails (1920×1080)</h2>
+    <div class="home-cards">
+      <button class="menu-card th-men" data-go-th="shl" type="button">
+        <span class="menu-title">SHL thumbnail</span>
+        <span class="menu-desc">Livestream- of highlights-thumbnail per wedstrijd, uit het programma</span>
+        <span class="menu-tags"><i>JPG</i><i>WebP</i><i>Zip per speeldag</i></span>
+      </button>
+      <button class="menu-card th-women" data-go-th="shlw" type="button">
+        <span class="menu-title">SHLW thumbnail</span>
+        <span class="menu-desc">Livestream-thumbnail vrouwen, uit het programma</span>
+        <span class="menu-tags"><i>JPG</i><i>WebP</i><i>Zip per speeldag</i></span>
+      </button>
+    </div>
+
+    <div class="only-men">
+      <h2 class="home-group">Livestream</h2>
+      <div class="dash-stream">
+        <p class="dash-hint">Een beeldvullende pagina voor OBS die de aanvang van een wedstrijd volgt: uitslagen, stand, grote titel en dan schoon beeld.</p>
+        <div class="set-links"><a class="btn" href="stream-setup.html">Stream-dashboard instellen</a><a class="btn btn-link" href="stream.html" target="_blank" rel="noopener">Openen ↗</a></div>
+      </div>
     </div>
 
     <h2 class="home-group">Uitslagen &amp; programma</h2>
@@ -146,47 +226,15 @@
     </div>
     </div><!-- /home-shl -->
 
-    <div class="home-th">
+    <div class="home-lvl">
       <h2 class="home-group">Thumbnails (1920×1080)</h2>
       <div class="home-cards">
-        <button class="menu-card" data-go-th="shl" type="button">
-          <span class="menu-icon">🖼️</span>
-          <span class="menu-title">SHL</span>
-          <span class="menu-desc">Livestream- of highlights-thumbnail per wedstrijd, uit het programma</span>
-          <span class="menu-tags"><i>JPG</i><i>WebP</i><i>Zip per speeldag</i></span>
-        </button>
-        <button class="menu-card" data-go-th="shlw" type="button">
-          <span class="menu-icon">🖼️</span>
-          <span class="menu-title">SHLW</span>
-          <span class="menu-desc">Livestream-thumbnail vrouwen, uit het programma</span>
-          <span class="menu-tags"><i>JPG</i><i>WebP</i><i>Zip per speeldag</i></span>
-        </button>
-        <button class="menu-card" data-go-th="nextmen" type="button">
-          <span class="menu-icon">🖼️</span>
-          <span class="menu-title">Next heren</span>
-          <span class="menu-desc">Next Handball League heren, zelf invullen</span>
-          <span class="menu-tags"><i>JPG</i><i>WebP</i></span>
-        </button>
-        <button class="menu-card" data-go-th="nextwomen" type="button">
-          <span class="menu-icon">🖼️</span>
-          <span class="menu-title">Next dames</span>
-          <span class="menu-desc">Next Handball League dames, zelf invullen</span>
-          <span class="menu-tags"><i>JPG</i><i>WebP</i></span>
-        </button>
-      </div>
-    </div>
-
-    <div class="home-lvl">
-      <h2 class="home-group">Lotto Volley League · thumbnails (1920×1080)</h2>
-      <div class="home-cards">
         <button class="menu-card" data-go-th="lvlm" type="button">
-          <span class="menu-icon">🏐</span>
           <span class="menu-title">LVL Heren</span>
           <span class="menu-desc">Wedstrijdthumbnail Lotto Volley League Men, uit het programma (CSV)</span>
           <span class="menu-tags"><i>JPG</i><i>WebP</i><i>Zip per programma</i></span>
         </button>
         <button class="menu-card" data-go-th="lvlw" type="button">
-          <span class="menu-icon">🏐</span>
           <span class="menu-title">LVL Dames</span>
           <span class="menu-desc">Wedstrijdthumbnail Lotto Volley League Women, uit het programma (CSV)</span>
           <span class="menu-tags"><i>JPG</i><i>WebP</i><i>Zip per programma</i></span>
@@ -198,46 +246,37 @@
       <h2 class="home-group">HandbalNL assets</h2>
       <div class="home-cards">
         <button class="menu-card" data-go-hnl="announce" type="button">
-          <span class="menu-icon">📣</span>
           <span class="menu-title">Aankondiging</span>
           <span class="menu-desc">Foto met kop en de balk "live te zien via HandbalNL.TV"</span>
           <span class="menu-tags"><i>Story</i><i>Post</i></span>
         </button>
         <button class="menu-card" data-go-hnl="nextmen" type="button">
-          <span class="menu-icon">⚡</span>
           <span class="menu-title">Next heren</span>
           <span class="menu-desc">Wedstrijdaankondiging Next Handball League heren</span>
           <span class="menu-tags"><i>Story</i><i>Post</i></span>
         </button>
         <button class="menu-card" data-go-hnl="nextwomen" type="button">
-          <span class="menu-icon">⚡</span>
           <span class="menu-title">Next dames</span>
           <span class="menu-desc">Wedstrijdaankondiging Next Handball League dames</span>
           <span class="menu-tags"><i>Story</i><i>Post</i></span>
         </button>
       </div>
+
+      <h2 class="home-group">Thumbnails (1920×1080)</h2>
+      <div class="home-cards">
+        <button class="menu-card" data-go-th="nextmen" type="button">
+          <span class="menu-title">Next heren thumbnail</span>
+          <span class="menu-desc">Next Handball League heren, zelf invullen</span>
+          <span class="menu-tags"><i>JPG</i><i>WebP</i></span>
+        </button>
+        <button class="menu-card" data-go-th="nextwomen" type="button">
+          <span class="menu-title">Next dames thumbnail</span>
+          <span class="menu-desc">Next Handball League dames, zelf invullen</span>
+          <span class="menu-tags"><i>JPG</i><i>WebP</i></span>
+        </button>
+      </div>
     </div>
 
-    <h2 class="home-group">Opslag &amp; back-up</h2>
-    <div class="storage-panel" id="storagePanel">
-      <p class="storage-summary" id="storageSummary">Laden…</p>
-      <div class="storage-actions">
-        <a class="btn btn-primary storage-btn" id="backupBtn" href="/api/backup" download>⬇ Back-up downloaden</a>
-        <label class="btn btn-link storage-btn" for="restoreInput">⬆ Back-up terugzetten</label>
-        <input type="file" id="restoreInput" accept=".zip,application/zip" hidden>
-        <button class="btn btn-link storage-btn" id="toggleStorageList" type="button">Beheer opgeslagen onderdelen</button>
-      </div>
-      <p class="save-status" id="storageStatus" hidden></p>
-      <div id="storageList" hidden>
-        <div class="storage-clean">
-          <label>Verwijder alles ouder dan
-            <select id="cleanDays"><option value="7">7 dagen</option><option value="30" selected>30 dagen</option><option value="90">90 dagen</option></select>
-          </label>
-          <button class="btn btn-link" id="cleanOldBtn" type="button">Opruimen</button>
-        </div>
-        <ul class="storage-rows" id="storageRows"></ul>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -369,7 +408,7 @@
 
       <div class="field bg-photo-field" id="bgPhotoField" hidden>
         <label class="photo-btn" id="photoDrop" for="bgPhotoInput">
-          <span class="photo-btn-icon">📷</span>
+          
           <span class="photo-btn-text" id="photoBtnText">Foto toevoegen</span>
           <span class="photo-btn-sub">klik, of sleep hier een afbeelding in</span>
         </label>
@@ -383,29 +422,29 @@
 
       <label class="upcoming-toggle results-anim-toggle" id="resultsAnimField" hidden>
         <input type="checkbox" id="resultsAnimateToggle">
-        🫀 Animeer de resultaten (pop van boven naar beneden)
+        Animeer de resultaten (pop van boven naar beneden)
       </label>
 
       <label class="upcoming-toggle results-anim-toggle" id="smAnimField" hidden>
         <input type="checkbox" id="smAnimateToggle">
-        🫀 Animeer (icoon + lijnen)
+        Animeer (icoon + lijnen)
       </label>
     </section>
 
     <section class="panel-step panel-step-last">
       <div class="panel-step-title"><span class="step-num">4</span>Opslaan &amp; exporteren</div>
-      <button class="btn btn-link" id="serverSaveBtn" type="button">💾 Opslaan op server</button>
+      <button class="btn btn-link" id="serverSaveBtn" type="button">Opslaan op server</button>
       <p class="save-status" id="serverSaveStatus" hidden></p>
-      <button class="btn btn-primary" id="exportBtn">⬇ Exporteer als PNG</button>
-      <button class="btn btn-link" id="exportElementBtn" type="button" hidden>⬇ Exporteer zonder achtergrond</button>
+      <button class="btn btn-primary" id="exportBtn">Exporteer als PNG</button>
+      <button class="btn btn-link" id="exportElementBtn" type="button" hidden>Exporteer zonder achtergrond</button>
       <div id="batchField" hidden>
-        <button class="btn btn-link" id="exportDayBtn" type="button">⬇ Hele speeldag (zip)</button>
-        <button class="btn btn-link" id="exportRoundBtn" type="button">⬇ Hele ronde (zip)</button>
+        <button class="btn btn-link" id="exportDayBtn" type="button">Hele speeldag (zip)</button>
+        <button class="btn btn-link" id="exportRoundBtn" type="button">Hele ronde (zip)</button>
         <div class="hint" id="batchStatus" hidden></div>
       </div>
-      <button class="btn btn-link" id="downloadMp4Btn" type="button" hidden>🎬 Download als MP4</button>
+      <button class="btn btn-link" id="downloadMp4Btn" type="button" hidden>Download als MP4</button>
       <p class="save-status" id="mp4Status" hidden></p>
-      <button class="btn btn-link" id="smDownloadMp4Btn" type="button" hidden>🎬 Download als MP4</button>
+      <button class="btn btn-link" id="smDownloadMp4Btn" type="button" hidden>Download als MP4</button>
       <p class="save-status" id="smMp4Status" hidden></p>
     </section>
   </div>
@@ -593,7 +632,7 @@
   </div>
 </div>
 
-<div id="navWipe" class="nav-wipe boot"><img src="assets/vs-icon.png" alt=""></div>
+<div id="navWipe" class="nav-wipe boot"><svg class="nav-mark" viewBox="0 0 80 92" aria-hidden="true"><use href="#bt-mark"/></svg></div>
 
 <script src="settings.js"></script>
 <script src="dashboard.js"></script>

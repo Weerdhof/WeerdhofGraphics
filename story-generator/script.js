@@ -823,7 +823,7 @@
       modeHint.textContent = 'Kies de wedstrijd die nu live is: die wordt gemarkeerd. De andere wedstrijden van die dag staan er klein onder. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'headtohead') {
       matchesLabel.textContent = 'Head to head';
-      modeHint.textContent = 'Kies een wedstrijd: stand, laatste uitslagen en onderlinge duels komen automatisch van de site. In de lijst staat per wedstrijd of het interessant wordt (🔥 kraker, ⚡ interessant, anders minder). Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
+      modeHint.textContent = 'Kies een wedstrijd: stand, laatste uitslagen en onderlinge duels komen automatisch van de site. In de lijst staat per wedstrijd of het interessant wordt (kraker, interessant, anders minder). Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'topscorer') {
       matchesLabel.textContent = 'Top scorer & uitslag';
       modeHint.textContent = 'Kies een wedstrijd, vul de eindstand in en de gegevens van de topscorer. Upload bij Opmaak een spelersfoto.';
@@ -1503,7 +1503,7 @@
     const items = Object.values(autoNotes);
     el.hidden = !items.length;
     el.textContent = '';
-    items.forEach(n => { const c = document.createElement('span'); c.className = 'auto-chip' + (n.warn ? ' warn' : ''); c.textContent = (n.warn ? '✎ ' : '✓ ') + n.text; el.appendChild(c); });
+    items.forEach(n => { const c = document.createElement('span'); c.className = 'auto-chip' + (n.warn ? ' warn' : ''); c.textContent = (n.warn ? '' : '✓ ') + n.text; el.appendChild(c); });
   }
   var rankManual = { men: false, women: false };   // the ranking was edited by hand: do not overwrite it on opening
 
@@ -1548,12 +1548,12 @@
       .then(sr => (withScores ? checkScoresStep() : Promise.resolve(null)).then(cr => [sr, cr].filter(Boolean)))
       .then(parts => {
         const warn = parts.some(p => p.cls === 'warn');
-        showCheckStatus(`${warn ? '⚠' : '✓'} Bijgewerkt om ${clockNow()}: ` + parts.map(p => p.text).join(' · '), warn ? 'warn' : 'ok');
+        showCheckStatus(`${warn ? 'Let op:' : '✓'} Bijgewerkt om ${clockNow()}: ` + parts.map(p => p.text).join(' · '), warn ? 'warn' : 'ok');
         markSiteChecked();
         return new Promise(r => setTimeout(r, Math.max(0, 700 - (Date.now() - startedAt)))).then(() => warn);   // keep the spinner visible at least a moment
       })
-      .then(warn => btnDone(checkScoresBtn, !warn, warn ? '⚠ Zie de melding' : '✓ Bijgewerkt', refreshCheckButtonLabels),
-        () => btnDone(checkScoresBtn, false, '⚠ Verversen mislukt', refreshCheckButtonLabels));
+      .then(warn => btnDone(checkScoresBtn, !warn, warn ? 'Zie de melding' : '✓ Bijgewerkt', refreshCheckButtonLabels),
+        () => btnDone(checkScoresBtn, false, 'Verversen mislukt', refreshCheckButtonLabels));
   }
   if (checkScoresBtn) checkScoresBtn.addEventListener('click', checkSite);
 
@@ -1611,7 +1611,7 @@
     fetchAndApplySchedule().then(() => { syncRetries = 0; }).catch(() => {
       scheduleSynced[k] = false; roundsSynced[k] = false;
       if (syncRetries++ < 3) setTimeout(maybeAutoSyncSchedule, 5000);
-      else showCheckStatus('⚠ Het schema van de site kon niet worden opgehaald — dit programma kan verouderd zijn. Klik op "Check".', 'warn');
+      else showCheckStatus('Het schema van de site kon niet worden opgehaald — dit programma kan verouderd zijn. Klik op "Check".', 'warn');
     });
   }
 
@@ -3870,7 +3870,7 @@
     const tier = score >= 60 ? 'topper' : score >= 35 ? 'interessant' : 'rustig';
     return { score, tier, why, a, b };
   }
-  const INTEREST_LABEL = { topper: '🔥 Kraker', interessant: '⚡ Interessant', rustig: '· Minder interessant' };
+  const INTEREST_LABEL = { topper: 'Kraker', interessant: 'Interessant', rustig: 'Minder interessant' };
   // only matches still to come get a label: the standings of today say nothing about a match that was played weeks ago
   function matchIsPast(m) {
     const d = /(\d+)-(\d+)/.exec(m.dateRound || '');
@@ -4915,7 +4915,7 @@
       say(`✓ ${files.length} stories in de zip`);
       trackUse('export');
     } catch (e) {
-      console.error(e); say('⚠ Zip maken mislukt: ' + e.message);
+      console.error(e); say('Zip maken mislukt: ' + e.message);
     } finally {
       batchExporting = false; predGuide = guideWas; batchBusy = false;
       loadSingleMatch(cur, snap);   // back to the match that was open, edits intact
@@ -5175,7 +5175,7 @@
   // Called at the start of every render: a different item (round, match, mode, competition)
   // means: stop saving, fetch that item's record, restore it.
   const saveIndicator = document.getElementById('saveIndicator');
-  const SAVE_LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: '⚠ Opslaan mislukt — probeer opnieuw' };
+  const SAVE_LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: 'Opslaan mislukt — probeer opnieuw' };
   function setSaveState(state) {
     if (!saveIndicator) return;
     saveIndicator.dataset.state = state;
@@ -5294,25 +5294,38 @@
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'shl-ticker-ready' && tickerWaiter && e.data.comp === tickerWaiter.comp) tickerWaiter.res();
   });
+  // The landing pages: ByTomorrow frame, client content in the client's own look (colours and fonts live in bytomorrow.css).
+  const CLIENTS = {
+    dash:  { name: 'ByTomorrow Graphics', title: 'ByTomorrow Graphics', sub: 'Alle visuals van onze klanten, op één plek.', pill: 'Graphics' },
+    men:   { name: 'SHL', title: 'Heren', logo: 'assets/footer-logo.png', pill: 'Handbal', sub: 'Story, post, animatie en thumbnails voor de Coinmerce Super Handball League.' },
+    women: { name: 'SHLW', title: 'Vrouwen', logo: 'assets/women/footer-logo-women.png', pill: 'Handbal', sub: 'Story, post, animatie en thumbnails voor de Super Handball League Women.' },
+    hnl:   { name: 'HandbalNL', title: 'HandbalNL', logo: 'assets/hnl/logo-next-light.png', pill: 'HandbalNL.TV', sub: 'Aankondigingen en thumbnails voor HandbalNL en de Next Handball League.' },
+    lvl:   { name: 'Lotto Volley League', title: 'Lotto Volley League', logo: 'assets/lvl/logo.svg', pill: 'Volleybal', sub: 'Wedstrijdthumbnails voor heren en dames, uit het programma.' },
+  };
   function syncMenuComp() {
     homeTarget = menuComp;
-    homeMenu.classList.toggle('theme-women', menuComp === 'women');
-    homeMenu.classList.toggle('theme-hnl', menuComp === 'hnl');
-    homeMenu.classList.toggle('theme-th', menuComp === 'th');
-    homeMenu.classList.toggle('theme-lvl', menuComp === 'lvl');
-    homeMenu.classList.toggle('theme-dash', menuComp === 'dash');
-    const tagline = homeMenu.querySelector('.home-head p'); if (tagline) tagline.textContent = menuComp === 'dash' ? 'Stand van zaken' : 'Wat wil je maken?';
+    ['men', 'women', 'hnl', 'lvl', 'dash'].forEach(k => homeMenu.classList.toggle('theme-' + k, menuComp === k));
+    const cl = CLIENTS[menuComp] || CLIENTS.dash;
+    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setTxt('heroTitle', cl.title); setTxt('heroSub', cl.sub); setTxt('heroPill', cl.pill); setTxt('heroCrumbName', cl.name);
     if (window.DASH) { if (menuComp === 'dash') lastTickerReady = window.DASH.show(); else window.DASH.hide(); }
-    homeMenu.querySelectorAll('[data-home-comp]').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
+    homeMenu.querySelectorAll('.home-comp-tab').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
     homeMenu.querySelectorAll('.menu-card[data-go-mode="nowlive"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
-    if (logo) logo.setAttribute('src', menuComp === 'lvl' ? 'assets/lvl/logo.svg' : menuComp === 'hnl' ? 'assets/hnl/logo-next-light.png' : menuComp === 'women' ? 'assets/women/footer-logo-women.png' : 'assets/footer-logo.png');
+    if (logo && cl.logo) logo.setAttribute('src', cl.logo);
+    document.title = menuComp === 'dash' ? 'ByTomorrow Graphics' : `${cl.name} · ByTomorrow Graphics`;
     const tk = document.getElementById('homeTicker');
     const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
-    if (menuComp !== 'hnl' && menuComp !== 'th' && menuComp !== 'lvl' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
+    if (menuComp !== 'hnl' && menuComp !== 'lvl' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
       lastTickerReady = new Promise(res => { tickerWaiter = { comp: menuComp, res }; setTimeout(res, 4500); });
       tk.setAttribute('src', tkSrc);
     }
+  }
+
+  // The editors' back button names the page it returns to
+  function syncBackLabels() {
+    const label = '← ' + (lastHome === 'dash' ? 'Home' : (CLIENTS[lastHome] || CLIENTS.dash).name);
+    ['backToMenuBtn', 'hnlBack', 'thBack', 'setBack'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
   }
 
   function showMenuNow() {
@@ -5322,7 +5335,7 @@
     if (document.body.classList.contains('set-open') && window.SETUI) window.SETUI.close();
     if (fromHnl && window.HNL) window.HNL.close();
     if (fromTh && window.TH) window.TH.close();
-    menuComp = lastHome || (fromHnl ? 'hnl' : fromTh ? 'th' : compKey);
+    menuComp = lastHome || (fromHnl ? 'hnl' : fromTh ? 'dash' : compKey);
     syncMenuComp();
     document.body.classList.remove('hnl-open', 'th-open', 'set-open');
     document.body.classList.add('menu-open');
@@ -5343,6 +5356,7 @@
   var pendingTarget = null;   // { home, away, day, month } from a dashboard match row
   var pendingFmt = null, pendingFmtTimer = 0;   // the format a card asked for, until the items have loaded
   function openAssetNow(comp, assetMode, fromMenu, fmt) {
+    syncBackLabels();
     document.querySelector(`[data-competition="${comp}"]`).click();
     document.querySelector(`[data-mode="${assetMode}"]`).click();
     if (fmt) { const fb = document.querySelector(`[data-smw-format="${fmt}"]`); if (fb) fb.click(); }   // Story or Post
@@ -5364,7 +5378,7 @@
   // Gives the incoming view's blocks a short staggered rise (CSS keyed on .view-in and --d).
   function playViewIn(root) {
     if (!root || reducedMotion()) return;
-    const items = root.querySelectorAll(root === homeMenu ? '.home-logo, h1, .home-ticker, .home-head p, .home-comp, .home-group, .menu-card, .overview-panel, .storage-panel' : '.editor-topbar, .panel-step, .canvas-holder, .set-sec');
+    const items = root.querySelectorAll(root === homeMenu ? '.hero-crumb, .home-logo, .hero-pill, h1, .home-head p, .home-ticker, .client-card, .home-group, .menu-card, .dash-panel, .feat-card, .overview-panel, .storage-panel' : '.editor-topbar, .panel-step, .canvas-holder, .set-sec');
     items.forEach((el, i) => el.style.setProperty('--d', Math.min(i, 14)));
     root.classList.remove('view-in');
     void root.offsetWidth;
@@ -5445,14 +5459,15 @@
     const minHold = new Promise(r => setTimeout(r, 350));
     holdThenLift(Promise.all([lastTickerReady, document.fonts && document.fonts.ready, minHold]), false, () => { navBusy = false; navPhase = ''; });
   }
-  const accentFor = (c) => (c === 'lvl' ? '#1096dc' : c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'th' ? '#f55c6e' : '#caff1c');
+  const accentFor = (c) => (c === 'lvl' ? '#1096dc' : c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'men' ? '#caff1c' : '#3D5AFE');
 
   function showMenu() {
     if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
-    navSweep('back', showMenuNow, accentFor(document.body.classList.contains('hnl-open') ? 'hnl' : document.body.classList.contains('th-open') ? 'th' : compKey));
+    navSweep('back', showMenuNow, accentFor(lastHome || compKey));
   }
   // Settings page (settings-ui.js)
   function openSetNow() {
+    syncBackLabels();
     document.body.classList.remove('menu-open');
     document.body.classList.add('set-open');
     window.SETUI.open();
@@ -5463,6 +5478,7 @@
   }
   // Thumbnails editor (thumbs.js)
   function openThNow(kind) {
+    syncBackLabels();
     document.body.classList.remove('menu-open');
     document.body.classList.add('th-open');
     window.TH.open(kind);
@@ -5472,6 +5488,7 @@
   }
   // HandbalNL editor (hnl.js): a separate view next to the SHL editor
   function openHnlNow(kind) {
+    syncBackLabels();
     document.body.classList.remove('menu-open');
     document.body.classList.add('hnl-open');
     window.HNL.open(kind);
@@ -5522,10 +5539,10 @@
   homeMenu.querySelectorAll('[data-home-comp]').forEach(btn => {
     btn.addEventListener('click', () => {
       const next = btn.dataset.homeComp;
-      if (next === homeTarget) return;   // compare with where we are heading, not with the not-yet-swapped state
+      if (next === homeTarget) { if (menuComp === next) homeMenu.scrollTo({ top: 0, behavior: 'smooth' }); return; }   // compare with where we are heading, not with the not-yet-swapped state
       homeTarget = next;
       // men -> women sweeps left to right in purple, women -> men back in SHL green
-      const order = { dash: 0, men: 1, women: 2, hnl: 3, th: 4, lvl: 5 };
+      const order = { dash: 0, men: 1, women: 2, hnl: 3, lvl: 4 };
       navSweep(order[next] > order[menuComp] ? 'forward' : 'back', () => {
         menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
         return lastTickerReady;
@@ -5551,7 +5568,7 @@
   homeMenu.querySelectorAll('.menu-card[data-go-th]').forEach(card => {
     card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openThNow(card.dataset.goTh), TH_ACCENT[card.dataset.goTh] || accentFor('th')); });
   });
-  document.getElementById('openSettings').addEventListener('click', () => { lastHome = menuComp; navSweep('forward', openSetNow, '#caff1c'); });
+  document.getElementById('openSettings').addEventListener('click', () => { lastHome = menuComp; navSweep('forward', openSetNow, '#3D5AFE'); });
   document.getElementById('setBack').addEventListener('click', () => {
     if (history.state && history.state.editor) history.back(); else showMenu();
   });
@@ -5566,6 +5583,7 @@
   });
   document.getElementById('editorSwitchBtn').addEventListener('click', () => {
     const next = compKey === 'men' ? 'women' : 'men';
+    if (lastHome === 'men' || lastHome === 'women') lastHome = next;
     navSweep(next === 'women' ? 'forward' : 'back', () => { openAssetNow(next, mode, false); }, accentFor(next));
   });
   window.addEventListener('popstate', () => showMenu());
@@ -5649,7 +5667,7 @@
 
   function loadOverview(force) {
     const key = menuComp;
-    if (key === 'hnl' || key === 'th' || key === 'lvl' || key === 'dash') return;   // no site data for these tabs
+    if (key === 'hnl' || key === 'lvl' || key === 'dash') return;   // no site data for these tabs
     const e = overviewData[key];
     if (e && !e.error && !force && Date.now() - e.at < 60000) { renderOverview(); return; }
     if (!e) renderOverview();
@@ -5669,7 +5687,7 @@
       .then(() => loadOverview(true))
       .then(() => new Promise(r => setTimeout(r, Math.max(0, 700 - (Date.now() - startedAt)))))
       .then(() => btnDone(btn, true, `✓ Gecontroleerd ${clockNow()}`, () => { btn.textContent = '↻ Vernieuwen'; }),
-        () => btnDone(btn, false, '⚠ Mislukt', () => { btn.textContent = '↻ Vernieuwen'; }));
+        () => btnDone(btn, false, 'Mislukt', () => { btn.textContent = '↻ Vernieuwen'; }));
   });
 
 

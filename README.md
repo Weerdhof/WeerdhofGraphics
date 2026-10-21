@@ -49,3 +49,7 @@ Option "cycle" (stream-config): the title stays on screen from `start` to `end` 
 ## Lotto Volley League thumbnails
 
 Home tab "Volley": `LVL Heren` and `LVL Dames` (1920x1080, Monologue font). The assets come from `Lotto Volley/thumbnail2026` (background, crests, the dark wave from the PSD) in `story-generator/assets/lvl/`. The programme is a CSV (`Naam,bg,LogoLinks,LogoRechts,TijdText`) that can be read in again in the editor; it is stored on the server. Via the API: `/api/thumbnail?kind=lvlm&home=MEN&away=ROE&dt=16/10 - 20:30` (or `date=` and `time=`); club codes are the file names of the crests (MEN, ROE, CGENT, ANT, ...).
+
+## ByTomorrow Graphics
+
+The tool is branded as ByTomorrow Graphics. `bytomorrow.css` (loaded after `style.css`) holds the ByTomorrow frame: navy `#060228`, blue `#3D5AFE`, Niveau Grotesk Bold for titles and Open Sans for text (`fonts/bt/`). The home page lists the clients; each client has its own landing page (SHL, SHLW, HandbalNL, Lotto Volley League) in the client's own colours and display font. Those client looks live only in the `theme-men|women|hnl|lvl` variables (`--accent`, `--bg`, `--panel`, `--c-font`) at the top of `bytomorrow.css`; the thumbnails of each client sit on its landing page. The editors use the ByTomorrow chrome with the client colour as a small mark.

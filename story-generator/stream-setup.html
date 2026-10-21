@@ -215,7 +215,7 @@
   let playTimer = 0;
   $('pvPlay').addEventListener('click', () => {
     if (playTimer) { clearInterval(playTimer); playTimer = 0; $('pvPlay').textContent = '▶ Afspelen'; return; }
-    $('pvPlay').textContent = '⏸ Pauze';
+    $('pvPlay').textContent = 'Pauze';
     let t = parseFloat($('pvT').value); if (t <= 0) t = parseFloat($('pvT').max);
     playTimer = setInterval(() => {
       t -= 0.5;                                  // 1 minute per second, in half-minute steps

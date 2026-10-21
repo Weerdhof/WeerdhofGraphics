@@ -218,7 +218,7 @@
   // ---------- Persistence (same endpoints as the SHL items) ----------
   const keyOf = () => `hnl:${cur.kind}:s${cur.slot}`;
   const indicator = () => document.getElementById('hnlSave');
-  const SAVE_LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: '⚠ Opslaan mislukt — probeer opnieuw' };
+  const SAVE_LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: 'Opslaan mislukt — probeer opnieuw' };
   function setSave(state) { const el = indicator(); if (!el) return; el.dataset.state = state; el.textContent = SAVE_LABELS[state] || ''; }
   const enc = (k) => encodeURIComponent(k);
 
@@ -353,7 +353,7 @@
     }
     html += `</div><div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Opmaak</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="hnlFormat"><button type="button" class="mode-tab${d.format === 'post' ? ' active' : ''}" data-f="post">Post 1080×1350</button><button type="button" class="mode-tab${d.format === 'story' ? ' active' : ''}" data-f="story">Story 1080×1920</button></div></div>
-      <label class="photo-btn" id="hnlPhotoDrop" for="hnlPhotoInput"><span class="photo-btn-icon">📷</span><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">klik, of sleep hier een afbeelding in${isNext ? ' · zonder foto krijg je het kleurvlak' : ''}</span></label>
+      <label class="photo-btn" id="hnlPhotoDrop" for="hnlPhotoInput"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">klik, of sleep hier een afbeelding in${isNext ? ' · zonder foto krijg je het kleurvlak' : ''}</span></label>
       <input type="file" id="hnlPhotoInput" accept="image/*" hidden>`;
     if (d.hasPhoto) {
       html += `<div class="field"><label for="hnlZoom">Zoom</label><input type="range" id="hnlZoom" min="100" max="300" value="${Math.round(d.photoPos[d.format].z * 100)}"></div>
@@ -361,7 +361,7 @@
     }
     html += `<label class="hnl-check"><input type="checkbox" id="hnlDecor"${d.decor ? ' checked' : ''}> ${cur.kind === 'nextmen' ? 'Swoosh' : 'Lijnen'} tonen</label></div>
       <div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">3</span> Exporteren</div>
-      <button class="btn btn-primary" id="hnlExport" type="button">⬇ Exporteer als PNG</button></div>`;
+      <button class="btn btn-primary" id="hnlExport" type="button">Exporteer als PNG</button></div>`;
     box.innerHTML = html;
     bindControls();
   }

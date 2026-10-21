@@ -223,7 +223,7 @@
   const enc = encodeURIComponent;
   let saveTimer = 0, lastSaved = '';
   const indicator = () => document.getElementById('thSave');
-  const LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: '⚠ Opslaan mislukt — probeer opnieuw' };
+  const LABELS = { idle: '', loading: 'Laden…', pending: '● Wijzigingen nog niet opgeslagen', saving: 'Opslaan…', saved: '✓ Opgeslagen op de server', error: 'Opslaan mislukt — probeer opnieuw' };
   function setSave(s) { const el = indicator(); if (el) { el.dataset.state = s; el.textContent = LABELS[s] || ''; } }
   const itemKey = () => `th:${cur.kind}:s${cur.slot}`;
   const snap = () => JSON.stringify({ kind: cur.kind, v: 1, data: cur.d });
@@ -298,7 +298,7 @@
         <div class="field"><label for="thLvlDt">Datum en tijd</label><input type="text" id="thLvlDt" value="${esc(d.dt)}" placeholder="17/10 - 20:30"></div>
         <div class="field"><label for="thLvlSeason">Seizoen (grote tekst rechtsboven)</label><input type="text" id="thLvlSeason" value="${esc(d.season)}"></div></div>
         <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Programma</div>
-        <label class="photo-btn" id="thLvlDrop" for="thLvlCsv"><span class="photo-btn-icon">📄</span><span class="photo-btn-text">Nieuw programma inlezen (CSV)</span><span class="photo-btn-sub">${rows.length} wedstrijden geladen · kolommen: Naam, bg, LogoLinks, LogoRechts, TijdText</span></label>
+        <label class="photo-btn" id="thLvlDrop" for="thLvlCsv"><span class="photo-btn-text">Nieuw programma inlezen (CSV)</span><span class="photo-btn-sub">${rows.length} wedstrijden geladen · kolommen: Naam, bg, LogoLinks, LogoRechts, TijdText</span></label>
         <input type="file" id="thLvlCsv" accept=".csv,text/csv" hidden>
         <p class="hint">Een nieuwe CSV vervangt het programma voor heren én dames; de wedstrijden van deze competitie verschijnen in de lijst hierboven.</p></div>`;
     } else if (K.next) {
@@ -328,7 +328,7 @@
         ${cur.kind === 'shl' ? `<div class="field"><label>Type</label><div class="mode-tabs mode-tabs-compact" id="thVariant"><button type="button" class="mode-tab${d.variant === 'live' ? ' active' : ''}" data-v="live">Livestream</button><button type="button" class="mode-tab${d.variant === 'highlights' ? ' active' : ''}" data-v="highlights">Highlights</button></div></div>
         <div class="field"${d.variant === 'highlights' ? '' : ' hidden'} id="thLabelField"><label for="thLabel">Label in de balk (highlights)</label><input type="text" id="thLabel" value="${esc(d.label)}"></div>` : ''}
         <div class="field"${cur.kind === 'shl' && d.variant === 'highlights' ? ' hidden' : ''} id="thTitleField"><label for="thTitle">Titel onderin</label><input type="text" id="thTitle" value="${esc(d.title)}"></div>
-        <label class="photo-btn" id="thPhotoDrop" for="thPhotoInput"><span class="photo-btn-icon">📷</span><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">klik, of sleep hier een afbeelding in · de foto verschijnt rechts</span></label>
+        <label class="photo-btn" id="thPhotoDrop" for="thPhotoInput"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">klik, of sleep hier een afbeelding in · de foto verschijnt rechts</span></label>
         <input type="file" id="thPhotoInput" accept="image/*" hidden>
         ${d.hasPhoto ? `<div class="field"><label for="thZoom">Zoom</label><input type="range" id="thZoom" min="100" max="300" value="${Math.round(d.photoPos.z * 100)}"></div>
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
@@ -336,8 +336,8 @@
     }
     html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.next ? 2 : K.lvl ? 3 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
-      <button class="btn btn-primary" id="thExport" type="button">⬇ Exporteer deze thumbnail</button>
-      ${K.next ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">⬇ Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">⬇ Hele speeldag (zip)</button>'}
+      <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
+      ${K.next ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     box.innerHTML = html;
     bind();
@@ -385,14 +385,14 @@
       const f = e.target.files && e.target.files[0]; if (!f) return;
       try {
         const rows = parseCsv(decodeCsv(await f.arrayBuffer())).filter(r => r.LogoLinks && r.LogoRechts && r.TijdText);
-        if (!rows.length) { status('⚠ Geen wedstrijden gevonden: controleer de kolommen (Naam, bg, LogoLinks, LogoRechts, TijdText)'); return; }
+        if (!rows.length) { status('Geen wedstrijden gevonden: controleer de kolommen (Naam, bg, LogoLinks, LogoRechts, TijdText)'); return; }
         const r = await fetch('/api/item?key=' + enc('lvl:schedule'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'lvl-schedule', v: 1, data: { rows, at: Date.now() } }) });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         await loadLvlRows(cur.kind);
         const first = cur.lvlRows[0]; if (first) applyLvlRow(first);
         buildControls(); scheduleRender(); scheduleSave();
         status(`✓ Programma ingelezen: ${rows.length} wedstrijden (${cur.lvlRows.length} voor deze competitie)`);
-      } catch (err) { status('⚠ Inlezen mislukt: ' + err.message); }
+      } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
     on('thExport', 'click', exportOne);
     on('thExportDay', 'click', KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
@@ -456,7 +456,7 @@
     status(saved ? `✓ Gedownload en op de server: ${saved.path}` : '✓ Gedownload (opslaan op de server mislukte)');
   }
   async function exportLvlAll() {
-    const rows = cur.lvlRows || []; if (!rows.length) { status('⚠ Geen programma geladen'); return; }
+    const rows = cur.lvlRows || []; if (!rows.length) { status('Geen programma geladen'); return; }
     const files = [];
     for (let i = 0; i < rows.length; i++) {
       status(`Thumbnail ${i + 1} van ${rows.length} maken…`);
