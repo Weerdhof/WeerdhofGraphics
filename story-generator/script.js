@@ -5459,7 +5459,7 @@
     const minHold = new Promise(r => setTimeout(r, 350));
     holdThenLift(Promise.all([lastTickerReady, document.fonts && document.fonts.ready, minHold]), false, () => { navBusy = false; navPhase = ''; });
   }
-  const accentFor = (c) => (c === 'lvl' ? '#1096dc' : c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'men' ? '#caff1c' : '#3D5AFE');
+  const accentFor = (c) => (c === 'lvl' ? '#EE3124' : c === 'women' ? '#e34fff' : c === 'hnl' ? '#ff7429' : c === 'men' ? '#caff1c' : '#3D5AFE');
 
   function showMenu() {
     if (document.body.classList.contains('menu-open')) { showMenuNow(); return; }
@@ -5555,7 +5555,7 @@
   homeMenu.querySelectorAll('.menu-card[data-go-hnl]').forEach(card => {
     card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')); });
   });
-  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#1096dc', lvlw: '#c15bff' };
+  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#EE3124', lvlw: '#EE3124' };
   // shortcuts on the dashboard
   document.addEventListener('dash-go', (e) => {
     const [group, id, fmt] = String(e.detail).split(':');

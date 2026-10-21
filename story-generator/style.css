@@ -1152,14 +1152,14 @@ body:not(.set-open) .settings-view { display: none; }
 .home-menu:not(.theme-lvl) .home-lvl { display: none; }
 .home-menu.theme-lvl .home-shl, .home-menu.theme-lvl .home-th, .home-menu.theme-lvl .home-hnl, .home-menu.theme-lvl .home-ticker { display: none; }
 .home-menu.theme-lvl::before { display: none; }
-.home-menu.theme-lvl { --accent: #1096dc; background: radial-gradient(1100px 520px at 85% -10%, rgba(16,150,220,.20), transparent 60%), linear-gradient(180deg, #02233f 0%, #011a30 100%); }
+.home-menu.theme-lvl { --accent: #EE3124; background: radial-gradient(1100px 520px at 85% -10%, rgba(238,49,36,.20), transparent 60%), linear-gradient(180deg, #1a0a0d 0%, #12070a 100%); }
 .home-menu.theme-lvl .home-comp-tab.active { color: #fff; }
-.home-menu.theme-lvl .menu-card:hover:not(:disabled) { background: var(--accent); color: #02233f; border-color: var(--accent); }
-.home-menu.theme-lvl .menu-card:hover:not(:disabled) .menu-title, .home-menu.theme-lvl .menu-card:hover:not(:disabled) .menu-tags i { color: #02233f; }
-.home-menu.theme-lvl .menu-card:hover:not(:disabled) .menu-desc { color: rgba(2,35,63,.8); }
-.home-menu.theme-lvl .menu-card[data-go-th="lvlm"] { border-left-color: #1096dc; }
-.home-menu.theme-lvl .menu-card[data-go-th="lvlw"] { border-left-color: #c15bff; }
-.home-menu.theme-lvl .menu-card[data-go-th="lvlm"]:hover:not(:disabled) { background: #1096dc; border-color: #1096dc; }
-.home-menu.theme-lvl .menu-card[data-go-th="lvlw"]:hover:not(:disabled) { background: #c15bff; border-color: #c15bff; }
-.th-app[data-kind="lvlm"] { --accent: #1096dc; }
-.th-app[data-kind="lvlw"] { --accent: #c15bff; }
+.home-menu.theme-lvl .menu-card:hover:not(:disabled) { background: var(--accent); color: #1a0a0d; border-color: var(--accent); }
+.home-menu.theme-lvl .menu-card:hover:not(:disabled) .menu-title, .home-menu.theme-lvl .menu-card:hover:not(:disabled) .menu-tags i { color: #1a0a0d; }
+.home-menu.theme-lvl .menu-card:hover:not(:disabled) .menu-desc { color: rgba(26,10,13,.8); }
+.home-menu.theme-lvl .menu-card[data-go-th="lvlm"] { border-left-color: #EE3124; }
+.home-menu.theme-lvl .menu-card[data-go-th="lvlw"] { border-left-color: #EE3124; }
+.home-menu.theme-lvl .menu-card[data-go-th="lvlm"]:hover:not(:disabled) { background: #EE3124; border-color: #EE3124; }
+.home-menu.theme-lvl .menu-card[data-go-th="lvlw"]:hover:not(:disabled) { background: #EE3124; border-color: #EE3124; }
+.th-app[data-kind="lvlm"] { --accent: #EE3124; }
+.th-app[data-kind="lvlw"] { --accent: #EE3124; }

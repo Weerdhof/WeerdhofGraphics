@@ -48,7 +48,7 @@ button, input, select, textarea { font-family: inherit; }
 #homeMenu.theme-men   { --bg: #1a1b38; --panel: #232557; --panel-2: #2d2f6b; --line: #3a3d85; --text-dim: #a9afd6; --accent: #caff1c; --on-accent: #1a1b38; --c-font: "ClashDisplay", sans-serif; }
 #homeMenu.theme-women { --bg: #2a1148; --panel: #3a1a5e; --panel-2: #4a2377; --line: #6a3aa0; --text-dim: #d3b8ee; --accent: #e34fff; --on-accent: #2a1148; --c-font: "ClashDisplay", sans-serif; }
 #homeMenu.theme-hnl   { --bg: #04164a; --panel: #0b2266; --panel-2: #12308a; --line: #24429e; --text-dim: #b5c2ee; --accent: #ff7429; --on-accent: #04164a; --c-font: "HnlTusker", "NG", sans-serif; }
-#homeMenu.theme-lvl   { --bg: #02233f; --panel: #06335a; --panel-2: #0a4373; --line: #0f5a96; --text-dim: #9fcdf0; --accent: #1096dc; --on-accent: #02233f; --c-font: "LvlMonologue", "NG", sans-serif; }
+#homeMenu.theme-lvl   { --bg: #1a0a0d; --panel: #2a1116; --panel-2: #3a1820; --line: #5a2530; --text-dim: #e8b9c0; --accent: #EE3124; --on-accent: #fff; --c-font: "LvlMonologue", "NG", sans-serif; }
 
 /* watermark: the ByTomorrow B on Home, the SHL mark on the SHL pages, none elsewhere */
 #homeMenu::before { content: ""; position: absolute; top: 60px; right: -90px; width: 560px; height: 640px; pointer-events: none; opacity: .045; background: url("assets/bt-mark.svg") no-repeat center / contain; }
@@ -133,14 +133,12 @@ button, input, select, textarea { font-family: inherit; }
 #homeMenu .menu-card[data-go-th="shlw"] { border-left-color: #e353fc; }
 #homeMenu .menu-card[data-go-th="nextmen"] { border-left-color: #ff7429; }
 #homeMenu .menu-card[data-go-th="nextwomen"] { border-left-color: #b87cff; }
-#homeMenu .menu-card[data-go-th="lvlm"] { border-left-color: #1096dc; }
-#homeMenu .menu-card[data-go-th="lvlw"] { border-left-color: #c15bff; }
+#homeMenu .menu-card[data-go-th="lvlm"], #homeMenu .menu-card[data-go-th="lvlw"] { border-left-color: #EE3124; }
 #homeMenu .menu-card[data-go-th="shl"]:hover:not(:disabled) { background: #caff1c; border-color: #caff1c; color: #1a1b38; }
 #homeMenu .menu-card[data-go-th="shlw"]:hover:not(:disabled) { background: #e353fc; border-color: #e353fc; color: #2a1148; }
 #homeMenu .menu-card[data-go-th="nextmen"]:hover:not(:disabled) { background: #ff7429; border-color: #ff7429; color: #04164a; }
 #homeMenu .menu-card[data-go-th="nextwomen"]:hover:not(:disabled) { background: #b87cff; border-color: #b87cff; color: #2a1148; }
-#homeMenu .menu-card[data-go-th="lvlm"]:hover:not(:disabled) { background: #1096dc; border-color: #1096dc; color: #02233f; }
-#homeMenu .menu-card[data-go-th="lvlw"]:hover:not(:disabled) { background: #c15bff; border-color: #c15bff; color: #2a0a40; }
+#homeMenu .menu-card[data-go-th="lvlm"]:hover:not(:disabled), #homeMenu .menu-card[data-go-th="lvlw"]:hover:not(:disabled) { background: #EE3124; border-color: #EE3124; color: #fff; }
 
 #homeMenu.theme-men .th-women, #homeMenu.theme-women .th-men, #homeMenu.theme-women .only-men { display: none; }
 #homeMenu .overview-panel, #homeMenu .storage-panel, #homeMenu .dash-panel, #homeMenu .dash-more-col { border-radius: 8px; }
@@ -189,7 +187,7 @@ button, input, select, textarea { font-family: inherit; }
 .cc-women { --cc-accent: #e34fff; --cc-bg: #2a1148; }
 .cc-women .cc-logo img { filter: brightness(0) invert(1); }
 .cc-hnl   { --cc-accent: #ff7429; --cc-bg: #04164a; }
-.cc-lvl   { --cc-accent: #1096dc; --cc-bg: #02233f; }
+.cc-lvl   { --cc-accent: #EE3124; --cc-bg: #1a0a0d; }
 .cc-lvl .cc-name { font-size: 24px; }
 @media (max-width: 1100px) { .client-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .client-grid { grid-template-columns: 1fr; } .cc-logo { height: 118px; } }
@@ -235,8 +233,7 @@ button, input, select, textarea { font-family: inherit; }
 .th-app[data-kind="shlw"] { --accent: #e353fc; --on-accent: #2a1148; }
 .th-app[data-kind="nextmen"] { --accent: #ff7429; --on-accent: #04164a; }
 .th-app[data-kind="nextwomen"] { --accent: #b87cff; --on-accent: #2a1148; }
-.th-app[data-kind="lvlm"] { --accent: #1096dc; --on-accent: #02233f; }
-.th-app[data-kind="lvlw"] { --accent: #c15bff; --on-accent: #2a0a40; }
+.th-app[data-kind="lvlm"], .th-app[data-kind="lvlw"] { --accent: #EE3124; --on-accent: #fff; }
 .settings-view { --accent: var(--bt-blue); --on-accent: #fff; background: var(--bt-navy); }
 
 .app, .hnl-app, .settings-view { border-top: 4px solid var(--accent); }
