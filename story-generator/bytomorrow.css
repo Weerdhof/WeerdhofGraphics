@@ -215,7 +215,7 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 /* Transition cover: the ByTomorrow B */
-.nav-wipe .nav-mark { width: 84px; height: auto; color: #060228; opacity: 0; }
+.nav-wipe .nav-mark { width: 76px; height: auto; color: #060228; opacity: 0; }
 .nav-wipe.boot { background: var(--bt-blue); }
 .nav-wipe.boot .nav-mark { opacity: .95; color: #fff; }
 
