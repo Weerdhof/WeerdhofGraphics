@@ -7,10 +7,12 @@
    Loaded after style.css.
    ===================================================================== */
 
-@font-face { font-family: "NG"; font-weight: 700; font-display: swap; src: url("fonts/bt/NiveauGroteskBold.ttf") format("truetype"); }
-@font-face { font-family: "OS"; font-weight: 400; font-display: swap; src: url("fonts/bt/OpenSans-Regular.ttf") format("truetype"); }
-@font-face { font-family: "OS"; font-weight: 600; font-display: swap; src: url("fonts/bt/OpenSans-SemiBold.ttf") format("truetype"); }
-@font-face { font-family: "OS"; font-weight: 700; font-display: swap; src: url("fonts/bt/OpenSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 300; font-display: swap; src: url("socials/fonts/NiveauGroteskLight.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 700; font-display: swap; src: url("socials/fonts/NiveauGroteskBold.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 900; font-display: swap; src: url("socials/fonts/NiveauGroteskBlack.otf") format("opentype"); }
+@font-face { font-family: "Open Sans"; font-weight: 400; font-display: swap; src: url("fonts/bt/OpenSans-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Open Sans"; font-weight: 600; font-display: swap; src: url("fonts/bt/OpenSans-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: "Open Sans"; font-weight: 700; font-display: swap; src: url("fonts/bt/OpenSans-Bold.ttf") format("truetype"); }
 /* client fonts for the landing pages (the editors load their own copies for the canvas) */
 @font-face { font-family: "HnlTusker"; font-weight: 700; font-display: swap; src: url("fonts/hnl/TuskerGrotesk-4700Bold.otf") format("opentype"); }
 @font-face { font-family: "LvlMonologue"; font-weight: 400; font-display: swap; src: url("fonts/lvl/Monologue-Regular.woff2") format("woff2"); }
@@ -26,10 +28,14 @@
   --bt-surface-2: #151058;
   --bt-line: #252070;
   --bt-dim: #a9aedc;
-  --bt-head: "NG", "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --bt-body: "OS", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bt-head: "Niveau Grotesk", "Arial Black", sans-serif;
+  --bt-body: "Open Sans", Arial, sans-serif;
+  --radius-sm: 4px; --radius-md: 5px; --radius-lg: 6px; --radius-pill: 20px;
+  --shadow-card: 0 1px 2px rgba(6, 2, 40, .06);
+  --shadow-raised: 0 4px 14px rgba(6, 2, 40, .18);
 }
 
+html { color-scheme: dark; }
 html, body { background: var(--bt-navy); }
 body { font-family: var(--bt-body); }
 button, input, select, textarea { font-family: inherit; }
@@ -47,8 +53,8 @@ button, input, select, textarea { font-family: inherit; }
 }
 #homeMenu.theme-men   { --bg: #1a1b38; --panel: #232557; --panel-2: #2d2f6b; --line: #3a3d85; --text-dim: #a9afd6; --accent: #caff1c; --on-accent: #1a1b38; --c-font: "ClashDisplay", sans-serif; }
 #homeMenu.theme-women { --bg: #2a1148; --panel: #3a1a5e; --panel-2: #4a2377; --line: #6a3aa0; --text-dim: #d3b8ee; --accent: #e34fff; --on-accent: #2a1148; --c-font: "ClashDisplay", sans-serif; }
-#homeMenu.theme-hnl   { --bg: #04164a; --panel: #0b2266; --panel-2: #12308a; --line: #24429e; --text-dim: #b5c2ee; --accent: #ff7429; --on-accent: #04164a; --c-font: "HnlTusker", "NG", sans-serif; }
-#homeMenu.theme-lvl   { --bg: #1a0a0d; --panel: #2a1116; --panel-2: #3a1820; --line: #5a2530; --text-dim: #e8b9c0; --accent: #EE3124; --on-accent: #fff; --c-font: "LvlMonologue", "NG", sans-serif; }
+#homeMenu.theme-hnl   { --bg: #04164a; --panel: #0b2266; --panel-2: #12308a; --line: #24429e; --text-dim: #b5c2ee; --accent: #ff7429; --on-accent: #04164a; --c-font: "HnlTusker", "Niveau Grotesk", sans-serif; }
+#homeMenu.theme-lvl   { --bg: #1a0a0d; --panel: #2a1116; --panel-2: #3a1820; --line: #5a2530; --text-dim: #e8b9c0; --accent: #EE3124; --on-accent: #060228; --c-font: "LvlMonologue", "Niveau Grotesk", sans-serif; }
 
 /* watermark: the ByTomorrow B on Home, the SHL mark on the SHL pages, none elsewhere */
 #homeMenu::before { content: ""; position: absolute; top: 110px; right: max(24px, calc((100vw - 1320px) / 2 + 24px)); width: 400px; height: 459px; pointer-events: none; opacity: .05; background: url("assets/bt-mark.svg") no-repeat center / contain; }
@@ -59,7 +65,7 @@ button, input, select, textarea { font-family: inherit; }
 /* ------------------------------------------------------------------
    The ByTomorrow bar: logo, client navigation, settings
    ------------------------------------------------------------------ */
-.bt-bar { position: relative; z-index: 3; background: var(--bt-navy); border-top: 4px solid var(--accent); border-bottom: 1px solid rgba(255,255,255,.08); }
+.bt-bar { position: relative; z-index: 3; background: var(--bt-navy); border-left: 4px solid var(--accent); border-bottom: 1px solid rgba(255,255,255,.08); }
 .bt-bar-in { max-width: 1320px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 22px; }
 .bt-brand { display: inline-flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; cursor: pointer; color: #fff; flex: none; }
 .bt-logo { display: block; width: 124px; height: 24px; color: #fff; }
@@ -139,7 +145,7 @@ button, input, select, textarea { font-family: inherit; }
 #homeMenu .menu-card[data-go-th="shlw"]:hover:not(:disabled) { background: #e353fc; border-color: #e353fc; color: #2a1148; }
 #homeMenu .menu-card[data-go-th="nextmen"]:hover:not(:disabled) { background: #ff7429; border-color: #ff7429; color: #04164a; }
 #homeMenu .menu-card[data-go-th="nextwomen"]:hover:not(:disabled) { background: #b87cff; border-color: #b87cff; color: #2a1148; }
-#homeMenu .menu-card[data-go-th="lvlm"]:hover:not(:disabled), #homeMenu .menu-card[data-go-th="lvlw"]:hover:not(:disabled) { background: #EE3124; border-color: #EE3124; color: #fff; }
+#homeMenu .menu-card[data-go-th="lvlm"]:hover:not(:disabled), #homeMenu .menu-card[data-go-th="lvlw"]:hover:not(:disabled) { background: #EE3124; border-color: #EE3124; color: #060228; }
 
 #homeMenu.theme-men .th-women, #homeMenu.theme-women .th-men, #homeMenu.theme-women .only-men { display: none; }
 #homeMenu .overview-panel, #homeMenu .storage-panel, #homeMenu .dash-panel, #homeMenu .dash-more-col { border-radius: 8px; }
@@ -234,10 +240,10 @@ button, input, select, textarea { font-family: inherit; }
 .th-app[data-kind="shlw"] { --accent: #e353fc; --on-accent: #2a1148; }
 .th-app[data-kind="nextmen"] { --accent: #ff7429; --on-accent: #04164a; }
 .th-app[data-kind="nextwomen"] { --accent: #b87cff; --on-accent: #2a1148; }
-.th-app[data-kind="lvlm"], .th-app[data-kind="lvlw"] { --accent: #EE3124; --on-accent: #fff; }
+.th-app[data-kind="lvlm"], .th-app[data-kind="lvlw"] { --accent: #EE3124; --on-accent: #060228; }
 .settings-view { --accent: var(--bt-blue); --on-accent: #fff; background: var(--bt-navy); }
 
-.app, .hnl-app, .settings-view { border-top: 4px solid var(--accent); }
+.app, .hnl-app, .settings-view { border-left: 4px solid var(--accent); }
 .editor-asset span:nth-child(2) { color: var(--accent); font-weight: 600; }
 .preview-wrap, .hnl-app .preview-wrap { background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 12%, var(--bt-navy)) 0%, var(--bt-navy) 70%); }
 .preview-wrap::before { background: url("assets/bt-mark.svg") no-repeat center / contain; opacity: .04; }
@@ -266,3 +272,56 @@ select, input[type="text"], input[type="number"], .paste-field textarea { border
 .set-links .btn, #homeMenu .set-links .btn-link { display: inline-flex; align-items: center; width: auto; margin: 0; padding: 11px 18px; border-radius: 20px; font: 600 13px/1 var(--bt-body); text-decoration: none; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); }
 .set-links .btn.btn-link, #homeMenu .set-links .btn.btn-link { background: transparent; border-color: rgba(255,255,255,.28); }
 .set-links .btn:hover { filter: brightness(1.12); }
+
+/* ======================================================================
+   Design pass after the ByTomorrow handoff (BRAND.md, tokens, components).
+   Only the platform around the graphics: nothing in here touches the
+   graphics themselves (canvas drawing, thumbnails, the socials templates).
+   ====================================================================== */
+
+/* Tight corners: 2-6px for cards and fields, 20px only for real pills, 50% for circles */
+.client-card, #homeMenu .menu-card, #homeMenu .overview-panel, #homeMenu .storage-panel, #homeMenu .dash-panel,
+#homeMenu .dash-more-col, #homeMenu .dash-stream, .byt-thumb { border-radius: var(--radius-lg); }
+.byt-thumb { border-radius: var(--radius-md); }
+select, input[type="text"], input[type="number"], .paste-field textarea, #bytApp textarea { border-radius: var(--radius-sm); }
+
+/* Hero: Eyebrow (Niveau Light, uppercase, 2px), title, subtitle, 3px accent line under the hero (DocHero) */
+#homeMenu .home-head { border-bottom: 3px solid var(--accent); padding-bottom: 28px; }
+#homeMenu .home-head::after { display: none; }
+#homeMenu .hero-pill, #homeMenu.theme-dash .hero-pill {
+  display: block; background: none; border: 0; padding: 0; border-radius: 0; margin: 4px 0 0;
+  font: 300 13px/1 var(--bt-head); letter-spacing: 2px; text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 55%, #fff);
+}
+#homeMenu .home-head h1 { margin-top: 12px; }
+#homeMenu.theme-men .home-head, #homeMenu.theme-women .home-head { border-bottom: 0; padding-bottom: 0; }
+
+/* Section labels: Open Sans 700, 11px, uppercase, 1px (SectionLabel); the clients keep their own chevron */
+#homeMenu .home-group { font: 700 11px/1 var(--bt-body); letter-spacing: 1px; margin: 38px 0 14px; }
+#homeMenu .home-group::before { width: 14px; height: 14px; border-radius: 0; background: var(--accent); clip-path: polygon(0 0, 55% 0, 100% 50%, 55% 100%, 0 100%, 45% 50%); }
+#homeMenu.theme-dash .home-group::before, #homeMenu.theme-byt .home-group::before { content: none; }
+
+/* Pills and links in the page's accent stay readable on the dark surfaces */
+.cc-pill, .cc-go { color: color-mix(in srgb, var(--cc-accent) 55%, #fff); }
+.cc-pill { background: color-mix(in srgb, var(--cc-accent) 18%, transparent); }
+.cc-byt .cc-go, .cc-byt .cc-pill { color: var(--bt-blue-2); }
+
+/* Motion: crisp, 120-180ms ease-out, hover lifts a little, press shrinks a little */
+.client-card, #homeMenu .menu-card { transition: transform 140ms ease-out, background-color 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out; box-shadow: var(--shadow-card); }
+.client-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
+#homeMenu .menu-card:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
+.client-card:active, #homeMenu .menu-card:active:not(:disabled), .btn:active, .btn-primary:active { transform: scale(.98); }
+#homeMenu .home-comp-tab, #homeMenu .home-settings-btn, .btn, .btn-primary, .byt-pillar, .mode-tab { transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, transform 120ms ease-out; }
+
+/* Keyboard: one clear focus ring on every control (the old rules removed the outline on fields) */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.client-card:focus-visible, #homeMenu .menu-card:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+select:focus-visible, input[type="text"]:focus-visible, input[type="number"]:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent, #3D5AFE); outline-offset: 1px; }
+.skip-link { position: absolute; left: 16px; top: -60px; z-index: 500; background: #fff; color: var(--bt-navy); padding: 10px 16px; border-radius: var(--radius-pill); font: 600 13px/1 var(--bt-body); text-decoration: none; }
+.skip-link:focus { top: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .client-card, #homeMenu .menu-card, #homeMenu .home-comp-tab, .btn, .btn-primary { transition: none; }
+  .client-card:hover, #homeMenu .menu-card:hover:not(:disabled), .client-card:active, #homeMenu .menu-card:active:not(:disabled) { transform: none; }
+}
+#homeMenu:not(.theme-dash):not(.theme-byt) .hero-pill { margin-top: 18px; }

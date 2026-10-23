@@ -2,7 +2,9 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#060228">
+<meta name="color-scheme" content="dark">
 <title>ByTomorrow Graphics</title>
 <link rel="icon" type="image/svg+xml" href="assets/bt-icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/bt-icon-32.png">
@@ -19,6 +21,7 @@
 
 <!-- ===================== HOME MENU (ByTomorrow Graphics) ===================== -->
 <div class="home-menu theme-dash" id="homeMenu">
+  <a class="skip-link" href="#homeMain">Naar de inhoud</a>
   <div class="bt-bar">
     <div class="bt-bar-in">
       <button class="bt-brand" data-home-comp="dash" type="button" aria-label="ByTomorrow Graphics, naar Home">
@@ -37,7 +40,7 @@
     </div>
   </div>
 
-  <div class="home-inner">
+  <div class="home-inner" id="homeMain" tabindex="-1">
     <header class="home-head" id="homeHead">
       <div class="hero-crumb" id="heroCrumb"><button type="button" data-home-comp="dash">ByTomorrow Graphics</button><span>/</span><b id="heroCrumbName"></b></div>
       <img class="home-logo" id="homeLogo" src="assets/footer-logo.png" alt="">

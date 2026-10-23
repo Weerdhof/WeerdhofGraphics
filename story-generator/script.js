@@ -811,7 +811,7 @@
       modeHint.textContent = 'Kies een wedstrijd voor de "Who takes the win?"-story. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'match') {
       matchesLabel.textContent = 'Tijd & teams';
-      modeHint.textContent = 'Kies een wedstrijd — teams en tijd worden automatisch ingevuld, de datum/ronde kun je aanpassen.';
+      modeHint.textContent = 'Kies een wedstrijd, teams en tijd worden automatisch ingevuld, de datum/ronde kun je aanpassen.';
     } else if (mode === 'matchresult') {
       matchesLabel.textContent = 'Uitslag & teams';
       modeHint.textContent = 'Kies een wedstrijd en vul de eindstand in.';
@@ -819,7 +819,7 @@
       matchesLabel.textContent = compKey === 'women' ? 'Speelster van de week' : 'Speler van de week';
       modeHint.textContent = 'Kies de club en vul de naam in. Upload bij Opmaak de foto.';
     } else if (mode === 'nowlive') {
-      matchesLabel.textContent = 'Now live — SHL TV';
+      matchesLabel.textContent = 'Now live, SHL TV';
       modeHint.textContent = 'Kies de wedstrijd die nu live is: die wordt gemarkeerd. De andere wedstrijden van die dag staan er klein onder. Alle wedstrijden van de speeldag in één keer downloaden kan onderaan.';
     } else if (mode === 'headtohead') {
       matchesLabel.textContent = 'Head to head';
@@ -828,18 +828,18 @@
       matchesLabel.textContent = 'Top scorer & uitslag';
       modeHint.textContent = 'Kies een wedstrijd, vul de eindstand in en de gegevens van de topscorer. Upload bij Opmaak een spelersfoto.';
     } else if (isMovers()) {
-      matchesLabel.textContent = 'Stand-movers — stijgers en dalers';
+      matchesLabel.textContent = 'Stand-movers, stijgers en dalers';
       modeHint.textContent = 'De stijgers en dalers komen automatisch uit de stand en uitslagen van de server. Kies hieronder met welke speeldag je vergelijkt.';
     } else if (mode === 'ranking') {
-      matchesLabel.textContent = 'Ranking — vul de stand in';
+      matchesLabel.textContent = 'Ranking, vul de stand in';
       modeHint.textContent = 'Vul per positie het team, gespeelde wedstrijden en punten in' +
-        (compKey === 'men' ? ' — of haal de stand automatisch op vanaf de SHL site.' : '.');
+        (compKey === 'men' ? ', of haal de stand automatisch op vanaf de SHL site.' : '.');
     } else if (mode === 'schedule') {
-      matchesLabel.textContent = 'Wedstrijden — tijd is aanpasbaar';
-      modeHint.textContent = 'Kies eerst een speelronde — teams en tijden worden automatisch ingevuld.';
+      matchesLabel.textContent = 'Wedstrijden, tijd is aanpasbaar';
+      modeHint.textContent = 'Kies eerst een speelronde, teams en tijden worden automatisch ingevuld.';
     } else {
-      matchesLabel.textContent = 'Wedstrijden — vul de scores in';
-      modeHint.textContent = 'Kies eerst een speelronde — teams worden automatisch ingevuld, scores vul je zelf in.';
+      matchesLabel.textContent = 'Wedstrijden, vul de scores in';
+      modeHint.textContent = 'Kies eerst een speelronde, teams worden automatisch ingevuld, scores vul je zelf in.';
     }
   }
   const exportBtn = document.getElementById('exportBtn');
@@ -1086,7 +1086,7 @@
       mp4Status.className = 'save-status ok';
     } catch (err) {
       console.error('MP4-opname mislukt:', err);
-      mp4Status.textContent = 'Opname mislukt — probeer het opnieuw.';
+      mp4Status.textContent = 'Opname mislukt, probeer het opnieuw.';
       mp4Status.className = 'save-status warn';
     }
     downloadMp4Btn.disabled = false;
@@ -1128,7 +1128,7 @@
       smMp4Status.className = 'save-status ok';
     } catch (err) {
       console.error('MP4-opname mislukt:', err);
-      smMp4Status.textContent = 'Opname mislukt — probeer het opnieuw.';
+      smMp4Status.textContent = 'Opname mislukt, probeer het opnieuw.';
       smMp4Status.className = 'save-status warn';
     }
     smDownloadMp4Btn.disabled = false;
