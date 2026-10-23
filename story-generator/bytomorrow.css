@@ -51,7 +51,8 @@ button, input, select, textarea { font-family: inherit; }
 #homeMenu.theme-lvl   { --bg: #1a0a0d; --panel: #2a1116; --panel-2: #3a1820; --line: #5a2530; --text-dim: #e8b9c0; --accent: #EE3124; --on-accent: #fff; --c-font: "LvlMonologue", "NG", sans-serif; }
 
 /* watermark: the ByTomorrow B on Home, the SHL mark on the SHL pages, none elsewhere */
-#homeMenu::before { content: ""; position: absolute; top: 60px; right: -90px; width: 560px; height: 640px; pointer-events: none; opacity: .045; background: url("assets/bt-mark.svg") no-repeat center / contain; }
+#homeMenu::before { content: ""; position: absolute; top: 110px; right: max(24px, calc((100vw - 1320px) / 2 + 24px)); width: 400px; height: 459px; pointer-events: none; opacity: .05; background: url("assets/bt-mark.svg") no-repeat center / contain; }
+@media (max-width: 1100px) { #homeMenu.theme-dash::before { display: none; } }
 #homeMenu.theme-men::before, #homeMenu.theme-women::before { top: -40px; right: -70px; width: 520px; height: 520px; opacity: .06; background: url("assets/vs-icon.png") no-repeat center / contain; }
 #homeMenu.theme-hnl::before, #homeMenu.theme-lvl::before { display: none; }
 
