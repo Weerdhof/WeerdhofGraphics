@@ -6,6 +6,10 @@
   'use strict';
   const TEMPLATES = window.BYT_TEMPLATES || [];
   const byId = Object.fromEntries(TEMPLATES.map(t => [t.id, t]));
+  const ASSETS = window.BYT_ASSETS || {};
+  const assetIds = []; TEMPLATES.forEach(t => { if (!assetIds.includes(t.asset)) assetIds.push(t.asset); });
+  const formatsOf = (asset) => TEMPLATES.filter(t => t.asset === asset);
+  const assetOf = (id) => (ASSETS[id] ? id : (byId[id] && byId[id].asset));
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -25,7 +29,7 @@
   const LONG = { quote: 4 };   // textarea rows
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-  const cur = { t: null, props: {}, photo: null, scale: 1 };
+  const cur = { asset: null, t: null, props: {}, photo: null, scale: 1 };
   const classes = {};
   class DCLogic { constructor(props) { this.props = props || {}; } }
   function logicFor(t) {
@@ -34,14 +38,30 @@
   }
 
   // ---------- persistence: the last fields per template (the photo stays in this session) ----------
-  const storeKey = (id) => 'byt-social:' + id;
-  function loadProps(t) {
+  const storeKey = (asset) => 'byt-social:asset:' + asset;
+  const fmtKey = (asset) => 'byt-social:format:' + asset;
+  function defaultProps(asset) {
     const props = {};
-    Object.entries(t.props).forEach(([k, v]) => { props[k] = v.default; });
-    try { Object.assign(props, JSON.parse(localStorage.getItem(storeKey(t.id)) || '{}')); } catch (e) { /* ignore */ }
+    formatsOf(asset).forEach(t => Object.entries(t.props).forEach(([k, v]) => { if (!(k in props)) props[k] = v.default; }));
     return props;
   }
-  function saveProps() { try { localStorage.setItem(storeKey(cur.t.id), JSON.stringify(cur.props)); } catch (e) { /* ignore */ } }
+  function loadProps(asset) {
+    const props = defaultProps(asset);
+    try { Object.assign(props, JSON.parse(localStorage.getItem(storeKey(asset)) || '{}')); } catch (e) { /* ignore */ }
+    return props;
+  }
+  function saveProps() { try { localStorage.setItem(storeKey(cur.asset), JSON.stringify(cur.props)); } catch (e) { /* ignore */ } }
+
+  // the story has two title lines, the other formats one: carry the title over when the format changes
+  function carryTitle(from, to) {
+    const p = cur.props, lines = (t) => 'titleLine1' in t.props;
+    if (lines(from) && !lines(to) && 'title' in to.props) {
+      p.title = [p.titleLine1, p.titleLine2].filter(x => x && String(x).trim()).join('  ');
+    } else if (!lines(from) && lines(to) && 'title' in from.props) {
+      const parts = String(p.title || '').split(/\s{2,}|\n/).filter(Boolean);
+      p.titleLine1 = parts[0] || ''; p.titleLine2 = parts.slice(1).join(' ');
+    }
+  }
 
   // ---------- rendering ----------
   function frameEl() { return $('bytFrame'); }
@@ -139,7 +159,13 @@
     const box = $('bytControls'), t = cur.t; if (!box || !t) return;
     const textKeys = Object.keys(t.props).filter(k => t.props[k].editor === 'text');
     const hasSlot = /class="byt-slot"/.test(t.html);
+    const formats = formatsOf(cur.asset);
     let n = 1, html = '';
+    if (formats.length > 1) {
+      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Formaat</div>
+        <div class="mode-tabs mode-tabs-compact" id="bytFormats" role="tablist" aria-label="Formaat">${formats.map(f => `<button type="button" class="mode-tab${f.id === t.id ? ' active' : ''}" role="tab" aria-selected="${f.id === t.id}" data-f="${f.id}">${esc(f.format)}</button>`).join('')}</div>
+        <p class="hint">${t.w} × ${t.h} px. De velden en de foto blijven staan als je van formaat wisselt.</p></div>`;
+    }
     html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Tekst</div>` +
       textKeys.map(k => LONG[k]
         ? `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><textarea id="byt_${k}" data-k="${k}" rows="${LONG[k]}">${esc(cur.props[k])}</textarea></div>`
@@ -162,7 +188,7 @@
         <p class="hint">Sleep in het voorbeeld om de foto te verschuiven. Zoom in om hem verder te kunnen verplaatsen.</p>` : ''}</div>`;
     }
     html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${n++}</span> Exporteren</div>
-      <p class="hint">PNG op ware grootte: ${t.w} × ${t.h} px.</p>
+      <p class="hint">PNG op ware grootte: ${t.w} × ${t.h} px${formats.length > 1 ? ` (${esc(t.format)})` : ''}.</p>
       <button class="btn btn-primary" id="bytExport" type="button">Exporteer als PNG</button>
       <button class="btn btn-link" id="bytReset" type="button">Velden terugzetten</button>
       <p class="save-status" id="bytStatus" hidden></p></div>`;
@@ -170,6 +196,8 @@
     bindControls();
   }
   function bindControls() {
+    const fm = $('bytFormats');
+    if (fm) fm.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => switchFormat(b.dataset.f)));
     $('bytControls').querySelectorAll('[data-k]').forEach(el => {
       const on = () => { cur.props[el.dataset.k] = el.value; saveProps(); scheduleRender(); };
       el.addEventListener('input', on); el.addEventListener('change', on);
@@ -188,10 +216,9 @@
     const rm = $('bytPhotoRemove'); if (rm) rm.addEventListener('click', () => { cur.photo = null; buildControls(); render(); });
     $('bytExport').addEventListener('click', exportPng);
     $('bytReset').addEventListener('click', () => {
-      const keep = cur.props.pillar; cur.props = loadDefaults(cur.t); cur.props.pillar = keep; saveProps(); buildControls(); render();
+      const keep = cur.props.pillar; cur.props = defaultProps(cur.asset); cur.props.pillar = keep; saveProps(); buildControls(); render();
     });
   }
-  function loadDefaults(t) { const p = {}; Object.entries(t.props).forEach(([k, v]) => { p[k] = v.default; }); return p; }
   const status = (s) => { const el = $('bytStatus'); if (el) { el.textContent = s; el.hidden = !s; } };
 
   // ---------- export ----------
@@ -260,26 +287,42 @@
     } finally { btn.disabled = false; }
   }
 
+  function setHeader() {
+    const t = cur.t, a = ASSETS[cur.asset] || {};
+    $('bytTitle').textContent = a.label || t.id;
+    $('bytSub').textContent = (formatsOf(cur.asset).length > 1 ? t.format + ' · ' : '') + `${t.w} × ${t.h}`;
+  }
+  function switchFormat(id) {
+    const to = byId[id]; if (!to || to === cur.t) return;
+    carryTitle(cur.t, to);
+    cur.t = to; saveProps();
+    try { localStorage.setItem(fmtKey(cur.asset), id); } catch (e) { /* ignore */ }
+    setHeader(); buildControls(); render();
+    requestAnimationFrame(fit);
+  }
+
   // ---------- landing page cards ----------
   function buildCards() {
     const box = $('bytCards'); if (!box) return;
-    const groups = [];
-    TEMPLATES.forEach(t => { let g = groups.find(x => x.name === t.group); if (!g) groups.push(g = { name: t.group, items: [] }); g.items.push(t); });
-    box.innerHTML = groups.map(g => `<h2 class="home-group">${esc(g.name)}</h2><div class="home-cards byt-cards">` + g.items.map(t =>
-      `<button class="menu-card byt-card" data-go-byt="${t.id}" type="button">
-        <span class="byt-thumb"><img src="socials/thumbs/${t.id}.webp" alt="" loading="lazy"></span>
-        <span class="menu-title">${esc(t.label)}</span>
-        <span class="menu-desc">${esc(t.desc)}</span>
-        <span class="menu-tags"><i>PNG</i><i>${t.w} × ${t.h}</i></span>
-      </button>`).join('') + '</div>').join('');
+    box.innerHTML = '<h2 class="home-group">Templates</h2><div class="home-cards byt-cards">' + assetIds.map(id => {
+      const a = ASSETS[id] || {}, fs = formatsOf(id);
+      return `<button class="menu-card byt-card" data-go-byt="${id}" type="button">
+        <span class="byt-thumb"><img src="socials/thumbs/${fs[0].id}.webp" alt="" loading="lazy"></span>
+        <span class="menu-title">${esc(a.label || id)}</span>
+        <span class="menu-desc">${esc(a.desc || '')}</span>
+        <span class="menu-tags">${fs.length > 1 ? fs.map(f => `<i>${esc(f.format)}</i>`).join('') : ''}<i>PNG</i></span>
+      </button>`;
+    }).join('') + '</div>';
   }
 
   window.BYT = {
     templates: TEMPLATES,
     open(id) {
-      const t = byId[id]; if (!t) return;
-      cur.t = t; cur.props = loadProps(t); cur.photo = null;
-      $('bytTitle').textContent = t.label; $('bytSub').textContent = `${t.w} × ${t.h}`;
+      const asset = assetOf(id); if (!asset) return;
+      let t = byId[id] && byId[id].asset === asset ? byId[id] : null;   // a template id opens that format
+      if (!t) { let last = null; try { last = localStorage.getItem(fmtKey(asset)); } catch (e) { /* ignore */ } t = (byId[last] && byId[last].asset === asset) ? byId[last] : formatsOf(asset)[0]; }
+      cur.asset = asset; cur.t = t; cur.props = loadProps(asset); cur.photo = null;
+      setHeader();
       buildControls();
       if (!bindDrag.done) { bindDrag(); bindDrag.done = true; }
       render();

@@ -2,9 +2,8 @@
 window.BYT_TEMPLATES = [
  {
   "id": "social-wedstrijd",
-  "group": "Wedstrijd",
-  "label": "Wedstrijd, feed",
-  "desc": "Aankondiging voor de feed: competitie en tijd, grote titel, sport-icoon en LIVE OP over de foto.",
+  "asset": "wedstrijd",
+  "format": "Feed",
   "name": "Social — Wedstrijd aankondiging",
   "description": "1080×1350 wedstrijdaankondiging: pijlerveld, competitie + tijd pills in secundaire kleur, grote titel, sport-icoon en LIVE-OP-capsule 50/50 over de foto",
   "w": 1080,
@@ -83,9 +82,8 @@ window.BYT_TEMPLATES = [
  },
  {
   "id": "social-wedstrijd-story",
-  "group": "Wedstrijd",
-  "label": "Wedstrijd, story",
-  "desc": "Dezelfde aankondiging als story, met een titel van twee regels.",
+  "asset": "wedstrijd",
+  "format": "Story",
   "name": "Social — Wedstrijd story",
   "description": "1080×1920 wedstrijdaankondiging voor Stories: pijlerveld, pills in secundaire kleur, tweeregelige titel, sport-icoon, LIVE-OP-capsule 50/50 over de foto en sleep-foto-slot",
   "w": 1080,
@@ -169,9 +167,8 @@ window.BYT_TEMPLATES = [
  },
  {
   "id": "wedstrijd-linkedin",
-  "group": "Wedstrijd",
-  "label": "Wedstrijd, LinkedIn",
-  "desc": "Vierkante aankondiging voor LinkedIn.",
+  "asset": "wedstrijd",
+  "format": "LinkedIn",
   "name": "Wedstrijd aankondiging (LinkedIn)",
   "description": "1200×1200 wedstrijdaankondiging voor LinkedIn: pijlerveld, pills in secundaire kleur, titel, sport-icoon, LIVE-OP-capsule over de foto-slot",
   "w": 1200,
@@ -250,9 +247,8 @@ window.BYT_TEMPLATES = [
  },
  {
   "id": "social-quote",
-  "group": "Quote",
-  "label": "Quote",
-  "desc": "Een uitspraak groot in beeld, met auteur en een knop naar het artikel.",
+  "asset": "quote",
+  "format": "Feed",
   "name": "Social — Quote",
   "description": "1080×1350 quote post: pillar-color field, giant quote-mark watermarks, big Niveau quote + Substack CTA",
   "w": 1080,
@@ -291,3 +287,13 @@ window.BYT_TEMPLATES = [
   }
  }
 ];
+window.BYT_ASSETS = {
+ "wedstrijd": {
+  "label": "Wedstrijd aankondiging",
+  "desc": "Competitie en tijd, grote titel, sport-icoon en LIVE OP over de foto. Kies feed, story of LinkedIn."
+ },
+ "quote": {
+  "label": "Quote",
+  "desc": "Een uitspraak groot in beeld, met auteur en een knop naar het artikel."
+ }
+};
