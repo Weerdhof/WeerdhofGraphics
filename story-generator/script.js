@@ -135,6 +135,8 @@
   const SM_TEXT_COLOR = '#14142b';
   const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
   const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
+  // The date line of a match graphic: POSTPONED (UITGESTELD for the women) when the match is marked as postponed.
+  const matchDateText = () => (smState.postponed ? (compKey === 'women' ? 'UITGESTELD' : 'POSTPONED') : (smState.dateRound || ''));
   const SM_CENTER_X = 540;
   // Post (the original, only size) vs Story — same horizontal layout, the
   // Story canvas is just taller (1920 vs 1350) so everything shifts down
@@ -301,6 +303,10 @@
     nlDate: '', nlTime: '',
     // Player of the week: the player's club and name.
     pwTeam: '', pwName: '',
+    // Postponed: the match graphic shows POSTPONED instead of the date.
+    postponed: false,
+    // Announcement (men): a label, a headline and a text on a background.
+    annKicker: 'ANNOUNCEMENT', annTitle: 'Your announcement here', annText: '',
   };
   // Ranking has two views: the table and the "movers" (risers and fallers since the previous matchday). The movers view is
   // reached through its own tab/card (data-mode="movers"); mode stays 'ranking' so the shared Story/Post machinery applies.
@@ -309,7 +315,7 @@
   const tabKey = () => isMovers() ? 'movers' : mode;
   // Results / Schedule / Ranking share the Story-or-Post choice (Post = left or right aligned, transparent).
   function isListMode() { return mode === 'results' || mode === 'schedule' || mode === 'ranking'; }
-  function isSingleMode() { return mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'nowlive' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
+  function isSingleMode() { return mode === 'announcement' || mode === 'match' || mode === 'prediction' || mode === 'headtohead' || mode === 'nowlive' || mode === 'matchresult' || mode === 'topscorer' || mode === 'playerweek'; }
   // single-match graphics that only exist as a Post (1080x1350)
   function postOnlyMode() { return mode === 'topscorer' || mode === 'playerweek' || mode === 'headtohead' || mode === 'nowlive'; }
   // Match and Prediction share the announcement layout (teams, time, date; no score)
@@ -815,6 +821,9 @@
     } else if (mode === 'matchresult') {
       matchesLabel.textContent = 'Uitslag & teams';
       modeHint.textContent = 'Kies een wedstrijd en vul de eindstand in.';
+    } else if (mode === 'announcement') {
+      matchesLabel.textContent = 'Announcement';
+      modeHint.textContent = 'Vul een label, een titel en eventueel een tekst in. Kies bij Opmaak Story of Post en voeg eventueel een foto toe als achtergrond.';
     } else if (mode === 'playerweek') {
       matchesLabel.textContent = compKey === 'women' ? 'Speelster van de week' : 'Speler van de week';
       modeHint.textContent = 'Kies de club en vul de naam in. Upload bij Opmaak de foto.';
@@ -1454,7 +1463,7 @@
     if (isSingleMode()) {
       const prev = smMatches.length ? { id: smState.id, home: smState.home, away: smState.away } : null;
       populateSingleMatchSelect();
-      if (mode === 'playerweek') return;
+      if (mode === 'playerweek' || mode === 'announcement') return;
       const target = smMatches.find(m => m.id === smState.id)
         || smMatches.find(m => prev && m.home === prev.home && m.away === prev.away)
         || smMatches.find(m => prev && m.home === prev.away && m.away === prev.home)
@@ -1908,7 +1917,7 @@
       appEl.classList.toggle('theme-women', compKey === 'women');
       refreshCheckButtonLabels();
       // Now live (SHL TV) only exists for Mannen — fall back to Match.
-      if (compKey === 'women' && mode === 'nowlive') {
+      if (compKey === 'women' && (mode === 'nowlive' || mode === 'announcement')) {
         mode = 'match';
         modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === tabKey()));
         updateHint();
@@ -2019,6 +2028,7 @@
     smState.tsFirst = restore ? (restore.tsFirst || '') : '';
     smState.tsLast = restore ? (restore.tsLast || '') : '';
     smState.tsGoals = restore ? (restore.tsGoals || '') : '';
+    smState.postponed = !!(restore && restore.postponed);
     if (restore) { smState.pwTeam = restore.pwTeam || smState.pwTeam; smState.pwName = restore.pwName || smState.pwName; }
     roundSelect.value = m.id;
     buildMatchRows();
@@ -2048,7 +2058,7 @@
         populateSingleMatchSelect();
         if (!smMatches.length) return;
         let restoreMatch = null, restoreSm = null;
-        if (savedState && (['match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
+        if (savedState && (['match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'announcement'].includes(savedState.mode)) && savedState.sm && savedState.sm.id) {
           restoreMatch = smMatches.find(x => x.id === savedState.sm.id);
           restoreSm = savedState.sm;
         }
@@ -2172,10 +2182,10 @@
       modeTabs.forEach(b => b.classList.toggle('active', b === btn));
 
       if (isSingleMode()) {
-        roundSelectField.hidden = mode === 'playerweek'; // no fixture to pick
+        roundSelectField.hidden = mode === 'playerweek' || mode === 'announcement'; // no fixture to pick
         roundSelectLabel.textContent = 'Wedstrijd';
         updateHint();
-        checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek'; // no score to fetch
+        checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek' || mode === 'announcement'; // no score to fetch
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         checkStandingsStatus.hidden = true;
@@ -2184,7 +2194,7 @@
         smwFormatField.hidden = postOnlyMode(); // Post-only
         syncFormatButtons();
         resetResultsAnim();
-        smAnimField.hidden = false;
+        smAnimField.hidden = mode === 'announcement';
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
         if (smMatches.length && smMatchesCompKey === compKey) {
           populateSingleMatchSelect();
@@ -2261,6 +2271,7 @@
     rankingHeader.hidden = mode !== 'ranking' || isMovers();
     if (isMovers()) { buildMoversRow(); return; }
     if (mode === 'playerweek') { buildPlayerWeekRow(); return; }
+    if (mode === 'announcement') { buildAnnouncementRow(); return; }
     if (isSingleMode()) {
       buildSingleMatchRow();
       return;
@@ -2418,6 +2429,98 @@
     matchesList.appendChild(node);
   }
 
+  // Announcement (men): label, headline and text, typed in the left panel
+  function buildAnnouncementRow() {
+    const node = document.createElement('div');
+    node.className = 'match-row';
+    node.innerHTML = '<div class="field"><label>Label (klein, boven de titel)</label><input type="text" class="ann-kicker" placeholder="bv. ANNOUNCEMENT" autocomplete="off"></div>' +
+      '<div class="field"><label>Titel</label><textarea class="ann-title" rows="3" placeholder="bv. Round 12 is moved to Sunday" autocomplete="off"></textarea></div>' +
+      '<div class="field"><label>Tekst (mag leeg)</label><textarea class="ann-text" rows="5" placeholder="Een korte toelichting" autocomplete="off"></textarea></div>';
+    const k = node.querySelector('.ann-kicker'), t = node.querySelector('.ann-title'), x = node.querySelector('.ann-text');
+    k.value = smState.annKicker; t.value = smState.annTitle; x.value = smState.annText;
+    k.addEventListener('input', () => { smState.annKicker = k.value; render(); });
+    t.addEventListener('input', () => { smState.annTitle = t.value; render(); });
+    x.addEventListener('input', () => { smState.annText = x.value; render(); });
+    matchesList.appendChild(node);
+  }
+
+  // Splits text into lines that fit maxW (explicit line breaks are kept)
+  function annWrap(c, text, maxW) {
+    const out = [];
+    String(text || '').split('\n').forEach(par => {
+      const words = par.split(/\s+/).filter(Boolean);
+      if (!words.length) { out.push(''); return; }
+      let line = '';
+      words.forEach(w => {
+        const test = line ? line + ' ' + w : w;
+        if (c.measureText(test).width <= maxW || !line) line = test; else { out.push(line); line = w; }
+      });
+      out.push(line);
+    });
+    return out;
+  }
+
+  function renderAnnouncement() {
+    const L = SM_LAYOUTS[smFormat] || SM_LAYOUTS.post, W = L.canvasW, H = L.canvasH;
+    const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
+    const LIME = '#ccff33', M = 80, maxW = W - 2 * M, story = H > 1500;
+    ctx.clearRect(0, 0, W, H);
+    if (!transparentBg) { ctx.fillStyle = COMPETITIONS.men.bgColor; ctx.fillRect(0, 0, W, H); }
+    if (bgPhotoImg) {
+      drawBgPhotoCover(ctx, bgPhotoImg);
+      const g = ctx.createLinearGradient(0, 0, 0, H);   // a navy veil keeps the text readable
+      g.addColorStop(0, 'rgba(26,27,56,0.86)'); g.addColorStop(0.6, 'rgba(26,27,56,0.62)'); g.addColorStop(1, 'rgba(26,27,56,0.8)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    } else {
+      const mark = loadImg('assets/vs-icon.png');   // the SHL icon as a faint watermark
+      const tinted = mark && mark.complete && mark.naturalWidth ? tintImage(mark, 'vs', '#ffffff') : null;
+      if (tinted) { ctx.save(); ctx.globalAlpha = 0.06; const mw = W * 0.95, mh = mw * tinted.height / tinted.width; ctx.drawImage(tinted, W - mw * 0.78, H * 0.04, mw, mh); ctx.restore(); }
+    }
+    // the pulse: lime chevron lines in the corners
+    drawSmCardChevron(ctx, W - 30, story ? 170 : 96, false, LIME, 1.1, 0.45);
+    drawSmCardChevron(ctx, W - 36, H - (story ? 640 : 330), false, LIME, 1.5, 0.4);
+
+    const kicker = String(smState.annKicker || '').toUpperCase(), title = String(smState.annTitle || '').toUpperCase(), text = String(smState.annText || '').trim();
+    const top = story ? 330 : 190, bottomLimit = L.footer.y - 50;
+    // headline: the biggest size that fits the free height
+    const bodyPx = story ? 46 : 38, bodyLH = Math.round(bodyPx * 1.4);
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    const kickerBlock = kicker ? 100 : 40;
+    let bodyLines = [];
+    ctx.font = `500 ${bodyPx}px "${fontFamily}"`;
+    if (text) bodyLines = annWrap(ctx, text, maxW);
+    const bodyH = bodyLines.length ? bodyLines.length * bodyLH + 60 : 0;
+    const avail = bottomLimit - top - kickerBlock - bodyH;
+    let px = story ? 150 : 124, lines = [];
+    for (; px >= 56; px -= 4) {
+      ctx.font = `700 ${px}px "${fontFamily}"`; lines = annWrap(ctx, title, maxW);
+      if (lines.length * px * 1.02 <= avail) break;
+    }
+    // the block (bar, label, headline, text) sits a little above the middle of the free height
+    const bodyGap = story ? 96 : 84;
+    const blockH = 12 + (kicker ? 92 : 10) + px * 0.98 + (lines.length - 1) * px * 1.02 + (bodyLines.length ? bodyGap + (bodyLines.length - 1) * bodyLH : 0);
+    let y = top + Math.max(0, (bottomLimit - top - blockH) * 0.4);
+    ctx.fillStyle = LIME; ctx.fillRect(M, y, 130, 12); y += 12;
+    if (kicker) {
+      y += 62; ctx.font = `700 38px "${fontFamily}"`; ctx.fillStyle = LIME; ctx.letterSpacing = '7px'; ctx.fillText(kicker, M, y); ctx.letterSpacing = '0px'; y += 30;
+    } else y += 10;
+    ctx.font = `700 ${px}px "${fontFamily}"`; ctx.fillStyle = '#ffffff';
+    y += px * 0.98;
+    lines.forEach((ln, i) => { ctx.fillText(ln, M, y + i * px * 1.02); });
+    y += (lines.length - 1) * px * 1.02;
+    if (bodyLines.length) {
+      y += bodyGap; ctx.font = `500 ${bodyPx}px "${fontFamily}"`; ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      bodyLines.forEach((ln, i) => { ctx.fillText(ln, M, y + i * bodyLH); });
+    }
+    // footer logo, like the other men's graphics
+    const footerImg = loadImg('assets/footer-logo.png');
+    if (footerImg && footerImg.complete && footerImg.naturalWidth) {
+      ctx.save(); ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+      ctx.drawImage(footerImg, L.footer.x, L.footer.y, L.footer.w, L.footer.h);
+      ctx.restore();
+    }
+  }
+
   function buildSingleMatchRow() {
     const tpl = document.getElementById('singleMatchRowTemplate');
     const node = tpl.content.firstElementChild.cloneNode(true);
@@ -2495,6 +2598,13 @@
     dateRow.hidden = mode !== 'match';
     dateInput.value = smState.dateRound;
     dateInput.addEventListener('input', () => { smState.dateRound = dateInput.value; render(); });
+    // Postponed: the graphic shows POSTPONED instead of the date (Match and Head to head)
+    const ppRow = node.querySelector('.single-match-postponed-row'), ppCheck = node.querySelector('.sm-postponed');
+    ppRow.hidden = !(mode === 'match' || mode === 'headtohead');
+    node.querySelector('.sm-postponed-text').textContent = compKey === 'women' ? 'Uitgesteld: toon UITGESTELD in plaats van de datum' : 'Uitgesteld: toon POSTPONED in plaats van de datum';
+    ppCheck.checked = !!smState.postponed;
+    dateInput.disabled = ppCheck.checked;
+    ppCheck.addEventListener('change', () => { smState.postponed = ppCheck.checked; dateInput.disabled = ppCheck.checked; render(); });
 
     matchesList.appendChild(node);
   }
@@ -3206,6 +3316,7 @@
   });
 
   function renderSingleMatch() {
+    if (mode === 'announcement') { renderAnnouncement(); return; }
     if (mode === 'playerweek') { renderPlayerWeek(); return; }
     if (mode === 'topscorer') { renderTopScorer(); return; }
     if (mode === 'headtohead') { renderHeadToHead(); return; }
@@ -3954,7 +4065,7 @@
       ctx.fillStyle = T.accent; ctx.fillRect(L, 230, 10, 78); ctx.restore();
       group(et, -26 * (1 - et), 0, () => {
         tsInkText('HEAD TO HEAD', L + 34, 265, `700 44px "${fontFamily}"`, T.text);
-        const sub = [(smState.dateRound || '').toUpperCase(), smState.time || ''].filter(Boolean).join('  ·  ');
+        const sub = [matchDateText().toUpperCase(), smState.postponed ? '' : (smState.time || '')].filter(Boolean).join('  ·  ');
         tsInkText(sub, L + 34, 303, `500 28px "${fontFamily}"`, T.text, 'left', 0.8);
       });
     }
@@ -4343,7 +4454,7 @@
 
     if (mode === 'match') {   // the Prediction story has no date/round line
       ctx.font = `500 ${SM_DATE_FONT}px "${fontFamily}"`;
-      ctx.fillText(smState.dateRound || '', SM_CENTER_X, L.dateY);
+      ctx.fillText(matchDateText(), SM_CENTER_X, L.dateY);
     }
 
     if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamY, L.teamY + SM_TEAM_H, '#caff1c', false, { men: true, x0: SM_TEAM_LEFT_X, x1: SM_TEAM_RIGHT_X + SM_TEAM_W });
@@ -4491,7 +4602,7 @@
 
     if (mode === 'match') {
       ctx.font = `500 ${L.dateFont}px "${fontFamily}"`;
-      ctx.fillText(smState.dateRound || '', L.centerX, L.dateY);
+      ctx.fillText(matchDateText(), L.centerX, L.dateY);
     }
 
     // Each team's own PNG (assets/women/singlematch/teams/<CODE>.png) is
@@ -4932,7 +5043,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const nameBit = (isSingleMode()) ? (smState.id || 'match')
+      const nameBit = (mode === 'announcement') ? (smState.annTitle || 'announcement').slice(0, 40) : (isSingleMode()) ? (smState.id || 'match')
         : isMovers() ? 'movers'
         : mode === 'ranking' ? 'ranking'
         : (state.date || 'story');
@@ -5001,21 +5112,21 @@
       appEl.classList.toggle('theme-women', compKey === 'women');
     }
     refreshCheckButtonLabels();
-    if (savedState.mode === 'nowlive' && compKey !== 'men') savedState.mode = 'match';
-    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'ranking'].includes(savedState.mode);
+    if ((savedState.mode === 'nowlive' || savedState.mode === 'announcement') && compKey !== 'men') savedState.mode = 'match';
+    const canRestoreMode = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'announcement', 'ranking'].includes(savedState.mode);
     if (canRestoreMode) {
       mode = savedState.mode;
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.mode === tabKey()));
       if (isSingleMode()) {
         roundSelectLabel.textContent = 'Wedstrijd';
-        checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek';
+        checkScoresBtn.hidden = isMatchLike() || mode === 'playerweek' || mode === 'announcement';
         checkScoresStatus.hidden = true;
         checkStandingsBtn.hidden = true;
         exportElementBtn.hidden = true;
         bgPhotoField.hidden = false;
-        smAnimField.hidden = false;
+        smAnimField.hidden = mode === 'announcement';
         smwFormatField.hidden = postOnlyMode();
-        roundSelectField.hidden = mode === 'playerweek';
+        roundSelectField.hidden = mode === 'playerweek' || mode === 'announcement';
         smwFormatBtns.forEach(b => b.classList.toggle('active', b.dataset.smwFormat === smFormat));
         { const sz = smCanvasSize(); canvas.width = sz.w; canvas.height = sz.h; }
       } else if (mode === 'ranking') {
@@ -5055,7 +5166,7 @@
     let id;
     if (mode === 'results' || mode === 'schedule') id = currentRoundId;
     else if (mode === 'ranking') id = 'table';
-    else if (mode === 'playerweek') id = 'current';
+    else if (mode === 'playerweek' || mode === 'announcement') id = 'current';
     else id = smState.id;
     return id ? `${compKey}:${mode}:${id}` : null;
   }
@@ -5079,7 +5190,7 @@
       return { ...common, kind: 'ranking', format: resultsFormat, manual: !!rankManual[compKey], rows: rankState[compKey].map(r => ({ ...r })) };
     }
     const sm = {};
-    ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName', 'nlDate', 'nlTime'].forEach(k => { sm[k] = smState[k]; });
+    ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName', 'nlDate', 'nlTime', 'postponed', 'annKicker', 'annTitle', 'annText'].forEach(k => { sm[k] = smState[k]; });
     return { ...common, kind: 'single', format: smFormat, postDecor, sm };
   }
 
@@ -5284,7 +5395,7 @@
         body: JSON.stringify({ action, comp: comp || compKey, asset: asset || tabKey(), format: fmt === undefined ? assetFmt() : fmt }) }).catch(() => {});
     } catch (e) { /* ignore */ }
   }
-  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', nowlive: 'Now live (SHL TV)', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking', movers: 'Stand-movers' };
+  const ASSET_NAMES = { results: 'Results', schedule: 'Schedule', match: 'Match', prediction: 'Prediction', headtohead: 'Head to head', nowlive: 'Now live (SHL TV)', announcement: 'Announcement', matchresult: 'Matchresult', topscorer: 'Top scorer', playerweek: 'Speler van de week', ranking: 'Ranking', movers: 'Stand-movers' };
   var menuComp = 'dash';   // var: renderOverviewMeta can run during early init (render). The dashboard is the start page.
   var lastHome = 'dash';   // the home tab an editor was opened from (we go back to it)
 
@@ -5311,7 +5422,7 @@
     setTxt('heroTitle', cl.title); setTxt('heroSub', cl.sub); setTxt('heroPill', cl.pill); setTxt('heroCrumbName', cl.name);
     if (window.DASH) { if (menuComp === 'dash') lastTickerReady = window.DASH.show(); else window.DASH.hide(); }
     homeMenu.querySelectorAll('.home-comp-tab').forEach(b => b.classList.toggle('active', b.dataset.homeComp === menuComp));
-    homeMenu.querySelectorAll('.menu-card[data-go-mode="nowlive"]').forEach(c => { c.disabled = menuComp === 'women'; });
+    homeMenu.querySelectorAll('.menu-card[data-go-mode="nowlive"], .menu-card[data-go-mode="announcement"]').forEach(c => { c.disabled = menuComp === 'women'; });
     const logo = document.getElementById('homeLogo');
     if (logo && cl.logo) logo.setAttribute('src', cl.logo);
     document.title = menuComp === 'dash' ? 'ByTomorrow Graphics' : `${cl.name} · ByTomorrow Graphics`;

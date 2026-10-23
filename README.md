@@ -57,3 +57,8 @@ The tool is branded as ByTomorrow Graphics. `bytomorrow.css` (loaded after `styl
 ### ByTomorrow Socials
 
 The "Socials" tab holds the social templates from the ByTomorrow design handoff. `socials/build_socials.py` converts the handoff's `*.dc.html` files (HTML with `{{ holes }}`, the pillar/sport logic block, `<image-slot>` and the Logo/Monogram imports) into `socials/templates.js`; `socials.js` renders them at native size, with fields, pillar and sport pickers, a draggable/zoomable photo and a PNG export (SVG foreignObject with the fonts embedded; also stored on the server via `/api/export`). To add a template, add its folder to `ENABLED` in the script and run `python3 socials/build_socials.py [path to design_handoff_bytomorrow]`. Fonts: Niveau Grotesk and Open Sans (`socials/fonts`, `fonts/bt`), a Material Symbols Rounded subset for the sport icons.
+
+### Announcement and postponed (SHL)
+
+- **Announcement** (men only): a label, a headline and an optional text on the SHL background (Story or Post), with an optional photo behind it under a navy veil. Code: `buildAnnouncementRow` and `renderAnnouncement` in `script.js`.
+- **Postponed:** on Match and Head to head a checkbox shows POSTPONED (UITGESTELD for the women) instead of the date. Clear the time field if the time should go as well. The option is stored with the item (`smState.postponed`).

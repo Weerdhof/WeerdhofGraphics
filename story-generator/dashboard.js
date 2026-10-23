@@ -62,7 +62,7 @@
   }
 
   const GO = {
-    men: [['results', '', 'Results'], ['schedule', '', 'Schedule'], ['match', '', 'Match'], ['matchresult', '', 'Matchresult'], ['prediction', '', 'Prediction'], ['headtohead', '', 'Head to head'], ['nowlive', '', 'Now live'], ['topscorer', '', 'Top scorer'], ['playerweek', '', 'Speler van de week'], ['ranking', '', 'Ranking'], ['movers', '', 'Stand-movers']],
+    men: [['results', '', 'Results'], ['schedule', '', 'Schedule'], ['match', '', 'Match'], ['matchresult', '', 'Matchresult'], ['prediction', '', 'Prediction'], ['headtohead', '', 'Head to head'], ['nowlive', '', 'Now live'], ['announcement', '', 'Announcement'], ['topscorer', '', 'Top scorer'], ['playerweek', '', 'Speler van de week'], ['ranking', '', 'Ranking'], ['movers', '', 'Stand-movers']],
     women: [['results', '', 'Results'], ['schedule', '', 'Schedule'], ['match', '', 'Match'], ['matchresult', '', 'Matchresult'], ['prediction', '', 'Prediction'], ['headtohead', '', 'Head to head'], ['topscorer', '', 'Top scorer'], ['playerweek', '', 'Speelster van de week'], ['ranking', '', 'Ranking'], ['movers', '', 'Stand-movers']],
   };
   const chips = (list, prefix) => list.map(([id, , label]) => `<button type="button" class="dash-chip" data-dash-go="${prefix}:${id}">${esc(label)}</button>`).join('');

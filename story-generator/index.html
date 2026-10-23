@@ -202,6 +202,17 @@
       </button>
     </div>
 
+    <div class="only-men">
+      <h2 class="home-group">Algemeen</h2>
+      <div class="home-cards">
+        <button class="menu-card" data-go-mode="announcement" type="button">
+          <span class="menu-title">Announcement</span>
+          <span class="menu-desc">Een tekst op een achtergrond voor een aankondiging, met een eigen foto als je wilt</span>
+          <span class="menu-tags"><i>Story</i><i>Post</i><i class="menu-men-only">Alleen Mannen</i></span>
+        </button>
+      </div>
+    </div>
+
     <h2 class="home-group">Thumbnails (1920×1080)</h2>
     <div class="home-cards">
       <button class="menu-card th-men" data-go-th="shl" type="button">
@@ -338,6 +349,11 @@
         <button class="mode-tab" data-mode="matchresult">Matchresult</button>
         <button class="mode-tab" data-mode="topscorer">Top scorer</button>
         <button class="mode-tab" data-mode="playerweek">Speler van de week</button>
+      </div>
+
+      <div class="mode-group-label men-only-tab">Algemeen</div>
+      <div class="mode-tabs mode-tabs-compact men-only-tab">
+        <button class="mode-tab men-only-tab" data-mode="announcement">Announcement</button>
       </div>
 
       <div class="mode-group-label">Seizoen</div>
@@ -605,6 +621,9 @@
     <div class="single-match-date-row">
       <label>Datum / ronde</label>
       <input type="text" class="date-label-input single-match-dateround" placeholder="bv. SAT 19-09 | ROUND 3" autocomplete="off">
+    </div>
+    <div class="single-match-postponed-row" hidden>
+      <label class="hnl-check"><input type="checkbox" class="sm-postponed" autocomplete="off"> <span class="sm-postponed-text">Uitgesteld: toon POSTPONED in plaats van de datum</span></label>
     </div>
   </div>
 </template>

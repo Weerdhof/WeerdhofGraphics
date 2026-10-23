@@ -325,3 +325,7 @@ select:focus-visible, input[type="text"]:focus-visible, input[type="number"]:foc
   .client-card:hover, #homeMenu .menu-card:hover:not(:disabled), .client-card:active, #homeMenu .menu-card:active:not(:disabled) { transform: none; }
 }
 #homeMenu:not(.theme-dash):not(.theme-byt) .hero-pill { margin-top: 18px; }
+
+/* text areas in the editor rows (announcement) */
+.match-row textarea { width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 11px; font: inherit; font-size: 14px; resize: vertical; }
+.single-match-postponed-row { margin-top: 8px; }
