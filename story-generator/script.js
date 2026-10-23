@@ -135,6 +135,16 @@
   const SM_TEXT_COLOR = '#14142b';
   const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
   const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
+  // A postponed match looks faded: a very light blue wash over the whole graphic (only over what is painted, so a
+  // transparent export stays transparent around it).
+  function postponedFade() {
+    if (!smState.postponed || (mode !== 'match' && mode !== 'headtohead')) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = 'rgba(176, 202, 255, 0.24)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
   // The date line of a match graphic: POSTPONED (UITGESTELD for the women) when the match is marked as postponed.
   const matchDateText = () => (smState.postponed ? (compKey === 'women' ? 'UITGESTELD' : 'POSTPONED') : (smState.dateRound || ''));
   const SM_CENTER_X = 540;
@@ -2463,29 +2473,27 @@
   function renderAnnouncement() {
     const L = SM_LAYOUTS[smFormat] || SM_LAYOUTS.post, W = L.canvasW, H = L.canvasH;
     const fontFamily = fontReady ? 'ClashDisplay' : 'Arial';
-    const LIME = '#ccff33', M = 80, maxW = W - 2 * M, story = H > 1500;
+    const LIME = '#ccff33', M = TS_MARGIN, maxW = W - 2 * M, story = H > 1500;
     ctx.clearRect(0, 0, W, H);
     if (!transparentBg) { ctx.fillStyle = COMPETITIONS.men.bgColor; ctx.fillRect(0, 0, W, H); }
     if (bgPhotoImg) {
       drawBgPhotoCover(ctx, bgPhotoImg);
-      const g = ctx.createLinearGradient(0, 0, 0, H);   // a navy veil keeps the text readable
-      g.addColorStop(0, 'rgba(26,27,56,0.86)'); g.addColorStop(0.6, 'rgba(26,27,56,0.62)'); g.addColorStop(1, 'rgba(26,27,56,0.8)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(26,27,56,0.7)'; ctx.fillRect(0, 0, W, H);   // one flat navy veil keeps the text readable
     } else {
       const mark = loadImg('assets/vs-icon.png');   // the SHL icon as a faint watermark
       const tinted = mark && mark.complete && mark.naturalWidth ? tintImage(mark, 'vs', '#ffffff') : null;
       if (tinted) { ctx.save(); ctx.globalAlpha = 0.06; const mw = W * 0.95, mh = mw * tinted.height / tinted.width; ctx.drawImage(tinted, W - mw * 0.78, H * 0.04, mw, mh); ctx.restore(); }
     }
-    // the pulse: lime chevron lines in the corners
-    drawSmCardChevron(ctx, W - 30, story ? 170 : 96, false, LIME, 1.1, 0.45);
-    drawSmCardChevron(ctx, W - 36, H - (story ? 640 : 330), false, LIME, 1.5, 0.4);
+    // the SHL pulse: two big chevrons in the bottom corners, half outside the picture (as on Now live)
+    drawSmCardChevron(ctx, 30, H - 50, true, '#b6fc37', 1.4, 0.85);
+    drawSmCardChevron(ctx, W - 30, H - 50, false, '#92fb31', 1.4, 0.85);
 
     const kicker = String(smState.annKicker || '').toUpperCase(), title = String(smState.annTitle || '').toUpperCase(), text = String(smState.annText || '').trim();
     const top = story ? 330 : 190, bottomLimit = L.footer.y - 50;
     // headline: the biggest size that fits the free height
     const bodyPx = story ? 46 : 38, bodyLH = Math.round(bodyPx * 1.4);
     ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-    const kickerBlock = kicker ? 100 : 40;
+    const kickerBlock = kicker ? 150 : 30;
     let bodyLines = [];
     ctx.font = `500 ${bodyPx}px "${fontFamily}"`;
     if (text) bodyLines = annWrap(ctx, text, maxW);
@@ -2498,12 +2506,13 @@
     }
     // the block (bar, label, headline, text) sits a little above the middle of the free height
     const bodyGap = story ? 96 : 84;
-    const blockH = 12 + (kicker ? 92 : 10) + px * 0.98 + (lines.length - 1) * px * 1.02 + (bodyLines.length ? bodyGap + (bodyLines.length - 1) * bodyLH : 0);
+    const blockH = (kicker ? 78 + 56 : 0) + px * 0.98 + (lines.length - 1) * px * 1.02 + (bodyLines.length ? bodyGap + (bodyLines.length - 1) * bodyLH : 0);
     let y = top + Math.max(0, (bottomLimit - top - blockH) * 0.4);
-    ctx.fillStyle = LIME; ctx.fillRect(M, y, 130, 12); y += 12;
-    if (kicker) {
-      y += 62; ctx.font = `700 38px "${fontFamily}"`; ctx.fillStyle = LIME; ctx.letterSpacing = '7px'; ctx.fillText(kicker, M, y); ctx.letterSpacing = '0px'; y += 30;
-    } else y += 10;
+    if (kicker) {   // the SHL eyebrow: a lime bar and a bold label, like HEAD TO HEAD
+      ctx.fillStyle = LIME; ctx.fillRect(M, y, 10, 78);
+      ctx.font = `700 44px "${fontFamily}"`; ctx.fillStyle = '#ffffff'; ctx.fillText(kicker, M + 34, y + 54);
+      y += 78 + 56;
+    }
     ctx.font = `700 ${px}px "${fontFamily}"`; ctx.fillStyle = '#ffffff';
     y += px * 0.98;
     lines.forEach((ln, i) => { ctx.fillText(ln, M, y + i * px * 1.02); });
@@ -2733,7 +2742,7 @@
     checkScoresBtn.hidden = mode === 'ranking' || mode === 'playerweek';
     siteSyncInfo.hidden = checkScoresBtn.hidden || !siteSyncInfo.dataset.ready;
     refreshCheckButtonLabels();
-    if (isSingleMode()) { renderSingleMatch(); return; }
+    if (isSingleMode()) { renderSingleMatch(); postponedFade(); return; }
     if (isMovers()) { renderMovers(); return; }
     if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
     const C = comp();
