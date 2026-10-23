@@ -1,0 +1,294 @@
+/* ByTomorrow Socials: the social templates from the design handoff (socials/templates.js, built by
+   socials/build_socials.py) as a small editor: fill in the fields, pick the pillar, drop a photo, export a PNG.
+   The templates are rendered as the HTML they were designed in, at their native size, and exported through an
+   SVG foreignObject so the PNG is what the browser shows (fonts and photo are embedded). */
+(function () {
+  'use strict';
+  const TEMPLATES = window.BYT_TEMPLATES || [];
+  const byId = Object.fromEntries(TEMPLATES.map(t => [t.id, t]));
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  const PILLARS = {   // swatch colours for the picker (the real maps live in each template's logic)
+    standaard: ['#3D5AFE', '#060228', 'ByTomorrow'],
+    productie: ['#FC06E5', '#7B1FA2', 'Productie'],
+    jump: ['#49FF9F', '#2F7E4D', 'JUMP'],
+    marketing: ['#FFCC00', '#C25100', 'Marketing'],
+    content: ['#00FFE6', '#008B8B', 'Content'],
+    navy: ['#060228', '#3D5AFE', 'Navy'],
+  };
+  const LABELS = {
+    title: 'Titel', titleLine1: 'Titel, regel 1', titleLine2: 'Titel, regel 2 (mag leeg)', competition: 'Competitie',
+    datetime: 'Datum en tijd', platform: 'Platform (achter "LIVE OP")', pillarLabel: 'Label onder de titel (leeg: naam van de pijler)',
+    quote: 'Quote', author: 'Auteur', cta: 'Tekst op de knop',
+  };
+  const LONG = { quote: 4 };   // textarea rows
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  const cur = { t: null, props: {}, photo: null, scale: 1 };
+  const classes = {};
+  class DCLogic { constructor(props) { this.props = props || {}; } }
+  function logicFor(t) {
+    if (!classes[t.id]) classes[t.id] = new Function('DCLogic', t.logic + '\nreturn Component;')(DCLogic);
+    return classes[t.id];
+  }
+
+  // ---------- persistence: the last fields per template (the photo stays in this session) ----------
+  const storeKey = (id) => 'byt-social:' + id;
+  function loadProps(t) {
+    const props = {};
+    Object.entries(t.props).forEach(([k, v]) => { props[k] = v.default; });
+    try { Object.assign(props, JSON.parse(localStorage.getItem(storeKey(t.id)) || '{}')); } catch (e) { /* ignore */ }
+    return props;
+  }
+  function saveProps() { try { localStorage.setItem(storeKey(cur.t.id), JSON.stringify(cur.props)); } catch (e) { /* ignore */ } }
+
+  // ---------- rendering ----------
+  function frameEl() { return $('bytFrame'); }
+  function render() {
+    const t = cur.t, frame = frameEl(); if (!t || !frame) return;
+    frame.style.width = t.w + 'px'; frame.style.height = t.h + 'px';
+    window.__bytRoot = frame;
+    const logic = new (logicFor(t))(cur.props);
+    logic.applyVars();
+    const vals = logic.renderVals();
+    let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => (vals[k] ? body : ''));
+    h = h.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => esc(vals[k] != null ? vals[k] : cur.props[k]));
+    frame.innerHTML = h;
+    frame.querySelectorAll('.byt-slot').forEach(applySlot);
+    fit();
+  }
+  const scheduled = { v: false };
+  function scheduleRender() { if (!scheduled.v) { scheduled.v = true; requestAnimationFrame(() => { scheduled.v = false; render(); }); } }
+
+  function applySlot(slot) {
+    const p = cur.photo;
+    if (!p) {
+      slot.classList.add('empty');
+      slot.innerHTML = '<span>' + esc(slot.dataset.ph || 'Sleep hier een foto') + '</span>';
+      return;
+    }
+    slot.classList.remove('empty'); slot.innerHTML = '';
+    const w = slot.offsetWidth, h = slot.offsetHeight;
+    const sc = Math.max(w / p.iw, h / p.ih) * p.z, bw = p.iw * sc, bh = p.ih * sc;
+    slot.style.backgroundImage = `url("${p.src}")`;
+    slot.style.backgroundRepeat = 'no-repeat';
+    slot.style.backgroundSize = `${bw}px ${bh}px`;
+    slot.style.backgroundPosition = `${(w - bw) * p.x}px ${(h - bh) * p.y}px`;
+    slot.style.cursor = 'grab';
+  }
+
+  // fit the native-size frame into the stage
+  function fit() {
+    const t = cur.t, stage = $('bytStage'), scaler = $('bytScale'); if (!t || !stage || !scaler) return;
+    const narrow = window.innerWidth <= 860;
+    const availW = Math.max(240, stage.clientWidth - (narrow ? 32 : 80));
+    const availH = narrow ? 99999 : Math.max(300, window.innerHeight - 96);
+    const k = Math.min(availW / t.w, availH / t.h, 1);
+    cur.scale = k;
+    scaler.style.width = Math.round(t.w * k) + 'px'; scaler.style.height = Math.round(t.h * k) + 'px';
+    frameEl().style.transform = `scale(${k})`;
+  }
+  window.addEventListener('resize', () => { if (document.body.classList.contains('byt-open')) fit(); });
+
+  // ---------- photo ----------
+  function loadPhoto(file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      // keep it light: at most 2400px on the long side, as JPEG
+      const k = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      cur.photo = { src: c.toDataURL('image/jpeg', 0.92), iw: c.width, ih: c.height, x: .5, y: .5, z: 1 };
+      buildControls(); render();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); status('Die afbeelding kon niet worden gelezen'); };
+    img.src = url;
+  }
+  let drag = null;
+  function bindDrag() {
+    const stage = $('bytStage');
+    stage.addEventListener('pointerdown', (e) => {
+      const slot = e.target.closest('.byt-slot'); if (!slot || !cur.photo) return;
+      e.preventDefault(); slot.setPointerCapture && slot.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, y: e.clientY, slot };
+      slot.style.cursor = 'grabbing';
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!drag || !cur.photo) return;
+      const p = cur.photo, w = drag.slot.offsetWidth, h = drag.slot.offsetHeight;
+      const sc = Math.max(w / p.iw, h / p.ih) * p.z, bw = p.iw * sc, bh = p.ih * sc;
+      const dx = (e.clientX - drag.x) / cur.scale, dy = (e.clientY - drag.y) / cur.scale;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if (Math.abs(w - bw) > 0.5) p.x = Math.min(1, Math.max(0, p.x + dx / (w - bw)));
+      if (Math.abs(h - bh) > 0.5) p.y = Math.min(1, Math.max(0, p.y + dy / (h - bh)));
+      frameEl().querySelectorAll('.byt-slot').forEach(applySlot);
+    });
+    const end = () => { if (drag) { drag.slot.style.cursor = 'grab'; drag = null; } };
+    stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+    ['dragover', 'drop'].forEach(ev => stage.addEventListener(ev, (e) => {
+      if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
+      e.preventDefault(); if (ev === 'drop') loadPhoto(e.dataTransfer.files[0]);
+    }));
+  }
+
+  // ---------- controls ----------
+  function buildControls() {
+    const box = $('bytControls'), t = cur.t; if (!box || !t) return;
+    const textKeys = Object.keys(t.props).filter(k => t.props[k].editor === 'text');
+    const hasSlot = /class="byt-slot"/.test(t.html);
+    let n = 1, html = '';
+    html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Tekst</div>` +
+      textKeys.map(k => LONG[k]
+        ? `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><textarea id="byt_${k}" data-k="${k}" rows="${LONG[k]}">${esc(cur.props[k])}</textarea></div>`
+        : `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><input type="text" id="byt_${k}" data-k="${k}" value="${esc(cur.props[k])}"></div>`).join('') + '</div>';
+    const pOpts = (t.props.pillar && t.props.pillar.options) || [];
+    html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Opmaak</div>
+      <div class="field"><label>Pijler</label><div class="byt-pillars" id="bytPillars">${pOpts.map(p => { const c = PILLARS[p] || ['#888', '#444', p];
+        return `<button type="button" class="byt-pillar${cur.props.pillar === p ? ' active' : ''}" data-p="${p}" title="${esc(c[2])}"><i style="background:linear-gradient(135deg,${c[0]} 50%,${c[1]} 50%)"></i><span>${esc(c[2])}</span></button>`; }).join('')}</div></div>`;
+    if (t.props.sport) {
+      html += `<div class="field"><label for="byt_sport">Sport (icoon)</label><select id="byt_sport" data-k="sport">${t.props.sport.options.map(s => `<option value="${s}"${cur.props.sport === s ? ' selected' : ''}>${esc(cap(s))}</option>`).join('')}</select></div>`;
+    }
+    html += '</div>';
+    if (hasSlot) {
+      const p = cur.photo;
+      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Foto</div>
+        <label class="photo-btn" id="bytPhotoDrop" for="bytPhotoInput"><span class="photo-btn-text">${p ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">klik, of sleep hier een afbeelding in</span></label>
+        <input type="file" id="bytPhotoInput" accept="image/*" hidden>
+        ${p ? `<div class="field"><label for="bytZoom">Zoom</label><input type="range" id="bytZoom" min="100" max="300" value="${Math.round(p.z * 100)}"></div>
+        <button class="btn btn-link" id="bytPhotoRemove" type="button">✕ Verwijder foto</button>
+        <p class="hint">Sleep in het voorbeeld om de foto te verschuiven. Zoom in om hem verder te kunnen verplaatsen.</p>` : ''}</div>`;
+    }
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${n++}</span> Exporteren</div>
+      <p class="hint">PNG op ware grootte: ${t.w} × ${t.h} px.</p>
+      <button class="btn btn-primary" id="bytExport" type="button">Exporteer als PNG</button>
+      <button class="btn btn-link" id="bytReset" type="button">Velden terugzetten</button>
+      <p class="save-status" id="bytStatus" hidden></p></div>`;
+    box.innerHTML = html;
+    bindControls();
+  }
+  function bindControls() {
+    $('bytControls').querySelectorAll('[data-k]').forEach(el => {
+      const on = () => { cur.props[el.dataset.k] = el.value; saveProps(); scheduleRender(); };
+      el.addEventListener('input', on); el.addEventListener('change', on);
+    });
+    $('bytPillars').querySelectorAll('.byt-pillar').forEach(b => b.addEventListener('click', () => {
+      cur.props.pillar = b.dataset.p; saveProps();
+      $('bytPillars').querySelectorAll('.byt-pillar').forEach(x => x.classList.toggle('active', x === b)); render();
+    }));
+    const inp = $('bytPhotoInput'); if (inp) inp.addEventListener('change', () => { loadPhoto(inp.files[0]); inp.value = ''; });
+    const drop = $('bytPhotoDrop');
+    if (drop) {
+      ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('drag'); }));
+      ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); if (ev === 'drop') loadPhoto(e.dataTransfer.files[0]); }));
+    }
+    const z = $('bytZoom'); if (z) z.addEventListener('input', () => { cur.photo.z = z.value / 100; frameEl().querySelectorAll('.byt-slot').forEach(applySlot); });
+    const rm = $('bytPhotoRemove'); if (rm) rm.addEventListener('click', () => { cur.photo = null; buildControls(); render(); });
+    $('bytExport').addEventListener('click', exportPng);
+    $('bytReset').addEventListener('click', () => {
+      const keep = cur.props.pillar; cur.props = loadDefaults(cur.t); cur.props.pillar = keep; saveProps(); buildControls(); render();
+    });
+  }
+  function loadDefaults(t) { const p = {}; Object.entries(t.props).forEach(([k, v]) => { p[k] = v.default; }); return p; }
+  const status = (s) => { const el = $('bytStatus'); if (el) { el.textContent = s; el.hidden = !s; } };
+
+  // ---------- export ----------
+  const FONTS = [
+    ['Niveau Grotesk', 300, 'socials/fonts/NiveauGroteskLight.otf', 'font/otf'],
+    ['Niveau Grotesk', 400, 'socials/fonts/NiveauGroteskRegular.otf', 'font/otf'],
+    ['Niveau Grotesk', 500, 'socials/fonts/NiveauGroteskMedium.otf', 'font/otf'],
+    ['Niveau Grotesk', 700, 'socials/fonts/NiveauGroteskBold.otf', 'font/otf'],
+    ['Niveau Grotesk', 900, 'socials/fonts/NiveauGroteskBlack.otf', 'font/otf'],
+    ['Open Sans', 400, 'fonts/bt/OpenSans-Regular.ttf', 'font/ttf'],
+    ['Open Sans', 600, 'fonts/bt/OpenSans-SemiBold.ttf', 'font/ttf'],
+    ['Open Sans', 700, 'fonts/bt/OpenSans-Bold.ttf', 'font/ttf'],
+    ['Material Symbols Rounded', 600, 'socials/fonts/MaterialSymbolsRounded-sports.woff2', 'font/woff2'],
+  ];
+  function b64(u8) {
+    let bin = '';
+    for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+  let fontCss = null;
+  async function embeddedFonts() {
+    if (fontCss) return fontCss;
+    const parts = await Promise.all(FONTS.map(async ([fam, w, url, mime]) => {
+      const buf = await (await fetch(url)).arrayBuffer();
+      return `@font-face{font-family:"${fam}";font-weight:${w};font-style:normal;src:url(data:${mime};base64,${b64(new Uint8Array(buf))});}`;
+    }));
+    return (fontCss = parts.join('\n'));
+  }
+  const loadImage = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('afbeelding laden mislukt')); i.src = src; });
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function renderBlob(t) {
+    await document.fonts.ready;
+    const clone = frameEl().cloneNode(true);
+    clone.removeAttribute('id'); clone.style.transform = 'none';
+    clone.querySelectorAll('.byt-slot.empty').forEach(s => { s.classList.remove('empty'); s.innerHTML = ''; });
+    const xhtml = new XMLSerializer().serializeToString(clone);
+    const css = await embeddedFonts();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${t.w}" height="${t.h}" viewBox="0 0 ${t.w} ${t.h}"><foreignObject x="0" y="0" width="${t.w}" height="${t.h}">` +
+      `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${t.w}px;height:${t.h}px"><style>${css}</style>${xhtml}</div></foreignObject></svg>`;
+    // a data: URL (not a blob: URL): Chrome taints the canvas for blob: SVGs with foreignObject
+    const url = 'data:image/svg+xml;base64,' + b64(new TextEncoder().encode(svg));
+    await loadImage(url); await sleep(150);        // first pass warms up the embedded fonts
+    const img = await loadImage(url); await sleep(60);
+    const c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
+    c.getContext('2d').drawImage(img, 0, 0, t.w, t.h);
+    return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('PNG maken mislukt')), 'image/png'));
+  }
+  const slug = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  function fileName() {
+    const t = cur.t, p = cur.props;
+    const what = slug(p.title || [p.titleLine1, p.titleLine2].filter(Boolean).join(' ') || p.author || '') || 'post';
+    return `BYT_${t.id.replace(/^social-/, '')}_${what}.png`;
+  }
+  async function exportPng() {
+    const btn = $('bytExport'); btn.disabled = true; status('Bezig met exporteren…');
+    try {
+      const t = cur.t, blob = await renderBlob(t), name = fileName();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      let saved = null;
+      try { const r = await fetch('/api/export?name=' + encodeURIComponent(name), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob }); if (r.ok) saved = await r.json(); } catch (e) { /* offline */ }
+      status(saved ? `✓ Gedownload en op de server: ${saved.path}` : '✓ Gedownload');
+    } catch (err) {
+      status('Exporteren mislukt: ' + err.message);
+    } finally { btn.disabled = false; }
+  }
+
+  // ---------- landing page cards ----------
+  function buildCards() {
+    const box = $('bytCards'); if (!box) return;
+    const groups = [];
+    TEMPLATES.forEach(t => { let g = groups.find(x => x.name === t.group); if (!g) groups.push(g = { name: t.group, items: [] }); g.items.push(t); });
+    box.innerHTML = groups.map(g => `<h2 class="home-group">${esc(g.name)}</h2><div class="home-cards byt-cards">` + g.items.map(t =>
+      `<button class="menu-card byt-card" data-go-byt="${t.id}" type="button">
+        <span class="byt-thumb"><img src="socials/thumbs/${t.id}.webp" alt="" loading="lazy"></span>
+        <span class="menu-title">${esc(t.label)}</span>
+        <span class="menu-desc">${esc(t.desc)}</span>
+        <span class="menu-tags"><i>PNG</i><i>${t.w} × ${t.h}</i></span>
+      </button>`).join('') + '</div>').join('');
+  }
+
+  window.BYT = {
+    templates: TEMPLATES,
+    open(id) {
+      const t = byId[id]; if (!t) return;
+      cur.t = t; cur.props = loadProps(t); cur.photo = null;
+      $('bytTitle').textContent = t.label; $('bytSub').textContent = `${t.w} × ${t.h}`;
+      buildControls();
+      if (!bindDrag.done) { bindDrag(); bindDrag.done = true; }
+      render();
+      requestAnimationFrame(fit);
+    },
+    close() { saveProps(); },
+    get state() { return cur; },
+    renderBlob: () => renderBlob(cur.t),
+  };
+  buildCards();
+  document.querySelectorAll('[data-go-byt]').forEach(c => c.addEventListener('click', () => document.dispatchEvent(new CustomEvent('byt-go', { detail: c.dataset.goByt }))));
+})();

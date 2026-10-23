@@ -1,0 +1,55 @@
+/* ByTomorrow Socials: fonts of the templates, the editor view and the template cards. Loaded after bytomorrow.css. */
+@font-face { font-family: "Niveau Grotesk"; font-weight: 300; font-display: swap; src: url("socials/fonts/NiveauGroteskLight.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 400; font-display: swap; src: url("socials/fonts/NiveauGroteskRegular.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 500; font-display: swap; src: url("socials/fonts/NiveauGroteskMedium.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 700; font-display: swap; src: url("socials/fonts/NiveauGroteskBold.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 900; font-display: swap; src: url("socials/fonts/NiveauGroteskBlack.otf") format("opentype"); }
+@font-face { font-family: "Open Sans"; font-weight: 400; font-display: swap; src: url("fonts/bt/OpenSans-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Open Sans"; font-weight: 600; font-display: swap; src: url("fonts/bt/OpenSans-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: "Open Sans"; font-weight: 700; font-display: swap; src: url("fonts/bt/OpenSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Material Symbols Rounded"; font-weight: 400 700; font-display: block; src: url("socials/fonts/MaterialSymbolsRounded-sports.woff2") format("woff2"); }
+
+/* views */
+body.byt-open .app { display: none; }
+body:not(.byt-open) #bytApp { display: none; }
+body.byt-open #bytApp { display: flex; }
+#bytApp, #bytApp[data-kind] { --accent: #3D5AFE; --on-accent: #fff; }
+#bytApp { border-top-color: #3D5AFE; }
+#bytApp textarea { width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; resize: vertical; }
+#bytApp .panel { width: 360px; flex: none; overflow-y: auto; max-height: 100vh; }
+
+/* stage */
+.byt-stage { flex: 1; min-width: 0; display: flex; justify-content: center; align-items: flex-start; padding: 40px 40px 56px; overflow: auto; max-height: 100vh; }
+.byt-scale { position: relative; flex: none; }
+.byt-frame { position: absolute; left: 0; top: 0; transform-origin: 0 0; box-shadow: 0 24px 70px rgba(0,0,0,.5); background: #fff; }
+.byt-frame * { -webkit-user-select: none; user-select: none; }
+.byt-slot.empty { display: flex !important; align-items: center; justify-content: center; background: repeating-linear-gradient(45deg, rgba(6,2,40,.06), rgba(6,2,40,.06) 14px, rgba(6,2,40,.10) 14px, rgba(6,2,40,.10) 28px); }
+.byt-slot.empty span { font: 600 30px 'Open Sans', Arial, sans-serif; color: rgba(6,2,40,.45); }
+.byt-slot { touch-action: none; }
+
+/* pillar picker */
+.byt-pillars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.byt-pillar { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 20px; background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--text); font: 600 13px/1 'Open Sans', sans-serif; cursor: pointer; text-align: left; }
+.byt-pillar i { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); }
+.byt-pillar:hover { border-color: #fff; }
+.byt-pillar.active { border-color: #fff; background: rgba(255,255,255,.14); box-shadow: 0 0 0 1px #fff inset; }
+.photo-btn.drag { border-color: #fff; background: rgba(255,255,255,.08); }
+
+/* landing page */
+#homeMenu.theme-byt .home-shl, #homeMenu.theme-byt .home-hnl, #homeMenu.theme-byt .home-lvl, #homeMenu.theme-byt .home-ticker, #homeMenu.theme-byt .home-dash { display: none; }
+#homeMenu:not(.theme-byt) .home-byt { display: none; }
+#homeMenu.theme-byt .hero-crumb { display: flex; }
+#homeMenu.theme-byt .home-logo { display: none; }
+#homeMenu.theme-byt .home-head p { color: var(--bt-blue-2); font: 700 20px/1.35 var(--bt-head); }
+#homeMenu .home-cards.byt-cards { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.byt-card { padding-top: 14px !important; }
+.byt-thumb { display: block; width: 100%; margin-bottom: 6px; border-radius: 6px; overflow: hidden; background: #fff; aspect-ratio: 4 / 3; }
+.byt-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cc-byt { --cc-accent: #3D5AFE; --cc-bg: #060228; }
+.cc-byt .cc-logo svg { width: 70%; height: auto; max-width: 240px; color: #fff; }
+.client-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+@media (max-width: 860px) {
+  #bytApp { flex-direction: column; }
+  #bytApp .panel { width: 100%; max-height: none; order: 2; border-right: none; }
+  .byt-stage { order: 1; padding: 16px; max-height: none; }
+}

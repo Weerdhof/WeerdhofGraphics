@@ -53,3 +53,7 @@ Home tab "Volley": `LVL Heren` and `LVL Dames` (1920x1080, Monologue font). The 
 ## ByTomorrow Graphics
 
 The tool is branded as ByTomorrow Graphics. `bytomorrow.css` (loaded after `style.css`) holds the ByTomorrow frame: navy `#060228`, blue `#3D5AFE`, Niveau Grotesk Bold for titles and Open Sans for text (`fonts/bt/`). The home page lists the clients; each client has its own landing page (SHL, SHLW, HandbalNL, Lotto Volley League) in the client's own colours and display font. Those client looks live only in the `theme-men|women|hnl|lvl` variables (`--accent`, `--bg`, `--panel`, `--c-font`) at the top of `bytomorrow.css`; the thumbnails of each client sit on its landing page. The editors use the ByTomorrow chrome with the client colour as a small mark.
+
+### ByTomorrow Socials
+
+The "Socials" tab holds the social templates from the ByTomorrow design handoff. `socials/build_socials.py` converts the handoff's `*.dc.html` files (HTML with `{{ holes }}`, the pillar/sport logic block, `<image-slot>` and the Logo/Monogram imports) into `socials/templates.js`; `socials.js` renders them at native size, with fields, pillar and sport pickers, a draggable/zoomable photo and a PNG export (SVG foreignObject with the fonts embedded; also stored on the server via `/api/export`). To add a template, add its folder to `ENABLED` in the script and run `python3 socials/build_socials.py [path to design_handoff_bytomorrow]`. Fonts: Niveau Grotesk and Open Sans (`socials/fonts`, `fonts/bt`), a Material Symbols Rounded subset for the sport icons.

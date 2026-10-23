@@ -5300,11 +5300,12 @@
     men:   { name: 'SHL', title: 'Heren', logo: 'assets/footer-logo.png', pill: 'Handbal', sub: 'Story, post, animatie en thumbnails voor de Coinmerce Super Handball League.' },
     women: { name: 'SHLW', title: 'Vrouwen', logo: 'assets/women/footer-logo-women.png', pill: 'Handbal', sub: 'Story, post, animatie en thumbnails voor de Super Handball League Women.' },
     hnl:   { name: 'HandbalNL', title: 'HandbalNL', logo: 'assets/hnl/logo-next-light.png', pill: 'HandbalNL.TV', sub: 'Aankondigingen en thumbnails voor HandbalNL en de Next Handball League.' },
+    byt:   { name: 'Socials', title: 'ByTomorrow Socials', pill: 'Socials', sub: 'Social templates in de ByTomorrow-huisstijl. Vul de velden in, kies een pijler, voeg een foto toe en exporteer.' },
     lvl:   { name: 'Lotto Volley League', title: 'Lotto Volley League', logo: 'assets/lvl/logo.svg', pill: 'Volleybal', sub: 'Wedstrijdthumbnails voor heren en dames, uit het programma.' },
   };
   function syncMenuComp() {
     homeTarget = menuComp;
-    ['men', 'women', 'hnl', 'lvl', 'dash'].forEach(k => homeMenu.classList.toggle('theme-' + k, menuComp === k));
+    ['men', 'women', 'hnl', 'lvl', 'byt', 'dash'].forEach(k => homeMenu.classList.toggle('theme-' + k, menuComp === k));
     const cl = CLIENTS[menuComp] || CLIENTS.dash;
     const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setTxt('heroTitle', cl.title); setTxt('heroSub', cl.sub); setTxt('heroPill', cl.pill); setTxt('heroCrumbName', cl.name);
@@ -5316,7 +5317,7 @@
     document.title = menuComp === 'dash' ? 'ByTomorrow Graphics' : `${cl.name} · ByTomorrow Graphics`;
     const tk = document.getElementById('homeTicker');
     const tkSrc = `ticker.html?comp=${menuComp}&size=64&bg=transparent&label=0&speed=50`;
-    if (menuComp !== 'hnl' && menuComp !== 'lvl' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
+    if (menuComp !== 'hnl' && menuComp !== 'lvl' && menuComp !== 'byt' && menuComp !== 'dash' && tk && tk.getAttribute('src') !== tkSrc) {
       lastTickerReady = new Promise(res => { tickerWaiter = { comp: menuComp, res }; setTimeout(res, 4500); });
       tk.setAttribute('src', tkSrc);
     }
@@ -5325,19 +5326,20 @@
   // The editors' back button names the page it returns to
   function syncBackLabels() {
     const label = '← ' + (lastHome === 'dash' ? 'Home' : (CLIENTS[lastHome] || CLIENTS.dash).name);
-    ['backToMenuBtn', 'hnlBack', 'thBack', 'setBack'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
+    ['backToMenuBtn', 'hnlBack', 'thBack', 'setBack', 'bytBack'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
   }
 
   function showMenuNow() {
     resetResultsAnim();
     resetSmAnim();
-    const fromHnl = document.body.classList.contains('hnl-open'), fromTh = document.body.classList.contains('th-open');
+    const fromHnl = document.body.classList.contains('hnl-open'), fromTh = document.body.classList.contains('th-open'), fromByt = document.body.classList.contains('byt-open');
     if (document.body.classList.contains('set-open') && window.SETUI) window.SETUI.close();
     if (fromHnl && window.HNL) window.HNL.close();
     if (fromTh && window.TH) window.TH.close();
-    menuComp = lastHome || (fromHnl ? 'hnl' : fromTh ? 'dash' : compKey);
+    if (fromByt && window.BYT) window.BYT.close();
+    menuComp = lastHome || (fromHnl ? 'hnl' : fromByt ? 'byt' : fromTh ? 'dash' : compKey);
     syncMenuComp();
-    document.body.classList.remove('hnl-open', 'th-open', 'set-open');
+    document.body.classList.remove('hnl-open', 'th-open', 'set-open', 'byt-open');
     document.body.classList.add('menu-open');
     window.scrollTo(0, 0);
     homeMenu.scrollTop = 0;
@@ -5486,6 +5488,16 @@
     history.pushState({ editor: true }, '');
     popIn(document.getElementById('thApp'));
   }
+  // ByTomorrow socials editor (socials.js)
+  function openBytNow(id) {
+    syncBackLabels();
+    document.body.classList.remove('menu-open');
+    document.body.classList.add('byt-open');
+    window.BYT.open(id);
+    window.scrollTo(0, 0);
+    history.pushState({ editor: true }, '');
+    popIn(document.getElementById('bytApp'));
+  }
   // HandbalNL editor (hnl.js): a separate view next to the SHL editor
   function openHnlNow(kind) {
     syncBackLabels();
@@ -5542,7 +5554,7 @@
       if (next === homeTarget) { if (menuComp === next) homeMenu.scrollTo({ top: 0, behavior: 'smooth' }); return; }   // compare with where we are heading, not with the not-yet-swapped state
       homeTarget = next;
       // men -> women sweeps left to right in purple, women -> men back in SHL green
-      const order = { dash: 0, men: 1, women: 2, hnl: 3, lvl: 4 };
+      const order = { dash: 0, men: 1, women: 2, hnl: 3, lvl: 4, byt: 5 };
       navSweep(order[next] > order[menuComp] ? 'forward' : 'back', () => {
         menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
         return lastTickerReady;
@@ -5573,6 +5585,10 @@
     if (history.state && history.state.editor) history.back(); else showMenu();
   });
   document.getElementById('thBack').addEventListener('click', () => {
+    if (history.state && history.state.editor) history.back(); else showMenu();
+  });
+  document.addEventListener('byt-go', (e) => { lastHome = menuComp; navSweep('forward', () => openBytNow(e.detail), '#3D5AFE'); });
+  document.getElementById('bytBack').addEventListener('click', () => {
     if (history.state && history.state.editor) history.back(); else showMenu();
   });
   document.getElementById('hnlBack').addEventListener('click', () => {
@@ -5667,7 +5683,7 @@
 
   function loadOverview(force) {
     const key = menuComp;
-    if (key === 'hnl' || key === 'lvl' || key === 'dash') return;   // no site data for these tabs
+    if (key === 'hnl' || key === 'lvl' || key === 'byt' || key === 'dash') return;   // no site data for these tabs
     const e = overviewData[key];
     if (e && !e.error && !force && Date.now() - e.at < 60000) { renderOverview(); return; }
     if (!e) renderOverview();
