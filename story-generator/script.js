@@ -135,16 +135,8 @@
   const SM_TEXT_COLOR = '#14142b';
   const SM_TIME_Y = 1090, SM_TIME_FONT = 61;
   const SM_DATE_Y = 1131, SM_DATE_FONT = 26;
-  // A postponed match looks faded: a very light blue wash over the whole graphic (only over what is painted, so a
-  // transparent export stays transparent around it).
-  function postponedFade() {
-    if (!smState.postponed || (mode !== 'match' && mode !== 'headtohead')) return;
-    ctx.save();
-    ctx.globalCompositeOperation = 'source-atop';
-    ctx.fillStyle = 'rgba(176, 202, 255, 0.24)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-  }
+  // A postponed match looks faded: the cards and the bar are drawn at 70% opacity, the texts and the icon stay at 100%.
+  const postponedAlpha = () => (smState.postponed && mode === 'match' ? 0.7 : 1);
   // The date line of a match graphic: POSTPONED (UITGESTELD for the women) when the match is marked as postponed.
   const matchDateText = () => (smState.postponed ? (compKey === 'women' ? 'UITGESTELD' : 'POSTPONED') : (smState.dateRound || ''));
   const SM_CENTER_X = 540;
@@ -2742,7 +2734,7 @@
     checkScoresBtn.hidden = mode === 'ranking' || mode === 'playerweek';
     siteSyncInfo.hidden = checkScoresBtn.hidden || !siteSyncInfo.dataset.ready;
     refreshCheckButtonLabels();
-    if (isSingleMode()) { renderSingleMatch(); postponedFade(); return; }
+    if (isSingleMode()) { renderSingleMatch(); return; }
     if (isMovers()) { renderMovers(); return; }
     if (mode === 'ranking') { if (resultsFormat === 'post') renderRankingPost(); else renderRanking(); return; }
     const C = comp();
@@ -4394,6 +4386,7 @@
     // for BOTH slots side by side at 2x resolution: the left half is meant
     // for the left-hand position, the right half for the right-hand one —
     // so there's no separate tinting step, just crop the matching half.
+    ctx.globalAlpha = postponedAlpha();
     const homeImg = smState.home ? loadImg(`assets/singlematch/teams/${smState.home}.png`) : null;
     if (homeImg && homeImg.complete && homeImg.naturalWidth) {
       const halfW = homeImg.naturalWidth / 2;
@@ -4404,6 +4397,7 @@
       const halfW = awayImg.naturalWidth / 2;
       ctx.drawImage(awayImg, halfW, 0, halfW, awayImg.naturalHeight, SM_TEAM_RIGHT_X, L.teamY, SM_TEAM_W, SM_TEAM_H);
     }
+    ctx.globalAlpha = 1;
 
     const mark = loadImg('assets/singlematch/mark.png');
     const drawMark = () => {
@@ -4506,7 +4500,9 @@
     const bar = loadImg('assets/women/singlematch/bar.png');
     if (bar && bar.complete && bar.naturalWidth) {
       if (predLight) { ctx.save(); ctx.shadowColor = 'rgba(26, 27, 56, 0.22)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 10; }
+      ctx.globalAlpha = postponedAlpha();
       ctx.drawImage(bar, L.bar.x, L.bar.y, L.bar.w, L.bar.h);
+      ctx.globalAlpha = 1;
       if (predLight) ctx.restore();
     }
 
@@ -4618,6 +4614,7 @@
     // already a finished card — white background, crest, name and drop
     // shadow all baked in — so it's just placed, drawn after the bar so
     // its own shadow falls naturally onto it.
+    ctx.globalAlpha = postponedAlpha();
     const homeImg = smState.home ? loadImg(`assets/women/singlematch/teams/${smState.home}.png`) : null;
     if (homeImg && homeImg.complete && homeImg.naturalWidth) {
       ctx.drawImage(homeImg, L.teamLeft.x, L.teamLeft.y, L.teamLeft.w, L.teamLeft.h);
@@ -4626,6 +4623,7 @@
     if (awayImg && awayImg.complete && awayImg.naturalWidth) {
       ctx.drawImage(awayImg, L.teamRight.x, L.teamRight.y, L.teamRight.w, L.teamRight.h);
     }
+    ctx.globalAlpha = 1;
 
     if (mode === 'prediction') predictionHeadline(L.canvasW, L.canvasH, L.teamLeft.y, L.bar.y + L.bar.h, predLight ? '#c93cf0' : '#e34fff', predLight, { men: false, x0: L.bar.x, x1: L.bar.x + L.bar.w, cxL: L.teamLeft.x + L.teamLeft.w / 2, cxR: L.teamRight.x + L.teamRight.w / 2 });
 
