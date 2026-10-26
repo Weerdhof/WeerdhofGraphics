@@ -80,6 +80,7 @@
     frame.innerHTML = h;
     frame.querySelectorAll('.byt-slot').forEach(applySlot);
     fit();
+    if (window.BYT_ANIM) window.BYT_ANIM.changed();
   }
   const scheduled = { v: false };
   function scheduleRender() { if (!scheduled.v) { scheduled.v = true; requestAnimationFrame(() => { scheduled.v = false; render(); }); } }
@@ -201,11 +202,13 @@
     }
     html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${n++}</span> Exporteren</div>
       <p class="hint">PNG op ware grootte: ${t.w} × ${t.h} px${formats.length > 1 ? ` (${esc(t.format)})` : ''}.</p>
+      <div id="bytAnimBox"></div>
       <button class="btn btn-primary" id="bytExport" type="button">Exporteer als PNG</button>
       <button class="btn btn-link" id="bytReset" type="button">Velden terugzetten</button>
       <p class="save-status" id="bytStatus" hidden></p></div>`;
     box.innerHTML = html;
     bindControls();
+    if (window.BYT_ANIM) window.BYT_ANIM.mount($('bytAnimBox'));
   }
   function bindControls() {
     const fm = $('bytFormats');
@@ -262,11 +265,13 @@
   const loadImage = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('afbeelding laden mislukt')); i.src = src; });
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  async function renderBlob(t) {
+  // renders the frame to a canvas; `mutate(clone)` may change the clone first (used for the animation layers)
+  async function renderCanvas(t, mutate) {
     await document.fonts.ready;
     const clone = frameEl().cloneNode(true);
     clone.removeAttribute('id'); clone.style.transform = 'none';
     clone.querySelectorAll('.byt-slot.empty').forEach(s => { s.classList.remove('empty'); s.innerHTML = ''; });
+    if (mutate) mutate(clone);
     const xhtml = new XMLSerializer().serializeToString(clone);
     const css = await embeddedFonts();
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${t.w}" height="${t.h}" viewBox="0 0 ${t.w} ${t.h}"><foreignObject x="0" y="0" width="${t.w}" height="${t.h}">` +
@@ -277,6 +282,10 @@
     const img = await loadImage(url); await sleep(60);
     const c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
     c.getContext('2d').drawImage(img, 0, 0, t.w, t.h);
+    return c;
+  }
+  async function renderBlob(t) {
+    const c = await renderCanvas(t);
     return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('PNG maken mislukt')), 'image/png'));
   }
   const slug = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
@@ -322,7 +331,7 @@
         <span class="byt-thumb"><img src="socials/thumbs/${fs[0].id}.webp" alt="" loading="lazy"></span>
         <span class="menu-title">${esc(a.label || id)}</span>
         <span class="menu-desc">${esc(a.desc || '')}</span>
-        <span class="menu-tags">${fs.length > 1 ? fs.map(f => `<i>${esc(f.format)}</i>`).join('') : ''}<i>PNG</i></span>
+        <span class="menu-tags">${fs.length > 1 ? fs.map(f => `<i>${esc(f.format)}</i>`).join('') : ''}<i>PNG</i>${id === 'wedstrijd' ? '<i>Animatie</i>' : ''}</span>
       </button>`;
     }).join('') + '</div>';
   }
@@ -333,6 +342,7 @@
       const asset = assetOf(id); if (!asset) return;
       let t = byId[id] && byId[id].asset === asset ? byId[id] : null;   // a template id opens that format
       if (!t) { let last = null; try { last = localStorage.getItem(fmtKey(asset)); } catch (e) { /* ignore */ } t = (byId[last] && byId[last].asset === asset) ? byId[last] : formatsOf(asset)[0]; }
+      if (window.BYT_ANIM) window.BYT_ANIM.reset();
       cur.asset = asset; cur.t = t; cur.props = loadProps(asset); cur.photo = null;
       setHeader();
       buildControls();
@@ -340,9 +350,10 @@
       render();
       requestAnimationFrame(fit);
     },
-    close() { saveProps(); },
+    close() { saveProps(); if (window.BYT_ANIM) window.BYT_ANIM.reset(); },
     get state() { return cur; },
     renderBlob: () => renderBlob(cur.t),
+    renderCanvas, frameEl, fileName,
   };
   buildCards();
   document.querySelectorAll('[data-go-byt]').forEach(c => c.addEventListener('click', () => document.dispatchEvent(new CustomEvent('byt-go', { detail: c.dataset.goByt }))));

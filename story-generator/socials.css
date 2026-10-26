@@ -27,6 +27,13 @@ body.byt-open #bytApp { display: flex; }
 .byt-slot.empty span { font: 600 30px 'Open Sans', Arial, sans-serif; color: rgba(6,2,40,.45); }
 .byt-slot { touch-action: none; }
 
+/* animation preview: a canvas over the frame while "Animeer" is on */
+.byt-anim-canvas { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; box-shadow: 0 24px 70px rgba(0,0,0,.5); background: #fff; }
+body.byt-animating .byt-anim-canvas { display: block; }
+body.byt-animating #bytFrame { visibility: hidden; }
+.byt-anim-toggle { margin: 4px 0 10px; }
+#bytMp4 { margin-bottom: 8px; }
+
 /* pillar picker */
 .byt-pillars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .byt-pillar { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 20px; background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--text); font: 600 13px/1 'Open Sans', sans-serif; cursor: pointer; text-align: left; }
