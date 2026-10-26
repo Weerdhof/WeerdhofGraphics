@@ -7,6 +7,8 @@
   const TEMPLATES = window.BYT_TEMPLATES || [];
   const byId = Object.fromEntries(TEMPLATES.map(t => [t.id, t]));
   const ASSETS = window.BYT_ASSETS || {};
+  const CHANNELS = window.BYT_CHANNELS || [];            // logos that can stand next to "LIVE OP" instead of the typed platform
+  const channelOf = (id) => CHANNELS.find(c => c.id === id);
   const assetIds = []; TEMPLATES.forEach(t => { if (!assetIds.includes(t.asset)) assetIds.push(t.asset); });
   const formatsOf = (asset) => TEMPLATES.filter(t => t.asset === asset);
   const assetOf = (id) => (ASSETS[id] ? id : (byId[id] && byId[id].asset));
@@ -79,6 +81,12 @@
     if (typeof logic.applyVars === 'function') logic.applyVars();
     const vals = typeof logic.renderVals === 'function' ? logic.renderVals() : {};
     let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => (vals[k] ? body : ''));
+    // a channel logo takes the place of the typed platform
+    const ch = 'platform' in t.props && channelOf(cur.props.channel);
+    // the green arrow of the JUMP logo takes the colour of the background
+    const chSrc = !ch ? '' : (ch.id === 'jump' ? 'data:image/svg+xml;base64,' + btoa(atob(ch.src.split(',')[1]).replace(/#49FF9F/gi, (getComputedStyle(frame).getPropertyValue('--bg').trim() || '#49FF9F'))) : ch.src);
+    if (ch) h = h.replace(/<span([^>]*)>\{\{\s*platform\s*\}\}<\/span>/, (m, a) =>
+      `<span${a.replace(/style="([^"]*)"/, (mm, st) => `style="${st}; display:flex; align-items:center;"`)}><img src="${chSrc}" alt="${esc(ch.label)}" style="height:1.35em; width:auto; display:block;"></span>`);
     h = h.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => esc(vals[k] != null ? vals[k] : cur.props[k]));
     frame.innerHTML = h;
     frame.querySelectorAll('.byt-slot').forEach(applySlot);
@@ -180,9 +188,10 @@
     if (textKeys.length) html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Tekst</div>` +
       textKeys.map(k => LONG[k]
         ? `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><textarea id="byt_${k}" data-k="${k}" rows="${LONG[k]}">${esc(cur.props[k])}</textarea></div>`
-        : `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><input type="text" id="byt_${k}" data-k="${k}" value="${esc(cur.props[k])}"></div>`).join('') + '</div>';
+        : `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}${k === 'platform' && channelOf(cur.props.channel) ? ' (het logo is gekozen)' : ''}</label><input type="text" id="byt_${k}" data-k="${k}" value="${esc(cur.props[k])}"${k === 'platform' && channelOf(cur.props.channel) ? ' disabled' : ''}></div>`).join('') + '</div>';
     const pOpts = (t.props.pillar && t.props.pillar.options) || [];
-    if (!pOpts.length && !t.props.sport) {
+    const hasChannel = 'platform' in t.props && CHANNELS.length;
+    if (!pOpts.length && !t.props.sport && !hasChannel) {
       if (!textKeys.length) html += '<div class="panel-step"><p class="hint">Deze template heeft geen velden: je kunt hem direct exporteren.</p></div>';
     } else {
       html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Opmaak</div>`;
@@ -192,6 +201,9 @@
       }
       if (t.props.sport) {
         html += `<div class="field"><label for="byt_sport">Sport (icoon)</label><select id="byt_sport" data-k="sport">${t.props.sport.options.map(s => `<option value="${s}"${cur.props.sport === s ? ' selected' : ''}>${esc(cap(s))}</option>`).join('')}</select></div>`;
+      }
+      if (hasChannel) {
+        html += `<div class="field"><label for="byt_channel">Kanaal naast "${/eindstand/.test(t.id) ? 'TERUGKIJKEN OP' : 'LIVE OP'}"</label><select id="byt_channel" data-ch="1"><option value="">Zelf typen</option>${CHANNELS.map(c => `<option value="${c.id}"${cur.props.channel === c.id ? ' selected' : ''}>${esc(c.label)} (logo)</option>`).join('')}</select></div>`;
       }
       html += '</div>';
     }
@@ -217,6 +229,8 @@
   function bindControls() {
     const fm = $('bytFormats');
     if (fm) fm.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => switchFormat(b.dataset.f)));
+    const chSel = $('byt_channel');
+    if (chSel) chSel.addEventListener('change', () => { cur.props.channel = chSel.value; saveProps(); buildControls(); render(); });
     $('bytControls').querySelectorAll('[data-k]').forEach(el => {
       const on = () => { cur.props[el.dataset.k] = el.value; saveProps(); scheduleRender(); };
       el.addEventListener('input', on); el.addEventListener('change', on);

@@ -41,6 +41,11 @@ ASSETS = {
     "video-thumbnail": {"label": "Video thumbnail", "desc": "Een YouTube-thumbnail in 16:9 met titel, foto en pijler."},
 }
 
+# channel logos for the "LIVE OP" capsule (dark on white), embedded as data URIs: the export renders the page as an image
+CHANNELS = [("jump", "JUMP", "jump.svg", "image/svg+xml"), ("lvl", "LVL", "lvl.svg", "image/svg+xml"),
+            ("shltv", "SHL TV", "shltv.png", "image/png"), ("hnl", "HandbalNL TV", "hnl.png", "image/png"),
+            ("knltb", "KNLTB TV", "knltb.svg", "image/svg+xml")]   # knltb.svg / knltb.png: add the logo to socials/channels and it shows up
+
 def read(p):
     with open(os.path.join(HANDOFF, p), encoding="utf8") as f:
         return f.read()
@@ -113,5 +118,8 @@ with open(OUT, "w", encoding="utf8") as f:
     json.dump(data, f, ensure_ascii=False, indent=1)
     f.write(";\nwindow.BYT_ASSETS = ")
     json.dump(ASSETS, f, ensure_ascii=False, indent=1)
+    f.write(";\nwindow.BYT_CHANNELS = ")
+    json.dump([{"id": i, "label": l, "src": "data:%s;base64,%s" % (m, base64.b64encode(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "channels", fn), "rb").read()).decode())}
+               for i, l, fn, m in CHANNELS if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "channels", fn))], f, ensure_ascii=False)
     f.write(";\n")
 print("written", OUT, [(d["id"], d["w"], d["h"]) for d in data])
