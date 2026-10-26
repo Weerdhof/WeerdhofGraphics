@@ -1,13 +1,15 @@
 /* ByTomorrow Socials: animation ("Animeer" in the export step, like the SHL editor).
    The finished design is rendered once as separate transparent layers (background, photo, pills, title, tag,
-   LIVE OP capsule, sport icon, logo). A canvas then composes them over time: the elements that sit in a circle
-   (the sport icon) pop in as a circle, everything else fades in and slides in horizontally. The same canvas is
+   LIVE OP capsule, sport icon, logo). A canvas then composes them over time: the pill-shaped elements (the
+   competition and date pills, the pillar label, the LIVE OP capsule) first travel to their place as a circle and
+   then stretch into their bar; the sport icon slides in as the circle it is; the title, photo and logo fade and
+   slide in horizontally. The same canvas is
    previewed on the stage and recorded to video (MP4 when the browser can, WebM otherwise). The PNG export is
    not touched. */
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const DUR = 4200;                         // one pass in ms (the preview loops it, the video is one pass)
+  const DUR = 5000;                         // one pass in ms (the preview loops it, the video is one pass)
   const SUPPORTED = ['wedstrijd'];          // assets that have an animation
 
   let on = false, layers = null, buildTimer = 0, building = false, again = false;
@@ -34,7 +36,8 @@
   function rects(frame, k) {
     const P = parts(frame), fr = frame.getBoundingClientRect();
     const rel = (e) => { const r = e.getBoundingClientRect(); return { x: (r.left - fr.left) / k, y: (r.top - fr.top) / k, w: r.width / k, h: r.height / k }; };
-    return { photo: rel(P.photo), live: rel(P.live), icon: rel(P.icon) };
+    const tag = P.tag.firstElementChild;
+    return { photo: rel(P.photo), live: rel(P.live), icon: rel(P.icon), pills: Array.from(P.pills.children).map(rel), tag: tag ? rel(tag) : null };
   }
 
   async function build() {
@@ -55,6 +58,11 @@
       })));
     } finally { LAYERS.forEach(id => { if (P[id]) P[id].removeAttribute('data-al'); }); }
     const L = {}; LAYERS.forEach((id, i) => { L[id] = imgs[i]; });
+    // the colour of each pill at its left edge: that is the colour of its circle
+    const col = (img, r) => { const d = img.getContext('2d').getImageData(Math.round(r.x + 2), Math.round(r.y + r.h / 2), 1, 1).data; return `rgba(${d[0]},${d[1]},${d[2]},${(d[3] / 255).toFixed(3)})`; };
+    geo.pills.forEach(r => { r.col = col(L.pills, r); });
+    if (geo.tag) geo.tag.col = col(L.tag, geo.tag);
+    geo.live.col = col(L.live, geo.live);
     return { tid: t.id, w: t.w, h: t.h, L, geo };
   }
 
@@ -78,33 +86,50 @@
     ctx.save(); ctx.globalAlpha = p; ctx.translate(-(1 - p) * dist, 0); ctx.drawImage(img, 0, 0); ctx.restore();
   }
 
+  // a pill-shaped element: first a circle that travels in from the side to the place of the element, then it
+  // stretches (left anchored) into its bar; the layer is only visible inside that shape, so the content comes out
+  // of the circle. `outline` is for the label, which is a ring and not a filled pill.
+  function morph(ctx, img, r, ms, start, o) {
+    const mv = outCubic(seg(ms, start, 500)); if (mv <= 0) return;
+    const str = inOutCubic(seg(ms, start + 650, 650));
+    if (str <= 0) {
+      const x = lerp(-r.h * 1.3, r.x, mv), cy = r.y + r.h / 2;
+      ctx.save(); ctx.beginPath(); ctx.arc(x + r.h / 2, cy, r.h / 2 - (o.outline ? 1.5 : 0), 0, Math.PI * 2);
+      if (o.outline) { ctx.strokeStyle = r.col; ctx.lineWidth = 3; ctx.stroke(); } else { ctx.fillStyle = r.col; ctx.fill(); }
+      ctx.restore(); return;
+    }
+    const w = lerp(r.h, r.w, str), pd = o.pad || 0;
+    ctx.save(); ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(r.x - pd, r.y - pd, w + pd * 2, r.h + pd * 2, (r.h + pd * 2) / 2); else ctx.rect(r.x - pd, r.y - pd, w + pd * 2, r.h + pd * 2);
+    ctx.clip(); ctx.drawImage(img, 0, 0); ctx.restore();
+  }
+
   function draw(ctx, ms) {
     const A = layers, { L, geo } = A;
     ctx.clearRect(0, 0, A.w, A.h);
     ctx.drawImage(L.bg, 0, 0);
 
-    slideIn(ctx, L.pills, ms, 200, 650, 90);
-    slideIn(ctx, L.title, ms, 400, 700, 110);
-    slideIn(ctx, L.tag, ms, 650, 650, 90);
+    // competition and date pills (one after the other)
+    geo.pills.forEach((r, i) => morph(ctx, L.pills, r, ms, 200 + 120 * i, { pad: 2 }));
+    slideIn(ctx, L.title, ms, 1000, 700, 110);
+    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 1200, { pad: 3, outline: true });
 
     // photo: a horizontal wipe from the left
-    const pp = inOutCubic(seg(ms, 800, 800));
+    const pp = inOutCubic(seg(ms, 1300, 800));
     if (pp > 0) {
       const ph = geo.photo;
       ctx.save(); ctx.beginPath(); ctx.rect(0, ph.y - 2, A.w * pp, ph.h + 4); ctx.clip();
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
 
-    slideIn(ctx, L.live, ms, 1500, 600, 90);
+    // LIVE OP capsule, wide padding so its shadow is not cut off
+    morph(ctx, L.live, geo.live, ms, 2000, { pad: 36 });
 
-    // the sport icon sits in a circle: the circle pops in
-    const ip = outCubic(seg(ms, 1700, 450));
-    if (ip > 0) {
-      const c = geo.icon, cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-      ctx.save(); ctx.translate(cx, cy); ctx.scale(ip, ip); ctx.translate(-cx, -cy); ctx.drawImage(L.icon, 0, 0); ctx.restore();
-    }
+    // the sport icon sits in a circle: it slides in from the right
+    const ip = outCubic(seg(ms, 2200, 600));
+    if (ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
 
-    const gp = seg(ms, 2200, 500);
+    const gp = seg(ms, 3000, 500);
     if (gp > 0) { ctx.save(); ctx.globalAlpha = outCubic(gp); ctx.drawImage(L.logo, 0, 0); ctx.restore(); }
   }
 
@@ -164,7 +189,7 @@
     if (!box) return;
     const asset = B().state.asset;
     if (!SUPPORTED.includes(asset)) { box.innerHTML = ''; return; }
-    box.innerHTML = `<label class="upcoming-toggle byt-anim-toggle"><input type="checkbox" id="bytAnimToggle"${on ? ' checked' : ''}> Animeer (rondje + fade)</label>
+    box.innerHTML = `<label class="upcoming-toggle byt-anim-toggle"><input type="checkbox" id="bytAnimToggle"${on ? ' checked' : ''}> Animeer (rondjes worden balken)</label>
       <button class="btn btn-primary" id="bytMp4" type="button"${on ? '' : ' hidden'}>Download MP4</button>
       <p class="save-status" id="bytAnimStatus" hidden></p>`;
     $('bytAnimToggle').addEventListener('change', (e) => {
