@@ -9,7 +9,7 @@
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const DUR = 3900;                         // the movement, in ms
+  const DUR = 4300;                         // the movement, in ms
   const CLIP = 15000;                       // the video: the movement, then the finished graphic stays until 15 seconds
   const SUPPORTED = ['wedstrijd'];          // assets that have an animation
 
@@ -23,6 +23,9 @@
   const inOutExpo = (p) => (p <= 0 ? 0 : p >= 1 ? 1 : p < .5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2);
   const lerp = (a, b, p) => a + (b - a) * p;
   const B = () => window.BYT;
+
+  // order: the two pills at the top, then the title together with the photo, then the rest
+  const T_TITLE = 1900, T_TAG = 2300, T_LIVE = 2800, T_ICON = 3100;
 
   // ---------- layers ----------
   const LAYERS = ['bg', 'photo', 'pills', 'title', 'tag', 'live', 'icon', 'logo'];
@@ -142,21 +145,21 @@
 
     // competition and date pills (one after the other)
     pillRow(ctx, L.pills, geo.pills, ms);
-    slideIn(ctx, L.title, ms, 650, 800, 170);
-    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 850, { outline: true, pad: 4 });
+    slideIn(ctx, L.title, ms, T_TITLE, 800, 170);
+    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, T_TAG, { outline: true, pad: 4 });
 
     // photo: wipes up from the bottom
-    const pp = inOutExpo(seg(ms, 950, 800));
+    const pp = inOutExpo(seg(ms, T_TITLE, 800));          // the photo goes with the title
     if (pp > 0) {
       const ph = geo.photo;
       ctx.save(); ctx.beginPath(); ctx.rect(0, ph.y + ph.h * (1 - pp) - 2, A.w, ph.h * pp + 4); ctx.clip();
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
 
-    morph(ctx, L.live, geo.live, ms, 1450, { shadow: true, pad: 40 });
+    morph(ctx, L.live, geo.live, ms, T_LIVE, { shadow: true, pad: 40 });
 
     // the sport icon sits in a circle: it slides in from the right
-    const ip = outExpo(seg(ms, 1650, 700));
+    const ip = outExpo(seg(ms, T_ICON, 700));
     if (ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
 
     // the ByTomorrow logo is always there, from the first frame, on top of the photo
