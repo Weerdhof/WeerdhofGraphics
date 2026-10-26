@@ -204,7 +204,7 @@
         html += `<div class="field"><label for="byt_sport">Sport (icoon)</label><select id="byt_sport" data-k="sport">${t.props.sport.options.map(s => `<option value="${s}"${cur.props.sport === s ? ' selected' : ''}>${esc(cap(s))}</option>`).join('')}</select></div>`;
       }
       if (hasChannel) {
-        html += `<div class="field"><label for="byt_channel">Kanaal naast "${/eindstand/.test(t.id) ? 'TERUGKIJKEN OP' : 'LIVE OP'}"</label><select id="byt_channel" data-ch="1"><option value="">Zelf typen</option>${CHANNELS.map(c => `<option value="${c.id}"${cur.props.channel === c.id ? ' selected' : ''}>${esc(c.label)} (logo)</option>`).join('')}</select></div>`;
+        html += `<div class="field"><label for="byt_channel">Kanaal naast "LIVE OP"</label><select id="byt_channel" data-ch="1"><option value="">Zelf typen</option>${CHANNELS.map(c => `<option value="${c.id}"${cur.props.channel === c.id ? ' selected' : ''}>${esc(c.label)} (logo)</option>`).join('')}</select></div>`;
       }
       html += '</div>';
     }

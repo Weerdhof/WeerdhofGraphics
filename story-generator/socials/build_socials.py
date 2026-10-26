@@ -21,23 +21,13 @@ ENABLED = [
     ("wedstrijd-linkedin", "wedstrijd", "LinkedIn"),
     ("social-artikel", "artikel", "Slide 1 · Artikel"),
     ("social-quote", "artikel", "Slide 2 · Quote"),
-    ("social-teamlid", "teamlid", "Feed"),
-    ("social-eindstand", "eindstand", "Feed"),
     ("social-story", "story", "Story"),
-    ("jump-update", "jump-update", "Feed"),
-    ("jump-update-story", "jump-update", "Story"),
-    ("jump-update-linkedin", "jump-update", "LinkedIn"),
-    ("social-functies", "functies", "Feed"),
     ("video-thumbnail", "video-thumbnail", "16:9"),
 ]
 ASSETS = {
     "wedstrijd": {"label": "Wedstrijd aankondiging", "desc": "Competitie en tijd, grote titel, sport-icoon en LIVE OP over de foto. Kies feed, story of LinkedIn."},
     "artikel": {"label": "Artikel en quote", "desc": "Een carrousel van twee slides. Slide 1: de titel van het artikel in een pijlerblok met een persoon, over een volledige foto. Slide 2: een quote met auteur en een knop naar het artikel."},
-    "teamlid": {"label": "Teamlid", "desc": "Een uitgesneden portret voor de grote B, met naam en functie."},
-    "eindstand": {"label": "Eindstand", "desc": "De uitslag van een wedstrijd met teams, score en platform."},
     "story": {"label": "Story achtergrond", "desc": "Een foto als achtergrond voor een story, met een kleurverloop vanaf boven, een label en een titel. Alle onderdelen kun je aan of uit zetten."},
-    "jump-update": {"label": "JUMP update", "desc": "Een nieuwe versie van JUMP: titel, intro en drie updates. Kies feed, story of LinkedIn."},
-    "functies": {"label": "JUMP functies", "desc": "De functies van JUMP op een rij (vaste template)."},
     "video-thumbnail": {"label": "Video thumbnail", "desc": "Een YouTube-thumbnail in 16:9 met titel, foto en pijler."},
 }
 
