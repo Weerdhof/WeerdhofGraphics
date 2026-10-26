@@ -119,22 +119,23 @@
     if (tx > 0) content(ctx, img, r, outExpo(tx), o.pad);
   }
 
-  // the two pills at the top: both circles come out next to each other, then the first one stretches and
-  // pushes the second one aside, which then stretches too
+  // the two pills at the top: both circles come in from the left (the second a little ahead, so they never cross)
+  // and land next to each other, then the first one stretches and pushes the second one aside, which then
+  // stretches too
   function pillRow(ctx, img, list, ms) {
-    const gap = list.length > 1 ? list[1].x - (list[0].x + list[0].w) : 0, W = layers.w;
+    const gap = list.length > 1 ? list[1].x - (list[0].x + list[0].w) : 0;
     let right = null;
     list.forEach((r, i) => {
-      const t0 = [150, 450][i] || 450, s0 = [850, 1250][i] || 1250;
+      const t0 = i === 0 ? 270 : 150, s0 = [850, 1250][i] || 1250;
       const mv = outExpo(seg(ms, t0, 600)), str = inOutExpo(seg(ms, s0, 650)), tx = seg(ms, s0 + 450, 250), w = lerp(r.h, r.w, str);
       let x;
       if (i === 0) x = str > 0 ? r.x : lerp(-r.h * 1.3, r.x, mv);
-      else x = lerp(W + r.h, right + gap, mv);            // the second one arrives from the right, next to the first
+      else x = lerp(-r.h * 1.3, right + gap, mv);        // the second one also comes from the left, a little ahead, and lands next to the first
       if (mv > 0) {
         if (tx < 1) bar(ctx, r, x, w, {}, 1);
         if (tx > 0) content(ctx, img, r, outExpo(tx), 4);
       }
-      right = x + w;
+      right = r.x + w;                                    // where the next one lands: behind the landed place of this one
     });
   }
 
