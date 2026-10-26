@@ -2,14 +2,15 @@
    The finished design is rendered once as separate transparent layers (background, photo, pills, title, tag,
    LIVE OP capsule, sport icon, logo). A canvas then composes them over time: the pill-shaped elements (the
    competition and date pills, the pillar label, the LIVE OP capsule) first travel to their place as a circle,
-   stretch into a bar and fade their text in just before it lands; the sport icon slides in as the circle it is; the title, photo and logo fade and
-   slide in horizontally. The same canvas is
+   stretch into a bar and fade their text in just before it lands; the sport icon slides in as the circle it is; the title slides in horizontally, the photo
+   wipes up from the bottom and the logo fades in. The same canvas is
    previewed on the stage and recorded to video (MP4 when the browser can, WebM otherwise). The PNG export is
    not touched. */
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const DUR = 3900;                         // one pass in ms (the preview loops it, the video is one pass)
+  const DUR = 3900;                         // the movement, in ms
+  const CLIP = 15000;                       // the video: the movement, then the finished graphic stays until 15 seconds
   const SUPPORTED = ['wedstrijd'];          // assets that have an animation
 
   let on = false, layers = null, buildTimer = 0, building = false, again = false;
@@ -116,11 +117,11 @@
     slideIn(ctx, L.title, ms, 650, 800, 170);
     if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 850, { outline: true });
 
-    // photo: a horizontal wipe from the left
+    // photo: wipes up from the bottom
     const pp = inOutExpo(seg(ms, 950, 800));
     if (pp > 0) {
       const ph = geo.photo;
-      ctx.save(); ctx.beginPath(); ctx.rect(0, ph.y - 2, A.w * pp, ph.h + 4); ctx.clip();
+      ctx.save(); ctx.beginPath(); ctx.rect(0, ph.y + ph.h * (1 - pp) - 2, A.w, ph.h * pp + 4); ctx.clip();
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
 
@@ -152,7 +153,7 @@
   }
   function frame(ts) {
     if (!on || !layers || recording) return;
-    const ms = (ts - t0) % (DUR + 600);               // a short pause on the finished design before it loops
+    const ms = (ts - t0) % (DUR + 1800);              // the preview pauses a moment on the finished design before it loops
     draw(canvas.getContext('2d'), Math.min(ms, DUR));
     raf = requestAnimationFrame(frame);
   }
@@ -173,7 +174,7 @@
       const chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       const stopped = new Promise(res => { rec.onstop = res; });
       const s = performance.now(); rec.start();
-      await new Promise(res => { const loop = () => { const ms = performance.now() - s; draw(ctx, Math.min(ms, DUR)); if (ms < DUR + 500) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
+      await new Promise(res => { const loop = () => { const ms = performance.now() - s; draw(ctx, Math.min(ms, DUR)); if (ms < CLIP) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
       rec.stop(); await stopped;
       const blob = new Blob(chunks, { type: mime }), ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = b.fileName().replace(/\.png$/, '-animatie.' + ext);
