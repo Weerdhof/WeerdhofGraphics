@@ -525,16 +525,19 @@
     }
     if (K.lvl) {
       await loadLvlRows(kind);
-      // nothing chosen yet (or the saved match is no longer in the programme): the first match that has not started yet
+      // always start on the first match that has not been played yet; when the whole programme is over, keep what was saved
+      // (or the last match of the programme when nothing was saved)
       const rows = cur.lvlRows || [], today = new Date(), tOrder = ((today.getMonth() + 5) % 12) * 100 + today.getDate();
+      const next = rows.find(x => lvlSeasonOrder(x.dt) >= tOrder);
       const keep = rows.find(r => cur.d.fixture === `${r.left}-${r.right}|${r.dt}`);
-      if (!keep && !cur.d.dt && rows.length) { const r = rows.find(x => lvlSeasonOrder(x.dt) >= tOrder) || rows[rows.length - 1]; Object.assign(cur.d, { home: r.left, away: r.right, dt: r.dt, fixture: `${r.left}-${r.right}|${r.dt}` }); }
+      const r = next || (!keep && !cur.d.dt && rows.length ? rows[rows.length - 1] : null);
+      if (r) Object.assign(cur.d, { home: r.left, away: r.right, dt: r.dt, fixture: `${r.left}-${r.right}|${r.dt}` });
     } else if (!K.next) {
       await loadFixtures(kind);
-      // default: the first upcoming matchday (or keep the saved one when it still exists)
+      // always start on the first upcoming matchday (a saved day only stays when there is nothing upcoming any more)
       const today = new Date();
       const dayOrder = (x) => ((x.month + 4) % 12) * 100 + x.day, tOrder = ((today.getMonth() + 5) % 12) * 100 + today.getDate();
-      const day = cur.days.find(x => String(x.key) === String(cur.d.dayKey)) || cur.days.find(x => dayOrder(x) >= tOrder) || cur.days[0];
+      const day = cur.days.find(x => dayOrder(x) >= tOrder) || cur.days.find(x => String(x.key) === String(cur.d.dayKey)) || cur.days[0];
       if (day) { cur.d.dayKey = day.key; const f = day.items.find(x => `${x.month * 100 + x.day}|${x.hc}-${x.ac}` === cur.d.fixture) || day.items[0]; const keepTime = cur.d.fixture === `${f.month * 100 + f.day}|${f.hc}-${f.ac}`; const t0 = cur.d.time; pickFixture(f); if (keepTime && t0) cur.d.time = t0; }
       else if (!cur.d.home) { const cfg = kind === 'shl' ? MEN : WOMEN; cur.d.home = cfg.clubs[0][0]; cur.d.away = cfg.clubs[1][0]; }
     }
