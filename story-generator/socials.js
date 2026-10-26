@@ -25,15 +25,18 @@
     title: 'Titel', titleLine1: 'Titel, regel 1', titleLine2: 'Titel, regel 2 (mag leeg)', competition: 'Competitie',
     datetime: 'Datum en tijd', platform: 'Platform (achter "LIVE OP")', pillarLabel: 'Label onder de titel (leeg: naam van de pijler)',
     quote: 'Quote', author: 'Auteur', cta: 'Tekst op de knop',
+    person: 'Persoon', name: 'Naam', role: 'Functie', eyebrow: 'Label (klein, boven de titel)', duration: 'Duur', version: 'Versie',
+    intro: 'Intro', u1: 'Update 1 (mag leeg)', u2: 'Update 2 (mag leeg)', u3: 'Update 3 (mag leeg)',
+    homeTeam: 'Thuisploeg', awayTeam: 'Uitploeg', homeScore: 'Score thuis', awayScore: 'Score uit',
   };
-  const LONG = { quote: 4 };   // textarea rows
+  const LONG = { quote: 4, intro: 4, title: 0 };   // textarea rows
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   const cur = { asset: null, t: null, props: {}, photo: null, scale: 1 };
   const classes = {};
   class DCLogic { constructor(props) { this.props = props || {}; } }
   function logicFor(t) {
-    if (!classes[t.id]) classes[t.id] = new Function('DCLogic', t.logic + '\nreturn Component;')(DCLogic);
+    if (!classes[t.id]) classes[t.id] = new Function('DCLogic', t.logic + '\nreturn typeof Component === "undefined" ? DCLogic : Component;')(DCLogic);
     return classes[t.id];
   }
 
@@ -70,8 +73,8 @@
     frame.style.width = t.w + 'px'; frame.style.height = t.h + 'px';
     window.__bytRoot = frame;
     const logic = new (logicFor(t))(cur.props);
-    logic.applyVars();
-    const vals = logic.renderVals();
+    if (typeof logic.applyVars === 'function') logic.applyVars();
+    const vals = typeof logic.renderVals === 'function' ? logic.renderVals() : {};
     let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => (vals[k] ? body : ''));
     h = h.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => esc(vals[k] != null ? vals[k] : cur.props[k]));
     frame.innerHTML = h;
@@ -81,6 +84,8 @@
   const scheduled = { v: false };
   function scheduleRender() { if (!scheduled.v) { scheduled.v = true; requestAnimationFrame(() => { scheduled.v = false; render(); }); } }
 
+  // cover for photos, contain for cut-out portraits
+  function slotScale(slot, p, w, h) { return (slot.dataset.fit === 'contain' ? Math.min(w / p.iw, h / p.ih) : Math.max(w / p.iw, h / p.ih)) * p.z; }
   function applySlot(slot) {
     const p = cur.photo;
     if (!p) {
@@ -90,7 +95,7 @@
     }
     slot.classList.remove('empty'); slot.innerHTML = '';
     const w = slot.offsetWidth, h = slot.offsetHeight;
-    const sc = Math.max(w / p.iw, h / p.ih) * p.z, bw = p.iw * sc, bh = p.ih * sc;
+    const sc = slotScale(slot, p, w, h), bw = p.iw * sc, bh = p.ih * sc;
     slot.style.backgroundImage = `url("${p.src}")`;
     slot.style.backgroundRepeat = 'no-repeat';
     slot.style.backgroundSize = `${bw}px ${bh}px`;
@@ -121,7 +126,8 @@
       const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      cur.photo = { src: c.toDataURL('image/jpeg', 0.92), iw: c.width, ih: c.height, x: .5, y: .5, z: 1 };
+      const png = file.type === 'image/png';
+      cur.photo = { src: png ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.92), iw: c.width, ih: c.height, x: .5, y: /data-fit="contain"/.test(cur.t.html) ? 1 : .5, z: 1 };
       buildControls(); render();
     };
     img.onerror = () => { URL.revokeObjectURL(url); status('Die afbeelding kon niet worden gelezen'); };
@@ -139,7 +145,7 @@
     stage.addEventListener('pointermove', (e) => {
       if (!drag || !cur.photo) return;
       const p = cur.photo, w = drag.slot.offsetWidth, h = drag.slot.offsetHeight;
-      const sc = Math.max(w / p.iw, h / p.ih) * p.z, bw = p.iw * sc, bh = p.ih * sc;
+      const sc = slotScale(drag.slot, p, w, h), bw = p.iw * sc, bh = p.ih * sc;
       const dx = (e.clientX - drag.x) / cur.scale, dy = (e.clientY - drag.y) / cur.scale;
       drag.x = e.clientX; drag.y = e.clientY;
       if (Math.abs(w - bw) > 0.5) p.x = Math.min(1, Math.max(0, p.x + dx / (w - bw)));
@@ -166,18 +172,24 @@
         <div class="mode-tabs mode-tabs-compact" id="bytFormats" role="tablist" aria-label="Formaat">${formats.map(f => `<button type="button" class="mode-tab${f.id === t.id ? ' active' : ''}" role="tab" aria-selected="${f.id === t.id}" data-f="${f.id}">${esc(f.format)}</button>`).join('')}</div>
         <p class="hint">${t.w} × ${t.h} px. De velden en de foto blijven staan als je van formaat wisselt.</p></div>`;
     }
-    html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Tekst</div>` +
+    if (textKeys.length) html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Tekst</div>` +
       textKeys.map(k => LONG[k]
         ? `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><textarea id="byt_${k}" data-k="${k}" rows="${LONG[k]}">${esc(cur.props[k])}</textarea></div>`
         : `<div class="field"><label for="byt_${k}">${esc(LABELS[k] || k)}</label><input type="text" id="byt_${k}" data-k="${k}" value="${esc(cur.props[k])}"></div>`).join('') + '</div>';
     const pOpts = (t.props.pillar && t.props.pillar.options) || [];
-    html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Opmaak</div>
-      <div class="field"><label>Pijler</label><div class="byt-pillars" id="bytPillars">${pOpts.map(p => { const c = PILLARS[p] || ['#888', '#444', p];
-        return `<button type="button" class="byt-pillar${cur.props.pillar === p ? ' active' : ''}" data-p="${p}" title="${esc(c[2])}"><i style="background:linear-gradient(135deg,${c[0]} 50%,${c[1]} 50%)"></i><span>${esc(c[2])}</span></button>`; }).join('')}</div></div>`;
-    if (t.props.sport) {
-      html += `<div class="field"><label for="byt_sport">Sport (icoon)</label><select id="byt_sport" data-k="sport">${t.props.sport.options.map(s => `<option value="${s}"${cur.props.sport === s ? ' selected' : ''}>${esc(cap(s))}</option>`).join('')}</select></div>`;
+    if (!pOpts.length && !t.props.sport) {
+      if (!textKeys.length) html += '<div class="panel-step"><p class="hint">Deze template heeft geen velden: je kunt hem direct exporteren.</p></div>';
+    } else {
+      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Opmaak</div>`;
+      if (pOpts.length) {
+        html += `<div class="field"><label>Pijler</label><div class="byt-pillars" id="bytPillars">${pOpts.map(p => { const c = PILLARS[p] || ['#888', '#444', p];
+          return `<button type="button" class="byt-pillar${cur.props.pillar === p ? ' active' : ''}" data-p="${p}" title="${esc(c[2])}"><i style="background:linear-gradient(135deg,${c[0]} 50%,${c[1]} 50%)"></i><span>${esc(c[2])}</span></button>`; }).join('')}</div></div>`;
+      }
+      if (t.props.sport) {
+        html += `<div class="field"><label for="byt_sport">Sport (icoon)</label><select id="byt_sport" data-k="sport">${t.props.sport.options.map(s => `<option value="${s}"${cur.props.sport === s ? ' selected' : ''}>${esc(cap(s))}</option>`).join('')}</select></div>`;
+      }
+      html += '</div>';
     }
-    html += '</div>';
     if (hasSlot) {
       const p = cur.photo;
       html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Foto</div>
@@ -202,7 +214,7 @@
       const on = () => { cur.props[el.dataset.k] = el.value; saveProps(); scheduleRender(); };
       el.addEventListener('input', on); el.addEventListener('change', on);
     });
-    $('bytPillars').querySelectorAll('.byt-pillar').forEach(b => b.addEventListener('click', () => {
+    if ($('bytPillars')) $('bytPillars').querySelectorAll('.byt-pillar').forEach(b => b.addEventListener('click', () => {
       cur.props.pillar = b.dataset.p; saveProps();
       $('bytPillars').querySelectorAll('.byt-pillar').forEach(x => x.classList.toggle('active', x === b)); render();
     }));
@@ -270,7 +282,7 @@
   const slug = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   function fileName() {
     const t = cur.t, p = cur.props;
-    const what = slug(p.title || [p.titleLine1, p.titleLine2].filter(Boolean).join(' ') || p.author || '') || 'post';
+    const what = slug(p.title || [p.titleLine1, p.titleLine2].filter(Boolean).join(' ') || p.name || p.author || [p.homeTeam, p.awayTeam].filter(Boolean).join(' ') || p.version || p.eyebrow || '') || 'post';
     return `BYT_${t.id.replace(/^social-/, '')}_${what}.png`;
   }
   async function exportPng() {

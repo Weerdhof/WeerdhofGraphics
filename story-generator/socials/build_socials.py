@@ -9,7 +9,7 @@ template is brought in by editing ENABLED and running it again:
 
     python3 socials/build_socials.py [path/to/design_handoff_bytomorrow]
 """
-import html, json, os, re, sys
+import base64, html, json, os, re, sys
 
 HANDOFF = sys.argv[1] if len(sys.argv) > 1 else "/Users/Tom/CLAUDE-map/ByTomorrow-stijl/handoff/templates/_handoff/design_handoff_bytomorrow"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates.js")
@@ -20,10 +20,26 @@ ENABLED = [
     ("social-wedstrijd-story", "wedstrijd", "Story"),
     ("wedstrijd-linkedin", "wedstrijd", "LinkedIn"),
     ("social-quote", "quote", "Feed"),
+    ("social-artikel", "artikel", "Feed"),
+    ("social-teamlid", "teamlid", "Feed"),
+    ("social-eindstand", "eindstand", "Feed"),
+    ("social-story", "story", "Story"),
+    ("jump-update", "jump-update", "Feed"),
+    ("jump-update-story", "jump-update", "Story"),
+    ("jump-update-linkedin", "jump-update", "LinkedIn"),
+    ("social-functies", "functies", "Feed"),
+    ("video-thumbnail", "video-thumbnail", "16:9"),
 ]
 ASSETS = {
     "wedstrijd": {"label": "Wedstrijd aankondiging", "desc": "Competitie en tijd, grote titel, sport-icoon en LIVE OP over de foto. Kies feed, story of LinkedIn."},
     "quote": {"label": "Quote", "desc": "Een uitspraak groot in beeld, met auteur en een knop naar het artikel."},
+    "artikel": {"label": "Artikel", "desc": "Een titel in een pijlerblok met een persoon, over een volledige foto."},
+    "teamlid": {"label": "Teamlid", "desc": "Een uitgesneden portret voor de grote B, met naam en functie."},
+    "eindstand": {"label": "Eindstand", "desc": "De uitslag van een wedstrijd met teams, score en platform."},
+    "story": {"label": "Story achtergrond", "desc": "Een vlak in de kleur van de pijler met een kort label en een titel."},
+    "jump-update": {"label": "JUMP update", "desc": "Een nieuwe versie van JUMP: titel, intro en drie updates. Kies feed, story of LinkedIn."},
+    "functies": {"label": "JUMP functies", "desc": "De functies van JUMP op een rij (vaste template)."},
+    "video-thumbnail": {"label": "Video thumbnail", "desc": "Een YouTube-thumbnail in 16:9 met titel, foto en pijler."},
 }
 
 def read(p):
@@ -55,6 +71,12 @@ def bug(m):
 def convert(folder, asset, fmt):
     src = read("templates/%s/%s" % (folder, [f for f in os.listdir(os.path.join(HANDOFF, "templates", folder)) if f.endswith(".dc.html")][0]))
     body = re.search(r"</helmet>(.*?)</x-dc>", src, re.S).group(1)
+    # the template's own style rules (from its <helmet>), scoped to the frame; the page-level body rule is dropped
+    css = "".join(re.findall(r"<style>(.*?)</style>", re.search(r"<helmet>(.*?)</helmet>", src, re.S).group(1), re.S))
+    css = re.sub(r"body\s*\{[^}]*\}", "", css).strip()
+    if css:
+        css = re.sub(r"(^|\})\s*([^{}]+)\{", lambda m: m.group(1) + " .byt-frame " + m.group(2).strip() + " {", css)
+        body = "<style>" + css + "</style>" + body
     meta = re.search(r'<!-- template name="([^"]*)" description="([^"]*)"', src)
     logic = re.search(r'<script type="text/x-dc" data-dc-script[^>]*>(.*?)</script>', src, re.S).group(1).strip()
     props = json.loads(html.unescape(re.search(r'data-props="([^"]*)"', src).group(1)))
@@ -64,11 +86,18 @@ def convert(folder, asset, fmt):
     body = re.sub(r'<image-slot\b([^>]*)>\s*</image-slot>', lambda m: '<div class="byt-slot" data-slot="%s" data-ph="%s" style="%s"></div>' % (
         attrs("<x " + m.group(1) + ">").get("id", "foto"), attrs("<x " + m.group(1) + ">").get("placeholder", "Sleep hier een foto"), attrs("<x " + m.group(1) + ">").get("style", "")), body)
     # older templates draw their own striped photo placeholder instead of an <image-slot>
-    body = re.sub(r'<div style="(position:absolute;[^"]*?)background:repeating-linear-gradient[^"]*">\s*<span[^>]*>([^<]*)</span>\s*</div>',
-                  lambda m: '<div class="byt-slot" data-slot="foto" data-ph="%s" style="%sdisplay:block;"></div>' % (m.group(2).strip(), m.group(1)), body)
+    body = re.sub(r'<div style="(position:absolute;[^"]*?)background:repeating-linear-gradient[^"]*">\s*<span[^>]*>(.*?)</span>\s*</div>',
+                  lambda m: '<div class="byt-slot" data-slot="foto" data-ph="%s"%s style="%sdisplay:block;"></div>' % (
+                      re.sub(r"<br\s*/?>", " ", m.group(2)).strip(), ' data-fit="contain"' if folder == "social-teamlid" else "", m.group(1)), body)
+    # logo images are inlined: the export renders the page as an image, which cannot load files
+    def inline_img(m):
+        path = os.path.join(HANDOFF, "assets", "logos", os.path.basename(m.group(2)))
+        uri = "data:image/svg+xml;base64," + base64.b64encode(open(path, "rb").read()).decode()
+        return '<img%ssrc="%s"' % (m.group(1), uri)
+    body = re.sub(r'<img([^>]*?)src="(\.\./\.\./assets/logos/[^"]+)"', inline_img, body)
     body = re.sub(r'<sc-if value="\{\{\s*(\w+)\s*\}\}"[^>]*>(.*?)</sc-if>', r"<!--if:\1-->\2<!--/if-->", body, flags=re.S)
     assert "<x-import" not in body and "<image-slot" not in body and "<sc-if" not in body, folder
-    m = re.search(r"width:(\d+)px;\s*height:(\d+)px", body)
+    m = re.search(r"width:(\d+)px;\s*height:(\d+)px", body.split("</style>")[-1])
     # the logic sets its colours on documentElement; the generator sets them on the frame instead
     logic = logic.replace("document.documentElement.style", "window.__bytRoot.style")
     return {
