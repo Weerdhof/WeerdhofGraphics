@@ -80,7 +80,7 @@
     const logic = new (logicFor(t))(cur.props);
     if (typeof logic.applyVars === 'function') logic.applyVars();
     const vals = typeof logic.renderVals === 'function' ? logic.renderVals() : {};
-    let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => (vals[k] ? body : ''));
+    let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => ((vals[k] != null ? vals[k] : cur.props[k]) ? body : ''));
     // a channel logo takes the place of the typed platform
     const ch = 'platform' in t.props && channelOf(cur.props.channel);
     // the arrow of the JUMP logo: in the colour of the background, the original green, or navy with a light grey arrow (mono)
@@ -217,6 +217,16 @@
         <button class="btn btn-link" id="bytPhotoRemove" type="button">✕ Verwijder foto</button>
         <p class="hint">Sleep in het voorbeeld om de foto te verschuiven. Zoom in om hem verder te kunnen verplaatsen.</p>` : ''}</div>`;
     }
+    const toggles = Object.keys(t.props).filter(k => t.props[k].editor === 'toggle'), ranges = Object.keys(t.props).filter(k => t.props[k].editor === 'range');
+    if (toggles.length) {
+      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Onderdelen</div>
+        <p class="hint">Zet onderdelen aan of uit.</p>` + toggles.filter(k => k !== 'gradient').map(k => `<label class="upcoming-toggle byt-toggle"><input type="checkbox" data-tg="${k}"${cur.props[k] ? ' checked' : ''}> ${esc(t.props[k].label)}</label>`).join('');
+      if (t.props.gradient) {
+        html += `<label class="upcoming-toggle byt-toggle"><input type="checkbox" data-tg="gradient"${cur.props.gradient ? ' checked' : ''}> ${esc(t.props.gradient.label)}</label>` +
+          (cur.props.gradient ? ranges.map(k => `<div class="field"><label for="byt_${k}">${esc(t.props[k].label)}</label><input type="range" id="byt_${k}" data-rg="${k}" min="${t.props[k].min}" max="${t.props[k].max}" value="${cur.props[k]}"></div>`).join('') : '');
+      }
+      html += '</div>';
+    }
     html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${n++}</span> Exporteren</div>
       <p class="hint">PNG op ware grootte: ${t.w} × ${t.h} px${formats.length > 1 ? ` (${esc(t.format)})` : ''}.</p>
       <div id="bytAnimBox"></div>
@@ -230,6 +240,10 @@
   function bindControls() {
     const fm = $('bytFormats');
     if (fm) fm.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => switchFormat(b.dataset.f)));
+    $('bytControls').querySelectorAll('[data-tg]').forEach(el => el.addEventListener('change', () => {
+      cur.props[el.dataset.tg] = el.checked; saveProps(); if (el.dataset.tg === 'gradient') buildControls(); render();
+    }));
+    $('bytControls').querySelectorAll('[data-rg]').forEach(el => el.addEventListener('input', () => { cur.props[el.dataset.rg] = Number(el.value); saveProps(); scheduleRender(); }));
     const chSel = $('byt_channel');
     if (chSel) chSel.addEventListener('change', () => { cur.props.channel = chSel.value; saveProps(); buildControls(); render(); });
     $('bytControls').querySelectorAll('[data-k]').forEach(el => {
