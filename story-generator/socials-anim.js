@@ -71,7 +71,7 @@
     geo.pills.forEach(r => { r.col = col(L.pills, r); });
     if (geo.tag) geo.tag.col = col(L.tag, geo.tag);
     geo.live.col = col(L.live, geo.live);
-    return { tid: t.id, w: t.w, h: t.h, L, geo };
+    return { tid: t.id, w: t.w, h: t.h, L, geo, bg: getComputedStyle(frame).getPropertyValue('--bg').trim() || '#060228' };
   }
 
   async function rebuild() {
@@ -122,10 +122,13 @@
     if (tx > 0) content(ctx, img, r, outExpo(tx), o.pad);
   }
 
-  function badge(ctx, x, r) {
+  // the white badge with the monogram, slid by `dx` and keyed by the circle underneath (x): it only shows inside
+  // that circle, so it slides out of it instead of across the page
+  function badge(ctx, x, r, dx) {
     const cx = x + r.h / 2, cy = r.y + r.h / 2, k = (r.h * .52) / 1121;
-    ctx.save(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, cy, r.h / 2, 0, Math.PI * 2); ctx.fill();
-    ctx.translate(cx - 988 * k / 2, cy - 1121 * k / 2); ctx.scale(k, k); ctx.fillStyle = '#060228'; ctx.fill(BUG, 'evenodd'); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r.h / 2, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx + dx, cy, r.h / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(cx + dx - 988 * k / 2, cy - 1121 * k / 2); ctx.scale(k, k); ctx.fillStyle = layers.bg; ctx.fill(BUG, 'evenodd'); ctx.restore();
   }
 
   // the two pills at the top: both circles come in from the left (the second a little ahead, so they never cross)
@@ -143,8 +146,8 @@
       if (mv > 0) {
         if (tx < 1) bar(ctx, r, x, w, {}, 1);
         if (tx > 0) content(ctx, img, r, outExpo(tx), 4);
-        // a white badge with the ByTomorrow monogram stands on the first circle and slides away to the left
-        if (i === 0) { const e = inOutExpo(seg(ms, 900, 450)); if (e < 1) badge(ctx, x - e * (r.x + r.h * 1.5), r); }
+        // a white badge with the ByTomorrow monogram (in the colour of the background) stands on the first circle and slides out of it to the left
+        if (i === 0) { const e = inOutExpo(seg(ms, 900, 450)); if (e < 1) badge(ctx, r.x, r, -e * r.h * 1.15); }
       }
       right = r.x + w;                                    // where the next one lands: behind the landed place of this one
     });
