@@ -3,7 +3,7 @@
    LIVE OP capsule, sport icon, logo). A canvas then composes them over time: the pill-shaped elements (the
    competition and date pills, the pillar label, the LIVE OP capsule) first travel to their place as a circle,
    stretch into a bar and fade their text in just before it lands; the sport icon slides in as the circle it is; the title slides in horizontally, the photo
-   wipes up from the bottom and the logo fades in. The same canvas is
+   wipes up from the bottom and the ByTomorrow logo is always there. The same canvas is
    previewed on the stage and recorded to video (MP4 when the browser can, WebM otherwise). The PNG export is
    not touched. */
 (function () {
@@ -88,14 +88,8 @@
     ctx.save(); ctx.globalAlpha = Math.min(1, p * 2.5); ctx.translate(-(1 - p) * dist, 0); ctx.drawImage(img, 0, 0); ctx.restore();
   }
 
-  // a pill-shaped element: first a circle that travels in from the side to the place of the element, then an
-  // empty bar stretches out of it (left anchored); only when the bar is complete does its text fade in, so no
-  // half texts are ever visible. `outline` is for the label, which is a ring and not a filled pill.
-  function morph(ctx, img, r, ms, start, o) {
-    const mv = outExpo(seg(ms, start, 600)); if (mv <= 0) return;
-    const str = inOutExpo(seg(ms, start + 450, 650)), tx = seg(ms, start + 900, 250);   // the text starts while the bar is landing
-    if (tx >= 1) { ctx.drawImage(img, 0, 0); return; }
-    const x = str > 0 ? r.x : lerp(-r.h * 1.3, r.x, mv), w = lerp(r.h, r.w, str), a = 1 - outExpo(tx);
+  // the empty bar of a pill-shaped element, `a` is the weight of its shadow
+  function bar(ctx, r, x, w, o, a) {
     ctx.save(); ctx.beginPath();
     if (o.outline) { if (ctx.roundRect) ctx.roundRect(x + 1.5, r.y + 1.5, w - 3, r.h - 3, (r.h - 3) / 2); else ctx.rect(x + 1.5, r.y + 1.5, w - 3, r.h - 3); ctx.strokeStyle = r.col; ctx.lineWidth = 3; ctx.stroke(); }
     else {
@@ -104,7 +98,41 @@
       ctx.fillStyle = r.col; ctx.fill();
     }
     ctx.restore();
-    if (tx > 0) { ctx.save(); ctx.globalAlpha = outExpo(tx); ctx.drawImage(img, 0, 0); ctx.restore(); }
+  }
+  // the element's own part of its layer (a layer can hold several elements), faded in by `p`
+  function content(ctx, img, r, p, pad) {
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x - pad, r.y - pad, r.w + pad * 2, r.h + pad * 2); ctx.clip();
+    ctx.globalAlpha = p; ctx.drawImage(img, 0, 0); ctx.restore();
+  }
+
+  // a pill-shaped element: first a circle that travels in from the side to the place of the element, then it
+  // stretches (left anchored) into its bar and its text fades in while the bar lands. `o.pad` is the room around
+  // the element that belongs to it (its shadow), `o.outline` is for the label, which is a ring and not a filled pill.
+  function morph(ctx, img, r, ms, start, o) {
+    const mv = outExpo(seg(ms, start, 600)); if (mv <= 0) return;
+    const str = inOutExpo(seg(ms, start + 450, 650)), tx = seg(ms, start + 900, 250);
+    if (tx >= 1) { content(ctx, img, r, 1, o.pad); return; }
+    bar(ctx, r, str > 0 ? r.x : lerp(-r.h * 1.3, r.x, mv), lerp(r.h, r.w, str), o, 1 - outExpo(tx));
+    if (tx > 0) content(ctx, img, r, outExpo(tx), o.pad);
+  }
+
+  // the two pills at the top: both circles come out next to each other, then the first one stretches and
+  // pushes the second one aside, which then stretches too
+  function pillRow(ctx, img, list, ms) {
+    const gap = list.length > 1 ? list[1].x - (list[0].x + list[0].w) : 0, W = layers.w;
+    let right = null;
+    list.forEach((r, i) => {
+      const t0 = [150, 450][i] || 450, s0 = [850, 1250][i] || 1250;
+      const mv = outExpo(seg(ms, t0, 600)), str = inOutExpo(seg(ms, s0, 650)), tx = seg(ms, s0 + 450, 250), w = lerp(r.h, r.w, str);
+      let x;
+      if (i === 0) x = str > 0 ? r.x : lerp(-r.h * 1.3, r.x, mv);
+      else x = lerp(W + r.h, right + gap, mv);            // the second one arrives from the right, next to the first
+      if (mv > 0) {
+        if (tx < 1) bar(ctx, r, x, w, {}, 1);
+        if (tx > 0) content(ctx, img, r, outExpo(tx), 4);
+      }
+      right = x + w;
+    });
   }
 
   function draw(ctx, ms) {
@@ -113,9 +141,9 @@
     ctx.drawImage(L.bg, 0, 0);
 
     // competition and date pills (one after the other)
-    geo.pills.forEach((r, i) => morph(ctx, L.pills, r, ms, 150 + 90 * i, {}));
+    pillRow(ctx, L.pills, geo.pills, ms);
     slideIn(ctx, L.title, ms, 650, 800, 170);
-    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 850, { outline: true });
+    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 850, { outline: true, pad: 4 });
 
     // photo: wipes up from the bottom
     const pp = inOutExpo(seg(ms, 950, 800));
@@ -125,14 +153,14 @@
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
 
-    morph(ctx, L.live, geo.live, ms, 1450, { shadow: true });
+    morph(ctx, L.live, geo.live, ms, 1450, { shadow: true, pad: 40 });
 
     // the sport icon sits in a circle: it slides in from the right
     const ip = outExpo(seg(ms, 1650, 700));
     if (ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
 
-    const gp = seg(ms, 2300, 450);
-    if (gp > 0) { ctx.save(); ctx.globalAlpha = outExpo(gp); ctx.drawImage(L.logo, 0, 0); ctx.restore(); }
+    // the ByTomorrow logo is always there, from the first frame, on top of the photo
+    ctx.drawImage(L.logo, 0, 0);
   }
 
   // ---------- preview ----------
