@@ -58,6 +58,9 @@
   // the story has two title lines, the other formats one: carry the title over when the format changes
   function carryTitle(from, to) {
     const p = cur.props, lines = (t) => 'titleLine1' in t.props;
+    // artikel (person) and quote (author) are the same name on two slides
+    if ('person' in from.props && 'author' in to.props) p.author = p.person;
+    else if ('author' in from.props && 'person' in to.props) p.person = p.author;
     if (lines(from) && !lines(to) && 'title' in to.props) {
       p.title = [p.titleLine1, p.titleLine2].filter(x => x && String(x).trim()).join('  ');
     } else if (!lines(from) && lines(to) && 'title' in from.props) {
@@ -169,9 +172,10 @@
     const formats = formatsOf(cur.asset);
     let n = 1, html = '';
     if (formats.length > 1) {
-      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Formaat</div>
+      const slides = /^Slide/.test(formats[0].format);
+      html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> ${slides ? 'Slide' : 'Formaat'}</div>
         <div class="mode-tabs mode-tabs-compact" id="bytFormats" role="tablist" aria-label="Formaat">${formats.map(f => `<button type="button" class="mode-tab${f.id === t.id ? ' active' : ''}" role="tab" aria-selected="${f.id === t.id}" data-f="${f.id}">${esc(f.format)}</button>`).join('')}</div>
-        <p class="hint">${t.w} × ${t.h} px. De velden en de foto blijven staan als je van formaat wisselt.</p></div>`;
+        <p class="hint">${slides ? 'De slides vormen samen een carrousel. De pijler, de foto en de naam blijven staan als je van slide wisselt.' : `${t.w} × ${t.h} px. De velden en de foto blijven staan als je van formaat wisselt.`}</p></div>`;
     }
     if (textKeys.length) html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">${n++}</span> Tekst</div>` +
       textKeys.map(k => LONG[k]

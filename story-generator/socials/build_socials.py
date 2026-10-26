@@ -19,8 +19,8 @@ ENABLED = [
     ("social-wedstrijd", "wedstrijd", "Feed"),
     ("social-wedstrijd-story", "wedstrijd", "Story"),
     ("wedstrijd-linkedin", "wedstrijd", "LinkedIn"),
-    ("social-quote", "quote", "Feed"),
-    ("social-artikel", "artikel", "Feed"),
+    ("social-artikel", "artikel", "Slide 1 · Artikel"),
+    ("social-quote", "artikel", "Slide 2 · Quote"),
     ("social-teamlid", "teamlid", "Feed"),
     ("social-eindstand", "eindstand", "Feed"),
     ("social-story", "story", "Story"),
@@ -32,8 +32,7 @@ ENABLED = [
 ]
 ASSETS = {
     "wedstrijd": {"label": "Wedstrijd aankondiging", "desc": "Competitie en tijd, grote titel, sport-icoon en LIVE OP over de foto. Kies feed, story of LinkedIn."},
-    "quote": {"label": "Quote", "desc": "Een uitspraak groot in beeld, met auteur en een knop naar het artikel."},
-    "artikel": {"label": "Artikel", "desc": "Een titel in een pijlerblok met een persoon, over een volledige foto."},
+    "artikel": {"label": "Artikel en quote", "desc": "Een carrousel van twee slides. Slide 1: de titel van het artikel in een pijlerblok met een persoon, over een volledige foto. Slide 2: een quote met auteur en een knop naar het artikel."},
     "teamlid": {"label": "Teamlid", "desc": "Een uitgesneden portret voor de grote B, met naam en functie."},
     "eindstand": {"label": "Eindstand", "desc": "De uitslag van een wedstrijd met teams, score en platform."},
     "story": {"label": "Story achtergrond", "desc": "Een vlak in de kleur van de pijler met een kort label en een titel."},
