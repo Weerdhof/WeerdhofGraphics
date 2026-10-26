@@ -42,7 +42,8 @@ ASSETS = {
 }
 
 # channel logos for the "LIVE OP" capsule (dark on white), embedded as data URIs: the export renders the page as an image
-CHANNELS = [("jump", "JUMP", "jump.svg", "image/svg+xml"), ("lvl", "LVL", "lvl.svg", "image/svg+xml"),
+CHANNELS = [("jump", "JUMP (pijl in de achtergrondkleur)", "jump.svg", "image/svg+xml"), ("jump-green", "JUMP (groene pijl)", "jump.svg", "image/svg+xml"),
+            ("jump-mono", "JUMP (mono, lichtgrijze pijl)", "jump.svg", "image/svg+xml"), ("lvl", "LVL", "lvl.svg", "image/svg+xml"),
             ("shltv", "SHL TV", "shltv.png", "image/png"), ("hnl", "HandbalNL TV", "hnl.png", "image/png"),
             ("knltb", "KNLTB TV", "knltb.svg", "image/svg+xml")]   # knltb.svg / knltb.png: add the logo to socials/channels and it shows up
 

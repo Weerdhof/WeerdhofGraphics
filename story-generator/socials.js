@@ -83,8 +83,9 @@
     let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => (vals[k] ? body : ''));
     // a channel logo takes the place of the typed platform
     const ch = 'platform' in t.props && channelOf(cur.props.channel);
-    // the green arrow of the JUMP logo takes the colour of the background
-    const chSrc = !ch ? '' : (ch.id === 'jump' ? 'data:image/svg+xml;base64,' + btoa(atob(ch.src.split(',')[1]).replace(/#49FF9F/gi, (getComputedStyle(frame).getPropertyValue('--bg').trim() || '#49FF9F'))) : ch.src);
+    // the arrow of the JUMP logo: in the colour of the background, the original green, or navy with a light grey arrow (mono)
+    const arrow = !ch ? '' : ({ jump: getComputedStyle(frame).getPropertyValue('--bg').trim() || '#49FF9F', 'jump-mono': '#C9C9D4' })[ch.id];
+    const chSrc = !ch ? '' : (arrow ? 'data:image/svg+xml;base64,' + btoa(atob(ch.src.split(',')[1]).replace(/#49FF9F/gi, arrow)) : ch.src);
     if (ch) h = h.replace(/<span([^>]*)>\{\{\s*platform\s*\}\}<\/span>/, (m, a) =>
       `<span${a.replace(/style="([^"]*)"/, (mm, st) => `style="${st}; display:flex; align-items:center;"`)}><img src="${chSrc}" alt="${esc(ch.label)}" style="height:1.35em; width:auto; display:block;"></span>`);
     h = h.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => esc(vals[k] != null ? vals[k] : cur.props[k]));
