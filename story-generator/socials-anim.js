@@ -146,8 +146,8 @@
       if (mv > 0) {
         if (tx < 1) bar(ctx, r, x, w, {}, 1);
         if (tx > 0) content(ctx, img, r, outExpo(tx), 4);
-        // a white badge with the ByTomorrow monogram (in the colour of the background) stands on the first circle and slides out of it to the left
-        if (i === 0) { const e = inOutExpo(seg(ms, 900, 450)); if (e < 1) badge(ctx, r.x, r, -e * r.h * 1.15); }
+        // a white badge with the ByTomorrow monogram (in the colour of the background) stands on the first circle (it travels in together with it) and slides out of it to the right
+        if (i === 0) { const e = inOutExpo(seg(ms, 900, 450)); if (e < 1) badge(ctx, x, r, e * r.h * 1.15); }
       }
       right = r.x + w;                                    // where the next one lands: behind the landed place of this one
     });
