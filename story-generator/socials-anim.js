@@ -2,14 +2,14 @@
    The finished design is rendered once as separate transparent layers (background, photo, pills, title, tag,
    LIVE OP capsule, sport icon, logo). A canvas then composes them over time: the pill-shaped elements (the
    competition and date pills, the pillar label, the LIVE OP capsule) first travel to their place as a circle,
-   stretch into an empty bar and only then fade their text in; the sport icon slides in as the circle it is; the title, photo and logo fade and
+   stretch into a bar and fade their text in just before it lands; the sport icon slides in as the circle it is; the title, photo and logo fade and
    slide in horizontally. The same canvas is
    previewed on the stage and recorded to video (MP4 when the browser can, WebM otherwise). The PNG export is
    not touched. */
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const DUR = 5600;                         // one pass in ms (the preview loops it, the video is one pass)
+  const DUR = 3900;                         // one pass in ms (the preview loops it, the video is one pass)
   const SUPPORTED = ['wedstrijd'];          // assets that have an animation
 
   let on = false, layers = null, buildTimer = 0, building = false, again = false;
@@ -17,8 +17,9 @@
 
   const clamp = (v) => Math.max(0, Math.min(1, v));
   const seg = (ms, start, dur) => clamp((ms - start) / dur);
-  const outQuint = (p) => 1 - Math.pow(1 - p, 5);
-  const inOutQuart = (p) => (p < .5 ? 8 * p * p * p * p : 1 - Math.pow(-2 * p + 2, 4) / 2);
+  // speed ramps: a hard start, then a long braking into place
+  const outExpo = (p) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p));
+  const inOutExpo = (p) => (p <= 0 ? 0 : p >= 1 ? 1 : p < .5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2);
   const lerp = (a, b, p) => a + (b - a) * p;
   const B = () => window.BYT;
 
@@ -82,18 +83,18 @@
   // ---------- drawing one moment ----------
   // fade in while sliding in from the left
   function slideIn(ctx, img, ms, start, dur, dist) {
-    const p = outQuint(seg(ms, start, dur)); if (p <= 0) return;
-    ctx.save(); ctx.globalAlpha = Math.min(1, p * 1.6); ctx.translate(-(1 - p) * dist, 0); ctx.drawImage(img, 0, 0); ctx.restore();
+    const p = outExpo(seg(ms, start, dur)); if (p <= 0) return;
+    ctx.save(); ctx.globalAlpha = Math.min(1, p * 2.5); ctx.translate(-(1 - p) * dist, 0); ctx.drawImage(img, 0, 0); ctx.restore();
   }
 
   // a pill-shaped element: first a circle that travels in from the side to the place of the element, then an
   // empty bar stretches out of it (left anchored); only when the bar is complete does its text fade in, so no
   // half texts are ever visible. `outline` is for the label, which is a ring and not a filled pill.
   function morph(ctx, img, r, ms, start, o) {
-    const mv = outQuint(seg(ms, start, 800)); if (mv <= 0) return;
-    const str = inOutQuart(seg(ms, start + 700, 900)), tx = seg(ms, start + 1600, 350);
+    const mv = outExpo(seg(ms, start, 600)); if (mv <= 0) return;
+    const str = inOutExpo(seg(ms, start + 450, 650)), tx = seg(ms, start + 900, 250);   // the text starts while the bar is landing
     if (tx >= 1) { ctx.drawImage(img, 0, 0); return; }
-    const x = str > 0 ? r.x : lerp(-r.h * 1.3, r.x, mv), w = lerp(r.h, r.w, str), a = 1 - outQuint(tx);
+    const x = str > 0 ? r.x : lerp(-r.h * 1.3, r.x, mv), w = lerp(r.h, r.w, str), a = 1 - outExpo(tx);
     ctx.save(); ctx.beginPath();
     if (o.outline) { if (ctx.roundRect) ctx.roundRect(x + 1.5, r.y + 1.5, w - 3, r.h - 3, (r.h - 3) / 2); else ctx.rect(x + 1.5, r.y + 1.5, w - 3, r.h - 3); ctx.strokeStyle = r.col; ctx.lineWidth = 3; ctx.stroke(); }
     else {
@@ -102,7 +103,7 @@
       ctx.fillStyle = r.col; ctx.fill();
     }
     ctx.restore();
-    if (tx > 0) { ctx.save(); ctx.globalAlpha = outQuint(tx); ctx.drawImage(img, 0, 0); ctx.restore(); }
+    if (tx > 0) { ctx.save(); ctx.globalAlpha = outExpo(tx); ctx.drawImage(img, 0, 0); ctx.restore(); }
   }
 
   function draw(ctx, ms) {
@@ -111,26 +112,26 @@
     ctx.drawImage(L.bg, 0, 0);
 
     // competition and date pills (one after the other)
-    geo.pills.forEach((r, i) => morph(ctx, L.pills, r, ms, 200 + 150 * i, {}));
-    slideIn(ctx, L.title, ms, 1100, 1000, 120);
-    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 1300, { outline: true });
+    geo.pills.forEach((r, i) => morph(ctx, L.pills, r, ms, 150 + 90 * i, {}));
+    slideIn(ctx, L.title, ms, 650, 800, 170);
+    if (geo.tag) morph(ctx, L.tag, geo.tag, ms, 850, { outline: true });
 
     // photo: a horizontal wipe from the left
-    const pp = inOutQuart(seg(ms, 1500, 1200));
+    const pp = inOutExpo(seg(ms, 950, 800));
     if (pp > 0) {
       const ph = geo.photo;
       ctx.save(); ctx.beginPath(); ctx.rect(0, ph.y - 2, A.w * pp, ph.h + 4); ctx.clip();
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
 
-    morph(ctx, L.live, geo.live, ms, 2300, { shadow: true });
+    morph(ctx, L.live, geo.live, ms, 1450, { shadow: true });
 
     // the sport icon sits in a circle: it slides in from the right
-    const ip = outQuint(seg(ms, 2800, 900));
+    const ip = outExpo(seg(ms, 1650, 700));
     if (ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
 
-    const gp = seg(ms, 3700, 700);
-    if (gp > 0) { ctx.save(); ctx.globalAlpha = outQuint(gp); ctx.drawImage(L.logo, 0, 0); ctx.restore(); }
+    const gp = seg(ms, 2300, 450);
+    if (gp > 0) { ctx.save(); ctx.globalAlpha = outExpo(gp); ctx.drawImage(L.logo, 0, 0); ctx.restore(); }
   }
 
   // ---------- preview ----------
