@@ -34,7 +34,7 @@
   const LONG = { quote: 4, intro: 4, title: 0 };   // textarea rows
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-  const cur = { asset: null, t: null, props: {}, photo: null, scale: 1 };
+  const cur = { asset: null, t: null, props: {}, photo: null, scale: 1, safe: false };
   const classes = {};
   class DCLogic { constructor(props) { this.props = props || {}; } }
   function logicFor(t) {
@@ -79,6 +79,7 @@
     window.__bytRoot = frame;
     const logic = new (logicFor(t))(cur.props);
     if (typeof logic.applyVars === 'function') logic.applyVars();
+    if ('iconColor' in t.props) { if (cur.props.iconColor && cur.props.iconColor !== 'auto') frame.style.setProperty('--icon', cur.props.iconColor); else frame.style.removeProperty('--icon'); }
     const vals = typeof logic.renderVals === 'function' ? logic.renderVals() : {};
     let h = t.html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, body) => ((vals[k] != null ? vals[k] : cur.props[k]) ? body : ''));
     // a channel logo takes the place of the typed platform
@@ -92,7 +93,21 @@
     frame.innerHTML = h;
     frame.querySelectorAll('.byt-slot').forEach(applySlot);
     fit();
+    applySafe();
     if (window.BYT_ANIM) window.BYT_ANIM.changed();
+  }
+  // Instagram story safe zones, shown over the preview only (they are not part of the frame, so not in the export)
+  const SAFE = { top: 250, bottom: 340, side: 60 };
+  const is916 = (t) => t && t.w === 1080 && t.h === 1920;
+  function applySafe() {
+    const scaler = $('bytScale'); if (!scaler) return;
+    let o = $('bytSafe'); if (o) o.remove();
+    if (!cur.safe || !is916(cur.t)) return;
+    o = document.createElement('div'); o.id = 'bytSafe'; o.className = 'byt-safe';
+    const p = (v, of) => (v / of * 100) + '%';
+    o.innerHTML = `<i class="top" style="height:${p(SAFE.top, 1920)}"><span>Instagram: naam en voortgangsbalk</span></i><i class="bottom" style="height:${p(SAFE.bottom, 1920)}"><span>Instagram: reageren en delen</span></i>` +
+      `<i class="side l" style="width:${p(SAFE.side, 1080)}; top:${p(SAFE.top, 1920)}; bottom:${p(SAFE.bottom, 1920)}"></i><i class="side r" style="width:${p(SAFE.side, 1080)}; top:${p(SAFE.top, 1920)}; bottom:${p(SAFE.bottom, 1920)}"></i>`;
+    scaler.appendChild(o);
   }
   const scheduled = { v: false };
   function scheduleRender() { if (!scheduled.v) { scheduled.v = true; requestAnimationFrame(() => { scheduled.v = false; render(); }); } }
@@ -150,12 +165,28 @@
   function bindDrag() {
     const stage = $('bytStage');
     stage.addEventListener('pointerdown', (e) => {
+      const el = e.target.closest('[data-drag]');
+      if (el) {            // a marked element (title block, icon): drag it up or down
+        e.preventDefault(); el.setPointerCapture && el.setPointerCapture(e.pointerId);
+        drag = { kind: 'el', el, key: el.dataset.drag, base: Number(el.dataset.base), axis: el.dataset.axis, y: e.clientY, off: Number(cur.props[el.dataset.drag]) || 0 };
+        return;
+      }
       const slot = e.target.closest('.byt-slot'); if (!slot || !cur.photo) return;
       e.preventDefault(); slot.setPointerCapture && slot.setPointerCapture(e.pointerId);
       drag = { x: e.clientX, y: e.clientY, slot };
       slot.style.cursor = 'grabbing';
     });
     stage.addEventListener('pointermove', (e) => {
+      if (drag && drag.kind === 'el') {
+        const t = cur.t, d = drag, h = d.el.offsetHeight;
+        d.off += (e.clientY - d.y) / cur.scale; d.y = e.clientY;
+        // keep the element inside the frame
+        const lo = d.axis === 'top' ? -d.base : d.base - (t.h - h), hi = d.axis === 'top' ? t.h - h - d.base : d.base;
+        d.off = Math.min(hi, Math.max(lo, d.off));
+        cur.props[d.key] = Math.round(d.off);
+        if (d.axis === 'top') d.el.style.top = `calc(${d.base}px + ${Math.round(d.off)}px)`; else d.el.style.bottom = `calc(${d.base}px - ${Math.round(d.off)}px)`;
+        return;
+      }
       if (!drag || !cur.photo) return;
       const p = cur.photo, w = drag.slot.offsetWidth, h = drag.slot.offsetHeight;
       const sc = slotScale(drag.slot, p, w, h), bw = p.iw * sc, bh = p.ih * sc;
@@ -165,7 +196,7 @@
       if (Math.abs(h - bh) > 0.5) p.y = Math.min(1, Math.max(0, p.y + dy / (h - bh)));
       frameEl().querySelectorAll('.byt-slot').forEach(applySlot);
     });
-    const end = () => { if (drag) { drag.slot.style.cursor = 'grab'; drag = null; } };
+    const end = () => { if (drag) { if (drag.kind === 'el') saveProps(); else drag.slot.style.cursor = 'grab'; drag = null; } };
     stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
     ['dragover', 'drop'].forEach(ev => stage.addEventListener(ev, (e) => {
       if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
@@ -225,10 +256,14 @@
         html += `<label class="upcoming-toggle byt-toggle"><input type="checkbox" data-tg="gradient"${cur.props.gradient ? ' checked' : ''}> ${esc(t.props.gradient.label)}</label>` +
           (cur.props.gradient ? ranges.map(k => `<div class="field"><label for="byt_${k}">${esc(t.props[k].label)}</label><input type="range" id="byt_${k}" data-rg="${k}" min="${t.props[k].min}" max="${t.props[k].max}" value="${cur.props[k]}"></div>`).join('') : '');
       }
+      const choices = Object.keys(t.props).filter(k => t.props[k].editor === 'choice');
+      html += choices.map(k => `<div class="field"><label for="byt_${k}">${esc(t.props[k].label)}</label><select id="byt_${k}" data-cs="${k}">${t.props[k].options.map(([v, l]) => `<option value="${esc(v)}"${String(cur.props[k]) === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`).join('');
+      if (/data-drag/.test(t.html)) html += '<p class="hint">Sleep de titel en het icoon in het voorbeeld omhoog of omlaag.</p>';
       html += '</div>';
     }
     html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${n++}</span> Exporteren</div>
       <p class="hint">PNG op ware grootte: ${t.w} × ${t.h} px${formats.length > 1 ? ` (${esc(t.format)})` : ''}.</p>
+      ${is916(t) ? `<label class="upcoming-toggle byt-toggle"><input type="checkbox" id="bytSafeToggle"${cur.safe ? ' checked' : ''}> Toon Instagram safe zones (alleen in het voorbeeld)</label>` : ''}
       <div id="bytAnimBox"></div>
       <button class="btn btn-primary" id="bytExport" type="button">Exporteer als PNG</button>
       <button class="btn btn-link" id="bytReset" type="button">Velden terugzetten</button>
@@ -244,6 +279,8 @@
       cur.props[el.dataset.tg] = el.checked; saveProps(); if (el.dataset.tg === 'gradient') buildControls(); render();
     }));
     $('bytControls').querySelectorAll('[data-rg]').forEach(el => el.addEventListener('input', () => { cur.props[el.dataset.rg] = Number(el.value); saveProps(); scheduleRender(); }));
+    $('bytControls').querySelectorAll('[data-cs]').forEach(el => el.addEventListener('change', () => { cur.props[el.dataset.cs] = el.value; saveProps(); render(); }));
+    const sf = $('bytSafeToggle'); if (sf) sf.addEventListener('change', () => { cur.safe = sf.checked; applySafe(); });
     const chSel = $('byt_channel');
     if (chSel) chSel.addEventListener('change', () => { cur.props.channel = chSel.value; saveProps(); buildControls(); render(); });
     $('bytControls').querySelectorAll('[data-k]').forEach(el => {

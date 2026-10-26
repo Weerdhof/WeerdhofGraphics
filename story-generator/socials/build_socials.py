@@ -117,10 +117,11 @@ def augment_story(d):
         i = h.index(marker); j = h.index("\n\n", i)         # the element ends at the blank line that follows it
         return h[:i] + "<!--if:%s-->" % key + h[i:j] + "<!--/if-->" + h[j:]
     h = h.replace('style="position:absolute; top:0; bottom:0; right:6px;', 'style="pointer-events:none; position:absolute; top:0; bottom:0; right:6px;')
-    h = h.replace('style="position:absolute; top:130px; left:90px; right:250px;"', 'style="pointer-events:none; position:absolute; top:130px; left:90px; right:250px;"')
-    h = h.replace('style="position:absolute; bottom:90px; left:90px;"', 'style="pointer-events:none; position:absolute; bottom:90px; left:90px;"')
+    h = h.replace('style="position:absolute; top:130px; left:90px; right:250px;"', 'data-drag="titleOffset" data-base="270" data-axis="top" style="position:absolute; top:calc(270px + {{ titleOffset }}px); left:90px; right:250px;"')
+    h = h.replace('style="position:absolute; bottom:90px; left:90px;"', 'data-drag="logoOffset" data-base="350" data-axis="bottom" style="position:absolute; bottom:calc(350px - {{ logoOffset }}px); left:90px;"')
     h = wrap(h, '<div style="pointer-events:none; position:absolute; top:0; bottom:0; right:6px;', "showWordmark")
-    h = wrap(h, '<div style="pointer-events:none; position:absolute; bottom:90px; left:90px;"', "showLogo")
+    h = wrap(h, '<div data-drag="logoOffset"', "showLogo")
+    h = h.replace("fill:var(--title,#ffffff)\" fill-rule", "fill:var(--icon,var(--title,#ffffff))\" fill-rule")
     h = h.replace('<span style="display:inline-block; background:var(--pill-bg', '<!--if:showEyebrow--><span style="display:inline-block; background:var(--pill-bg', 1)
     h = h.replace("{{ eyebrow }}</span>", "{{ eyebrow }}</span><!--/if-->", 1)
     h = h.replace('<div style="font-family:\'Niveau Grotesk\',\'Arial Black\',sans-serif; font-weight:900; font-size:90px;', '<!--if:showTitle--><div style="font-family:\'Niveau Grotesk\',\'Arial Black\',sans-serif; font-weight:900; font-size:90px;', 1)
@@ -132,6 +133,9 @@ def augment_story(d):
     d["html"] = h[:first] + layers + h[first:]
     d["props"].update({
         "showEyebrow": toggle("Label"), "showTitle": toggle("Titel"), "showWordmark": toggle("Verticale wordmark"), "showLogo": toggle("Logo linksonder"),
+        "titleOffset": {"editor": "offset", "default": 0, "tsType": "number"}, "logoOffset": {"editor": "offset", "default": 0, "tsType": "number"},
+        "iconColor": {"editor": "choice", "default": "auto", "label": "Kleur van het icoon", "tsType": "string", "options": [
+            ["auto", "Automatisch (kleur van de titel)"], ["#ffffff", "Wit"], ["#060228", "Navy"], ["#3D5AFE", "Blauw"], ["#49FF9F", "Groen"], ["#FFCC00", "Geel"], ["#00FFE6", "Cyaan"], ["#FC06E5", "Magenta"]]},
         "gradient": toggle("Kleurverloop van boven"), "gradientHeight": rng("Hoogte van het verloop", 20, 100, 55), "gradientStrength": rng("Sterkte van het verloop", 10, 100, 90),
     })
     return d

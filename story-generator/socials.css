@@ -34,6 +34,18 @@ body.byt-animating #bytFrame { visibility: hidden; }
 .byt-anim-toggle { margin: 4px 0 10px; }
 #bytMp4 { margin-bottom: 8px; }
 
+/* elements that can be dragged up and down, and the Instagram safe zones (preview only) */
+.byt-frame [data-drag] { cursor: ns-resize; touch-action: none; }
+.byt-frame [data-drag]:hover { outline: 2px dashed rgba(61,90,254,.9); outline-offset: 8px; }
+.byt-safe { position: absolute; inset: 0; pointer-events: none; }
+.byt-safe i { position: absolute; background: repeating-linear-gradient(45deg, rgba(255,40,70,.30), rgba(255,40,70,.30) 8px, rgba(255,40,70,.16) 8px, rgba(255,40,70,.16) 16px); }
+.byt-safe i.top { left: 0; right: 0; top: 0; border-bottom: 2px dashed #ff2846; }
+.byt-safe i.bottom { left: 0; right: 0; bottom: 0; border-top: 2px dashed #ff2846; }
+.byt-safe i.side { background: rgba(255,40,70,.18); }
+.byt-safe i.l { left: 0; } .byt-safe i.r { right: 0; }
+.byt-safe i span { position: absolute; left: 10px; bottom: 6px; font: 700 11px/1 'Open Sans', sans-serif; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.byt-safe i.bottom span { bottom: auto; top: 6px; }
+
 /* pillar picker */
 .byt-pillars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .byt-pillar { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 20px; background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--text); font: 600 13px/1 'Open Sans', sans-serif; cursor: pointer; text-align: left; }
