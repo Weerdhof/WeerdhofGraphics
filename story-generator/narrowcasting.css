@@ -26,14 +26,14 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 #slides, .slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
 .slide.shl { background: #1a1b38; }
 .slide.shl.women { background: #2a1148; }
-@keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
-.rz { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.rz { animation: rise 1s cubic-bezier(.25,.6,.25,1) both; }
 .pre .rz { animation-play-state: paused; }
 .ttl { position: absolute; left: 80px; top: 40px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 92px; line-height: 110px; white-space: nowrap; letter-spacing: -1px; }
 .ttl b { color: #3D5AFE; font-weight: 900; }
 .ttl b.jp { color: #49FF9F; }
 
-/* clock (top right), slide dots and the logo that goes to and fro along the bottom */
+/* clock (top right) and the slide dots */
 .clockbox { position: absolute; right: 80px; top: 46px; text-align: right; }
 .stage.noclock .clockbox { display: none; }
 .clockbox .clock { font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 84px; line-height: 90px; letter-spacing: -1px; }
@@ -41,10 +41,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .dots { position: absolute; right: 80px; top: 1010px; width: 400px; height: 20px; text-align: right; z-index: 5; }
 .dots i { display: inline-block; width: 12px; height: 12px; margin-left: 9px; border-radius: 50%; background: rgba(255,255,255,.22); }
 .dots i.on { background: #fff; }
-.lane { position: absolute; left: 0; top: 982px; width: 1920px; height: 76px; z-index: 5; }
-.lane:before { content: ""; position: absolute; left: 80px; top: 37px; width: 1760px; height: 2px; background: rgba(255,255,255,.08); }
-.logo { position: absolute; left: 80px; top: 8px; width: 300px; height: 58px; animation: sway 30s cubic-bezier(.65,0,.35,1) infinite alternate; }
-@keyframes sway { from { transform: translateX(0); } to { transform: translateX(1460px); } }
 
 /* the sweep between slides */
 .wipe { position: absolute; left: 0; top: 0; width: 2320px; height: 1080px; z-index: 50; -webkit-transform: translateX(-200px); transform: translateX(-200px); }
@@ -154,3 +150,16 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .pill-b, .pill-o { display: inline-block; margin-right: 16px; height: 62px; padding: 0 36px; border-radius: 34px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 34px; line-height: 62px; }
 .pill-b { background: #3D5AFE; color: #fff; }
 .pill-o { border: 3px solid rgba(255,255,255,.85); line-height: 56px; }
+
+/* a statement in between */
+.sg { position: absolute; left: 80px; top: 190px; width: 1700px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 206px; line-height: 212px; letter-spacing: -4px; }
+.sg b { color: #3D5AFE; font-weight: 900; }
+.sgi { position: absolute; left: 80px; top: 700px; width: 1760px; height: 100px; }
+.sgi .ic { position: relative; float: left; width: 100px; height: 100px; margin-right: 46px; top: 0; }
+.sgi .ic .mi { font-size: 58px; line-height: 94px; }
+
+/* a slide with only the logo */
+.wb { position: absolute; left: 0; top: 296px; width: 1920px; text-align: center; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 128px; line-height: 140px; letter-spacing: -2px; }
+.lg1 { position: absolute; left: 460px; top: 520px; width: 1000px; height: 195px; animation: lg-in 2.4s .5s cubic-bezier(.25,.6,.25,1) both; }
+@keyframes lg-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+.pre .lg1 { animation-play-state: paused; }

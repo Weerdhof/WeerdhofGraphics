@@ -16,7 +16,7 @@
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, shl: 30000, quote: 30000, weather: 30000 };      // every slide stays 30 seconds
+  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, shl: 30000, quote: 30000, slogan: 30000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
 
   // ---- time: the Dutch wall clock, taken from the server (the TV's own clock or time zone may be off) ----
   var wallDelta = null;
@@ -94,7 +94,7 @@
     return h;
   }
   function iconHtml(it) { return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>'; }
-  function dly(i) { return ' style="animation-delay:' + (i * 45 + 120) + 'ms"'; }
+  function dly(i) { return ' style="animation-delay:' + (i * 70 + 150) + 'ms"'; }
 
   // ---- slide: agenda (two columns per page, grouped by day) ----
   function agendaPages() {
@@ -214,6 +214,17 @@
     return h + '</div>';
   }
 
+  // ---- slide: welcome, with the logo ----
+  function logoHtml() { return '<div class="wb rz" style="animation-delay:150ms">Welkom bij</div><div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
+
+  // ---- slide: a statement in between ----
+  function sloganHtml() {
+    var icons = ['basketbal', 'voetbal', 'handbal', 'volleybal', 'tennis', 'hockey', 'rugby', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'golf'], h, i;
+    h = '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgi">';
+    for (i = 0; i < icons.length; i++) h += '<span class="ic rz" style="animation-delay:' + (600 + i * 90) + 'ms"><span class="mi">' + SPORTS[icons[i]] + '</span></span>';
+    return h + '</div>';
+  }
+
   // ---- slide: a random sport quote ----
   var QUOTES = [
     ['Voetballen is simpel, maar het moeilijkste wat er is, is simpel voetballen.', 'Johan Cruijff', 'Voetbal'],
@@ -296,8 +307,10 @@
     p = featuredPages(); for (i = 0; i < p.length; i++) out.push({ type: 'featured', list: p[i] });
     if (matchesHtml()) out.push({ type: 'matches' });
     if (shlData) out.push({ type: 'shl' });
+    out.push({ type: 'slogan' });
     out.push({ type: 'quote' });
     if (weather) out.push({ type: 'weather' });
+    out.push({ type: 'logo' });
     return out;
   }
   function renderSlide(s) {
@@ -306,30 +319,32 @@
     if (s.type === 'matches') return matchesHtml();
     if (s.type === 'shl') return shlHtml();
     if (s.type === 'quote') return quoteHtml();
+    if (s.type === 'slogan') return sloganHtml();
+    if (s.type === 'logo') return logoHtml();
     return weatherHtml();
   }
 
   // ---- the sweep between slides: the chevron cover of the platform (cover, swap underneath, lift) ----
   var wipe = document.getElementById('wipe'), mark = document.getElementById('mark'), poly = document.getElementById('wipePoly'), markPath = document.getElementById('markPath');
-  var EASE = 'cubic-bezier(.65,0,.35,1)';
+  var EASE = 'cubic-bezier(.5,0,.25,1)', SWEEP_IN = 750, SWEEP_OUT = 900;      // calm: a slow cover and a slow lift
   function setT(el, ms, tx) { el.style.webkitTransition = 'transform ' + ms + 'ms ' + EASE; el.style.transition = 'transform ' + ms + 'ms ' + EASE; el.style.webkitTransform = tx; el.style.transform = tx; }
   function jump(el, tx) { el.style.webkitTransition = 'none'; el.style.transition = 'none'; el.style.webkitTransform = tx; el.style.transform = tx; el.offsetWidth; }
   function fade(el, ms, o) { el.style.webkitTransition = 'opacity ' + ms + 'ms ease'; el.style.transition = 'opacity ' + ms + 'ms ease'; el.style.opacity = o; }
   function lift(done) {
-    setT(wipe, 380, 'translateX(1920px)'); fade(mark, 220, 0);
+    setT(wipe, SWEEP_OUT, 'translateX(1920px)'); fade(mark, 500, 0);
     var el = slidesEl.firstChild; if (el) el.className = el.className.replace(' pre', '');
-    setTimeout(done, 400);
+    setTimeout(done, SWEEP_OUT + 40);
   }
   function sweep(accent, ink, swap, done, covered) {
     poly.setAttribute('fill', accent); markPath.setAttribute('fill', ink);
-    if (covered) { mark.style.opacity = 0.95; swap(); setTimeout(function () { lift(done); }, 450); return; }   // the first slide: the page already starts under the cover
+    if (covered) { mark.style.opacity = 0.95; swap(); setTimeout(function () { lift(done); }, 700); return; }   // the first slide: the page already starts under the cover
     jump(wipe, 'translateX(-2320px)'); mark.style.opacity = 0;
     setTimeout(function () {
-      setT(wipe, 300, 'translateX(-200px)'); fade(mark, 300, 0.95);
+      setT(wipe, SWEEP_IN, 'translateX(-200px)'); fade(mark, SWEEP_IN, 0.95);
       setTimeout(function () {
         swap();
-        setTimeout(function () { lift(done); }, 160);
-      }, 320);
+        setTimeout(function () { lift(done); }, 300);
+      }, SWEEP_IN + 20);
     }, 30);
   }
 
@@ -346,7 +361,7 @@
     if (!html) { timer = setTimeout(next, 200); return; }
     sweep(a[0], a[1], function () {
       slidesEl.innerHTML = '<div class="slide pre' + (s.type === 'shl' ? ' shl' : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (s.type === 'shl' ? ' noclock' : '');
+      stage.className = 'stage' + (s.type === 'shl' || s.type === 'logo' ? ' noclock' : '');
       dots(slides.length, idx);
     }, function () { timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
