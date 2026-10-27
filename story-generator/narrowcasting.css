@@ -260,3 +260,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* only a production (no stream): a pink pill */
 .tg.prod { background: #FC06E5 !important; color: #060228 !important; border-color: #FC06E5 !important; }
+
+/* will it rain: the pill on the weather slide is filled */
+.wp.wrain { background: #3D5AFE; border-color: #3D5AFE; color: #ffffff; }

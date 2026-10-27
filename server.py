@@ -1216,11 +1216,11 @@ def narrow_matches():
 def get_weather():
     """Weather for the place of the screen (Open-Meteo, no key), trimmed to what the screen shows."""
     now = time.time()
-    if _weather["data"] and now - _weather["at"] < 900:
+    if _weather["data"] and now - _weather["at"] < 300:
         return _weather["data"]
     url = ("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&timezone=Europe%%2FAmsterdam&forecast_days=4"
            "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
-           "&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max") % (WEATHER_PLACE["lat"], WEATHER_PLACE["lon"])
+           "&minutely_15=precipitation&forecast_minutely_15=16&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max") % (WEATHER_PLACE["lat"], WEATHER_PLACE["lon"])
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "ByTomorrow-narrowcasting"})
         with urllib.request.urlopen(req, timeout=15) as res:
@@ -1230,7 +1230,25 @@ def get_weather():
         start = next((i for i, t in enumerate(hr["time"]) if t[:13] >= cur_hour), 0) + 1
         hours = [{"time": hr["time"][i][11:16], "temp": round(hr["temperature_2m"][i]), "code": hr["weather_code"][i], "rain": hr["precipitation_probability"][i]}
                  for i in range(start, min(len(hr["time"]), start + 12), 2)]
-        data = {"place": WEATHER_PLACE["name"], "fetchedAt": int(now),
+        # rain in the next hours, in blocks of 15 minutes: the moment it starts (or stops), as Dutch wall-clock time in milliseconds, so
+        # the screen can count down on its own clock between two fetches
+        rain = {"state": "unknown"}
+        try:
+            nl = _ams_now_parts(now).replace(tzinfo=None)
+            m15 = j.get("minutely_15") or {}
+            blocks = [(datetime.strptime(t, "%Y-%m-%dT%H:%M"), p or 0) for t, p in zip(m15.get("time", []), m15.get("precipitation", []))]
+            blocks = [(t, p) for t, p in blocks if (t - nl).total_seconds() > -900]             # from the block that contains now
+            wall = lambda t: int(calendar.timegm(t.timetuple()) * 1000)
+            if blocks:
+                if blocks[0][1] >= 0.1 and blocks[0][0] <= nl:
+                    dry = next((t for t, p in blocks if t > nl and p < 0.1), None)
+                    rain = {"state": "now", "dryWall": wall(dry) if dry else None}
+                else:
+                    wet = next((t for t, p in blocks if p >= 0.1), None)
+                    rain = {"state": "soon", "startWall": wall(wet)} if wet else {"state": "dry"}
+        except Exception:
+            rain = {"state": "unknown"}
+        data = {"place": WEATHER_PLACE["name"], "fetchedAt": int(now), "rainSoon": rain,
                 "now": {"temp": round(c["temperature_2m"]), "feels": round(c["apparent_temperature"]), "code": c["weather_code"],
                         "wind": round(c["wind_speed_10m"]), "day": bool(c.get("is_day", 1))},
                 "hours": hours, "rain": d["precipitation_probability_max"][0],

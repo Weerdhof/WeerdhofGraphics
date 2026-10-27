@@ -77,7 +77,7 @@
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
   loadAgenda(); loadMatches(); loadWeather(); loadShl();
-  setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
+  setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000);
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }
@@ -294,12 +294,26 @@
   // ---- slide: only the logo ----
   function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
+  // will it rain, and when: the moment comes from the server, the minutes are counted down here
+  function minTxt(m) { if (m >= 10) m = Math.round(m / 5) * 5; return m < 60 ? m + ' min' : Math.floor(m / 60) + ' u' + (m % 60 ? ' ' + m % 60 + ' min' : ''); }     // rounded to 5 minutes
+  function rainTxt(short) {
+    var r = weather && weather.rainSoon; if (!r || r.state === 'unknown') return '';
+    var now = wallNow(), m;
+    if (r.state === 'dry') return short ? 'Droog' : 'Geen regen verwacht de komende 4 uur';
+    if (r.state === 'now') { if (r.dryWall) { m = Math.round((r.dryWall - now) / 60000); if (m > 0) return short ? 'Regen, droog over ' + minTxt(m) : 'Het regent nu, droog over ' + minTxt(m); } return short ? 'Het regent' : 'Het regent nu'; }
+    m = Math.round((r.startWall - now) / 60000);
+    if (m <= 0) return short ? 'Het regent' : 'Het regent nu';
+    return (short ? 'Regen over ' : 'Regen verwacht over ') + minTxt(m);
+  }
+  var DROP = '<svg width="34" height="34" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M12 2C12 2 5 10.2 5 15a7 7 0 0 0 14 0C19 10.2 12 2 12 2z"/></svg>';
+
   // the current weather, small, top left: on the slides of the meeting mode
   function miniWeather() {                                                  // two pills, each with its icon in a circle inside: the temperature and the place
     if (!weather) return '';
     var n = weather.now, pin = '<svg width="34" height="34" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>';
     return '<span class="wm-g"><span class="wm-p"><span class="wm-i">' + icon(n.code, n.day, 42) + '</span><b>' + n.temp + '&deg;</b></span></span>' +
-      '<span class="wm-g"><span class="wm-p"><span class="wm-i">' + pin + '</span>' + esc(weather.place) + '</span></span>';
+      '<span class="wm-g"><span class="wm-p"><span class="wm-i">' + pin + '</span>' + esc(weather.place) + '</span></span>' +
+      (rainTxt(true) ? '<span class="wm-g"><span class="wm-p"><span class="wm-i">' + DROP + '</span>' + esc(rainTxt(true)) + '</span></span>' : '');   // will it rain, and when
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
@@ -414,7 +428,7 @@
     if (!weather) return null;
     var n = weather.now, h = '<div class="ttl rz">Weer in <b>' + esc(weather.place) + '</b></div>', i, d, x;
     h += '<div class="wbig rz" style="animation-delay:120ms"><div class="wi">' + icon(n.code, n.day, 330) + '</div><div class="wt">' + n.temp + '&deg;</div>' +
-      '<div class="wd">' + esc(DESC[n.code] || '') + '</div><div class="ws"><span class="wp">voelt als ' + n.feels + '&deg;</span><span class="wp">wind ' + n.wind + ' km/u</span>' +
+      '<div class="wd">' + esc(DESC[n.code] || '') + '</div><div class="ws">' + (rainTxt(false) ? '<span class="wp wrain" id="wrain">' + esc(rainTxt(false)) + '</span>' : '') + '<span class="wp">voelt als ' + n.feels + '&deg;</span><span class="wp">wind ' + n.wind + ' km/u</span>' +
       (weather.rain !== undefined ? '<span class="wp">regen ' + weather.rain + '%</span>' : '') + '</div></div>';
     h += '<div class="wh rz" style="left:80px;animation-delay:260ms"><div class="wlbl">Komende uren</div>';
     for (i = 0; i < Math.min(6, (weather.hours || []).length); i++) {
@@ -511,6 +525,12 @@
     setTimeout(function () { stage.className = stage.className.replace(' inv', ''); }, 10000);
   }
   if (burnWait) setTimeout(burn, +burnWait * 1000); else setInterval(burn, 45 * 60000);
+
+  // the minutes until the rain count down on the screen's own clock, once a minute
+  setInterval(function () {
+    var w = document.getElementById('wrain'), m = document.getElementById('wmini');
+    if (w) w.innerHTML = esc(rainTxt(false)); if (m) m.innerHTML = miniWeather();
+  }, 60000);
 
   // a fresh start now and then keeps a screen that runs for weeks tidy
   setTimeout(function () { location.reload(); }, 12 * 3600000);
