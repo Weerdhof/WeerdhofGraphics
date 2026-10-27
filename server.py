@@ -1132,6 +1132,30 @@ def _clean_team(name):
     return re.sub(r"\s+[HD]S\d+$", "", str(name or "")).strip()
 
 
+def narrow_comp(comp):
+    """SHL / SHLW for the screen: the table, the latest results (with club codes for the crests) and the next 7 matches."""
+    d = get_comp_data(comp)
+    today = _ams_now_parts(time.time()).date()
+    results = [r for r in d.get("results", []) if r.get("homeScore") is not None and r.get("awayScore") is not None]
+    days = _group_matchdays(comp, results)
+    latest = days[-1][1] if days else []
+    rnd = days[-1][0][1] if days and days[-1][0][0] == "r" else None
+    if len(latest) < 5:                      # a thin matchday (women): show the last 7 results instead
+        latest, rnd = sorted(results, key=lambda x: x["ord"])[-7:], None
+    res = [{"home": _clean_club(r["home"]), "away": _clean_club(r["away"]), "homeCode": _club_code(comp, r["home"]), "awayCode": _club_code(comp, r["away"]),
+            "homeScore": r["homeScore"], "awayScore": r["awayScore"], "day": r["day"], "month": r["month"]} for r in sorted(latest, key=lambda x: x["ord"])]
+    st = [dict(x, code=_club_code(comp, x["club"]), name=_clean_club(x["club"]), pos=i + 1) for i, x in enumerate(d.get("standings") or [])]
+    nxt = []
+    for m in sorted(d.get("upcoming", []), key=lambda x: (x.get("ord", 0), x.get("time") or "99:99")):
+        date = _season_date(int(m.get("day") or 0), int(m.get("month") or 0), today)
+        if date and date >= today.isoformat():
+            nxt.append({"home": _clean_club(m["home"]), "away": _clean_club(m["away"]), "homeCode": _club_code(comp, m["home"]),
+                        "awayCode": _club_code(comp, m["away"]), "date": date, "time": str(m.get("time") or "")[:5]})
+        if len(nxt) == 7:
+            break
+    return {"standings": st, "results": res, "round": rnd, "next": nxt}
+
+
 def narrow_matches():
     """The next matches of SHL, SHLW and the Lotto Volley League (men and women) for the programme slide."""
     today = _ams_now_parts(time.time()).date()
@@ -1265,8 +1289,8 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(502, {"error": str(err)})
         elif self.path.startswith("/api/narrowcasting-shl"):
             try:
-                st = stream_state({})
-                self._nocache_json(200, {"standings": st.get("standings", []), "results": st.get("results", []), "round": (st.get("matchday") or {}).get("round")})
+                comp = "women" if parse_qs(urlparse(self.path).query).get("comp", [""])[0] == "women" else "men"
+                self._nocache_json(200, narrow_comp(comp))
             except Exception as err:
                 self._json(502, {"error": str(err)})
         elif self.path.startswith("/api/narrowcasting"):

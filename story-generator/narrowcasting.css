@@ -25,7 +25,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* slides */
 #slides, .slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
 .slide.shl { background: #1a1b38; }
-.slide.shl.women { background: #2a1148; }
+.slide.shl.women { background: #ffffff; color: #1a1b38; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 .rz { animation: rise 1s cubic-bezier(.25,.6,.25,1) both; }
 .pre .rz { animation-play-state: paused; }
@@ -121,6 +121,17 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .rs .dt { position: absolute; left: 0; top: -22px; font-size: 18px; opacity: .55; }
 .rs.noscore .sc { background: #14142b; color: #ccff33; font-size: 30px; }
 
+/* the next streams of SHL / SHLW */
+.sr { position: relative; height: 92px; margin-bottom: 8px; background: #f3f3ee; }
+.sr .sd { position: absolute; left: 0; top: 0; width: 230px; height: 92px; background: #ccff33; text-align: center; font-weight: 700; font-size: 28px; line-height: 92px; text-transform: uppercase; letter-spacing: .5px; }
+.slide.shl.women .sr .sd { background: #e353fc; }
+.sr .cr1 { position: absolute; left: 252px; top: 15px; } .sr .cr2 { position: absolute; right: 16px; top: 15px; }
+.sr .n1 { position: absolute; left: 336px; width: 540px; top: 0; font-size: 30px; font-weight: 700; line-height: 92px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.sr .n2 { position: absolute; right: 100px; width: 540px; top: 0; font-size: 30px; font-weight: 700; line-height: 92px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.sr .sc { position: absolute; left: 50%; margin-left: 30px; top: 16px; width: 170px; height: 60px; background: #14142b; color: #ccff33; text-align: center; font-weight: 700; font-size: 36px; line-height: 60px; }
+.slide.shl.women .sr .sc { color: #e353fc; }
+.slide.shl.women .crest { border-radius: 22%; }
+
 /* weather */
 .wbig { position: absolute; left: 80px; top: 190px; width: 1760px; height: 360px; }
 .wbig .wi { position: absolute; left: 0; top: 0; width: 330px; height: 330px; }
@@ -154,12 +165,19 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* a statement in between */
 .sg { position: absolute; left: 80px; top: 190px; width: 1700px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 206px; line-height: 212px; letter-spacing: -4px; }
 .sg b { color: #3D5AFE; font-weight: 900; }
-.sgi { position: absolute; left: 80px; top: 700px; width: 1760px; height: 100px; }
-.sgi .ic { position: relative; float: left; width: 100px; height: 100px; margin-right: 46px; top: 0; }
-.sgi .ic .mi { font-size: 58px; line-height: 94px; }
+.sgl { position: absolute; left: 84px; top: 760px; width: 600px; height: 117px; }
+.sgl svg { width: 600px; height: 117px; }
 
 /* a slide with only the logo */
-.wb { position: absolute; left: 0; top: 296px; width: 1920px; text-align: center; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 128px; line-height: 140px; letter-spacing: -2px; }
-.lg1 { position: absolute; left: 460px; top: 520px; width: 1000px; height: 195px; animation: lg-in 2.4s .5s cubic-bezier(.25,.6,.25,1) both; }
+.lg1 { position: absolute; left: 460px; top: 443px; width: 1000px; height: 195px; animation: lg-in 2.4s .5s cubic-bezier(.25,.6,.25,1) both; }
 @keyframes lg-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 .pre .lg1 { animation-play-state: paused; }
+
+/* SHLW: the white look of the women's stream graphics */
+.slide.shl.women .st-r, .slide.shl.women .rs, .slide.shl.women .sr { background: #f3eefa; }
+.slide.shl.women .tab { color: #1a1b38; }
+.slide.shl.women .st-h { background: #1a1b38; }
+.slide.shl.women .rs .sc, .slide.shl.women .st-r .pts { color: #1a1b38; }
+.slide.shl.women .sr .sc { background: #1a1b38; color: #e353fc; }
+.slide.shl.women .crest { background-color: #fff; box-shadow: 0 0 0 1px rgba(26,27,56,.08); }
+.slide.shl .rs .n1 { width: 226px; font-size: 22px; } .slide.shl .rs .n2 { width: 226px; font-size: 22px; }

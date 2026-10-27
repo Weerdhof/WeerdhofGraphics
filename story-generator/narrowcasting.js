@@ -16,7 +16,7 @@
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, shl: 30000, quote: 30000, slogan: 30000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
+  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, slogan: 30000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
 
   // ---- time: the Dutch wall clock, taken from the server (the TV's own clock or time zone may be off) ----
   var wallDelta = null;
@@ -51,11 +51,11 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shlData = null;
+  var items = [], show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() { get('/api/narrowcasting', function (j) { if (!j) return; if (j.wall) wallDelta = j.wall - Date.now(); items = j.items || []; show = j.show || show; tick(); }); }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) weather = w; }); }
-  function loadShl() { get('/api/narrowcasting-shl', function (j) { if (j && j.standings && j.standings.length) shlData = j; }); }
+  function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
   loadAgenda(); loadMatches(); loadWeather(); loadShl();
   setInterval(loadAgenda, 60000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
 
@@ -169,7 +169,7 @@
 
   // ---- slide: programme (the next matches of the competitions in the schedules of the platform) ----
   function matchesHtml() {
-    var keys = ['shl', 'shlw', 'lvlm', 'lvlw'], cols = [], i, j, k, list, today = ymd(wallNow()), html = '<div class="ttl rz">Komende <b>wedstrijden</b></div>';
+    var keys = ['lvlm', 'lvlw'], cols = [], i, j, k, list, today = ymd(wallNow()), html = '<div class="ttl rz">Lotto Volley League <b>wedstrijden</b></div>';
     for (i = 0; i < keys.length; i++) {
       if (show[keys[i]] === false) continue;
       list = []; for (j = 0; j < matches.length; j++) { if (matches[j].comp === keys[i] && matches[j].date >= today) list.push(matches[j]); }
@@ -192,37 +192,50 @@
   }
 
   // ---- slide: SHL table and results, in the look of the SHL stream graphics ----
-  function crest(code, size) {
-    var s = size / 158, img = code ? 'background-image:url(/assets/teams/' + encodeURIComponent(code) + '.png);background-size:' + (1200 * s) + 'px ' + (200 * s) + 'px;background-position:0 ' + (-19 * s) + 'px;' : '';
+  function crest(code, size, women) {
+    var s = size / 158, img = code ? 'background-image:url(/assets/' + (women ? 'women/' : '') + 'teams/' + encodeURIComponent(code) + '.png);background-size:' + (1200 * s) + 'px ' + (200 * s) + 'px;background-position:0 ' + (-19 * s) + 'px;' : '';
     return '<span class="crest" style="width:' + size + 'px;height:' + Math.round(159 * s) + 'px;' + img + '"></span>';
   }
-  function shlHtml() {
-    if (!shlData) return null;
-    var st = shlData.standings, rs = shlData.results || [], i, h = '<img class="shl-logo rz" src="/assets/footer-logo.png" alt="">', d = 0;
-    h += '<div class="pn" style="left:80px;width:880px"><div class="tab rz">Stand<small>SHL</small></div>' +
+  function shlLogo(women) { return '<img class="shl-logo rz" src="' + (women ? '/assets/women/footer-logo-women.png' : '/assets/footer-logo.png') + '" alt="">'; }
+  // the next 7 matches (the streams) of SHL or SHLW
+  function streamsHtml(comp) {
+    var D = shl[comp], women = comp === 'women', i, n, d, diff, lab, today = ymd(wallNow());
+    if (!D || !D.next || !D.next.length || show[women ? 'shlw' : 'shl'] === false) return null;
+    var h = shlLogo(women) + '<div class="pn" style="left:80px;width:1760px"><div class="tab rz">Komende streams<small>' + (women ? 'SHLW' : 'SHL') + '</small></div>';
+    for (i = 0; i < D.next.length; i++) {
+      n = D.next[i]; d = new Date(parseYmd(n.date)); diff = Math.round((parseYmd(n.date) - parseYmd(today)) / 86400000);
+      lab = diff <= 0 ? 'Vandaag' : diff === 1 ? 'Morgen' : WD_LOW[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MON[d.getUTCMonth()];
+      h += '<div class="sr rz"' + dly(i) + '><span class="sd">' + esc(lab) + '</span><span class="cr1">' + crest(n.homeCode, 62, women) + '</span><span class="n1">' + esc(n.home) + '</span>' +
+        '<span class="sc">' + esc(n.time || '\u2013') + '</span><span class="n2">' + esc(n.away) + '</span><span class="cr2">' + crest(n.awayCode, 62, women) + '</span></div>';
+    }
+    return h + '</div>';
+  }
+  // the table and the latest results, in the look of the SHL stream graphics
+  function shlHtml(comp) {
+    var D = shl[comp], women = comp === 'women';
+    if (!D || show[women ? 'shlw' : 'shl'] === false) return null;
+    var st = D.standings, rs = D.results || [], i, h = shlLogo(women);
+    h += '<div class="pn" style="left:80px;width:880px"><div class="tab rz">Stand<small>' + (women ? 'SHLW' : 'SHL') + '</small></div>' +
       '<div class="st-h rz"' + dly(0) + '><span class="pos">#</span><span class="nm">Club</span><span class="c1">G</span><span class="c2">W</span><span class="c3">GL</span><span class="c4">V</span><span class="pts">PT</span></div>';
     for (i = 0; i < Math.min(14, st.length); i++) {
-      h += '<div class="st-r rz"' + dly(i + 1) + '><span class="pos">' + (st[i].pos || i + 1) + '</span><span class="cr">' + crest(st[i].code, 36) + '</span><span class="nm">' + esc(st[i].name || st[i].club) + '</span>' +
+      h += '<div class="st-r rz"' + dly(i + 1) + '><span class="pos">' + (st[i].pos || i + 1) + '</span><span class="cr">' + crest(st[i].code, 36, women) + '</span><span class="nm">' + esc(st[i].name || st[i].club) + '</span>' +
         '<span class="c1">' + esc(st[i].played) + '</span><span class="c2">' + esc(st[i].w) + '</span><span class="c3">' + esc(st[i].d) + '</span><span class="c4">' + esc(st[i].l) + '</span><span class="pts">' + esc(st[i].points) + '</span></div>';
     }
-    h += '</div><div class="pn" style="left:1000px;width:840px"><div class="tab rz">Uitslagen<small>' + (shlData.round ? 'Speelronde ' + shlData.round : '') + '</small></div>';
+    h += '</div><div class="pn" style="left:1000px;width:840px"><div class="tab rz">Uitslagen<small>' + (D.round ? 'Speelronde ' + D.round : '') + '</small></div>';
     for (i = 0; i < Math.min(8, rs.length); i++) {
-      var r = rs[i], played = true;
-      h += '<div class="rs rz' + (played ? '' : ' noscore') + '"' + dly(i + 2) + '><span class="cr1">' + crest(r.homeCode, 62) + '</span><span class="n1">' + esc(r.home) + '</span>' +
-        '<span class="sc">' + (played ? r.homeScore + ' – ' + r.awayScore : 'nog niet') + '</span><span class="n2">' + esc(r.away) + '</span><span class="cr2">' + crest(r.awayCode, 62) + '</span></div>';
+      var r = rs[i];
+      h += '<div class="rs rz"' + dly(i + 2) + '><span class="cr1">' + crest(r.homeCode, 62, women) + '</span><span class="n1">' + esc(r.home) + '</span>' +
+        '<span class="sc">' + r.homeScore + ' \u2013 ' + r.awayScore + '</span><span class="n2">' + esc(r.away) + '</span><span class="cr2">' + crest(r.awayCode, 62, women) + '</span></div>';
     }
     return h + '</div>';
   }
 
-  // ---- slide: welcome, with the logo ----
-  function logoHtml() { return '<div class="wb rz" style="animation-delay:150ms">Welkom bij</div><div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
+  // ---- slide: only the logo ----
+  function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
   // ---- slide: a statement in between ----
   function sloganHtml() {
-    var icons = ['basketbal', 'voetbal', 'handbal', 'volleybal', 'tennis', 'hockey', 'rugby', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'golf'], h, i;
-    h = '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgi">';
-    for (i = 0; i < icons.length; i++) h += '<span class="ic rz" style="animation-delay:' + (600 + i * 90) + 'ms"><span class="mi">' + SPORTS[icons[i]] + '</span></span>';
-    return h + '</div>';
+    return '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>';
   }
 
   // ---- slide: a random sport quote ----
@@ -244,11 +257,10 @@
     ['Winning isn\u2019t everything, but wanting to win is.', 'Vince Lombardi', 'American football'],
     ['I don\u2019t think limits.', 'Usain Bolt', 'Atletiek']
   ];
-  var lastQuote = -1;
   function quoteHtml() {
     var n, q, size;
-    do { n = Math.floor(Math.random() * QUOTES.length); } while (n === lastQuote && QUOTES.length > 1);
-    lastQuote = n; q = QUOTES[n];
+    n = (Math.floor(wallNow() / 86400000) * 7 + 3) % QUOTES.length;           // one quote per day: the same all day, another one tomorrow
+    q = QUOTES[n];
     size = q[0].length <= 50 ? 120 : q[0].length <= 90 ? 96 : q[0].length <= 130 ? 80 : 68;
     return '<div class="ttl rz">ByTomorrow <b>Quote</b></div><div class="qm rz" style="animation-delay:120ms">\u201c</div>' +
       '<div class="qt rz" style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.1) + 'px;animation-delay:240ms">' + esc(q[0]) + '</div>' +
@@ -302,12 +314,13 @@
 
   // ---- the order of the slides, built fresh every turn ----
   function buildSlides() {
-    var out = [], p, i, h;
+    var out = [], p, i;
     p = agendaPages(); if (!p.length) out.push({ type: 'agenda', html: agendaHtml(null) }); else for (i = 0; i < p.length; i++) out.push({ type: 'agenda', cols: p[i] });
     p = featuredPages(); for (i = 0; i < p.length; i++) out.push({ type: 'featured', list: p[i] });
-    if (matchesHtml()) out.push({ type: 'matches' });
-    if (shlData) out.push({ type: 'shl' });
+    if (streamsHtml('men')) { out.push({ type: 'streams', comp: 'men' }); out.push({ type: 'stand', comp: 'men' }); }
     out.push({ type: 'slogan' });
+    if (streamsHtml('women')) { out.push({ type: 'streams', comp: 'women' }); out.push({ type: 'stand', comp: 'women' }); }
+    if (matchesHtml()) out.push({ type: 'matches' });
     out.push({ type: 'quote' });
     if (weather) out.push({ type: 'weather' });
     out.push({ type: 'logo' });
@@ -317,7 +330,8 @@
     if (s.type === 'agenda') return s.html || agendaHtml(s.cols);
     if (s.type === 'featured') return featuredHtml(s.list);
     if (s.type === 'matches') return matchesHtml();
-    if (s.type === 'shl') return shlHtml();
+    if (s.type === 'streams') return streamsHtml(s.comp);
+    if (s.type === 'stand') return shlHtml(s.comp);
     if (s.type === 'quote') return quoteHtml();
     if (s.type === 'slogan') return sloganHtml();
     if (s.type === 'logo') return logoHtml();
@@ -349,19 +363,24 @@
   }
 
   var only = (/[?&]slide=([a-z,]+)/.exec(location.search) || [])[1]; only = only ? only.split(',') : null;   // ?slide=shl,weather shows only those slides (to look at them)
+  var onlyComp = (/[?&]comp=(men|women)/.exec(location.search) || [])[1];
   var slides = [], idx = -1, current = null, timer = 0, dotsEl = document.getElementById('dots');
-  function accentOf(s) { return s.type === 'shl' ? ['#ccff33', '#14142b'] : s.type === 'agenda' ? ['#49FF9F', '#060228'] : ['#3D5AFE', '#ffffff']; }
+  function accentOf(s) {
+    if (s.type === 'streams' || s.type === 'stand') return s.comp === 'women' ? ['#e353fc', '#1a1b38'] : ['#ccff33', '#14142b'];
+    return s.type === 'agenda' ? ['#49FF9F', '#060228'] : ['#3D5AFE', '#ffffff'];
+  }
   function dots(n, at) { var h = '', i; if (n > 1) for (i = 0; i < n; i++) h += '<i' + (i === at ? ' class="on"' : '') + '></i>'; dotsEl.innerHTML = h; }
   function next(first) {
     slides = buildSlides();
-    if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0) f.push(slides[q]); } if (f.length) slides = f; }
+    if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0 && (!onlyComp || slides[q].comp === onlyComp)) f.push(slides[q]); } if (f.length) slides = f; }
     if (!slides.length) { timer = setTimeout(next, 3000); return; }
     idx = (idx + 1) % slides.length;
     var s = slides[idx], a = accentOf(s), html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
     sweep(a[0], a[1], function () {
-      slidesEl.innerHTML = '<div class="slide pre' + (s.type === 'shl' ? ' shl' : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (s.type === 'shl' || s.type === 'logo' ? ' noclock' : '');
+      var shlSlide = s.type === 'streams' || s.type === 'stand';
+      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + '">' + html + '</div>';
+      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '');
       dots(slides.length, idx);
     }, function () { timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
@@ -369,7 +388,7 @@
   var started = false;
   function boot() { if (started) return; started = true; next(true); }
   setTimeout(boot, 2500);
-  (function waitData() { if (weather && shlData && items) { setTimeout(boot, 400); } else { setTimeout(waitData, 200); } })();
+  (function waitData() { if (weather && shl.men && items) { setTimeout(boot, 400); } else { setTimeout(waitData, 200); } })();
 
   // a fresh start now and then keeps a screen that runs for weeks tidy
   setTimeout(function () { location.reload(); }, 12 * 3600000);

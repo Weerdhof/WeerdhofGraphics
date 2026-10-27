@@ -93,6 +93,6 @@ An unknown page under a client opens that client's landing page. `stream.html`, 
 | `/narrowcasting?slide=shl,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `matches`, `shl`, `quote`, `weather`. |
 
 Slides (30 seconden elk, rustige overgangen): **Live op JUMP** (de agenda, alleen wat op JUMP staat, met "nu live"), **Uitgelicht** (aangevinkte afspraken als grote kaarten),
-**Komende wedstrijden** (automatisch uit het SHL-, SHLW- en LVL-programma), **Stand en uitslagen SHL** (in de SHL-stijl), **Quote** (random sportquote), **Alle sporters zijn helden**, **Weer in Veenendaal** en **Welkom bij ByTomorrow** (alleen het logo). De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume). Het weer komt van Open-Meteo, via de server
+**Komende wedstrijden** (automatisch uit het SHL-, SHLW- en LVL-programma), **Stand en uitslagen SHL** (in de SHL-stijl), **Quote** (random sportquote), **Alle sporters zijn helden**, **Weer in Veenendaal** en een slide met alleen het ByTomorrow-logo. De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume). Het weer komt van Open-Meteo, via de server
 (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse tijd van de server, ook als het scherm een verkeerde tijd heeft.
 De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.
