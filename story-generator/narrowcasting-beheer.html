@@ -91,14 +91,14 @@
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
   function status(t) { statusEl.textContent = t; }
-  function save() {
+  function save(now) {
     clearTimeout(saveTimer); status('Opslaan…');
     saveTimer = setTimeout(function () {
       fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function () { status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
-    }, 500);
+    }, now ? 0 : 500);
   }
   function itemHtml(it, i, past) {
     var tags = Object.keys(COLORS).map(function (k) {
@@ -135,8 +135,8 @@
     for (k = 0; k < b.length; k++) b[k].className = 'btn small line' + (b[k].getAttribute('data-meet') === meeting.mode ? ' on' : '');
     if (document.activeElement !== el) el.value = meeting.client || '';
     document.getElementById('meetHint').textContent = meeting.mode === 'off' ? 'De normale slides draaien.' :
-      meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Binnen 15 seconden.' :
-      'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Binnen 15 seconden.';
+      meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Het scherm schakelt binnen een paar seconden.' :
+      'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Het scherm schakelt binnen een paar seconden.';
   }
   function renderPick() {
     var sel = document.getElementById('pick'), h = '<option value="">Kies een wedstrijd uit het SHL- of LVL-programma…</option>';
@@ -169,7 +169,7 @@
     items.splice(+b.closest('.it').getAttribute('data-i'), 1); render(); save();
   });
   function newItem(o) { var it = { id: 'i' + Date.now() + Math.floor(Math.random() * 1000), date: today(), endDate: '', time: '', end: '', title: '', place: '', pillars: ['jump'], sport: '', featured: false, jump: true, allDay: false }; for (var k in o) it[k] = o[k]; return it; }
-  document.addEventListener('click', function (e) { var m = e.target.getAttribute && e.target.getAttribute('data-meet'); if (!m) return; meeting.mode = m; renderMeeting(); save(); });
+  document.addEventListener('click', function (e) { var m = e.target.getAttribute && e.target.getAttribute('data-meet'); if (!m) return; meeting.mode = m; renderMeeting(); save(true); });
   document.getElementById('meetClient').addEventListener('input', function (e) { meeting.client = e.target.value; renderMeeting(); save(); });
   document.getElementById('add').addEventListener('click', function () {
     items.push(newItem({})); render(); save();

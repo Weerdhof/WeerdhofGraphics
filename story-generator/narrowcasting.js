@@ -59,15 +59,25 @@
       if (!j) return;
       if (j.wall) wallDelta = j.wall - Date.now();
       items = j.items || []; show = j.show || show; tick();
-      var m = j.meeting || { mode: 'off', client: '' };
-      if (m.mode !== meeting.mode || m.client !== meeting.client) { meeting = m; if (started && !busy) { clearTimeout(timer); next(); } }   // meeting mode switched: show it at once
+      applyMeeting(j.meeting);
     });
   }
+  // meeting mode switched: go there at once, through the cross-fade (when a fade is still going on, right after it)
+  var pendingMeeting = false;
+  function applyMeeting(m) {
+    m = m || { mode: 'off', client: '' };
+    if (m.mode === meeting.mode && m.client === meeting.client) return;
+    meeting = m;
+    if (!started) return;
+    if (busy) { pendingMeeting = true; return; }
+    clearTimeout(timer); next();
+  }
+  function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) applyMeeting(j.meeting); }); }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) weather = w; }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
   loadAgenda(); loadMatches(); loadWeather(); loadShl();
-  setInterval(loadAgenda, 15000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
+  setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }
@@ -407,7 +417,7 @@
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '');
       dots(slides.length, idx);
-    }, function () { busy = false; timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
+    }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)
   var started = false;

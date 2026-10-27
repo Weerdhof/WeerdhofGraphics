@@ -1284,6 +1284,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_stream_matches()
         elif self.path.startswith("/api/stream-config"):
             self._json(200, stream_config())
+        elif self.path.startswith("/api/narrowcasting-meeting"):          # tiny and polled every 2 seconds: the screen switches to meeting mode at once
+            self._nocache_json(200, {"meeting": narrow_data()["meeting"]})
         elif self.path.startswith("/api/narrowcasting-matches"):
             try:
                 self._nocache_json(200, narrow_matches())
