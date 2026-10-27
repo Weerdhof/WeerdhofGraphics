@@ -77,13 +77,13 @@
   async function rebuild() {
     if (!on) return;
     if (building) { again = true; return; }
-    building = true; setStatus('Animatie voorbereiden…'); const mp = $('bytMp4'); if (mp) mp.disabled = true;
+    building = true; setStatus('Animatie voorbereiden…'); const mp = $('bytMp4'), gb = $('bytGif'); if (mp) mp.disabled = true; if (gb) gb.disabled = true;
     try {
       const next = await build();
       layers = next; showCanvas(true);
       setStatus('');
     } catch (e) { console.error(e); setStatus('Animatie voorbereiden mislukt'); }
-    building = false; { const mp = $('bytMp4'); if (mp && !recording) mp.disabled = false; }
+    building = false; { const mp = $('bytMp4'), gb = $('bytGif'); if (mp && !recording) mp.disabled = false; if (gb && !recording) gb.disabled = false; }
     if (again) { again = false; rebuild(); }
   }
 
@@ -239,6 +239,38 @@
     recording = false; btn.disabled = false; if (on) start();
   }
 
+  // ---------- GIF (loops) ----------
+  // the movement at 20 frames per second, then the finished design stays as one long frame; the loop starts over
+  // from the bare background. Smaller than the video: the longest side is 800 px.
+  const GIF_FPS = 20, GIF_HOLD = 2600, GIF_MAX = 800;
+  async function recordGif() {
+    const b = B(), btn = $('bytGif'), A = layers;
+    if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
+    stop(); recording = true; btn.disabled = true; $('bytMp4').disabled = true;
+    try {
+      const k = Math.min(1, GIF_MAX / Math.max(A.w, A.h)), w = Math.round(A.w * k), h = Math.round(A.h * k);
+      const full = document.createElement('canvas'); full.width = A.w; full.height = A.h;
+      const small = document.createElement('canvas'); small.width = w; small.height = h;
+      const fctx = full.getContext('2d'), sctx = small.getContext('2d', { willReadFrequently: true });
+      sctx.imageSmoothingQuality = 'high';
+      const gif = new GIF({ workers: 3, quality: 6, width: w, height: h, repeat: 0, workerScript: 'vendor/gif.worker.js' });
+      const step = 1000 / GIF_FPS, n = Math.ceil(DUR / step);
+      for (let i = 0; i <= n; i++) {
+        const last = i === n;
+        draw(fctx, Math.min(DUR, i * step)); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
+        gif.addFrame(sctx, { copy: true, delay: last ? GIF_HOLD : Math.round(step) });
+        setStatus('GIF maken… ' + Math.round(i / n * 40) + '%');
+        if (i % 6 === 0) await new Promise(r => setTimeout(r));
+      }
+      gif.on('progress', p => setStatus('GIF maken… ' + (40 + Math.round(p * 60)) + '%'));
+      const blob = await new Promise((res, rej) => { gif.on('finished', res); gif.on('abort', rej); gif.render(); });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = b.fileName().replace(/\.png$/, '-animatie.gif');
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      setStatus('✓ GIF gedownload (' + (blob.size / 1048576).toFixed(1) + ' MB, loopt)');
+    } catch (e) { console.error(e); setStatus('GIF maken mislukt, probeer het opnieuw.'); }
+    recording = false; btn.disabled = false; $('bytMp4').disabled = false; if (on) start();
+  }
+
   function setStatus(s) { const el = $('bytAnimStatus'); if (el) { el.textContent = s; el.hidden = !s; } }
 
   // ---------- hooks used by socials.js ----------
@@ -248,12 +280,14 @@
     if (!SUPPORTED.includes(asset)) { box.innerHTML = ''; return; }
     box.innerHTML = `<label class="upcoming-toggle byt-anim-toggle"><input type="checkbox" id="bytAnimToggle"${on ? ' checked' : ''}> Animeer (rondjes worden balken)</label>
       <button class="btn btn-primary" id="bytMp4" type="button"${on ? '' : ' hidden'}>Download MP4</button>
+      <button class="btn" id="bytGif" type="button"${on ? '' : ' hidden'}>Download GIF (loopt)</button>
       <p class="save-status" id="bytAnimStatus" hidden></p>`;
     $('bytAnimToggle').addEventListener('change', (e) => {
-      on = e.target.checked; $('bytMp4').hidden = !on;
+      on = e.target.checked; $('bytMp4').hidden = !on; $('bytGif').hidden = !on;
       if (on) rebuild(); else { document.body.classList.remove('byt-animating'); stop(); setStatus(''); }
     });
     $('bytMp4').addEventListener('click', record);
+    $('bytGif').addEventListener('click', recordGif);
   }
   function changed() {
     if (!on) return;

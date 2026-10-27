@@ -26,29 +26,29 @@
 
   <!-- top content -->
   <div style="position:absolute; top:56px; left:64px; width:540px;">
-    <div style="display:flex; gap:12px; margin-left:61px;">
-      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; letter-spacing:.5px; padding:9px 26px; border-radius:32px;">{{ competition }}</span>
-      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; letter-spacing:.5px; padding:9px 26px; border-radius:32px;">{{ datetime }}</span>
+    <div style="display:flex; gap:10px; margin-left:51px;">
+      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:22px; letter-spacing:.5px; padding:8px 20px; border-radius:30px; white-space:nowrap;">{{ competition }}</span>
+      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:22px; letter-spacing:.5px; padding:8px 20px; border-radius:30px; white-space:nowrap;">{{ datetime }}</span>
     </div>
-    <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:900; font-size:72px; line-height:.98; color:var(--title,#060228); margin-top:22px; text-wrap:pretty;">{{ title }}</div>
-    <div style="margin-top:22px; margin-left:-4px;">
-      <span style="display:inline-block; border:3px solid var(--title,#060228); color:var(--title,#060228); font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:24px; padding:7px 26px; border-radius:28px;">{{ pillar_label }}</span>
+    <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:900; font-size:58px; line-height:.98; color:var(--title,#060228); margin-top:20px; text-wrap:pretty;">{{ title }}</div>
+    <div style="margin-top:20px; margin-left:-4px;">
+      <span style="display:inline-block; border:3px solid var(--title,#060228); color:var(--title,#060228); font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:19px; padding:6px 22px; border-radius:24px;">{{ pillar_label }}</span>
     </div>
   </div>
 
   <!-- LIVE OP capsule, klein en op de hoogte van het logo -->
-  <div style="position:absolute; top:582px; left:60px; display:flex; align-items:center; background:#ffffff; border-radius:34px; padding:9px 22px; box-shadow:0 6px 16px rgba(6,2,40,.24);">
-    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:22px; color:var(--pill-bg,#7B1FA2);">LIVE OP</span>
-    <span style="width:2px; height:24px; background:rgba(6,2,40,.2); margin:0 15px;"></span>
-    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:22px; color:#060228;">{{ platform }}</span>
+  <div style="position:absolute; top:582px; left:60px; display:flex; align-items:center; background:#ffffff; border-radius:30px; padding:7px 18px; box-shadow:0 5px 14px rgba(6,2,40,.24);">
+    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:18px; color:var(--pill-bg,#7B1FA2);">LIVE OP</span>
+    <span style="width:2px; height:20px; background:rgba(6,2,40,.2); margin:0 12px;"></span>
+    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:18px; color:#060228;">{{ platform }}</span>
   </div>
   <!-- sport-cirkel: voor NBB, loopt mee in de opening -->
-  <div style="position:absolute; top:56px; left:60px; width:53px; height:53px; border-radius:50%; background:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(6,2,40,.24);">
-    <span style="font-family:'Material Symbols Rounded'; font-size:31px; line-height:1; color:var(--pill-bg,#7B1FA2); font-variation-settings:'FILL' 1,'wght' 600,'opsz' 48;">{{ sportIcon }}</span>
+  <div style="position:absolute; top:56px; left:60px; width:41px; height:41px; border-radius:50%; background:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(6,2,40,.24);">
+    <span style="font-family:'Material Symbols Rounded'; font-size:25px; line-height:1; color:var(--pill-bg,#7B1FA2); font-variation-settings:'FILL' 1,'wght' 600,'opsz' 48;">{{ sportIcon }}</span>
   </div>
 
   <!-- logo onderaan de foto -->
-  <div style="position:absolute; bottom:44px; right:0; width:540px; display:flex; justify-content:center; filter:drop-shadow(0 6px 18px rgba(6,2,40,.32));">
+  <div style="position:absolute; bottom:44px; right:0; width:540px; display:flex; justify-content:center; filter:drop-shadow(0 2px 5px rgba(6,2,40,.35));">
     <x-import component-from-global-scope="ByTomorrowDesignSystem_c9da89.Logo" color="#ffffff" width="240" hint-size="240px,47px"></x-import>
   </div>
 
