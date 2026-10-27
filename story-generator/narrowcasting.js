@@ -162,14 +162,17 @@
     if (s.empty) return '<div class="ttl rz">Stream<b>agenda</b></div><div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
     var html = '<div class="ttl rz">' + dayTitle(s) + '</div>';
     if (!s.items) return html + '<div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
-    var big = !s.week && s.date <= ymd(wallNow()), h = '<div class="vp"><div class="sc" id="sc">', i, it, live, sub, tm;
-    for (i = 0; i < s.items.length; i++) {                                     // today is larger than the other days
+    // today is large and in one column, the other days (and the events of the week) are in two columns
+    var big = !s.week && s.date <= ymd(wallNow()), rows = [], i, it, live, sub, tm;
+    for (i = 0; i < s.items.length; i++) {
       it = s.items[i]; live = isLive(it); sub = live ? '' : inTxt(it);
       tm = live ? '<span class="tm now"><i></i>LIVE</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
-      h += '<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(i) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
-        '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>';
+      rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
+        '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>');
     }
-    return html + h + '</div></div>';
+    if (big) return html + '<div class="vp"><div class="sc" id="sc">' + rows.join('') + '</div></div>';
+    var half = Math.ceil(rows.length / 2);
+    return html + '<div class="vp two"><div class="sc" id="sc"><div class="dcol">' + rows.slice(0, half).join('') + '</div><div class="dcol">' + rows.slice(half).join('') + '</div></div></div>';
   }
   // more streams than fit: after a few seconds the list scrolls slowly up and stays at the end
   var scTimer = 0;

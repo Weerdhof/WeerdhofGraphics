@@ -233,3 +233,11 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .ttl .cn, .ttl .cd { display: inline-block; vertical-align: middle; margin-left: 24px; margin-top: 8px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 34px; line-height: 44px; border-radius: 30px; letter-spacing: 0; }
 .ttl .cn { background: #3D5AFE; color: #ffffff; padding: 8px 28px; }
 .ttl .cd { border: 3px solid rgba(255,255,255,.6); color: #ffffff; padding: 5px 26px; }
+
+/* the days after today: two columns */
+.vp.two .sc { font-size: 0; white-space: nowrap; }
+.vp.two .dcol { display: inline-block; vertical-align: top; width: 860px; margin-right: 36px; white-space: normal; }
+.vp.two .it .tt { width: 672px; }
+.vp.two .it .tm { width: 200px; }
+.vp.two .it .tgs { width: 740px; }
+.vp.two .it.live:before { left: -14px; right: -14px; }
