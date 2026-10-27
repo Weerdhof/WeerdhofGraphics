@@ -160,7 +160,7 @@
     ctx.save(); ctx.translate(lerp(-r.h * 1.3 - r.x, 0, mv), 0); ctx.drawImage(img, 0, 0); ctx.restore();
   }
 
-  function draw(ctx, ms) {
+  function draw(ctx, ms, noLogo) {
     const A = layers, { L, geo } = A;
     ctx.clearRect(0, 0, A.w, A.h);
     ctx.drawImage(L.bg, 0, 0);
@@ -187,21 +187,25 @@
     if (!lead && ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
 
     // the ByTomorrow logo is always there, from the first frame, on top of the photo
-    ctx.drawImage(L.logo, 0, 0);
+    if (!noLogo) ctx.drawImage(L.logo, 0, 0);
   }
 
-  // the loop: after the finished design stays a while it fades back to where it began (the full colour and the
-  // ByTomorrow logo), so the next round starts without a cut. `p` is how far the fade is (0 = finished, 1 = start).
-  let fadeCv = null;
-  function drawFade(ctx, p) {
-    draw(ctx, DUR);
-    if (p <= 0) return;
-    const A = layers; if (!fadeCv) fadeCv = document.createElement('canvas');
-    if (fadeCv.width !== A.w || fadeCv.height !== A.h) { fadeCv.width = A.w; fadeCv.height = A.h; }
-    draw(fadeCv.getContext('2d'), 0);
-    ctx.save(); ctx.globalAlpha = p; ctx.drawImage(fadeCv, 0, 0); ctx.restore();
+  // the way out, and so the way back to the start of the loop: a big ByT monogram in the colour of the background falls
+  // over the design from left to right, with the colour filling in behind it, until the whole graphic has the colour of
+  // the background again (and only the logo is left, as in the first frame). `p` is how far it is (0 = finished, 1 = covered).
+  function drawOut(ctx, p) {
+    const A = layers; draw(ctx, DUR, true);
+    if (p > 0) {
+      const e = inOutExpo(p), H = A.h * 1.3, k = H / 1121, w = 988 * k, cover = w * .35;
+      const xl = lerp(-w, A.w - cover, e);                         // left edge of the monogram: from outside the left edge until the colour covers everything
+      ctx.save(); ctx.fillStyle = A.bg;
+      ctx.fillRect(0, 0, Math.min(A.w, xl + cover), A.h);          // the colour behind it
+      ctx.translate(xl, (A.h - H) / 2); ctx.scale(k, k); ctx.fill(BUG, 'evenodd');
+      ctx.restore();
+    }
+    ctx.drawImage(A.L.logo, 0, 0);
   }
-  const LOOP_HOLD = 1800, LOOP_FADE = 600;
+  const LOOP_HOLD = 1800, LOOP_OUT = 1400;
 
   // ---------- preview ----------
   function ensureCanvas() {
@@ -221,8 +225,8 @@
   }
   function frame(ts) {
     if (!on || !layers || recording) return;
-    const ms = (ts - t0) % (DUR + LOOP_HOLD + LOOP_FADE);   // the preview pauses a moment on the finished design, then fades back to the start
-    if (ms <= DUR) draw(canvas.getContext('2d'), ms); else drawFade(canvas.getContext('2d'), Math.max(0, (ms - DUR - LOOP_HOLD) / LOOP_FADE));
+    const ms = (ts - t0) % (DUR + LOOP_HOLD + LOOP_OUT);   // the preview pauses a moment on the finished design, then the monogram wipes it away
+    if (ms <= DUR) draw(canvas.getContext('2d'), ms); else drawOut(canvas.getContext('2d'), Math.max(0, (ms - DUR - LOOP_HOLD) / LOOP_OUT));
     raf = requestAnimationFrame(frame);
   }
   function start() { stop(); t0 = performance.now(); raf = requestAnimationFrame(frame); }
@@ -253,9 +257,9 @@
   }
 
   // ---------- GIF (loops) ----------
-  // the movement at 33 frames per second, then the finished design stays as one long frame and fades back to the start (full colour and
-  // logo), where the loop begins again. Smaller than the video: the longest side is 800 px.
-  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_FADE = 600, GIF_MAX = 800;
+  // the movement at 33 frames per second, then the finished design stays as one long frame and is wiped away by the monogram (full colour and
+  // logo are left), where the loop begins again. Smaller than the video: the longest side is 800 px.
+  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_OUT = 1400, GIF_MAX = 800;
   async function recordGif() {
     const b = B(), btn = $('bytGif'), A = layers;
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
@@ -275,10 +279,10 @@
         setStatus('GIF maken… ' + Math.round(i / n * 40) + '%');
         if (i % 6 === 0) await new Promise(r => setTimeout(r));
       }
-      // back to the start: the finished design fades to the full colour and the logo, so the loop has no cut
-      const fn = Math.round(GIF_FADE / GIF_STEP);
+      // the way out: the monogram wipes the design away, so the loop starts again from the plain colour and the logo
+      const fn = Math.round(GIF_OUT / GIF_STEP);
       for (let j = 1; j < fn; j++) {
-        drawFade(fctx, j / fn); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
+        drawOut(fctx, j / fn); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
         gif.addFrame(sctx, { copy: true, delay: GIF_STEP });
       }
       gif.on('progress', p => setStatus('GIF maken… ' + (40 + Math.round(p * 60)) + '%'));
