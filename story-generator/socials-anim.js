@@ -190,6 +190,19 @@
     ctx.drawImage(L.logo, 0, 0);
   }
 
+  // the loop: after the finished design stays a while it fades back to where it began (the full colour and the
+  // ByTomorrow logo), so the next round starts without a cut. `p` is how far the fade is (0 = finished, 1 = start).
+  let fadeCv = null;
+  function drawFade(ctx, p) {
+    draw(ctx, DUR);
+    if (p <= 0) return;
+    const A = layers; if (!fadeCv) fadeCv = document.createElement('canvas');
+    if (fadeCv.width !== A.w || fadeCv.height !== A.h) { fadeCv.width = A.w; fadeCv.height = A.h; }
+    draw(fadeCv.getContext('2d'), 0);
+    ctx.save(); ctx.globalAlpha = p; ctx.drawImage(fadeCv, 0, 0); ctx.restore();
+  }
+  const LOOP_HOLD = 1800, LOOP_FADE = 600;
+
   // ---------- preview ----------
   function ensureCanvas() {
     const scaler = $('bytScale'); if (!scaler) return null;
@@ -208,8 +221,8 @@
   }
   function frame(ts) {
     if (!on || !layers || recording) return;
-    const ms = (ts - t0) % (DUR + 1800);              // the preview pauses a moment on the finished design before it loops
-    draw(canvas.getContext('2d'), Math.min(ms, DUR));
+    const ms = (ts - t0) % (DUR + LOOP_HOLD + LOOP_FADE);   // the preview pauses a moment on the finished design, then fades back to the start
+    if (ms <= DUR) draw(canvas.getContext('2d'), ms); else drawFade(canvas.getContext('2d'), Math.max(0, (ms - DUR - LOOP_HOLD) / LOOP_FADE));
     raf = requestAnimationFrame(frame);
   }
   function start() { stop(); t0 = performance.now(); raf = requestAnimationFrame(frame); }
@@ -240,9 +253,9 @@
   }
 
   // ---------- GIF (loops) ----------
-  // the movement at 20 frames per second, then the finished design stays as one long frame; the loop starts over
-  // from the bare background. Smaller than the video: the longest side is 800 px.
-  const GIF_FPS = 20, GIF_HOLD = 2600, GIF_MAX = 800;
+  // the movement at 20 frames per second, then the finished design stays as one long frame and fades back to the start (full colour and
+  // logo), where the loop begins again. Smaller than the video: the longest side is 800 px.
+  const GIF_FPS = 20, GIF_HOLD = 2600, GIF_FADE = 600, GIF_MAX = 800;
   async function recordGif() {
     const b = B(), btn = $('bytGif'), A = layers;
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
@@ -261,6 +274,12 @@
         gif.addFrame(sctx, { copy: true, delay: last ? GIF_HOLD : Math.round(step) });
         setStatus('GIF maken… ' + Math.round(i / n * 40) + '%');
         if (i % 6 === 0) await new Promise(r => setTimeout(r));
+      }
+      // back to the start: the finished design fades to the full colour and the logo, so the loop has no cut
+      const fn = Math.round(GIF_FADE / 50);
+      for (let j = 1; j < fn; j++) {
+        drawFade(fctx, j / fn); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
+        gif.addFrame(sctx, { copy: true, delay: 50 });
       }
       gif.on('progress', p => setStatus('GIF maken… ' + (40 + Math.round(p * 60)) + '%'));
       const blob = await new Promise((res, rej) => { gif.on('finished', res); gif.on('abort', rej); gif.render(); });
