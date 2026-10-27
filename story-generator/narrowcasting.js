@@ -276,23 +276,29 @@
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
-  // the four pillars as colour bars along the bottom, going through one by one (only on the slogan and the meeting mode)
-  var PB = [['Marketing', '#FFCC00'], ['Content', '#00FFE6'], ['Productie', '#FC06E5'], ['JUMP', '#49FF9F']], PB_OFF = 150, pbTimer = 0;
-  function pbWidth() { return meeting.mode !== 'off' ? 1808 : 1760; }                   // a little wider in the meeting mode (less padding)
-  function pbOn() { return pbWidth() - 3 * PB_OFF - 3 * 10 - 6; }
+  // the four pillars as colour blocks along the bottom (like the example): they slide out one by one with the word in them,
+  // stay a while and slide back again (only on the slogan and the meeting mode)
+  var PB = [['Marketing', '#FFCC00'], ['Content', '#00FFE6'], ['Productie', '#FC06E5'], ['JUMP', '#49FF9F']], pbTimers = [];
   function pillarBar() {
-    var h = '<div class="pb rz" id="pb" style="animation-delay:900ms">', i;
-    for (i = 0; i < PB.length; i++) h += '<div class="pbs' + (i === 0 ? ' on' : '') + '" style="width:' + (i === 0 ? pbOn() : PB_OFF) + 'px"><span style="color:' + PB[i][1] + '">' + PB[i][0] + '</span><i style="background:' + PB[i][1] + '"></i></div>';
+    var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
+    for (i = 0; i < PB.length; i++) h += '<div class="pbs" style="background:' + PB[i][1] + '"><span>' + PB[i][0] + '</span></div>';
     return h + '</div>';
   }
+  function stopPillars() { while (pbTimers.length) clearTimeout(pbTimers.pop()); }
   function startPillars() {
-    clearInterval(pbTimer);
+    stopPillars();
     var el = document.getElementById('pb'); if (!el) return;
-    var n = 0, k, segs = el.children;
-    pbTimer = setInterval(function () {
-      n = (n + 1) % PB.length;
-      for (k = 0; k < segs.length; k++) { segs[k].style.width = (k === n ? pbOn() : PB_OFF) + 'px'; segs[k].className = 'pbs' + (k === n ? ' on' : ''); }
-    }, 4500);
+    var segs = el.children;
+    function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
+    function cycle() {
+      var i;
+      for (i = 0; i < segs.length; i++) (function (k) {
+        at(900 + k * 1500, function () { segs[k].style.width = '25%'; });                    // slide out, one after the other
+        at(900 + 4 * 1500 + 9000 + k * 1100, function () { segs[k].style.width = '0'; });   // and back
+      })(i);
+      at(900 + 4 * 1500 + 9000 + 4 * 1100 + 3500, cycle);
+    }
+    cycle();
   }
 
   // ---- slide: welcome (meeting mode), with the name of the client ----
@@ -438,12 +444,12 @@
     if (!html) { timer = setTimeout(next, 200); return; }
     var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' ? meeting.client : '');
     if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
-    shownKey = key; busy = true;
+    shownKey = key; busy = true; stopPillars();
     crossfade(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
       var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome');
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '');
+      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
@@ -453,6 +459,14 @@
   function boot() { if (started) return; started = true; next(true); }
   setTimeout(boot, 2500);
   (function waitData() { if (weather && shl.men && items) { setTimeout(boot, 400); } else { setTimeout(waitData, 200); } })();
+
+  // OLED burn-in prevention: every 45 minutes the screen runs inverted for 10 seconds (blue becomes white and the other way round)
+  var burnWait = (/[?&]burn=(\d+)/.exec(location.search) || [])[1];                // ?burn=8 tries it after 8 seconds
+  function burn() {
+    stage.className += ' inv';
+    setTimeout(function () { stage.className = stage.className.replace(' inv', ''); }, 10000);
+  }
+  if (burnWait) setTimeout(burn, +burnWait * 1000); else setInterval(burn, 45 * 60000);
 
   // a fresh start now and then keeps a screen that runs for weeks tidy
   setTimeout(function () { location.reload(); }, 12 * 3600000);
