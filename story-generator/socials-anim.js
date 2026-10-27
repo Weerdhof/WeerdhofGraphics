@@ -267,7 +267,7 @@
   // ---------- GIF (loops) ----------
   // the movement at 33 frames per second, then the finished design stays as one long frame and is wiped away by the monogram (full colour and
   // logo are left), where the loop begins again. Smaller than the video: the longest side is 800 px.
-  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_OUT = 1000, GIF_MAX = 800;
+  const GIF_STEP = 30, GIF_HOLD = 10000, GIF_OUT = 1000, GIF_MAX = 800;
   async function recordGif() {
     const b = B(), btn = $('bytGif'), A = layers;
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
