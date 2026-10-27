@@ -14,7 +14,9 @@
     honkbal: 'sports_baseball', rugby: 'sports_rugby', golf: 'sports_golf', schaatsen: 'ice_skating', skien: 'downhill_skiing', fitness: 'fitness_center', roeien: 'rowing',
     zeilen: 'sailing', esports: 'sports_esports', finish: 'sports_score' };
   var COMPS = { shl: { label: 'SHL', bg: '#ccff33', ink: '#14142b' }, shlw: { label: 'SHLW', bg: '#e353fc', ink: '#1a1b38' },
-    lvlm: { label: 'LVL Heren', bg: '#EE3124', ink: '#ffffff' }, lvlw: { label: 'LVL Dames', bg: '#EE3124', ink: '#ffffff' } };
+    lvlm: { label: 'LVL Heren', bg: '#EE3124', ink: '#ffffff' }, lvlw: { label: 'LVL Dames', bg: '#EE3124', ink: '#ffffff' },
+    hnltv: { label: 'HandbalNL TV', bg: '#A66BFF', ink: '#060228' } };
+  function compColor(c) { return c === 'shl' ? '#ccff33' : c === 'shlw' ? '#e353fc' : c === 'hnltv' ? '#B58CFF' : '#FF4B3E'; }
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
@@ -105,7 +107,7 @@
     for (i = 0; i < matches.length; i++) {
       m = matches[i]; C = COMPS[m.comp];
       if (!C || show[m.comp] === false || m.date > last) continue;
-      out.push({ id: 'm' + i, auto: true, comp: m.comp, date: m.date, endDate: '', time: m.time || '', end: '', title: m.home + ' - ' + m.away, place: '', pillars: [],
+      out.push({ id: 'm' + i, auto: true, comp: m.comp, date: m.date, endDate: '', time: m.time || '', end: '', title: m.away ? m.home + ' - ' + m.away : m.home, place: '', pillars: [],
         sport: m.comp.indexOf('lvl') === 0 ? 'volleybal' : 'handbal', jump: true, allDay: false });
     }
     return out;
@@ -126,7 +128,7 @@
     return WD_LOW[a.getUTCDay()] + ' ' + a.getUTCDate() + ' ' + MON[a.getUTCMonth()] + ' – ' + WD_LOW[b.getUTCDay()] + ' ' + b.getUTCDate() + ' ' + MON[b.getUTCMonth()];
   }
   function tagsHtml(it, all) {
-    var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#FF4B3E') + ';border-color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#FF4B3E') + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
+    var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + compColor(it.comp) + ';border-color:' + compColor(it.comp) + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
     var h = '', i, P;
     var prodOnly = it.pillars.length === 1 && it.pillars[0] === 'productie';                  // only a production, no stream: a pink pill
     for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg' + (prodOnly ? ' prod' : '') + '" style="' + (P.fill ? 'background:' + P.c + ';color:#fff;' : 'color:' + P.c + ';') + 'border-color:' + P.c + '">' + P.label + '</span>'; }
@@ -296,13 +298,10 @@
 
   // will it rain, and when: the moment comes from the server, the minutes are counted down here
   function minTxt(m) { if (m >= 10) m = Math.round(m / 5) * 5; return m < 60 ? m + ' min' : Math.floor(m / 60) + ' u' + (m % 60 ? ' ' + m % 60 + ' min' : ''); }     // rounded to 5 minutes
-  function rainTxt(short) {
-    var r = weather && weather.rainSoon; if (!r || r.state === 'unknown') return '';
-    var now = wallNow(), m;
-    if (r.state === 'dry') return short ? 'Droog' : 'Geen regen verwacht de komende 4 uur';
-    if (r.state === 'now') { if (r.dryWall) { m = Math.round((r.dryWall - now) / 60000); if (m > 0) return short ? 'Regen, droog over ' + minTxt(m) : 'Het regent nu, droog over ' + minTxt(m); } return short ? 'Het regent' : 'Het regent nu'; }
-    m = Math.round((r.startWall - now) / 60000);
-    if (m <= 0) return short ? 'Het regent' : 'Het regent nu';
+  function rainTxt(short) {                                                 // only "rain in X min", and only when it is within 2 hours; otherwise no pill at all
+    var r = weather && weather.rainSoon; if (!r || r.state !== 'soon') return '';
+    var m = Math.round((r.startWall - wallNow()) / 60000);
+    if (m <= 0 || m > 120) return '';
     return (short ? 'Regen over ' : 'Regen verwacht over ') + minTxt(m);
   }
   var DROP = '<svg width="34" height="34" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M12 2C12 2 5 10.2 5 15a7 7 0 0 0 14 0C19 10.2 12 2 12 2z"/></svg>';
@@ -529,7 +528,8 @@
   // the minutes until the rain count down on the screen's own clock, once a minute
   setInterval(function () {
     var w = document.getElementById('wrain'), m = document.getElementById('wmini');
-    if (w) w.innerHTML = esc(rainTxt(false)); if (m) m.innerHTML = miniWeather();
+    if (w) { var t = rainTxt(false); if (t) w.innerHTML = esc(t); else w.style.display = 'none'; }
+    if (m) m.innerHTML = miniWeather();
   }, 60000);
 
   // a fresh start now and then keeps a screen that runs for weeks tidy

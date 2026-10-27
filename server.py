@@ -216,7 +216,7 @@ import shutil
 import time
 import zipfile
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 
 ITEM_DIR = os.path.join(DATA_DIR, "items")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")
@@ -1066,7 +1066,7 @@ WEATHER_PLACE = {"name": "Veenendaal", "lat": 52.0267, "lon": 5.5583}
 _weather = {"at": 0, "data": None}
 
 
-NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw")
+NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
 
@@ -1164,6 +1164,30 @@ def narrow_comp(comp):
     return {"standings": st, "results": res, "round": rnd, "next": nxt}
 
 
+_hnl = {"at": 0, "events": []}
+
+
+def hnl_events():
+    """The livestream agenda of handbalnl.tv: the page carries all its events as JSON (day, time, title, club). Kept for 30 minutes."""
+    now = time.time()
+    if _hnl["events"] and now - _hnl["at"] < 1800:
+        return _hnl["events"]
+    try:
+        req = urllib.request.Request("https://handbalnl.tv/agenda", headers={"User-Agent": "Mozilla/5.0 (ByTomorrow narrowcasting)"})
+        with urllib.request.urlopen(req, timeout=20) as res:
+            page = res.read().decode("utf-8", "replace")
+        m = re.search(r'<script type="application/json" data-agenda-events>(.*?)</script>', page, re.S)
+        _hnl["events"] = json.loads(m.group(1)) if m else _hnl["events"]
+        _hnl["at"] = now
+    except Exception:
+        _hnl["at"] = now - 1500           # keep the last events and try again in 5 minutes
+    return _hnl["events"]
+
+
+def _flat(name):
+    return re.sub(r"[^a-z0-9]", "", html.unescape(str(name or "")).lower())
+
+
 def narrow_matches():
     """The next matches of SHL, SHLW and the Lotto Volley League (men and women) for the programme slide."""
     today = _ams_now_parts(time.time()).date()
@@ -1204,6 +1228,23 @@ def narrow_matches():
                             "time": (mt.group(3) or "").replace(".", ":").rjust(5, "0") if mt.group(3) else ""})
         except Exception:
             continue
+    # the livestream agenda of HandbalNL TV, without what is already in the SHL / SHLW / LVL schedules (the same match, the same day)
+    try:
+        known = {}
+        for m in out:
+            known.setdefault(m["date"], []).append((_flat(m["home"]), _flat(m["away"])))
+        seen, last = set(), (today + timedelta(days=21)).isoformat()
+        for e in hnl_events():
+            day, title = str(e.get("day") or ""), re.sub(r"\s+", " ", html.unescape(str(e.get("title") or ""))).strip(" !")
+            if not title or day < today.isoformat() or day > last:
+                continue
+            flat = _flat(title)
+            if any(a and b and a in flat and b in flat for a, b in known.get(day, [])) or (day, flat) in seen:
+                continue
+            seen.add((day, flat))
+            out.append({"comp": "hnltv", "home": title, "away": "", "date": day, "time": str(e.get("time") or "")[:5]})
+    except Exception:
+        pass
     out.sort(key=lambda m: (m["date"], m["time"] or "00:00", m["home"]))
     counts, res = {}, []
     for m in out:

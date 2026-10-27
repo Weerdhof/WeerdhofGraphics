@@ -72,8 +72,8 @@
   <div class="box">
     <div class="row"><b style="min-width:210px">Programma-slides en wedstrijdagenda tonen</b>
       <label class="chk"><input type="checkbox" data-show="shl"> SHL</label><label class="chk"><input type="checkbox" data-show="shlw"> SHLW</label>
-      <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label></div>
-    <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League), zonder dat je ze hoeft in te vullen. HandbalNL heeft in het platform geen programma, die voeg je zelf toe.</div>
+      <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label><label class="chk"><input type="checkbox" data-show="hnltv"> HandbalNL TV</label></div>
+    <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League) en uit de livestream-agenda van handbalnl.tv, zonder dat je ze hoeft in te vullen. Wedstrijden die al in het SHL-, SHLW- of LVL-programma staan, worden bij HandbalNL TV overgeslagen.</div>
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Uit het programma toevoegen</b><select id="pick" style="flex:1;min-width:260px"></select><button class="btn small" id="pickAdd" type="button">Toevoegen</button></div>
@@ -90,7 +90,7 @@
 (function () {
   var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
-  var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames' };
+  var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal', hnltv: 'handbal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames', hnltv: 'HandbalNL TV' };
   var items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
@@ -152,7 +152,7 @@
     var sel = document.getElementById('pick'), h = '<option value="">Kies een wedstrijd uit het SHL- of LVL-programma…</option>';
     matches.slice(0, 80).forEach(function (m, i) {
       var d = new Date(m.date + 'T12:00:00');
-      h += '<option value="' + i + '">' + COMP_LABEL[m.comp] + ' · ' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + (m.time ? ' ' + m.time : '') + ' · ' + esc(m.home) + ' - ' + esc(m.away) + '</option>';
+      h += '<option value="' + i + '">' + COMP_LABEL[m.comp] + ' · ' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + (m.time ? ' ' + m.time : '') + ' · ' + esc(m.home) + (m.away ? ' - ' + esc(m.away) : '') + '</option>';
     });
     sel.innerHTML = h;
   }
@@ -209,7 +209,7 @@
   document.getElementById('pickAdd').addEventListener('click', function () {
     var v = document.getElementById('pick').value; if (v === '') return;
     var m = matches[+v];
-    items.push(newItem({ date: m.date, time: m.time, title: m.home + ' - ' + m.away, place: COMP_LABEL[m.comp], sport: COMP_SPORT[m.comp], pillars: ['jump', 'productie'] }));
+    items.push(newItem({ date: m.date, time: m.time, title: m.away ? m.home + ' - ' + m.away : m.home, place: COMP_LABEL[m.comp], sport: COMP_SPORT[m.comp], pillars: ['jump', 'productie'] }));
     render(); save();
   });
   document.getElementById('clearPast').addEventListener('click', function () {

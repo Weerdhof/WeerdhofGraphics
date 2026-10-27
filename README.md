@@ -92,7 +92,7 @@ An unknown page under a client opens that client's landing page. `stream.html`, 
 | `/narrowcasting/beheer` | Hier beheer je de streamagenda, kies je de programma-slides en zet je de meeting-modus aan of uit. |
 | `/narrowcasting?slide=agenda,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `streams`, `stand` (met `&comp=men` of `women`), `matches`, `quote`, `slogan`, `weather`, `logo`. |
 
-Slides: **Streamagenda** (alle streams: wat je invult plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma, met "LIVE" bij een
+Slides: **Streamagenda** (alle streams: wat je invult plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma en uit de livestream-agenda van handbalnl.tv (paarse tag HandbalNL TV, wat al in het SHL/SHLW-programma staat wordt overgeslagen), met "LIVE" bij een
 lopende stream), **Uitgelicht** (aangevinkte afspraken als grote kaarten), per SHL en SHLW de **komende 7 streams** en daarna **stand en uitslagen** (in de stijl van de SHL-stream),
 **Alle sporters zijn helden** (met het logo), **LVL-wedstrijden**, **Quote** (een sportquote per dag), **Weer in Veenendaal** en een slide met alleen het ByTomorrow-logo.
 Alles staat op het donkerblauw van ByTomorrow.
