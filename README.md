@@ -99,7 +99,7 @@ Alles staat op het donkerblauw van ByTomorrow.
 
 **Meeting-modus** (knop op de beheerpagina): het scherm toont alleen "Alle sporters zijn helden" of "Welkom [klant]" met het logo, binnen 15 seconden. Zet je hem uit, dan draaien de normale slides weer.
 
-**Pijlerbalk:** op de slide "Alle sporters zijn helden" en in de meeting-modus schuiven de vier pijlers (Marketing, Content, Productie, JUMP) als kleurblokken onderin uit.
+**Pijlers:** op de slide "Alle sporters zijn helden" en in de meeting-modus staan onderin vier bolletjes met het icoon van Marketing, Content, Productie en JUMP. Elke 30 seconden rekt er een uit tot een pil met de volledige naam en gaat weer terug (de iconen staan in `assets/pillars/`).
 **Inbranden voorkomen (OLED):** na elke 45 minuten draait het scherm 10 seconden omgekeerd (blauw wordt wit en andersom); met `?burn=8` probeer je het na 8 seconden.
 
 De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume), het weer komt van Open-Meteo via de server (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse

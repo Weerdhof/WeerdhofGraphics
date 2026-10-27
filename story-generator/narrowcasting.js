@@ -276,13 +276,13 @@
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
-  // the four pillars as colour blocks along the bottom (like the example), the words in the alternative colour of the pillar. Very
-  // subtle: now and then the whole bar slowly fades to the colour of one pillar and back (only the opacity moves, the colours never mix)
+  // the four pillars as round icons along the bottom. Once every 30 seconds one of them stretches (left anchored, like the circles
+  // of the ByTomorrow socials) into a pill with its full name and goes back to a circle; the colours never mix
   // (only on the slogan and the meeting mode)
-  var PB = [['Marketing', '#FFCC00', '#C25100'], ['Content', '#00FFE6', '#008B8B'], ['Productie', '#FC06E5', '#7B1FA2'], ['JUMP', '#49FF9F', '#2F7E4D']], pbTimers = [], pbIndex = 0;
+  var PB = [['Marketing', '#FFCC00', '#C25100', 'marketing.png'], ['Content', '#00FFE6', '#008B8B', 'content.png'], ['Productie', '#FC06E5', '#7B1FA2', 'productie.png'], ['JUMP', '#49FF9F', '#2F7E4D', 'jump.svg']], pbTimers = [], pbIndex = 0, PB_D = 68;
   function pillarBar() {
     var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
-    for (i = 0; i < PB.length; i++) h += '<div class="pbs" style="background:' + PB[i][1] + '"><span style="color:' + PB[i][2] + '">' + PB[i][0] + '</span></div>';
+    for (i = 0; i < PB.length; i++) h += '<div class="pbc" style="background:' + PB[i][1] + '"><span class="pbw"><img src="/assets/pillars/' + PB[i][3] + '" alt=""></span><span class="pbt" style="color:' + PB[i][2] + '">' + PB[i][0] + '</span></div>';
     return h + '</div>';
   }
   function stopPillars() { while (pbTimers.length) clearTimeout(pbTimers.pop()); }
@@ -291,15 +291,12 @@
     var el = document.getElementById('pb'); if (!el) return;
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
-    function opacity(o) { var k; for (k = 0; k < segs.length; k++) segs[k].style.opacity = o; }
-    function paint(only) { var k; for (k = 0; k < segs.length; k++) { segs[k].style.backgroundColor = only < 0 ? PB[k][1] : PB[only][1]; segs[k].firstChild.style.visibility = only < 0 || k === only ? 'visible' : 'hidden'; } }
-    // only the opacity moves, the colours never mix: the bar fades out, comes back in the colour of one pillar, and later does the same to return
-    function cycle() {                                                         // once every 30 seconds, the next pillar each time
-      var n = pbIndex; pbIndex = (pbIndex + 1) % PB.length;
-      at(4000, function () { opacity(0); });
-      at(5800, function () { paint(n); opacity(1); });
-      at(10400, function () { opacity(0); });
-      at(12200, function () { paint(-1); opacity(1); });
+    function cycle() {
+      var n = pbIndex, seg = segs[n], txt = seg.children[1]; pbIndex = (pbIndex + 1) % PB.length;
+      at(4000, function () { seg.style.width = (PB_D + 8 + txt.offsetWidth + 30) + 'px'; });      // the circle stretches into a pill
+      at(4900, function () { txt.style.opacity = 1; });                                          // the name fades in just before the pill has landed
+      at(4000 + 1500 + 4500, function () { txt.style.opacity = 0; });                            // stays a moment, the name fades away
+      at(4000 + 1500 + 4500 + 700, function () { seg.style.width = PB_D + 'px'; });             // and the pill becomes a circle again
       at(30000, cycle);
     }
     cycle();
