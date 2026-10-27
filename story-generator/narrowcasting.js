@@ -9,8 +9,8 @@
     standaard: { label: 'Algemeen', c: '#748FFF', bg: '#3D5AFE', ink: '#ffffff' }, navy: { label: 'Navy', c: '#A5B4FF', bg: '#2D43A8', ink: '#ffffff' },
     lvl: { label: 'Lotto Volley League', c: '#FF4B3E', bg: '#EE3124', ink: '#ffffff' }, shl: { label: 'SHL', c: '#ccff33', bg: '#ccff33', ink: '#060228' },
     shlw: { label: 'SHLW', c: '#e353fc', bg: '#e353fc', ink: '#060228' }, hnl: { label: 'HandbalNL', c: '#ff8a4d', bg: '#ff7429', ink: '#060228' },
-    hnltv: { label: 'HandbalNL TV', c: '#B58CFF', bg: '#A66BFF', ink: '#060228' }, zwem: { label: 'Zwemsport TV', c: '#38BDF8', bg: '#38BDF8', ink: '#060228' }, kwpn: { label: 'KWPN TV', c: '#22C55E', bg: '#22C55E', ink: '#060228' },
-    tvv: { label: 'Tijd voor Volleyball', c: '#FB7185', bg: '#FB7185', ink: '#060228' }, futsal: { label: 'Eredivisie Futsal', c: '#D5DCE8', bg: '#D5DCE8', ink: '#060228' }, sibv: { label: 'Sport in Beeld Veenendaal', c: '#E6C36A', bg: '#E6C36A', ink: '#060228' }, hhd: { label: 'Hoofdklasse Dames', c: '#2FD6C0', bg: '#2FD6C0', ink: '#060228' }, hhh: { label: 'Hoofdklasse Heren', c: '#8F66FF', bg: '#8F66FF', ink: '#ffffff' }
+    hnltv: { label: 'HandbalNL TV', c: '#B58CFF', bg: '#A66BFF', ink: '#060228' }, zwem: { label: 'Zwemsport TV', c: '#38BDF8', bg: '#38BDF8', ink: '#060228' }, kwpn: { label: 'KWPN TV', c: '#FF8A1F', bg: '#FF8A1F', ink: '#060228' },
+    tvv: { label: 'Tijd voor Volleyball', c: '#D08A4E', bg: '#D08A4E', ink: '#060228' }, futsal: { label: 'Eredivisie Futsal', c: '#D4E04A', bg: '#D4E04A', ink: '#060228' }, sibv: { label: 'Sport in Beeld Veenendaal', c: '#20B2A0', bg: '#20B2A0', ink: '#060228' }, hhd: { label: 'Hoofdklasse Dames', c: '#2FD6C0', bg: '#2FD6C0', ink: '#060228' }, hhh: { label: 'Hoofdklasse Heren', c: '#8F66FF', bg: '#8F66FF', ink: '#ffffff' }
   };
   var SPORTS = { basketbal: 'sports_basketball', volleybal: 'sports_volleyball', handbal: 'sports_handball', voetbal: 'sports_soccer', tennis: 'sports_tennis', padel: 'sports_tennis',
     hockey: 'sports_hockey', zwemmen: 'pool', hardlopen: 'directions_run', wielrennen: 'directions_bike', turnen: 'sports_gymnastics', vechtsport: 'sports_martial_arts',
@@ -140,14 +140,19 @@
   }
   // the colour of the client of a match: the sport icon takes it
   var CLIENTS = { shl: ['#ccff33', '#060228'], shlw: ['#e353fc', '#060228'], lvl: ['#FF4B3E', '#ffffff'], lvlm: ['#FF4B3E', '#ffffff'], lvlw: ['#FF4B3E', '#ffffff'], hnl: ['#ff8a4d', '#060228'],
-    hnltv: ['#B58CFF', '#060228'], zwem: ['#38BDF8', '#060228'], kwpn: ['#22C55E', '#060228'], tvv: ['#FB7185', '#060228'], futsal: ['#D5DCE8', '#060228'], sibv: ['#E6C36A', '#060228'], hhd: ['#2FD6C0', '#060228'], hhh: ['#8F66FF', '#ffffff'] };
+    hnltv: ['#B58CFF', '#060228'], zwem: ['#38BDF8', '#060228', { f: 'pool' }], kwpn: ['#FF8A1F', '#060228', { vb: '0 0 256 256', d: 'M202.05,55A103.24,103.24,0,0,0,128,24h-8a8,8,0,0,0-8,8V59.53L11.81,121.19a8,8,0,0,0-2.59,11.05l13.78,22,.3.43a31.84,31.84,0,0,0,31.34,12.83c13.93-2.36,38.62-6.54,61.4,3.29l-26.6,36.57A84.71,84.71,0,0,1,69.34,194,8,8,0,1,0,58.67,206a103.32,103.32,0,0,0,69.26,26l2.17,0a104,104,0,0,0,72-177ZM124,112a12,12,0,1,1,12-12A12,12,0,0,1,124,112Z' }], tvv: ['#D08A4E', '#060228', { f: 'sports_volleyball' }],
+    futsal: ['#D4E04A', '#060228', { f: 'sports_soccer' }], sibv: ['#20B2A0', '#060228', { vb: '0 0 24 24', d: 'M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z' }], hhd: ['#2FD6C0', '#060228'], hhh: ['#8F66FF', '#ffffff'] };
   function clientOf(it) {
     var i; if (it.comp && CLIENTS[it.comp]) return CLIENTS[it.comp];
     for (i = 0; i < it.pillars.length; i++) { if (CLIENTS[it.pillars[i]]) return CLIENTS[it.pillars[i]]; }
     return null;
   }
+  function isLvl(it) { var i; if (it.comp && it.comp.indexOf('lvl') === 0) return true; for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'lvl') return true; } return false; }
   function icStyle(it) { var c = clientOf(it); return c ? ' style="background:' + c[0] + ';border-color:' + c[0] + ';color:' + c[1] + '"' : ''; }
-  function iconHtml(it) { return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>'; }
+  function iconHtml(it) {                                                   // the icon of a client that has its own (swimming, horse, volleyball, soccer, pin), else the sport, else the day
+    var c = clientOf(it); if (c && c[2]) return c[2].f ? '<span class="mi">' + c[2].f + '</span>' : '<svg class="cis" width="38" height="38" viewBox="' + c[2].vb + '" fill="currentColor"><path d="' + c[2].d + '"/></svg>';
+    return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>';
+  }
   function dly(i) { return ' style="animation-delay:' + (i * 70 + 150) + 'ms"'; }
 
   // ---- slides: the stream agenda, one slide per day, slowly scrolling when there are more streams than fit ----
@@ -161,16 +166,16 @@
       days[key].push(it);
     }
     order.sort();
-    // a day that has more streams than fit is split over more slides (today: 5 large rows, the other days: 14 in two columns)
+    // a day that has more streams than fit is split over more slides (today: 5 large rows, the other days: 16 in two columns)
     function pages(extra, items, cap) {
       var n = Math.ceil(items.length / cap), k;
       for (k = 0; k < n; k++) { var s = { type: 'agenda', items: items.slice(k * cap, (k + 1) * cap), total: items.length, page: k + 1, pages: n }; for (var p in extra) s[p] = extra[p]; out.push(s); }
     }
     for (i = 0; i < order.length; i++) {
-      pages({ date: order[i] }, days[order[i]], order[i] <= today ? 5 : 14);
-      if (i === 0 && order[0] === today && week.length) pages({ week: true }, week, 14);                   // the events over several days come after today
+      pages({ date: order[i] }, days[order[i]], order[i] <= today ? 5 : 16);
+      if (i === 0 && order[0] === today && week.length) pages({ week: true }, week, 16);                   // the events over several days come after today
     }
-    if (week.length && !(order.length && order[0] === today)) { var tail = out.splice(0, out.length); pages({ week: true }, week, 14); out = out.concat(tail); }
+    if (week.length && !(order.length && order[0] === today)) { var tail = out.splice(0, out.length); pages({ week: true }, week, 16); out = out.concat(tail); }
     return out;
   }
   function dayTitle(s) {
@@ -201,8 +206,8 @@
     for (i = 0; i < s.items.length; i++) {
       it = s.items[i]; live = isLive(it); sub = live ? '' : inTxt(it);
       tm = live ? '<span class="tm now"><i></i>' + (isStream(it) ? 'LIVE' : 'BEZIG') + '</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
-      rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic"' + icStyle(it) + '>' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
-        '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>');
+      rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic"' + icStyle(it) + '>' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel').replace(/ [-\u2013] /, ' <span class="sep">\u2013</span> ') + '</div>' + tm +
+        '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place && !isLvl(it) ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>');
     }
     if (big) return html + '<div class="vp"><div class="scr" id="sc">' + rows.join('') + '</div></div>' + dayPills(s.date);
     var half = Math.ceil(rows.length / 2);
