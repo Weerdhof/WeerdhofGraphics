@@ -253,9 +253,9 @@
   }
 
   // ---------- GIF (loops) ----------
-  // the movement at 20 frames per second, then the finished design stays as one long frame and fades back to the start (full colour and
+  // the movement at 33 frames per second, then the finished design stays as one long frame and fades back to the start (full colour and
   // logo), where the loop begins again. Smaller than the video: the longest side is 800 px.
-  const GIF_FPS = 20, GIF_HOLD = 2600, GIF_FADE = 600, GIF_MAX = 800;
+  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_FADE = 600, GIF_MAX = 800;
   async function recordGif() {
     const b = B(), btn = $('bytGif'), A = layers;
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
@@ -267,19 +267,19 @@
       const fctx = full.getContext('2d'), sctx = small.getContext('2d', { willReadFrequently: true });
       sctx.imageSmoothingQuality = 'high';
       const gif = new GIF({ workers: 3, quality: 6, width: w, height: h, repeat: 0, workerScript: 'vendor/gif.worker.js' });
-      const step = 1000 / GIF_FPS, n = Math.ceil(DUR / step);
+      const step = GIF_STEP, n = Math.ceil(DUR / step);
       for (let i = 0; i <= n; i++) {
         const last = i === n;
         draw(fctx, Math.min(DUR, i * step)); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
-        gif.addFrame(sctx, { copy: true, delay: last ? GIF_HOLD : Math.round(step) });
+        gif.addFrame(sctx, { copy: true, delay: last ? GIF_HOLD : step });
         setStatus('GIF maken… ' + Math.round(i / n * 40) + '%');
         if (i % 6 === 0) await new Promise(r => setTimeout(r));
       }
       // back to the start: the finished design fades to the full colour and the logo, so the loop has no cut
-      const fn = Math.round(GIF_FADE / 50);
+      const fn = Math.round(GIF_FADE / GIF_STEP);
       for (let j = 1; j < fn; j++) {
         drawFade(fctx, j / fn); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
-        gif.addFrame(sctx, { copy: true, delay: 50 });
+        gif.addFrame(sctx, { copy: true, delay: GIF_STEP });
       }
       gif.on('progress', p => setStatus('GIF maken… ' + (40 + Math.round(p * 60)) + '%'));
       const blob = await new Promise((res, rej) => { gif.on('finished', res); gif.on('abort', rej); gif.render(); });
