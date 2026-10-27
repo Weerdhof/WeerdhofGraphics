@@ -31,7 +31,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .stage.noclock .clockbox { display: none; }
 .clockbox .clock { font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 84px; line-height: 90px; letter-spacing: -1px; }
 .clockbox .date { font-size: 26px; font-weight: 600; color: #a5b4ff; line-height: 32px; }
-.dots { position: absolute; right: 80px; top: 1046px; width: 400px; height: 20px; text-align: right; z-index: 5; }
+.dots { position: absolute; right: 80px; top: 1048px; width: 400px; height: 20px; text-align: right; z-index: 5; }
 .dots i { display: inline-block; width: 12px; height: 12px; margin-left: 9px; border-radius: 50%; background: rgba(255,255,255,.22); }
 .dots i.on { background: #fff; }
 
@@ -157,7 +157,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* a statement in between */
 .sg { position: absolute; left: 80px; top: 190px; width: 1700px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 206px; line-height: 212px; letter-spacing: -4px; }
 .sg b { color: #3D5AFE; font-weight: 900; }
-.sgl { position: absolute; left: 80px; top: 800px; width: 600px; height: 116px; }
+.sgl { position: absolute; left: 80px; top: 830px; width: 600px; height: 116px; }
 .sgl svg { width: 600px; height: 116px; }
 
 /* a slide with only the logo */
@@ -185,17 +185,18 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .wmini .wm-d { display: inline-block; margin-left: 22px; vertical-align: middle; font-size: 26px; font-weight: 600; line-height: 34px; color: #a5b4ff; }
 
 /* the pillars as colour blocks along the bottom, no rounding; now and then one slowly fills the whole bar */
-.pb { position: absolute; left: 80px; top: 962px; width: 1760px; height: 58px; white-space: nowrap; font-size: 0; }
-.pbs { display: inline-block; vertical-align: top; height: 58px; width: 25%; overflow: hidden; -webkit-transition: width 2.8s cubic-bezier(.45,0,.2,1); transition: width 2.8s cubic-bezier(.45,0,.2,1); }
-.pbs span { display: block; width: 440px; padding-left: 24px; height: 58px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 30px; line-height: 58px; white-space: nowrap; box-sizing: border-box; }
+.pb { position: absolute; left: 80px; top: 992px; width: 1760px; height: 24px; white-space: nowrap; font-size: 0; }
+.pbs { display: inline-block; vertical-align: top; height: 24px; width: 25%; overflow: hidden; -webkit-transition: background-color 2.8s ease; transition: background-color 2.8s ease; }
+.pbs span { display: block; width: 440px; padding-left: 12px; height: 24px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 14px; line-height: 24px; letter-spacing: .3px; white-space: nowrap; box-sizing: border-box; -webkit-transition: opacity 2.8s ease; transition: opacity 2.8s ease; }
 
 /* meeting mode: a little less padding around everything */
 .stage.mm .clockbox { right: 56px; top: 30px; }
 .slide.mm .sg { left: 56px; top: 150px; }
-.slide.mm .sgl { left: 58px; top: 800px; }
+.slide.mm .sgl { left: 58px; top: 830px; }
 .slide.mm .wmini { left: 56px; top: 24px; }
 .slide.mm .pb { left: 56px; width: 1808px; }
 .slide.mm .pbs span { width: 452px; }
+.slide.mm .pb { top: 992px; }
 
 /* OLED burn-in prevention: inverted for a moment (blue becomes white and the other way round) */
 .stage { -webkit-transition: -webkit-filter 1.2s ease; transition: filter 1.2s ease; }

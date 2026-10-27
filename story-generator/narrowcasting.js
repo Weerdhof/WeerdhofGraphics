@@ -277,7 +277,7 @@
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
   // the four pillars as colour blocks along the bottom (like the example), the words in the alternative colour of the pillar. Very
-  // subtle: now and then one pillar slowly fills the whole bar in its colour and the bar goes back to the four blocks again
+  // subtle: now and then the whole bar slowly fades to the colour of one pillar and fades back to the four blocks again (a fade, nothing moves)
   // (only on the slogan and the meeting mode)
   var PB = [['Marketing', '#FFCC00', '#C25100'], ['Content', '#00FFE6', '#008B8B'], ['Productie', '#FC06E5', '#7B1FA2'], ['JUMP', '#49FF9F', '#2F7E4D']], pbTimers = [];
   function pillarBar() {
@@ -291,12 +291,12 @@
     var el = document.getElementById('pb'); if (!el) return;
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
-    function widths(only) { var k; for (k = 0; k < segs.length; k++) segs[k].style.width = only < 0 ? '25%' : (k === only ? '100%' : '0'); }
+    function fadeTo(only) { var k; for (k = 0; k < segs.length; k++) { segs[k].style.backgroundColor = only < 0 ? PB[k][1] : PB[only][1]; segs[k].firstChild.style.opacity = only < 0 || k === only ? 1 : 0; } }
     function cycle() {
       var t = 4000, k;
       for (k = 0; k < segs.length; k++) (function (n) {
-        at(t, function () { widths(n); }); t += 2800 + 2500;                      // slowly fills the whole bar, stays a moment
-        at(t, function () { widths(-1); }); t += 2800 + 4500;                     // and slowly goes back to the four blocks
+        at(t, function () { fadeTo(n); }); t += 2800 + 2500;                         // the whole bar fades to the colour of the pillar, stays a moment
+        at(t, function () { fadeTo(-1); }); t += 2800 + 4500;                        // and fades back to the four blocks
       })(k);
       at(t, cycle);
     }
