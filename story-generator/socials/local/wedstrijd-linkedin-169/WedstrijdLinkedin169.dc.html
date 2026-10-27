@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- template name="Wedstrijd aankondiging (LinkedIn 16:9)" description="1200×675 wedstrijdaankondiging voor LinkedIn: foto rechts, pijlerveld, pills in secundaire kleur, titel, sport-icoon, LIVE-OP-capsule over de foto-slot" -->
+<helmet>
+<script src="./ds-base.js"></script>
+<script src="../../_download-png.js"></script>
+<script src="../../image-slot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: #d9d9e3; }
+</style>
+</helmet>
+<div style="width:1200px; height:675px; position:relative; overflow:hidden; background:var(--bg,#FC06E5); font-family:'Open Sans',Arial,sans-serif;">
+
+  <!-- foto-slot (rechterdeel, naad op 660px) -->
+  <div style="position:absolute; top:0; bottom:0; right:0; width:540px;">
+    <image-slot id="wedstrijd-linkedin-169-foto" shape="rect" placeholder="Sleep hier de wedstrijdfoto" style="display:block; width:100%; height:100%;"></image-slot>
+  </div>
+
+  <!-- top content -->
+  <div style="position:absolute; top:56px; left:64px; width:540px;">
+    <div style="display:flex; gap:12px;">
+      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:26px; letter-spacing:.5px; padding:9px 24px; border-radius:28px;">{{ competition }}</span>
+      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:26px; letter-spacing:.5px; padding:9px 24px; border-radius:28px;">{{ datetime }}</span>
+    </div>
+    <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:900; font-size:72px; line-height:.98; color:var(--title,#060228); margin-top:22px; text-wrap:pretty;">{{ title }}</div>
+    <div style="margin-top:22px;">
+      <span style="display:inline-block; border:3px solid var(--title,#060228); color:var(--title,#060228); font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:24px; padding:7px 26px; border-radius:28px;">{{ pillar_label }}</span>
+    </div>
+  </div>
+
+  <!-- LIVE OP capsule + sport-cirkel, de cirkel over de naad -->
+  <div style="position:absolute; top:488px; left:64px; display:flex; align-items:center; background:#ffffff; border-radius:40px; padding:12px 28px; box-shadow:0 8px 22px rgba(6,2,40,.24);">
+    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; color:var(--pill-bg,#7B1FA2);">LIVE OP</span>
+    <span style="width:2px; height:34px; background:rgba(6,2,40,.2); margin:0 20px;"></span>
+    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; color:#060228;">{{ platform }}</span>
+  </div>
+  <div style="position:absolute; top:481px; left:604px; width:112px; height:112px; border-radius:50%; background:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 22px rgba(6,2,40,.24);">
+    <span style="font-family:'Material Symbols Rounded'; font-size:66px; line-height:1; color:var(--pill-bg,#7B1FA2); font-variation-settings:'FILL' 1,'wght' 600,'opsz' 48;">{{ sportIcon }}</span>
+  </div>
+
+  <!-- logo onderaan de foto -->
+  <div style="position:absolute; bottom:44px; right:48px; display:flex; justify-content:flex-end; filter:drop-shadow(0 6px 18px rgba(6,2,40,.32));">
+    <x-import component-from-global-scope="ByTomorrowDesignSystem_c9da89.Logo" color="#ffffff" width="240" hint-size="240px,47px"></x-import>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:675},&quot;pillar&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;productie&quot;,&quot;jump&quot;,&quot;marketing&quot;,&quot;content&quot;,&quot;standaard&quot;,&quot;navy&quot;],&quot;default&quot;:&quot;productie&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;sport&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;basketbal&quot;,&quot;volleybal&quot;,&quot;handbal&quot;,&quot;voetbal&quot;,&quot;tennis&quot;,&quot;padel&quot;,&quot;hockey&quot;,&quot;zwemmen&quot;,&quot;hardlopen&quot;,&quot;wielrennen&quot;,&quot;turnen&quot;,&quot;vechtsport&quot;,&quot;honkbal&quot;,&quot;rugby&quot;,&quot;golf&quot;,&quot;schaatsen&quot;,&quot;skien&quot;,&quot;fitness&quot;,&quot;roeien&quot;,&quot;zeilen&quot;,&quot;esports&quot;,&quot;finish&quot;],&quot;default&quot;:&quot;basketbal&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;title&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Orange Lions  Bulgarije&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;competition&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;NBB&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;datetime&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;20-08 | 19:30&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;platform&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;HBO max&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;pillarLabel&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  pillar() {
+    const PILLARS = {
+      productie: { bg: "#FC06E5", dark: "#7B1FA2", title: "#060228", label: "Productie" },
+      jump:      { bg: "#49FF9F", dark: "#2F7E4D", title: "#060228", label: "JUMP" },
+      marketing: { bg: "#FFCC00", dark: "#C25100", title: "#060228", label: "Marketing" },
+      content:   { bg: "#00FFE6", dark: "#008B8B", title: "#060228", label: "Content" },
+      standaard: { bg: "#3D5AFE", dark: "#060228", title: "#ffffff", label: "ByTomorrow" },
+      navy:      { bg: "#060228", dark: "#3D5AFE", title: "#ffffff", label: "ByTomorrow" },
+    };
+    return PILLARS[this.props.pillar] || PILLARS.productie;
+  }
+  applyVars() {
+    const p = this.pillar(), r = document.documentElement.style;
+    r.setProperty("--bg", p.bg);
+    r.setProperty("--title", p.title);
+    r.setProperty("--pill-bg", p.dark);
+  }
+  componentDidMount() { this.applyVars(); }
+  componentDidUpdate() { this.applyVars(); }
+  renderVals() {
+    const p = this.pillar();
+    const SPORTS = {
+      basketbal: "sports_basketball", volleybal: "sports_volleyball", handbal: "sports_handball",
+      voetbal: "sports_soccer", tennis: "sports_tennis", padel: "sports_tennis", hockey: "sports_hockey",
+      zwemmen: "pool", hardlopen: "directions_run", wielrennen: "directions_bike", turnen: "sports_gymnastics",
+      vechtsport: "sports_martial_arts", honkbal: "sports_baseball", rugby: "sports_rugby", golf: "sports_golf",
+      schaatsen: "ice_skating", skien: "downhill_skiing", fitness: "fitness_center", roeien: "rowing",
+      zeilen: "sailing", esports: "sports_esports", finish: "sports_score",
+    };
+    return {
+      pillar_label: this.props.pillarLabel || p.label,
+      competition: this.props.competition ?? "NBB",
+      datetime: this.props.datetime ?? "20-08 | 19:30",
+      title: this.props.title ?? "Orange Lions  Bulgarije",
+      platform: this.props.platform ?? "HBO max",
+      sportIcon: SPORTS[this.props.sport] || "sports_basketball",
+    };
+  }
+}
+</script>
+</body>
+</html>

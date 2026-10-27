@@ -18,7 +18,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates.js")
 ENABLED = [
     ("social-wedstrijd", "wedstrijd", "Feed"),
     ("social-wedstrijd-story", "wedstrijd", "Story"),
-    ("wedstrijd-linkedin", "wedstrijd", "LinkedIn"),
+    ("wedstrijd-linkedin-169", "wedstrijd", "LinkedIn 16:9"),
+    ("wedstrijd-linkedin", "wedstrijd", "LinkedIn 1:1"),
     ("social-artikel", "artikel", "Slide 1 · Artikel"),
     ("social-quote", "artikel", "Slide 2 · Quote"),
     ("social-story", "story", "Story"),
@@ -63,8 +64,15 @@ def bug(m):
     color = a.get("color", "#060228")
     return ('<svg width="%.2f" height="%g" viewBox="0 0 988 1121" xmlns="http://www.w3.org/2000/svg" style="display:block"><path style="fill:%s" fill-rule="evenodd" d="%s"/></svg>' % (w, h, color, BUG_PATH))
 
+LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "local")   # templates made here, in the handoff's own format
+
 def convert(folder, asset, fmt):
-    src = read("templates/%s/%s" % (folder, [f for f in os.listdir(os.path.join(HANDOFF, "templates", folder)) if f.endswith(".dc.html")][0]))
+    if os.path.isdir(os.path.join(LOCAL, folder)):
+        d = os.path.join(LOCAL, folder)
+        with open(os.path.join(d, [f for f in os.listdir(d) if f.endswith(".dc.html")][0]), encoding="utf8") as f:
+            src = f.read()
+    else:
+        src = read("templates/%s/%s" % (folder, [f for f in os.listdir(os.path.join(HANDOFF, "templates", folder)) if f.endswith(".dc.html")][0]))
     body = re.search(r"</helmet>(.*?)</x-dc>", src, re.S).group(1)
     # the template's own style rules (from its <helmet>), scoped to the frame; the page-level body rule is dropped
     css = "".join(re.findall(r"<style>(.*?)</style>", re.search(r"<helmet>(.*?)</helmet>", src, re.S).group(1), re.S))
