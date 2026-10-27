@@ -71,7 +71,8 @@
     geo.pills.forEach(r => { r.col = col(L.pills, r); });
     if (geo.tag) geo.tag.col = col(L.tag, geo.tag);
     geo.live.col = col(L.live, geo.live);
-    return { tid: t.id, w: t.w, h: t.h, L, geo, bg: getComputedStyle(frame).getPropertyValue('--bg').trim() || '#060228' };
+    const cs = getComputedStyle(frame), bg = cs.getPropertyValue('--bg').trim() || '#060228';
+    return { tid: t.id, w: t.w, h: t.h, L, geo, bg, alt: cs.getPropertyValue('--pill-bg').trim() || bg };
   }
 
   async function rebuild() {
@@ -190,22 +191,29 @@
     if (!noLogo) ctx.drawImage(L.logo, 0, 0);
   }
 
-  // the way out, and so the way back to the start of the loop: a big ByT monogram in the colour of the background falls
-  // over the design from left to right, with the colour filling in behind it, until the whole graphic has the colour of
-  // the background again (and only the logo is left, as in the first frame). `p` is how far it is (0 = finished, 1 = covered).
+  // the way out, and so the way back to the start of the loop, in two moves: a big ByT monogram in the alternative colour
+  // (the colour of the pills) falls over the design from left to right, the colour filling in behind it until everything is
+  // covered; then that colour fades into the colour of the background. What is left is the plain colour and the logo, as
+  // in the first frame. `p` is how far it is (0 = finished, 1 = back at the start).
+  const OUT_SWEEP = .6;                                             // the first part of the way out is the monogram, the rest is the colour fade
+  const rgb = (c) => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#000'; x.fillStyle = c; const v = x.fillStyle;
+    if (v[0] === '#') return [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16));
+    return (v.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number); };
   function drawOut(ctx, p) {
     const A = layers; draw(ctx, DUR, true);
     if (p > 0) {
-      const e = inOutExpo(p), H = A.h * 1.3, k = H / 1121, w = 988 * k, cover = w * .35;
-      const xl = lerp(-w, A.w - cover, e);                         // left edge of the monogram: from outside the left edge until the colour covers everything
-      ctx.save(); ctx.fillStyle = A.bg;
-      ctx.fillRect(0, 0, Math.min(A.w, xl + cover), A.h);          // the colour behind it
+      const e = inOutExpo(Math.min(1, p / OUT_SWEEP)), f = seg(p, OUT_SWEEP, 1 - OUT_SWEEP), f2 = f * f * (3 - 2 * f);
+      const from = rgb(A.alt), to = rgb(A.bg), col = `rgb(${from.map((v, i) => Math.round(lerp(v, to[i], f2))).join(',')})`;
+      const H = A.h * 1.3, k = H / 1121, w = 988 * k, cover = w * .35;
+      const xl = lerp(-w, A.w - cover, e);                          // left edge of the monogram: from outside the left edge until the colour covers everything
+      ctx.save(); ctx.fillStyle = col;
+      ctx.fillRect(0, 0, Math.min(A.w, xl + cover), A.h);           // the colour behind it
       ctx.translate(xl, (A.h - H) / 2); ctx.scale(k, k); ctx.fill(BUG, 'evenodd');
       ctx.restore();
     }
     ctx.drawImage(A.L.logo, 0, 0);
   }
-  const LOOP_HOLD = 1800, LOOP_OUT = 1400;
+  const LOOP_HOLD = 1800, LOOP_OUT = 2000;
 
   // ---------- preview ----------
   function ensureCanvas() {
@@ -259,7 +267,7 @@
   // ---------- GIF (loops) ----------
   // the movement at 33 frames per second, then the finished design stays as one long frame and is wiped away by the monogram (full colour and
   // logo are left), where the loop begins again. Smaller than the video: the longest side is 800 px.
-  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_OUT = 1400, GIF_MAX = 800;
+  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_OUT = 2000, GIF_MAX = 800;
   async function recordGif() {
     const b = B(), btn = $('bytGif'), A = layers;
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
