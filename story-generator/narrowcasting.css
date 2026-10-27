@@ -42,7 +42,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .gh { height: 52px; margin-top: 10px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; font-size: 32px; line-height: 44px; color: #8fa4ff; border-bottom: 2px solid rgba(255,255,255,.25); margin-bottom: 14px; }
 .gh.first { margin-top: 0; }
 
-.it { position: relative; height: 96px; margin-bottom: 8px; }
+.it { position: relative; height: 96px; margin-bottom: 0; padding-bottom: 8px; border-bottom: 2px solid rgba(255,255,255,.14); }
 .ic { position: absolute; left: 0; top: 4px; width: 68px; height: 68px; border-radius: 50%; background: #3D5AFE; border: 3px solid #fff; text-align: center; box-sizing: border-box; }
 .ic .mi { display: block; font-size: 40px; line-height: 62px; color: #fff; }
 .ic .dn { display: block; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 34px; line-height: 62px; color: #fff; }
@@ -209,7 +209,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .pre .wbg { animation-play-state: paused; }
 
 /* the streams of today: large, on their own slide */
-.it.xl { height: 120px; margin-bottom: 12px; }
+.it.xl { height: 120px; margin-bottom: 0; padding-bottom: 10px; }
 .it.xl .ic { width: 96px; height: 96px; top: 4px; border-width: 4px; }
 .it.xl .ic .mi { font-size: 56px; line-height: 88px; }
 .it.xl .ic .dn { font-size: 46px; line-height: 88px; }
@@ -252,3 +252,11 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .dpill.td.cur { border-color: #49FF9F; }
 .dpill i { position: absolute; right: 9px; top: 8px; min-width: 28px; height: 28px; padding: 0 4px; box-sizing: border-box; border-radius: 14px; background: rgba(255,255,255,.2); font-style: normal; font-size: 18px; line-height: 28px; }
 .dpill.cur i { background: #ffffff; color: #3D5AFE; }
+
+/* page number next to the count when a day is split over more slides, and no separator under the last row of a column */
+.ttl .cp { display: inline-block; vertical-align: middle; margin-left: 14px; margin-top: 8px; padding: 5px 24px; border: 3px solid rgba(255,255,255,.6); border-radius: 30px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 30px; line-height: 44px; letter-spacing: 0; color: #ffffff; }
+.vp.two .dcol .it:last-child, .vp .scr > .it:last-child { border-bottom-color: transparent; }
+.it.live { border-bottom-color: transparent; }
+
+/* only a production (no stream): a pink pill */
+.tg.prod { background: #FC06E5 !important; color: #060228 !important; border-color: #FC06E5 !important; }

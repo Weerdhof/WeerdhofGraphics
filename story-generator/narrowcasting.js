@@ -110,6 +110,7 @@
     }
     return out;
   }
+  function isStream(it) { var i; if (it.auto) return true; for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump') return true; } return false; }
   function isLive(it) { var n = wallNow(); return !!it.time && !it.allDay && startMs(it) <= n && endMs(it) > n; }
   function inTxt(it) {                                                      // "over 45 min" for a broadcast that starts soon today
     var m = Math.round((startMs(it) - wallNow()) / 60000);
@@ -127,7 +128,8 @@
   function tagsHtml(it, all) {
     var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#fff;background:#EE3124') + ';border-color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#EE3124') + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
     var h = '', i, P;
-    for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg" style="' + (P.fill ? 'background:' + P.c + ';color:#fff;' : 'color:' + P.c + ';') + 'border-color:' + P.c + '">' + P.label + '</span>'; }
+    var prodOnly = it.pillars.length === 1 && it.pillars[0] === 'productie';                  // only a production, no stream: a pink pill
+    for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg' + (prodOnly ? ' prod' : '') + '" style="' + (P.fill ? 'background:' + P.c + ';color:#fff;' : 'color:' + P.c + ';') + 'border-color:' + P.c + '">' + P.label + '</span>'; }
     return cp + h;
   }
   function iconHtml(it) { return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>'; }
@@ -144,19 +146,25 @@
       days[key].push(it);
     }
     order.sort();
-    for (i = 0; i < order.length; i++) {
-      out.push({ type: 'agenda', date: order[i], items: days[order[i]] });
-      if (i === 0 && order[0] === today && week.length) out.push({ type: 'agenda', week: true, items: week });      // the events over several days come after today
+    // a day that has more streams than fit is split over more slides (today: 5 large rows, the other days: 14 in two columns)
+    function pages(extra, items, cap) {
+      var n = Math.ceil(items.length / cap), k;
+      for (k = 0; k < n; k++) { var s = { type: 'agenda', items: items.slice(k * cap, (k + 1) * cap), total: items.length, page: k + 1, pages: n }; for (var p in extra) s[p] = extra[p]; out.push(s); }
     }
-    if (week.length && !(order.length && order[0] === today)) out.splice(0, 0, { type: 'agenda', week: true, items: week });
+    for (i = 0; i < order.length; i++) {
+      pages({ date: order[i] }, days[order[i]], order[i] <= today ? 5 : 14);
+      if (i === 0 && order[0] === today && week.length) pages({ week: true }, week, 14);                   // the events over several days come after today
+    }
+    if (week.length && !(order.length && order[0] === today)) { var tail = out.splice(0, out.length); pages({ week: true }, week, 14); out = out.concat(tail); }
     return out;
   }
   function dayTitle(s) {
     var today = ymd(wallNow());
-    if (s.week) return 'Deze <b>week</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' evenement' : ' evenementen') + '</span>';
+    var tot = s.total || s.items.length, pg = s.pages > 1 ? '<span class="cp">' + s.page + ' / ' + s.pages + '</span>' : '';
+    if (s.week) return 'Deze <b>week</b><span class="cn">' + tot + (tot === 1 ? ' evenement' : ' evenementen') + '</span>' + pg;
     var diff = Math.round((parseYmd(s.date) - parseYmd(today)) / 86400000), d = new Date(parseYmd(s.date));
     var name = diff <= 0 ? 'vandaag' : diff === 1 ? 'morgen' : WD_FULL[d.getUTCDay()];
-    return 'Streams <b>' + name + '</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' stream' : ' streams') + '</span>';
+    return 'Wedstrijden <b>' + name + '</b><span class="cn">' + tot + (tot === 1 ? ' wedstrijd' : ' wedstrijden') + '</span>' + pg;
   }
   // under the days: the next seven days as pills, today marked, the day of this slide filled, and the number of streams per day
   function dayPills(curDate) {
@@ -170,14 +178,14 @@
     return h + '</div>';
   }
   function dayHtml(s) {
-    if (s.empty) return '<div class="ttl rz">Stream<b>agenda</b></div><div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
+    if (s.empty) return '<div class="ttl rz">Wedstrijd<b>agenda</b></div><div class="empty rz"><b>Geen wedstrijden</b><span>Er staat op dit moment geen wedstrijd gepland.</span></div>';
     var html = '<div class="ttl rz">' + dayTitle(s) + '</div>';
-    if (!s.items) return html + '<div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
+    if (!s.items) return html + '<div class="empty rz"><b>Geen wedstrijden</b><span>Er staat op dit moment geen wedstrijd gepland.</span></div>';
     // today is large and in one column, the other days (and the events of the week) are in two columns
     var big = !s.week && s.date <= ymd(wallNow()), rows = [], i, it, live, sub, tm;
     for (i = 0; i < s.items.length; i++) {
       it = s.items[i]; live = isLive(it); sub = live ? '' : inTxt(it);
-      tm = live ? '<span class="tm now"><i></i>LIVE</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
+      tm = live ? '<span class="tm now"><i></i>' + (isStream(it) ? 'LIVE' : 'BEZIG') + '</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
       rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
         '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>');
     }
@@ -254,7 +262,7 @@
   function streamsHtml(comp) {
     var D = shl[comp], women = comp === 'women', i, n, d, diff, lab, today = ymd(wallNow());
     if (!D || !D.next || !D.next.length || show[women ? 'shlw' : 'shl'] === false) return null;
-    var h = shlLogo(women) + '<div class="pn" style="left:80px;width:1760px"><div class="tab rz">Komende streams<small>' + (women ? 'SHLW' : 'SHL') + '</small></div>';
+    var h = shlLogo(women) + '<div class="pn" style="left:80px;width:1760px"><div class="tab rz">Komende wedstrijden<small>' + (women ? 'SHLW' : 'SHL') + '</small></div>';
     for (i = 0; i < D.next.length; i++) {
       n = D.next[i]; d = new Date(parseYmd(n.date)); diff = Math.round((parseYmd(n.date) - parseYmd(today)) / 86400000);
       lab = diff <= 0 ? 'Vandaag' : diff === 1 ? 'Morgen' : WD_LOW[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MON[d.getUTCMonth()];
@@ -487,7 +495,7 @@
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
-      startPillars(); startScroll();
+      startPillars();
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)

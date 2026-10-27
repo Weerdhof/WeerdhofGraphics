@@ -51,10 +51,10 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <h1>Narrowcasting <b>streamagenda</b></h1>
+    <h1>Narrowcasting <b>wedstrijdagenda</b></h1>
     <a class="btn line small" href="/narrowcasting" target="_blank">Open het scherm</a>
   </div>
-  <p class="sub">Wat je hier invult verschijnt binnen een minuut op het scherm. De streamagenda toont <b>alle streams</b>: wat je hier invult, plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma. Afgelopen afspraken verdwijnen vanzelf. Elke slide staat 30 seconden in beeld, "Alle sporters zijn helden" 70 seconden.</p>
+  <p class="sub">Wat je hier invult verschijnt binnen een minuut op het scherm. De wedstrijdagenda toont <b>alle wedstrijden</b> (ook alleen de productie): wat je hier invult, plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma. Afgelopen afspraken verdwijnen vanzelf. Elke slide staat 30 seconden in beeld, "Alle sporters zijn helden" 70 seconden.</p>
 
   <div class="box" id="meetingBox" style="border-color:#49FF9F">
     <div class="row"><b style="min-width:210px">Meeting-modus</b>
@@ -70,7 +70,7 @@
       <img id="bgThumb" alt="" style="height:46px;border-radius:6px;display:none"></div>
   </div>
   <div class="box">
-    <div class="row"><b style="min-width:210px">Programma-slides en streamagenda tonen</b>
+    <div class="row"><b style="min-width:210px">Programma-slides en wedstrijdagenda tonen</b>
       <label class="chk"><input type="checkbox" data-show="shl"> SHL</label><label class="chk"><input type="checkbox" data-show="shlw"> SHLW</label>
       <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label></div>
     <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League), zonder dat je ze hoeft in te vullen. HandbalNL heeft in het platform geen programma, die voeg je zelf toe.</div>
@@ -84,7 +84,7 @@
   <h2>Afgelopen</h2>
   <div id="past"></div>
   <p><button class="btn line small" id="clearPast" type="button">Verwijder alle afgelopen afspraken</button></p>
-  <p class="hint">"In de streamagenda" zet een afspraak op de agenda. "Uitgelicht" zet hem ook op de slide met grote kaarten. Zonder eindtijd staat een stream een uur als live op het scherm. Met een "t/m"-datum loopt een evenement over meerdere dagen en staat het onder "Deze week". Het weer is voor Veenendaal.</p>
+  <p class="hint">"In de wedstrijdagenda" zet een afspraak op de agenda. "Uitgelicht" zet hem ook op de slide met grote kaarten. Zonder eindtijd staat een wedstrijd een uur als bezig op het scherm; met de tag JUMP erbij staat er LIVE, zonder JUMP (alleen productie) BEZIG en een roze pil. Met een "t/m"-datum loopt een evenement over meerdere dagen en staat het onder "Deze week". Het weer is voor Veenendaal.</p>
 </div>
 <script>
 (function () {
@@ -120,7 +120,7 @@
       '<div class="f3"><label>Titel</label><input type="text" data-f="title" maxlength="80" placeholder="Bijvoorbeeld BEVO HC - DFS Arnhem" value="' + esc(it.title) + '"></div>' +
       '<div class="f2"><label>Competitie / plaats</label><input type="text" data-f="place" maxlength="60" placeholder="SHL · Sporthal De Koepel" value="' + esc(it.place || '') + '"></div>' +
       '<div class="f5 tags">' + tags + '</div>' +
-      '<div class="f5 flags"><label><input type="checkbox" data-f="jump"' + (it.jump !== false ? ' checked' : '') + '> In de streamagenda</label>' +
+      '<div class="f5 flags"><label><input type="checkbox" data-f="jump"' + (it.jump !== false ? ' checked' : '') + '> In de wedstrijdagenda</label>' +
       '<label><input type="checkbox" data-f="featured"' + (it.featured ? ' checked' : '') + '> Uitgelicht</label>' +
       '<label><input type="checkbox" data-f="allDay"' + (it.allDay ? ' checked' : '') + '> Hele dag</label>' +
       '<button class="del" type="button" data-del="1">Verwijderen</button></div></div>';
