@@ -311,3 +311,25 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* the white "Stream" tag and the pink "Productie" tag */
 .tg.st { color: #ffffff; border-color: rgba(255,255,255,.85); }
+
+/* sports news: latest item big, next three small */
+.na { display: inline-block; height: 32px; padding: 0 16px; border-radius: 16px; background: #3D5AFE; color: #ffffff; font-family: "Open Sans", Arial, sans-serif; font-weight: 700; font-size: 15px; line-height: 32px; letter-spacing: .3px; }
+.nt { font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; letter-spacing: -.3px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+.ns { font-family: "Open Sans", Arial, sans-serif; font-weight: 600; color: #a9aedc; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+.nbg { position: absolute; left: 80px; top: 196px; width: 880px; height: 760px; }
+.nbg .nt { margin-top: 28px; font-size: 68px; line-height: 76px; letter-spacing: -1px; }
+.nbg .ns { margin-top: 30px; font-size: 28px; line-height: 40px; }
+@keyframes nwipe { from { width: 0; opacity: .4; } to { width: 880px; opacity: 1; } }
+@keyframes npan { from { background-position: 35% 50%; } to { background-position: 65% 50%; } }
+.nbp { position: absolute; left: 1040px; top: 0; width: 880px; height: 1080px; overflow: hidden; background: #12104a; animation: nwipe 1.8s cubic-bezier(.3,.1,.2,1) both; }
+.pre .nbp, .pre .nbi { animation-play-state: paused; }
+.nbi { width: 880px; height: 1080px; background-color: #1c1a66; background-size: cover; background-position: 35% 50%; animation: npan 40s linear both; }
+.nbp:before { content: ''; position: absolute; left: 0; top: 0; width: 880px; height: 260px; background: -webkit-linear-gradient(top, rgba(5,3,40,.65), rgba(5,3,40,0)); background: linear-gradient(to bottom, rgba(5,3,40,.65), rgba(5,3,40,0)); }
+.clockbox { z-index: 5; }
+.nlg { position: absolute; left: 604px; bottom: 48px; width: 220px; -webkit-filter: drop-shadow(0 2px 6px rgba(0,0,0,.45)); filter: drop-shadow(0 2px 6px rgba(0,0,0,.45)); }
+.nlg svg { width: 220px; height: auto; }
+.nc { position: absolute; top: 196px; width: 560px; height: 760px; border-radius: 26px; overflow: hidden; background: #12104a; }
+.nc .ni { width: 560px; height: 315px; background-color: #1c1a66; background-size: cover; background-position: center; }
+.nc .nb { position: absolute; left: 0; top: 315px; width: 560px; height: 445px; box-sizing: border-box; padding: 24px 30px 0; }
+.nc .nt { margin-top: 14px; font-size: 34px; line-height: 40px; }
+.nc .ns { margin-top: 14px; font-size: 22px; line-height: 32px; }

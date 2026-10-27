@@ -23,7 +23,7 @@
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
+  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, news1: 40000, news2: 30000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
 
   // ---- time: the Dutch wall clock, taken from the server (the TV's own clock or time zone may be off) ----
   var wallDelta = null;
@@ -58,7 +58,7 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  var items = [], news = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() {
     get('/api/narrowcasting', function (j) {
       if (!j) return;
@@ -80,9 +80,10 @@
   function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) applyMeeting(j.meeting); }); }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
+  function loadNews() { get('/api/narrowcasting-news', function (j) { if (j && j.items && j.items.length) news = j.items; }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
-  loadAgenda(); loadMatches(); loadWeather(); loadShl();
-  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); }
+  loadAgenda(); loadMatches(); loadWeather(); loadShl(); loadNews();
+  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); setInterval(loadNews, 600000); }
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }
@@ -320,6 +321,35 @@
     return h + '</div>';
   }
 
+  // ---- slide: sports news, three items of the NOS feed ----
+  function ago(n) {
+    var m = Math.round((wallNow() - n.pubWall) / 60000);
+    if (!n.pubWall || m < 0) return 'zojuist';
+    if (m < 2) return 'zojuist'; if (m < 60) return m + ' min geleden';
+    if (m < 1440) return Math.floor(m / 60) + ' uur geleden';
+    return Math.floor(m / 1440) + (m < 2880 ? ' dag' : ' dagen') + ' geleden';
+  }
+  function newsImg(n, cls) { return '<div class="' + cls + '"' + (n.image ? ' style="background-image:url(' + n.image + ')"' : '') + '></div>'; }
+  // big: the latest item, photo right like the ByT socials
+  function newsBigHtml() {
+    if (!news.length) return null;
+    var n = news[0];
+    return '<div class="ttl rz">Laatste <b>nieuws</b><span class="cn">NOS Sport</span></div>' +
+      '<div class="nbg rz" style="animation-delay:150ms"><span class="na">' + esc(ago(n)) + '</span><div class="nt">' + esc(n.title) + '</div><div class="ns">' + esc(n.summary) + '</div></div>' +
+      '<div class="nbp">' + newsImg(n, 'nbi') + '<div class="nlg">' + document.getElementById('logoTpl').innerHTML + '</div></div>';
+  }
+  // small: the next three items as rows
+  function newsSmallHtml() {
+    if (news.length < 2) return null;
+    var h = '<div class="ttl rz">Meer <b>nieuws</b><span class="cn">NOS Sport</span></div>', i, n;
+    for (i = 1; i < Math.min(4, news.length); i++) {
+      n = news[i];
+      h += '<div class="nc rz" style="left:' + (80 + (i - 1) * 600) + 'px;animation-delay:' + (i * 150) + 'ms">' + newsImg(n, 'ni') +
+        '<div class="nb"><span class="na">' + esc(ago(n)) + '</span><div class="nt">' + esc(n.title) + '</div><div class="ns">' + esc(n.summary) + '</div></div></div>';
+    }
+    return h;
+  }
+
   // ---- slide: only the logo ----
   function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
@@ -483,6 +513,8 @@
     if (streamsHtml('women')) { if (on('streams_women')) out.push({ type: 'streams', comp: 'women' }); if (on('stand_women')) out.push({ type: 'stand', comp: 'women' }); }
     if (on('matches') && matchesHtml()) out.push({ type: 'matches' });
     if (on('quote')) out.push({ type: 'quote' });
+    if (on('news1') && news.length) out.push({ type: 'news1' });
+    if (on('news2') && news.length > 1) out.push({ type: 'news2' });
     if (on('weather') && weather) out.push({ type: 'weather' });
     if (on('logo')) out.push({ type: 'logo' });
     return out.length ? out : [{ type: 'logo' }];                              // never a blank screen
@@ -492,6 +524,8 @@
     if (s.type === 'featured') return featuredHtml(s.list);
     if (s.type === 'matches') return matchesHtml();
     if (s.type === 'none') return '<div class="empty rz"><b>Geen inhoud</b><span>Deze slide heeft op dit moment niets te tonen.</span></div>';
+    if (s.type === 'news1') return newsBigHtml();
+    if (s.type === 'news2') return newsSmallHtml();
     if (s.type === 'streams') return streamsHtml(s.comp);
     if (s.type === 'stand') return shlHtml(s.comp);
     if (s.type === 'quote') return quoteHtml();
@@ -515,7 +549,7 @@
     setTimeout(show, 950);
   }
 
-  var only = (/[?&]slide=([a-z,]+)/.exec(location.search) || [])[1]; only = only ? only.split(',') : null;   // ?slide=shl,weather shows only those slides (to look at them)
+  var only = (/[?&]slide=([a-z0-9_,]+)/.exec(location.search) || [])[1]; only = only ? only.split(',') : null;   // ?slide=shl,weather shows only those slides (to look at them)
   var onlyComp = (/[?&]comp=(men|women)/.exec(location.search) || [])[1];
   var onlyN = +((/[?&]n=(\d+)/.exec(location.search) || [])[1] || 0);       // ?slide=agenda&n=3 shows the third of those slides
   var busy = false, shownKey = '', timer = 0;

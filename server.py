@@ -47,6 +47,7 @@ import re
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from urllib.parse import parse_qs, unquote, urlparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -1067,7 +1068,7 @@ _weather = {"at": 0, "data": None}
 
 
 NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
-NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "weather", "logo")
+NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "weather", "logo")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
 
@@ -1193,6 +1194,71 @@ def _flat(name):
 
 
 _nm = {"at": 0, "data": None}
+
+
+NOS_FEED = "https://feeds.nos.nl/nossportalgemeen"
+_news = {"at": 0, "items": []}
+_news_img = {}
+
+
+def nos_news():
+    """The latest sports news of the NOS feed: title, a short summary, the image and when it was published. Kept for 10 minutes."""
+    now = time.time()
+    if _news["items"] and now - _news["at"] < 600:
+        return _news["items"]
+    try:
+        import xml.etree.ElementTree as ET
+        from email.utils import parsedate_to_datetime
+        req = urllib.request.Request(NOS_FEED, headers={"User-Agent": "Mozilla/5.0 (ByTomorrow narrowcasting)"})
+        with urllib.request.urlopen(req, timeout=20) as res:
+            root = ET.fromstring(res.read())
+        out = []
+        for it in root.iter("item"):
+            title = (it.findtext("title") or "").strip()
+            desc = re.sub(r"<h2>.*?</h2>", " ", it.findtext("description") or "", flags=re.S)
+            para = re.search(r"<p>(.*?)</p>", desc, re.S)
+            text = html.unescape(re.sub(r"<[^>]+>", " ", para.group(1) if para else re.sub(r"<[^>]+>", " ", desc)))
+            text = re.sub(r"\s+", " ", text).strip()
+            if len(text) > 300:                    # never cut mid-sentence: whole sentences up to 300 characters (at least the first)
+                sents, text = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text), ""
+                for sn in sents:
+                    if text and len(text) + 1 + len(sn) > 300:
+                        break
+                    text = (text + " " + sn).strip()
+            enc = it.find("enclosure")
+            image = enc.get("url") if enc is not None else ""
+            try:
+                dt = parsedate_to_datetime(it.findtext("pubDate") or "")
+                local = _ams_now_parts(dt.timestamp()).replace(tzinfo=None)
+                pub = int(calendar.timegm(local.timetuple()) * 1000)
+            except Exception:
+                pub = 0
+            if title:
+                out.append({"title": title, "summary": text, "image": "/api/narrowcasting-img?u=" + urllib.parse.quote(image, safe="") if image else "", "pubWall": pub})
+            if len(out) >= 6:
+                break
+        if out:
+            _news["items"], _news["at"] = out, now
+    except Exception:
+        _news["at"] = now - 300                    # keep the last news and try again in 5 minutes
+    return _news["items"]
+
+
+def news_image(url):
+    """An image of the news, through the server (the TV needs no other hosts); only from the image server of the NOS, kept for an hour."""
+    p = urlparse(url)
+    if p.scheme != "https" or p.hostname != "images.cdn.nos.nl":
+        return None
+    hit = _news_img.get(url)
+    if hit and time.time() - hit[0] < 3600:
+        return hit[1], hit[2]
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ByTomorrow narrowcasting)"})
+    with urllib.request.urlopen(req, timeout=20) as res:
+        data, ctype = res.read(), res.headers.get("Content-Type", "image/webp")
+    if len(_news_img) > 24:
+        _news_img.pop(next(iter(_news_img)))
+    _news_img[url] = (time.time(), data, ctype)
+    return data, ctype
 
 
 def narrow_matches_cached():
@@ -1364,6 +1430,24 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_stream_matches()
         elif self.path.startswith("/api/stream-config"):
             self._json(200, stream_config())
+        elif self.path.startswith("/api/narrowcasting-news"):
+            try:
+                self._nocache_json(200, {"items": nos_news()})
+            except Exception as err:
+                self._json(502, {"error": str(err)})
+        elif self.path.startswith("/api/narrowcasting-img"):
+            try:
+                got = news_image(parse_qs(urlparse(self.path).query).get("u", [""])[0])
+                if not got:
+                    return self.send_error(404)
+                self.send_response(200)
+                self.send_header("Content-Type", got[1])
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.send_header("Content-Length", str(len(got[0])))
+                self.end_headers()
+                self.wfile.write(got[0])
+            except Exception:
+                self.send_error(502)
         elif self.path.startswith("/api/narrowcasting-meeting"):          # tiny and polled every 2 seconds: the screen switches to meeting mode at once
             self._nocache_json(200, {"meeting": narrow_data()["meeting"]})
         elif self.path.startswith("/api/narrowcasting-matches"):
