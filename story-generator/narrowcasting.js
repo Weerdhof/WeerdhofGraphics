@@ -1,6 +1,7 @@
 /* ByTomorrow narrowcasting screen: slides that take turns (agenda, featured, programme, SHL table and results, weather),
    with the chevron sweep of the platform in between. Plain ES5 on purpose: it has to run in the browser of an LG webOS TV. */
 (function () {
+  var PREVIEW = /[?&]slide=/.test(location.search);                          // a preview (in an iframe on the beheer page) loads its data once and does not poll
   var stage = document.getElementById('stage'), slidesEl = document.getElementById('slides');
   var PILLARS = {
     productie: { label: 'Productie', c: '#FC06E5', bg: '#FC06E5', ink: '#060228' }, jump: { label: 'JUMP', c: '#49FF9F', bg: '#49FF9F', ink: '#060228' },
@@ -80,7 +81,7 @@
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
   loadAgenda(); loadMatches(); loadWeather(); loadShl();
-  setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000);
+  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); }
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }

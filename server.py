@@ -1192,6 +1192,17 @@ def _flat(name):
     return re.sub(r"[^a-z0-9]", "", html.unescape(str(name or "")).lower())
 
 
+_nm = {"at": 0, "data": None}
+
+
+def narrow_matches_cached():
+    """narrow_matches() with a minute of memory: the screens and the previews on the beheer page all ask for it."""
+    now = time.time()
+    if _nm["data"] is None or now - _nm["at"] > 60:
+        _nm["data"], _nm["at"] = narrow_matches(), now
+    return _nm["data"]
+
+
 def narrow_matches():
     """The next matches of SHL, SHLW and the Lotto Volley League (men and women) for the programme slide."""
     today = _ams_now_parts(time.time()).date()
@@ -1357,7 +1368,7 @@ class Handler(SimpleHTTPRequestHandler):
             self._nocache_json(200, {"meeting": narrow_data()["meeting"]})
         elif self.path.startswith("/api/narrowcasting-matches"):
             try:
-                self._nocache_json(200, narrow_matches())
+                self._nocache_json(200, narrow_matches_cached())
             except Exception as err:
                 self._json(502, {"error": str(err)})
         elif self.path.startswith("/api/narrowcasting-shl"):
