@@ -102,5 +102,7 @@ Alles staat op het donkerblauw van ByTomorrow.
 **Pijlers:** op de slide "Alle sporters zijn helden" en in de meeting-modus staan onderin vier bolletjes met het icoon van Marketing, Content, Productie en JUMP. Eerst rekken ze een voor een uit tot een pil met de volledige naam en gaan weer terug, daarna alle vier tegelijk; die routine draait een keer per 3 minuten (de iconen staan in `assets/pillars/`).
 **Inbranden voorkomen (OLED):** na elke 45 minuten draait het scherm 10 seconden omgekeerd (blauw wordt wit en andersom); met `?burn=8` probeer je het na 8 seconden.
 
+**Beheerpagina:** bovenaan voorbeelden van alle slides met een vinkje voor welke wel en niet draaien, een tabel met alle wedstrijden (uit de programma's, HandbalNL TV en handmatig, met filters per bron) en daaronder het beheer van eigen wedstrijden.
+
 De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume), het weer komt van Open-Meteo via de server (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse
 tijd van de server, ook als het scherm een verkeerde tijd heeft. De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.

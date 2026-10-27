@@ -45,6 +45,23 @@
   .del:hover { color: #fff; background: var(--surface-2); }
   .hint { color: var(--dim); font-size: 14px; margin-top: 18px; line-height: 1.6; }
   .empty { color: var(--dim); padding: 14px 4px; }
+  .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-top: 12px; }
+  .scard { background: var(--surface-2); border: 2px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; display: block; }
+  .scard.on { border-color: var(--green); }
+  .scard.off .th { opacity: .35; }
+  .th { position: relative; width: 100%; padding-top: 56.25%; overflow: hidden; background: #060228; }
+  .th iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  .scard .sl { padding: 9px 12px; font: 700 14px "Open Sans", sans-serif; display: flex; align-items: center; gap: 9px; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.t th { text-align: left; font: 700 11px "Open Sans", sans-serif; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; padding: 8px 10px; position: sticky; top: 0; background: var(--surface); }
+  table.t td { padding: 7px 10px; border-top: 1px solid var(--line); vertical-align: middle; }
+  table.t tr.day td { background: var(--surface-2); font: 700 14px "Niveau Grotesk", Arial, sans-serif; border-top: 0; padding: 9px 10px; }
+  table.t tr.off td { opacity: .4; }
+  .src { display: inline-block; border: 2px solid; border-radius: 14px; padding: 1px 10px; font: 700 12px "Niveau Grotesk", Arial, sans-serif; white-space: nowrap; }
+  .chip { display: inline-block; border: 2px solid rgba(255,255,255,.35); border-radius: 18px; padding: 4px 14px; font: 700 13px "Open Sans", sans-serif; color: var(--dim); cursor: pointer; background: transparent; }
+  .chip.on { background: #3D5AFE; border-color: #3D5AFE; color: #fff; }
+  .tblwrap { max-height: 560px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; }
+  details.ed > summary { cursor: pointer; font: 700 20px "Niveau Grotesk", Arial, sans-serif; margin: 34px 0 12px; }
   @media (max-width: 900px) { .it { grid-template-columns: 1fr 1fr; } .it .f2, .it .f3 { grid-column: span 2; } }
 </style>
 </head>
@@ -70,11 +87,22 @@
       <img id="bgThumb" alt="" style="height:46px;border-radius:6px;display:none"></div>
   </div>
   <div class="box">
+    <div class="row"><b>Slides</b><span class="hint" style="margin:0">Zet een vinkje bij de slides die op het scherm moeten draaien. Het voorbeeld is de slide zoals hij nu is.</span></div>
+    <div class="sgrid" id="slidesGrid"></div>
+  </div>
+  <div class="box">
+    <div class="row"><b>Alle wedstrijden</b><span class="status" id="tblCount"></span>
+      <span id="chips"></span>
+      <select id="range" style="max-width:190px"><option value="7">komende 7 dagen</option><option value="14" selected>komende 14 dagen</option><option value="35">komende 5 weken</option><option value="400">alles</option></select></div>
+    <div class="tblwrap"><table class="t" id="tbl"></table></div>
+  </div>
+  <div class="box">
     <div class="row"><b style="min-width:210px">Programma-slides en wedstrijdagenda tonen</b>
       <label class="chk"><input type="checkbox" data-show="shl"> SHL</label><label class="chk"><input type="checkbox" data-show="shlw"> SHLW</label>
       <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label><label class="chk"><input type="checkbox" data-show="hnltv"> HandbalNL TV</label></div>
     <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League) en uit de livestream-agenda van handbalnl.tv, zonder dat je ze hoeft in te vullen. Wedstrijden die al in het SHL-, SHLW- of LVL-programma staan, worden bij HandbalNL TV overgeslagen.</div>
   </div>
+  <details class="ed" id="editor"><summary>Eigen wedstrijden beheren</summary>
   <div class="box">
     <div class="row"><b style="min-width:210px">Uit het programma toevoegen</b><select id="pick" style="flex:1;min-width:260px"></select><button class="btn small" id="pickAdd" type="button">Toevoegen</button></div>
   </div>
@@ -84,6 +112,7 @@
   <h2>Afgelopen</h2>
   <div id="past"></div>
   <p><button class="btn line small" id="clearPast" type="button">Verwijder alle afgelopen afspraken</button></p>
+  </details>
   <p class="hint">"In de wedstrijdagenda" zet een afspraak op de agenda. "Uitgelicht" zet hem ook op de slide met grote kaarten. Zonder eindtijd staat een wedstrijd een uur als bezig op het scherm; met de tag JUMP erbij staat er LIVE, zonder JUMP (alleen productie) BEZIG en een roze pil. Met een "t/m"-datum loopt een evenement over meerdere dagen en staat het onder "Deze week". Het weer is voor Veenendaal.</p>
 </div>
 <script>
@@ -91,7 +120,7 @@
   var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal', hnltv: 'handbal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames', hnltv: 'HandbalNL TV' };
-  var items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
+  var slidesOn = {}, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -99,7 +128,7 @@
   function save(now) {
     clearTimeout(saveTimer); status('Opslaan…');
     saveTimer = setTimeout(function () {
-      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting }) })
+      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function () { saveTimer = 0; status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
@@ -132,7 +161,7 @@
     document.getElementById('list').innerHTML = up || '<div class="empty">Nog geen afspraken. Klik op "Nieuwe afspraak" of kies er een uit het programma.</div>';
     document.getElementById('past').innerHTML = pa || '<div class="empty">Niets afgelopen.</div>';
     document.getElementById('clearPast').style.display = pa ? '' : 'none';
-    renderMeeting();
+    renderMeeting(); renderTable();
     var boxes = document.querySelectorAll('[data-show]'); for (var k = 0; k < boxes.length; k++) boxes[k].checked = show[boxes[k].getAttribute('data-show')] !== false;
   }
   function renderMeeting() {
@@ -148,6 +177,51 @@
       meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Het scherm schakelt binnen een paar seconden.' :
       'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Het scherm schakelt binnen een paar seconden.';
   }
+  // ---- the slides: a preview of every slide with a tick for whether it takes part ----
+  var SLIDES = [['agenda', 'Wedstrijdagenda (een slide per dag)', 'slide=agenda&n=1'], ['featured', 'Uitgelicht', 'slide=featured'], ['streams_men', 'SHL: komende wedstrijden', 'slide=streams&comp=men'],
+    ['stand_men', 'SHL: stand en uitslagen', 'slide=stand&comp=men'], ['streams_women', 'SHLW: komende wedstrijden', 'slide=streams&comp=women'], ['stand_women', 'SHLW: stand en uitslagen', 'slide=stand&comp=women'],
+    ['matches', 'Lotto Volley League', 'slide=matches'], ['quote', 'Quote van de dag', 'slide=quote'], ['slogan', 'Alle sporters zijn helden', 'slide=slogan'], ['weather', 'Weer in Veenendaal', 'slide=weather'], ['logo', 'Logo', 'slide=logo']];
+  function renderSlides() {
+    var g = document.getElementById('slidesGrid'), h = '', k;
+    if (!g.children.length) {
+      SLIDES.forEach(function (s) { h += '<label class="scard" data-k="' + s[0] + '"><div class="th"><iframe loading="lazy" tabindex="-1" scrolling="no" src="/narrowcasting?' + s[2] + '"></iframe></div><div class="sl"><input type="checkbox" data-slide="' + s[0] + '"> ' + s[1] + '</div></label>'; });
+      g.innerHTML = h; scaleThumbs();
+    }
+    SLIDES.forEach(function (s) { var on = slidesOn[s[0]] !== false, c = g.querySelector('[data-k=' + s[0] + ']'); c.className = 'scard ' + (on ? 'on' : 'off'); c.querySelector('input').checked = on; });
+  }
+  function scaleThumbs() { var t = document.querySelectorAll('.th'), i; for (i = 0; i < t.length; i++) t[i].firstChild.style.transform = 'scale(' + (t[i].clientWidth / 1920) + ')'; }
+  window.addEventListener('resize', scaleThumbs);
+  document.addEventListener('change', function (e) { var k = e.target.getAttribute && e.target.getAttribute('data-slide'); if (!k) return; slidesOn[k] = e.target.checked; renderSlides(); save(); });
+
+  // ---- the table with every match: what has been fetched from the schedules and HandbalNL TV, and what has been entered by hand ----
+  var SRC = { shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], lvlm: ['LVL heren', '#FF4B3E'], lvlw: ['LVL dames', '#FF4B3E'], hnltv: ['HandbalNL TV', '#B58CFF'], hand: ['Handmatig', '#ffffff'] };
+  var PLAB = { productie: 'Productie', jump: 'JUMP', marketing: 'Marketing', content: 'Content', standaard: 'Algemeen', navy: 'Navy', lvl: 'Lotto Volley League', shl: 'SHL', shlw: 'SHLW', hnl: 'HandbalNL' };
+  function renderTable() {
+    var t = document.getElementById('tbl'), today0 = today(), lim = new Date(); lim.setDate(lim.getDate() + (+document.getElementById('range').value));
+    var last = lim.getFullYear() + '-' + ('0' + (lim.getMonth() + 1)).slice(-2) + '-' + ('0' + lim.getDate()).slice(-2), rows = [], seen = {}, i;
+    items.forEach(function (it, idx) { if ((it.endDate || it.date) >= today0 && it.date <= last) { rows.push({ date: it.date, time: it.time || '', title: it.title || '(zonder titel)', src: 'hand', tags: it.pillars || [], on: it.jump !== false, feat: it.featured, idx: idx }); seen[it.date + '|' + (it.title || '').toLowerCase()] = 1; } });
+    matches.forEach(function (m) { var title = m.away ? m.home + ' - ' + m.away : m.home; if (m.date >= today0 && m.date <= last && !seen[m.date + '|' + title.toLowerCase()]) rows.push({ date: m.date, time: m.time || '', title: title, src: m.comp, tags: [], on: show[m.comp] !== false, feat: false }); });
+    rows.sort(function (a, b) { return (a.date + (a.time || '00:00')) < (b.date + (b.time || '00:00')) ? -1 : 1; });
+    var counts = {}; rows.forEach(function (r) { counts[r.src] = (counts[r.src] || 0) + 1; });
+    document.getElementById('chips').innerHTML = Object.keys(SRC).map(function (k) { return counts[k] ? '<span class="chip' + (srcFilter[k] === false ? '' : ' on') + '" data-chip="' + k + '">' + SRC[k][0] + ' ' + counts[k] + '</span> ' : ''; }).join('');
+    rows = rows.filter(function (r) { return srcFilter[r.src] !== false; });
+    var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+    var h = '<tr><th style="width:70px">Tijd</th><th>Wedstrijd</th><th style="width:150px">Bron</th><th style="width:240px">Tags</th><th style="width:90px">Op scherm</th><th style="width:90px">Uitgelicht</th><th style="width:80px"></th></tr>', cur = '';
+    rows.forEach(function (r) {
+      if (r.date !== cur) { cur = r.date; var d = new Date(r.date + 'T12:00:00'), n = rows.filter(function (x) { return x.date === cur; }).length; h += '<tr class="day"><td colspan="7">' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' · ' + n + ' wedstrijd' + (n === 1 ? '' : 'en') + '</td></tr>'; }
+      var s = SRC[r.src];
+      h += '<tr' + (r.on ? '' : ' class="off"') + '><td>' + esc(r.time) + '</td><td>' + esc(r.title) + '</td><td><span class="src" style="color:' + s[1] + ';border-color:' + s[1] + '">' + s[0] + '</span></td><td>' +
+        r.tags.map(function (k) { return '<span class="src" style="color:#a9aedc;border-color:#3a4896">' + (PLAB[k] || k) + '</span>'; }).join(' ') + '</td><td>' + (r.on ? '✓' : 'uit') + '</td><td>' + (r.feat ? '★' : '') + '</td><td>' + (r.idx !== undefined ? '<a href="#" data-edit="' + r.idx + '" style="color:#8fa4ff">bewerk</a>' : '') + '</td></tr>';
+    });
+    t.innerHTML = rows.length ? h : '<tr><td style="padding:16px;color:var(--dim)">Geen wedstrijden in deze periode.</td></tr>';
+    document.getElementById('tblCount').textContent = rows.length + ' wedstrijden';
+  }
+  document.addEventListener('click', function (e) {
+    var c = e.target.getAttribute && e.target.getAttribute('data-chip'); if (c) { srcFilter[c] = srcFilter[c] === false; renderTable(); return; }
+    var ed = e.target.getAttribute && e.target.getAttribute('data-edit');
+    if (ed !== null && ed !== undefined && e.target.tagName === 'A') { e.preventDefault(); document.getElementById('editor').open = true; var card = document.querySelector('.it[data-i="' + ed + '"]'); if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.style.outline = '2px solid #49FF9F'; setTimeout(function () { card.style.outline = ''; }, 2500); } }
+  });
+  document.getElementById('range').addEventListener('change', renderTable);
   function renderPick() {
     var sel = document.getElementById('pick'), h = '<option value="">Kies een wedstrijd uit het SHL- of LVL-programma…</option>';
     matches.slice(0, 80).forEach(function (m, i) {
@@ -218,13 +292,13 @@
   // load, and load again when the page comes back into view, so that a page that has been open a long time never saves old data over newer data
   function load() {
     fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) {
-      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; render();
+      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; render(); renderSlides();
     }).catch(function () { status('Laden mislukt.'); });
   }
   load();
   document.addEventListener('visibilitychange', function () { if (!document.hidden && !saveTimer) load(); });
   window.addEventListener('focus', function () { if (!saveTimer) load(); });
-  fetch('/api/narrowcasting-matches').then(function (r) { return r.json(); }).then(function (j) { matches = j.matches || []; renderPick(); }).catch(function () { });
+  fetch('/api/narrowcasting-matches').then(function (r) { return r.json(); }).then(function (j) { matches = j.matches || []; renderPick(); renderTable(); }).catch(function () { });
 })();
 </script>
 </body>

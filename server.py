@@ -1067,6 +1067,7 @@ _weather = {"at": 0, "data": None}
 
 
 NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
+NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "weather", "logo")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
 
@@ -1113,7 +1114,9 @@ def _clean_narrow(raw):
             return d
     meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome") else "off", "client": str(mt.get("client") or "").strip()[:40],   # meeting mode: the screen shows one slide only
                "bg": num(mt.get("bg"), 0, 10 ** 15, 0), "dim": num(mt.get("dim"), 0, 90, 45)}      # bg: version of the background photo of the welcome slide (0 = none), dim: how much darker
-    return {"items": items, "show": show, "meeting": meeting}
+    sl_raw = raw.get("slides") if isinstance(raw.get("slides"), dict) else {}
+    slides = {k: sl_raw.get(k) is not False for k in NARROW_SLIDES}          # which slides take part in the rotation (default: all)
+    return {"items": items, "show": show, "meeting": meeting, "slides": slides}
 
 
 def narrow_data():

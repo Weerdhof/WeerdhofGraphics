@@ -55,12 +55,12 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  var items = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() {
     get('/api/narrowcasting', function (j) {
       if (!j) return;
       if (j.wall) wallDelta = j.wall - Date.now();
-      items = j.items || []; show = j.show || show; tick();
+      items = j.items || []; show = j.show || show; slidesOn = j.slides || slidesOn; tick();
       applyMeeting(j.meeting);
     });
   }
@@ -447,21 +447,24 @@
     var out = [], p, i;
     if (meeting.mode === 'slogan') return [{ type: 'slogan' }];
     if (meeting.mode === 'welcome') return [{ type: 'welcome' }];
-    p = daySlides(); if (!p.length) out.push({ type: 'agenda', empty: true }); else for (i = 0; i < p.length; i++) out.push(p[i]);
-    p = featuredPages(); for (i = 0; i < p.length; i++) out.push({ type: 'featured', list: p[i] });
-    if (streamsHtml('men')) { out.push({ type: 'streams', comp: 'men' }); out.push({ type: 'stand', comp: 'men' }); }
-    out.push({ type: 'slogan' });
-    if (streamsHtml('women')) { out.push({ type: 'streams', comp: 'women' }); out.push({ type: 'stand', comp: 'women' }); }
-    if (matchesHtml()) out.push({ type: 'matches' });
-    out.push({ type: 'quote' });
-    if (weather) out.push({ type: 'weather' });
-    out.push({ type: 'logo' });
-    return out;
+    // which slides take part is set on the beheer page; when looking at one slide (?slide=...) they all do
+    var on = function (k) { return !!only || slidesOn[k] !== false; };
+    if (on('agenda')) { p = daySlides(); if (!p.length) out.push({ type: 'agenda', empty: true }); else for (i = 0; i < p.length; i++) out.push(p[i]); }
+    if (on('featured')) { p = featuredPages(); for (i = 0; i < p.length; i++) out.push({ type: 'featured', list: p[i] }); }
+    if (streamsHtml('men')) { if (on('streams_men')) out.push({ type: 'streams', comp: 'men' }); if (on('stand_men')) out.push({ type: 'stand', comp: 'men' }); }
+    if (on('slogan')) out.push({ type: 'slogan' });
+    if (streamsHtml('women')) { if (on('streams_women')) out.push({ type: 'streams', comp: 'women' }); if (on('stand_women')) out.push({ type: 'stand', comp: 'women' }); }
+    if (on('matches') && matchesHtml()) out.push({ type: 'matches' });
+    if (on('quote')) out.push({ type: 'quote' });
+    if (on('weather') && weather) out.push({ type: 'weather' });
+    if (on('logo')) out.push({ type: 'logo' });
+    return out.length ? out : [{ type: 'logo' }];                              // never a blank screen
   }
   function renderSlide(s) {
     if (s.type === 'agenda') return dayHtml(s);
     if (s.type === 'featured') return featuredHtml(s.list);
     if (s.type === 'matches') return matchesHtml();
+    if (s.type === 'none') return '<div class="empty rz"><b>Geen inhoud</b><span>Deze slide heeft op dit moment niets te tonen.</span></div>';
     if (s.type === 'streams') return streamsHtml(s.comp);
     if (s.type === 'stand') return shlHtml(s.comp);
     if (s.type === 'quote') return quoteHtml();
@@ -494,7 +497,7 @@
   function next(first) {
     if (busy) return;
     slides = buildSlides();
-    if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0 && (!onlyComp || slides[q].comp === onlyComp)) f.push(slides[q]); } if (f.length) slides = f; if (onlyN && slides[onlyN - 1]) slides = [slides[onlyN - 1]]; }
+    if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0 && (!onlyComp || slides[q].comp === onlyComp)) f.push(slides[q]); } if (f.length) slides = f; else slides = [{ type: 'none' }]; if (onlyN && slides[onlyN - 1]) slides = [slides[onlyN - 1]]; }
     if (!slides.length) { timer = setTimeout(next, 3000); return; }
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
