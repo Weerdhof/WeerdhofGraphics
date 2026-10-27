@@ -1,5 +1,6 @@
 /* ByTomorrow narrowcasting: a 1920 x 1080 stage scaled to the screen, slides that take turns. Written for the browser of an
    LG webOS TV (old Chromium): no flex gap, no inset, no clamp, no aspect-ratio, no CSS variables; only transform and opacity move. */
+@font-face { font-family: "Niveau Grotesk"; font-weight: 500; src: url("/socials/fonts/NiveauGroteskMedium.otf") format("opentype"); }
 @font-face { font-family: "Niveau Grotesk"; font-weight: 700; src: url("/socials/fonts/NiveauGroteskBold.otf") format("opentype"); }
 @font-face { font-family: "Niveau Grotesk"; font-weight: 900; src: url("/socials/fonts/NiveauGroteskBlack.otf") format("opentype"); }
 @font-face { font-family: "Open Sans"; font-weight: 400; src: url("/fonts/bt/OpenSans-Regular.ttf") format("truetype"); }
@@ -175,3 +176,25 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* SHLW on the dark blue: the dark logo turns white */
 .slide.shl.women .shl-logo { -webkit-filter: brightness(0) invert(1); filter: brightness(0) invert(1); }
+
+/* the current weather, small, top left, in the meeting mode */
+.wmini { position: absolute; left: 80px; top: 36px; height: 100px; white-space: nowrap; }
+.wmini .wm-i { display: inline-block; width: 88px; height: 88px; vertical-align: middle; }
+.wmini .wm-i svg { display: block; }
+.wmini .wm-t { display: inline-block; margin-left: 14px; vertical-align: middle; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 84px; line-height: 100px; letter-spacing: -2px; }
+.wmini .wm-d { display: inline-block; margin-left: 22px; vertical-align: middle; font-size: 26px; font-weight: 600; line-height: 34px; color: #a5b4ff; }
+
+/* the pillars as colour bars along the bottom: the active one is long, the others short, one by one */
+.pb { position: absolute; left: 80px; top: 950px; width: 1790px; height: 60px; }
+.pbs:last-child { margin-right: 0; }
+.pbs { float: left; height: 60px; margin-right: 10px; overflow: hidden; -webkit-transition: width 1.8s cubic-bezier(.45,0,.2,1); transition: width 1.8s cubic-bezier(.45,0,.2,1); }
+.pbs span { display: block; height: 36px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 24px; line-height: 36px; white-space: nowrap; opacity: .4; -webkit-transition: opacity 1.8s ease; transition: opacity 1.8s ease; }
+.pbs.on span { opacity: 1; }
+.pbs i { display: block; height: 14px; border-radius: 7px; }
+
+/* meeting mode: a little less padding around everything */
+.stage.mm .clockbox { right: 56px; top: 30px; }
+.slide.mm .sg { left: 56px; top: 150px; }
+.slide.mm .sgl { left: 58px; top: 730px; }
+.slide.mm .wmini { left: 56px; top: 24px; }
+.slide.mm .pb { left: 56px; top: 940px; width: 1830px; }

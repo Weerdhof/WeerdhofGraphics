@@ -74,7 +74,7 @@
   }
   function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) applyMeeting(j.meeting); }); }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
-  function loadWeather() { get('/api/weather', function (w) { if (w && w.now) weather = w; }); }
+  function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
   loadAgenda(); loadMatches(); loadWeather(); loadShl();
   setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
@@ -268,15 +268,42 @@
   // ---- slide: only the logo ----
   function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
+  // the current weather, small, top left: on the slides of the meeting mode
+  function miniWeather() {
+    if (!weather) return '';
+    var n = weather.now;
+    return '<span class="wm-i">' + icon(n.code, n.day, 88) + '</span><span class="wm-t">' + n.temp + '&deg;</span><span class="wm-d">' + esc(DESC[n.code] || '') + '<br>' + esc(weather.place) + '</span>';
+  }
+  function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
+
+  // the four pillars as colour bars along the bottom, going through one by one (only on the slogan and the meeting mode)
+  var PB = [['Marketing', '#FFCC00'], ['Content', '#00FFE6'], ['Productie', '#FC06E5'], ['JUMP', '#49FF9F']], PB_OFF = 150, pbTimer = 0;
+  function pbWidth() { return meeting.mode !== 'off' ? 1808 : 1760; }                   // a little wider in the meeting mode (less padding)
+  function pbOn() { return pbWidth() - 3 * PB_OFF - 3 * 10 - 6; }
+  function pillarBar() {
+    var h = '<div class="pb rz" id="pb" style="animation-delay:900ms">', i;
+    for (i = 0; i < PB.length; i++) h += '<div class="pbs' + (i === 0 ? ' on' : '') + '" style="width:' + (i === 0 ? pbOn() : PB_OFF) + 'px"><span style="color:' + PB[i][1] + '">' + PB[i][0] + '</span><i style="background:' + PB[i][1] + '"></i></div>';
+    return h + '</div>';
+  }
+  function startPillars() {
+    clearInterval(pbTimer);
+    var el = document.getElementById('pb'); if (!el) return;
+    var n = 0, k, segs = el.children;
+    pbTimer = setInterval(function () {
+      n = (n + 1) % PB.length;
+      for (k = 0; k < segs.length; k++) { segs[k].style.width = (k === n ? pbOn() : PB_OFF) + 'px'; segs[k].className = 'pbs' + (k === n ? ' on' : ''); }
+    }, 4500);
+  }
+
   // ---- slide: welcome (meeting mode), with the name of the client ----
   function welcomeHtml() {
     var name = meeting.client || 'bij ByTomorrow', n = name.length, size = n <= 10 ? 206 : n <= 16 ? 160 : n <= 24 ? 120 : 90;
-    return '<div class="sg rz" style="animation-delay:150ms">Welkom<br><b style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.03) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>';
+    return '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500">Welkom</span><br><b style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.03) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
 
   // ---- slide: a statement in between ----
   function sloganHtml() {
-    return '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>';
+    return '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
 
   // ---- slide: a random sport quote ----
@@ -414,9 +441,11 @@
     shownKey = key; busy = true;
     crossfade(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
-      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '');
+      var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome');
+      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
+      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '');
       dots(slides.length, idx);
+      startPillars();
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)
