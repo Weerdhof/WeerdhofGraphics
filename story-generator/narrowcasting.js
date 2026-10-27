@@ -6,7 +6,7 @@
     productie: { label: 'Productie', c: '#FC06E5', bg: '#FC06E5', ink: '#060228' }, jump: { label: 'JUMP', c: '#49FF9F', bg: '#49FF9F', ink: '#060228' },
     marketing: { label: 'Marketing', c: '#FFCC00', bg: '#FFCC00', ink: '#060228' }, content: { label: 'Content', c: '#00FFE6', bg: '#00FFE6', ink: '#060228' },
     standaard: { label: 'Algemeen', c: '#748FFF', bg: '#3D5AFE', ink: '#ffffff' }, navy: { label: 'Navy', c: '#A5B4FF', bg: '#2D43A8', ink: '#ffffff' },
-    lvl: { label: 'Lotto Volley League', c: '#EE3124', bg: '#EE3124', ink: '#ffffff', fill: true }, shl: { label: 'SHL', c: '#ccff33', bg: '#ccff33', ink: '#060228' },
+    lvl: { label: 'Lotto Volley League', c: '#FF4B3E', bg: '#EE3124', ink: '#ffffff' }, shl: { label: 'SHL', c: '#ccff33', bg: '#ccff33', ink: '#060228' },
     shlw: { label: 'SHLW', c: '#e353fc', bg: '#e353fc', ink: '#060228' }, hnl: { label: 'HandbalNL', c: '#ff8a4d', bg: '#ff7429', ink: '#060228' }
   };
   var SPORTS = { basketbal: 'sports_basketball', volleybal: 'sports_volleyball', handbal: 'sports_handball', voetbal: 'sports_soccer', tennis: 'sports_tennis', padel: 'sports_tennis',
@@ -126,7 +126,7 @@
     return WD_LOW[a.getUTCDay()] + ' ' + a.getUTCDate() + ' ' + MON[a.getUTCMonth()] + ' – ' + WD_LOW[b.getUTCDay()] + ' ' + b.getUTCDate() + ' ' + MON[b.getUTCMonth()];
   }
   function tagsHtml(it, all) {
-    var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#fff;background:#EE3124') + ';border-color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#EE3124') + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
+    var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#FF4B3E') + ';border-color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#FF4B3E') + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
     var h = '', i, P;
     var prodOnly = it.pillars.length === 1 && it.pillars[0] === 'productie';                  // only a production, no stream: a pink pill
     for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg' + (prodOnly ? ' prod' : '') + '" style="' + (P.fill ? 'background:' + P.c + ';color:#fff;' : 'color:' + P.c + ';') + 'border-color:' + P.c + '">' + P.label + '</span>'; }
