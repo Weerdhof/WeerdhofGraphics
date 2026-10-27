@@ -26,9 +26,9 @@
 
   <!-- top content -->
   <div style="position:absolute; top:56px; left:64px; width:540px;">
-    <div style="display:flex; gap:12px;">
-      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:26px; letter-spacing:.5px; padding:9px 24px; border-radius:28px;">{{ competition }}</span>
-      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:26px; letter-spacing:.5px; padding:9px 24px; border-radius:28px;">{{ datetime }}</span>
+    <div style="display:flex; gap:12px; margin-left:65px;">
+      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; letter-spacing:.5px; padding:9px 26px; border-radius:32px;">{{ competition }}</span>
+      <span style="background:var(--pill-bg,#7B1FA2); color:#ffffff; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; letter-spacing:.5px; padding:9px 26px; border-radius:32px;">{{ datetime }}</span>
     </div>
     <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:900; font-size:72px; line-height:.98; color:var(--title,#060228); margin-top:22px; text-wrap:pretty;">{{ title }}</div>
     <div style="margin-top:22px;">
@@ -36,18 +36,19 @@
     </div>
   </div>
 
-  <!-- LIVE OP capsule + sport-cirkel, de cirkel over de naad -->
-  <div style="position:absolute; top:488px; left:64px; display:flex; align-items:center; background:#ffffff; border-radius:40px; padding:12px 28px; box-shadow:0 8px 22px rgba(6,2,40,.24);">
-    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; color:var(--pill-bg,#7B1FA2);">LIVE OP</span>
-    <span style="width:2px; height:34px; background:rgba(6,2,40,.2); margin:0 20px;"></span>
-    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:30px; color:#060228;">{{ platform }}</span>
+  <!-- LIVE OP capsule, klein en op de hoogte van het logo -->
+  <div style="position:absolute; top:582px; left:64px; display:flex; align-items:center; background:#ffffff; border-radius:34px; padding:9px 22px; box-shadow:0 6px 16px rgba(6,2,40,.24);">
+    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:22px; color:var(--pill-bg,#7B1FA2);">LIVE OP</span>
+    <span style="width:2px; height:24px; background:rgba(6,2,40,.2); margin:0 15px;"></span>
+    <span style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:22px; color:#060228;">{{ platform }}</span>
   </div>
-  <div style="position:absolute; top:481px; left:604px; width:112px; height:112px; border-radius:50%; background:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 22px rgba(6,2,40,.24);">
-    <span style="font-family:'Material Symbols Rounded'; font-size:66px; line-height:1; color:var(--pill-bg,#7B1FA2); font-variation-settings:'FILL' 1,'wght' 600,'opsz' 48;">{{ sportIcon }}</span>
+  <!-- sport-cirkel: voor NBB, loopt mee in de opening -->
+  <div style="position:absolute; top:56px; left:64px; width:53px; height:53px; border-radius:50%; background:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(6,2,40,.24);">
+    <span style="font-family:'Material Symbols Rounded'; font-size:31px; line-height:1; color:var(--pill-bg,#7B1FA2); font-variation-settings:'FILL' 1,'wght' 600,'opsz' 48;">{{ sportIcon }}</span>
   </div>
 
   <!-- logo onderaan de foto -->
-  <div style="position:absolute; bottom:44px; right:48px; display:flex; justify-content:flex-end; filter:drop-shadow(0 6px 18px rgba(6,2,40,.32));">
+  <div style="position:absolute; bottom:44px; right:0; width:540px; display:flex; justify-content:center; filter:drop-shadow(0 6px 18px rgba(6,2,40,.32));">
     <x-import component-from-global-scope="ByTomorrowDesignSystem_c9da89.Logo" color="#ffffff" width="240" hint-size="240px,47px"></x-import>
   </div>
 

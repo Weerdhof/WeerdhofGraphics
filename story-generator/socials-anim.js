@@ -153,13 +153,22 @@
     });
   }
 
+  // layouts with the sport circle in front of the pills: it travels in from the left with the circles of the pills
+  // (the last of the three, so none of them cross) and lands in its own place
+  function iconLead(ctx, img, r, ms) {
+    const mv = outExpo(seg(ms, 390, 600)); if (mv <= 0) return;
+    ctx.save(); ctx.translate(lerp(-r.h * 1.3 - r.x, 0, mv), 0); ctx.drawImage(img, 0, 0); ctx.restore();
+  }
+
   function draw(ctx, ms) {
     const A = layers, { L, geo } = A;
     ctx.clearRect(0, 0, A.w, A.h);
     ctx.drawImage(L.bg, 0, 0);
 
     // competition and date pills (one after the other)
+    const lead = geo.icon.x < geo.pills[0].x && geo.icon.y < geo.live.y;
     pillRow(ctx, L.pills, geo.pills, ms);
+    if (lead) iconLead(ctx, L.icon, geo.icon, ms);
     slideIn(ctx, L.title, ms, T_TITLE, 800, 170);
     if (geo.tag) morph(ctx, L.tag, geo.tag, ms, T_TAG, { outline: true, pad: 4 });
 
@@ -175,7 +184,7 @@
 
     // the sport icon sits in a circle: it slides in from the right
     const ip = outExpo(seg(ms, T_ICON, 700));
-    if (ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
+    if (!lead && ip > 0) { ctx.save(); ctx.translate((1 - ip) * (A.w - geo.icon.x + 20), 0); ctx.drawImage(L.icon, 0, 0); ctx.restore(); }
 
     // the ByTomorrow logo is always there, from the first frame, on top of the photo
     ctx.drawImage(L.logo, 0, 0);
