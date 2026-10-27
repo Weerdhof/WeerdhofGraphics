@@ -117,7 +117,7 @@
 </div>
 <script>
 (function () {
-  var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'] };
+  var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'], hhd: ['Hoofdklasse Dames', '#2FD6C0'], hhh: ['Hoofdklasse Heren', '#8F66FF'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal', hnltv: 'handbal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames', hnltv: 'HandbalNL TV' };
   var slidesOn = {}, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
@@ -195,7 +195,7 @@
 
   // ---- the table with every match: what has been fetched from the schedules and HandbalNL TV, and what has been entered by hand ----
   var SRC = { shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], lvlm: ['LVL heren', '#FF4B3E'], lvlw: ['LVL dames', '#FF4B3E'], hnltv: ['HandbalNL TV', '#B58CFF'], hand: ['Handmatig', '#ffffff'] };
-  var PLAB = { productie: 'Productie', jump: 'JUMP', marketing: 'Marketing', content: 'Content', standaard: 'Algemeen', navy: 'Navy', lvl: 'Lotto Volley League', shl: 'SHL', shlw: 'SHLW', hnl: 'HandbalNL' };
+  var PLAB = { productie: 'Productie', jump: 'JUMP', marketing: 'Marketing', content: 'Content', standaard: 'Algemeen', navy: 'Navy', lvl: 'Lotto Volley League', shl: 'SHL', shlw: 'SHLW', hnl: 'HandbalNL', hhd: 'Hoofdklasse Dames', hhh: 'Hoofdklasse Heren' };
   function renderTable() {
     var t = document.getElementById('tbl'), today0 = today(), lim = new Date(); lim.setDate(lim.getDate() + (+document.getElementById('range').value));
     var last = lim.getFullYear() + '-' + ('0' + (lim.getMonth() + 1)).slice(-2) + '-' + ('0' + lim.getDate()).slice(-2), rows = [], seen = {}, i;
