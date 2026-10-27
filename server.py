@@ -1172,9 +1172,9 @@ _hnl = {"at": 0, "events": []}
 
 
 def hnl_events():
-    """The livestream agenda of handbalnl.tv: the page carries all its events as JSON (day, time, title, club). Kept for 30 minutes."""
+    """The livestream agenda of handbalnl.tv: the page carries all its events as JSON (day, time, title, club). Kept for 2 hours."""
     now = time.time()
-    if _hnl["events"] and now - _hnl["at"] < 1800:
+    if _hnl["events"] and now - _hnl["at"] < 7200:
         return _hnl["events"]
     try:
         req = urllib.request.Request("https://handbalnl.tv/agenda", headers={"User-Agent": "Mozilla/5.0 (ByTomorrow narrowcasting)"})
@@ -1184,7 +1184,7 @@ def hnl_events():
         _hnl["events"] = json.loads(m.group(1)) if m else _hnl["events"]
         _hnl["at"] = now
     except Exception:
-        _hnl["at"] = now - 1500           # keep the last events and try again in 5 minutes
+        _hnl["at"] = now - 6900           # keep the last events and try again in 5 minutes
     return _hnl["events"]
 
 
