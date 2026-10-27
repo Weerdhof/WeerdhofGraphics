@@ -88,11 +88,16 @@ An unknown page under a client opens that client's landing page. `stream.html`, 
 
 | Adres | Wat |
 | --- | --- |
-| `/narrowcasting` | Het scherm: slides die om de beurt 30 seconden in beeld staan, met de chevron-overgang van het platform. |
-| `/narrowcasting/beheer` | Hier vul je de agenda in: wat is er live op JUMP, uitgelicht, sport, tags, meerdere dagen. |
-| `/narrowcasting?slide=shl,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `matches`, `shl`, `quote`, `weather`. |
+| `/narrowcasting` | Het scherm: slides die om de beurt in beeld komen met een rustige cross-fade (30 seconden elk, "Alle sporters zijn helden" 70 seconden). |
+| `/narrowcasting/beheer` | Hier beheer je de streamagenda, kies je de programma-slides en zet je de meeting-modus aan of uit. |
+| `/narrowcasting?slide=agenda,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `streams`, `stand` (met `&comp=men` of `women`), `matches`, `quote`, `slogan`, `weather`, `logo`. |
 
-Slides (30 seconden elk, rustige overgangen): **Live op JUMP** (de agenda, alleen wat op JUMP staat, met "nu live"), **Uitgelicht** (aangevinkte afspraken als grote kaarten),
-**Komende wedstrijden** (automatisch uit het SHL-, SHLW- en LVL-programma), **Stand en uitslagen SHL** (in de SHL-stijl), **Quote** (random sportquote), **Alle sporters zijn helden**, **Weer in Veenendaal** en een slide met alleen het ByTomorrow-logo. De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume). Het weer komt van Open-Meteo, via de server
-(`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse tijd van de server, ook als het scherm een verkeerde tijd heeft.
-De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.
+Slides: **Streamagenda** (alle streams: wat je invult plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma, met "LIVE" bij een
+lopende stream), **Uitgelicht** (aangevinkte afspraken als grote kaarten), per SHL en SHLW de **komende 7 streams** en daarna **stand en uitslagen** (in de stijl van de SHL-stream),
+**Alle sporters zijn helden** (met het logo), **LVL-wedstrijden**, **Quote** (een sportquote per dag), **Weer in Veenendaal** en een slide met alleen het ByTomorrow-logo.
+Alles staat op het donkerblauw van ByTomorrow.
+
+**Meeting-modus** (knop op de beheerpagina): het scherm toont alleen "Alle sporters zijn helden" of "Welkom [klant]" met het logo, binnen 15 seconden. Zet je hem uit, dan draaien de normale slides weer.
+
+De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume), het weer komt van Open-Meteo via de server (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse
+tijd van de server, ook als het scherm een verkeerde tijd heeft. De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.

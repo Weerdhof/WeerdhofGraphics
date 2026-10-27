@@ -1105,7 +1105,9 @@ def _clean_narrow(raw):
     items.sort(key=lambda i: (i["date"], i["time"] or "00:00", i["title"]))
     show_raw = raw.get("show") if isinstance(raw.get("show"), dict) else {}
     show = {k: show_raw.get(k) is not False for k in NARROW_COMPS}          # which competitions the programme slide shows (default: all)
-    return {"items": items, "show": show}
+    mt = raw.get("meeting") if isinstance(raw.get("meeting"), dict) else {}
+    meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome") else "off", "client": str(mt.get("client") or "").strip()[:40]}   # meeting mode: the screen shows one slide only
+    return {"items": items, "show": show, "meeting": meeting}
 
 
 def narrow_data():
@@ -1200,7 +1202,7 @@ def narrow_matches():
     counts, res = {}, []
     for m in out:
         counts[m["comp"]] = counts.get(m["comp"], 0) + 1
-        if counts[m["comp"]] <= 12:
+        if counts[m["comp"]] <= 40:
             res.append(m)
     return {"matches": res}
 

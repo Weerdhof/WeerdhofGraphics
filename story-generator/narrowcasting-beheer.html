@@ -22,6 +22,7 @@
   .btn { display: inline-block; border: 0; border-radius: 22px; padding: 10px 22px; background: var(--blue); color: #fff; font: 700 15px "Niveau Grotesk", Arial, sans-serif; cursor: pointer; text-decoration: none; }
   .btn.line { background: transparent; border: 2px solid rgba(255,255,255,.7); padding: 8px 20px; }
   .btn.small { padding: 7px 16px; font-size: 13px; }
+  .btn.on { background: var(--green); border-color: var(--green); color: #060228; }
   .status { color: var(--dim); font-size: 14px; min-height: 20px; }
   .box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
   .box label.chk { display: inline-flex; align-items: center; gap: 8px; margin-right: 18px; font-size: 15px; cursor: pointer; }
@@ -50,16 +51,24 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <h1>Narrowcasting <b>JUMP</b></h1>
+    <h1>Narrowcasting <b>streamagenda</b></h1>
     <a class="btn line small" href="/narrowcasting" target="_blank">Open het scherm</a>
   </div>
-  <p class="sub">Wat je hier invult verschijnt binnen een minuut op het scherm. De agenda toont alleen wat <b>live op JUMP</b> is. Afgelopen afspraken verdwijnen vanzelf. Elke slide staat 30 seconden in beeld.</p>
+  <p class="sub">Wat je hier invult verschijnt binnen een minuut op het scherm. De streamagenda toont <b>alle streams</b>: wat je hier invult, plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma. Afgelopen afspraken verdwijnen vanzelf. Elke slide staat 30 seconden in beeld, "Alle sporters zijn helden" 70 seconden.</p>
 
+  <div class="box" id="meetingBox" style="border-color:#49FF9F">
+    <div class="row"><b style="min-width:210px">Meeting-modus</b>
+      <button class="btn small line" type="button" data-meet="off">Uit: alle slides</button>
+      <button class="btn small line" type="button" data-meet="slogan">Alleen "Alle sporters zijn helden"</button>
+      <button class="btn small line" type="button" data-meet="welcome">Welkom [klant]</button>
+      <input type="text" id="meetClient" placeholder="Naam van de klant" maxlength="40" style="max-width:240px"></div>
+    <div class="hint" id="meetHint" style="margin-top:8px"></div>
+  </div>
   <div class="box">
-    <div class="row"><b style="min-width:210px">Slide "Komende wedstrijden" toont</b>
+    <div class="row"><b style="min-width:210px">Programma-slides en streamagenda tonen</b>
       <label class="chk"><input type="checkbox" data-show="shl"> SHL</label><label class="chk"><input type="checkbox" data-show="shlw"> SHLW</label>
       <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label></div>
-    <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League). HandbalNL heeft in het platform geen programma, die voeg je zelf toe.</div>
+    <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League), zonder dat je ze hoeft in te vullen. HandbalNL heeft in het platform geen programma, die voeg je zelf toe.</div>
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Uit het programma toevoegen</b><select id="pick" style="flex:1;min-width:260px"></select><button class="btn small" id="pickAdd" type="button">Toevoegen</button></div>
@@ -70,14 +79,14 @@
   <h2>Afgelopen</h2>
   <div id="past"></div>
   <p><button class="btn line small" id="clearPast" type="button">Verwijder alle afgelopen afspraken</button></p>
-  <p class="hint">"Live op JUMP" zet een afspraak op de agenda. "Uitgelicht" zet hem ook op de slide met grote kaarten. Zonder eindtijd staat een uitzending een uur als live op het scherm. Met een "t/m"-datum loopt een evenement over meerdere dagen en staat het onder "Deze week". Het weer is voor Veenendaal.</p>
+  <p class="hint">"In de streamagenda" zet een afspraak op de agenda. "Uitgelicht" zet hem ook op de slide met grote kaarten. Zonder eindtijd staat een stream een uur als live op het scherm. Met een "t/m"-datum loopt een evenement over meerdere dagen en staat het onder "Deze week". Het weer is voor Veenendaal.</p>
 </div>
 <script>
 (function () {
   var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames' };
-  var items = [], show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
+  var items = [], meeting = { mode: 'off', client: '' }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -85,7 +94,7 @@
   function save() {
     clearTimeout(saveTimer); status('Opslaan…');
     saveTimer = setTimeout(function () {
-      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show }) })
+      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function () { status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
@@ -106,7 +115,7 @@
       '<div class="f3"><label>Titel</label><input type="text" data-f="title" maxlength="80" placeholder="Bijvoorbeeld BEVO HC - DFS Arnhem" value="' + esc(it.title) + '"></div>' +
       '<div class="f2"><label>Competitie / plaats</label><input type="text" data-f="place" maxlength="60" placeholder="SHL · Sporthal De Koepel" value="' + esc(it.place || '') + '"></div>' +
       '<div class="f5 tags">' + tags + '</div>' +
-      '<div class="f5 flags"><label><input type="checkbox" data-f="jump"' + (it.jump !== false ? ' checked' : '') + '> Live op JUMP</label>' +
+      '<div class="f5 flags"><label><input type="checkbox" data-f="jump"' + (it.jump !== false ? ' checked' : '') + '> In de streamagenda</label>' +
       '<label><input type="checkbox" data-f="featured"' + (it.featured ? ' checked' : '') + '> Uitgelicht</label>' +
       '<label><input type="checkbox" data-f="allDay"' + (it.allDay ? ' checked' : '') + '> Hele dag</label>' +
       '<button class="del" type="button" data-del="1">Verwijderen</button></div></div>';
@@ -118,7 +127,16 @@
     document.getElementById('list').innerHTML = up || '<div class="empty">Nog geen afspraken. Klik op "Nieuwe afspraak" of kies er een uit het programma.</div>';
     document.getElementById('past').innerHTML = pa || '<div class="empty">Niets afgelopen.</div>';
     document.getElementById('clearPast').style.display = pa ? '' : 'none';
+    renderMeeting();
     var boxes = document.querySelectorAll('[data-show]'); for (var k = 0; k < boxes.length; k++) boxes[k].checked = show[boxes[k].getAttribute('data-show')] !== false;
+  }
+  function renderMeeting() {
+    var b = document.querySelectorAll('[data-meet]'), k, el = document.getElementById('meetClient');
+    for (k = 0; k < b.length; k++) b[k].className = 'btn small line' + (b[k].getAttribute('data-meet') === meeting.mode ? ' on' : '');
+    if (document.activeElement !== el) el.value = meeting.client || '';
+    document.getElementById('meetHint').textContent = meeting.mode === 'off' ? 'De normale slides draaien.' :
+      meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Binnen 15 seconden.' :
+      'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Binnen 15 seconden.';
   }
   function renderPick() {
     var sel = document.getElementById('pick'), h = '<option value="">Kies een wedstrijd uit het SHL- of LVL-programma…</option>';
@@ -151,6 +169,8 @@
     items.splice(+b.closest('.it').getAttribute('data-i'), 1); render(); save();
   });
   function newItem(o) { var it = { id: 'i' + Date.now() + Math.floor(Math.random() * 1000), date: today(), endDate: '', time: '', end: '', title: '', place: '', pillars: ['jump'], sport: '', featured: false, jump: true, allDay: false }; for (var k in o) it[k] = o[k]; return it; }
+  document.addEventListener('click', function (e) { var m = e.target.getAttribute && e.target.getAttribute('data-meet'); if (!m) return; meeting.mode = m; renderMeeting(); save(); });
+  document.getElementById('meetClient').addEventListener('input', function (e) { meeting.client = e.target.value; renderMeeting(); save(); });
   document.getElementById('add').addEventListener('click', function () {
     items.push(newItem({})); render(); save();
     var t = document.querySelectorAll('#list .it[data-i="' + (items.length - 1) + '"] [data-f=title]'); if (t[0]) t[0].focus();
@@ -164,7 +184,7 @@
   document.getElementById('clearPast').addEventListener('click', function () {
     var t = today(); items = items.filter(function (it) { return (it.endDate || it.date) >= t; }); render(); save();
   });
-  fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) { items = j.items || []; show = j.show || show; render(); }).catch(function () { status('Laden mislukt.'); });
+  fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) { items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; render(); }).catch(function () { status('Laden mislukt.'); });
   fetch('/api/narrowcasting-matches').then(function (r) { return r.json(); }).then(function (j) { matches = j.matches || []; renderPick(); }).catch(function () { });
 })();
 </script>

@@ -16,7 +16,7 @@
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, slogan: 30000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
+  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
 
   // ---- time: the Dutch wall clock, taken from the server (the TV's own clock or time zone may be off) ----
   var wallDelta = null;
@@ -51,26 +51,50 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
-  function loadAgenda() { get('/api/narrowcasting', function (j) { if (!j) return; if (j.wall) wallDelta = j.wall - Date.now(); items = j.items || []; show = j.show || show; tick(); }); }
+  var items = [], meeting = { mode: 'off', client: '' }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  function loadAgenda() {
+    get('/api/narrowcasting', function (j) {
+      if (!j) return;
+      if (j.wall) wallDelta = j.wall - Date.now();
+      items = j.items || []; show = j.show || show; tick();
+      var m = j.meeting || { mode: 'off', client: '' };
+      if (m.mode !== meeting.mode || m.client !== meeting.client) { meeting = m; if (started && !busy) { clearTimeout(timer); next(); } }   // meeting mode switched: show it at once
+    });
+  }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) weather = w; }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
   loadAgenda(); loadMatches(); loadWeather(); loadShl();
-  setInterval(loadAgenda, 60000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
+  setInterval(loadAgenda, 15000); setInterval(loadMatches, 600000); setInterval(loadWeather, 600000); setInterval(loadShl, 600000);
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }
   function endMs(it) {
+    if (it.auto) return startMs(it) + 6000000;                             // a match from the schedules lasts about 100 minutes
     if (it.endDate) return parseYmd(it.endDate) + 86400000;
     if (it.allDay || !it.time) return parseYmd(it.date) + 86400000;
     if (it.end) { var e = parseYmd(it.date) + (+it.end.slice(0, 2)) * 3600000 + (+it.end.slice(3, 5)) * 60000; if (e > startMs(it)) return e; }
     return startMs(it) + 3600000;                                          // without an end time an item counts for an hour
   }
   function upcoming(onlyFeatured) {                                        // the agenda is about JUMP: only what is on JUMP (the featured slide takes every starred item)
-    var now = wallNow(), out = [], i, horizon = now + 21 * 86400000;
+    var now = wallNow(), out = [], i, horizon = now + 21 * 86400000, m, key, seen = {}, auto = matchItems();
     for (i = 0; i < items.length; i++) {
-      if (endMs(items[i]) > now && parseYmd(items[i].date) < horizon && (onlyFeatured ? items[i].featured : items[i].jump !== false)) out.push(items[i]);
+      if (endMs(items[i]) > now && parseYmd(items[i].date) < horizon && (onlyFeatured ? items[i].featured : items[i].jump !== false)) {
+        out.push(items[i]); seen[items[i].date + '|' + String(items[i].title).toLowerCase()] = 1;
+      }
+    }
+    if (!onlyFeatured) for (i = 0; i < auto.length; i++) { m = auto[i]; key = m.date + '|' + m.title.toLowerCase(); if (!seen[key] && endMs(m) > now) out.push(m); }
+    out.sort(function (a, b) { return startMs(a) - startMs(b); });
+    return out;
+  }
+  // every match of SHL, SHLW and the LVL in the next 7 days, as agenda items
+  function matchItems() {
+    var out = [], i, m, C, last = ymd(wallNow() + 7 * 86400000);
+    for (i = 0; i < matches.length; i++) {
+      m = matches[i]; C = COMPS[m.comp];
+      if (!C || show[m.comp] === false || m.date > last) continue;
+      out.push({ id: 'm' + i, auto: true, comp: m.comp, date: m.date, endDate: '', time: m.time || '', end: '', title: m.home + ' - ' + m.away, place: '', pillars: [],
+        sport: m.comp.indexOf('lvl') === 0 ? 'volleybal' : 'handbal', jump: true, allDay: false });
     }
     return out;
   }
@@ -88,10 +112,11 @@
     var a = new Date(parseYmd(it.date)), b = new Date(parseYmd(it.endDate));
     return WD_LOW[a.getUTCDay()] + ' ' + a.getUTCDate() + ' ' + MON[a.getUTCMonth()] + ' – ' + WD_LOW[b.getUTCDay()] + ' ' + b.getUTCDate() + ' ' + MON[b.getUTCMonth()];
   }
-  function tagsHtml(it, all) {                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
+  function tagsHtml(it, all) {
+    var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#ff6b60') + ';border-color:' + (it.comp === 'shl' ? '#ccff33' : it.comp === 'shlw' ? '#e353fc' : '#ff6b60') + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
     var h = '', i, P;
     for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg" style="color:' + P.c + ';border-color:' + P.c + '">' + P.label + '</span>'; }
-    return h;
+    return cp + h;
   }
   function iconHtml(it) { return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>'; }
   function dly(i) { return ' style="animation-delay:' + (i * 70 + 150) + 'ms"'; }
@@ -102,14 +127,12 @@
     var wEnd = parseYmd(today) + 7 * 86400000;
     for (i = 0; i < list.length; i++) {
       it = list[i];
-      if (isLive(it)) { live.push(it); continue; }
       if (it.endDate && parseYmd(it.date) < wEnd) { week.push(it); continue; }
       key = it.date < today ? today : it.date;
       if (!days[key]) { days[key] = []; order.push(key); }
       days[key].push(it);
     }
     order.sort();
-    if (live.length) { entries.push({ h: 'Nu live op JUMP', live: true }); for (i = 0; i < live.length; i++) entries.push({ it: live[i] }); }
     if (week.length) { entries.push({ h: 'Deze week' }); for (i = 0; i < week.length; i++) entries.push({ it: week[i], range: true }); }
     for (i = 0; i < order.length; i++) { entries.push({ h: dayHead(order[i], today) }); for (key = 0; key < days[order[i]].length; key++) entries.push({ it: days[order[i]][key] }); }
     var HEAD = 66, ITEM = 104, COLH = 740, pages = [], cols = [], col = { h: 0, rows: [] }, lastHead = '';
@@ -129,8 +152,8 @@
     return pages;
   }
   function agendaHtml(cols) {
-    var html = '<div class="ttl rz">Live op <b class="jp">JUMP</b></div>', c, r, k = 0, row, it, live, tm, sub;
-    if (!cols) return html + '<div class="empty rz"><b>Nu niets live</b><span>Er staat op dit moment niets gepland op JUMP.</span></div>';
+    var html = '<div class="ttl rz">Stream<b>agenda</b></div>', c, r, k = 0, row, it, live, tm, sub;
+    if (!cols) return html + '<div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
     for (c = 0; c < cols.length; c++) {
       html += '<div class="col" style="left:' + (80 + c * 920) + 'px">';
       for (r = 0; r < cols[c].rows.length; r++) {
@@ -233,6 +256,12 @@
   // ---- slide: only the logo ----
   function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
+  // ---- slide: welcome (meeting mode), with the name of the client ----
+  function welcomeHtml() {
+    var name = meeting.client || 'bij ByTomorrow', n = name.length, size = n <= 10 ? 206 : n <= 16 ? 160 : n <= 24 ? 120 : 90;
+    return '<div class="sg rz" style="animation-delay:150ms">Welkom<br><b style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.03) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>';
+  }
+
   // ---- slide: a statement in between ----
   function sloganHtml() {
     return '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>';
@@ -315,6 +344,8 @@
   // ---- the order of the slides, built fresh every turn ----
   function buildSlides() {
     var out = [], p, i;
+    if (meeting.mode === 'slogan') return [{ type: 'slogan' }];
+    if (meeting.mode === 'welcome') return [{ type: 'welcome' }];
     p = agendaPages(); if (!p.length) out.push({ type: 'agenda', html: agendaHtml(null) }); else for (i = 0; i < p.length; i++) out.push({ type: 'agenda', cols: p[i] });
     p = featuredPages(); for (i = 0; i < p.length; i++) out.push({ type: 'featured', list: p[i] });
     if (streamsHtml('men')) { out.push({ type: 'streams', comp: 'men' }); out.push({ type: 'stand', comp: 'men' }); }
@@ -334,55 +365,47 @@
     if (s.type === 'stand') return shlHtml(s.comp);
     if (s.type === 'quote') return quoteHtml();
     if (s.type === 'slogan') return sloganHtml();
+    if (s.type === 'welcome') return welcomeHtml();
     if (s.type === 'logo') return logoHtml();
     return weatherHtml();
   }
 
-  // ---- the sweep between slides: the chevron cover of the platform (cover, swap underneath, lift) ----
-  var wipe = document.getElementById('wipe'), mark = document.getElementById('mark'), poly = document.getElementById('wipePoly'), markPath = document.getElementById('markPath');
-  var EASE = 'cubic-bezier(.5,0,.25,1)', SWEEP_IN = 750, SWEEP_OUT = 900;      // calm: a slow cover and a slow lift
-  function setT(el, ms, tx) { el.style.webkitTransition = 'transform ' + ms + 'ms ' + EASE; el.style.transition = 'transform ' + ms + 'ms ' + EASE; el.style.webkitTransform = tx; el.style.transform = tx; }
-  function jump(el, tx) { el.style.webkitTransition = 'none'; el.style.transition = 'none'; el.style.webkitTransform = tx; el.style.transform = tx; el.offsetWidth; }
-  function fade(el, ms, o) { el.style.webkitTransition = 'opacity ' + ms + 'ms ease'; el.style.transition = 'opacity ' + ms + 'ms ease'; el.style.opacity = o; }
-  function lift(done) {
-    setT(wipe, SWEEP_OUT, 'translateX(1920px)'); fade(mark, 500, 0);
-    var el = slidesEl.firstChild; if (el) el.className = el.className.replace(' pre', '');
-    setTimeout(done, SWEEP_OUT + 40);
-  }
-  function sweep(accent, ink, swap, done, covered) {
-    poly.setAttribute('fill', accent); markPath.setAttribute('fill', ink);
-    if (covered) { mark.style.opacity = 0.95; swap(); setTimeout(function () { lift(done); }, 700); return; }   // the first slide: the page already starts under the cover
-    jump(wipe, 'translateX(-2320px)'); mark.style.opacity = 0;
-    setTimeout(function () {
-      setT(wipe, SWEEP_IN, 'translateX(-200px)'); fade(mark, SWEEP_IN, 0.95);
-      setTimeout(function () {
-        swap();
-        setTimeout(function () { lift(done); }, 300);
-      }, SWEEP_IN + 20);
-    }, 30);
+  // ---- between slides: a calm cross-fade (the old slide fades away, the new one fades in while its blocks settle) ----
+  function crossfade(swap, done, first) {
+    function show() {
+      swap();
+      var el = slidesEl.firstChild;
+      slidesEl.style.webkitTransition = 'opacity 1100ms ease'; slidesEl.style.transition = 'opacity 1100ms ease'; slidesEl.style.opacity = 1;
+      if (el) el.className = el.className.replace(' pre', '');
+      setTimeout(done, 1150);
+    }
+    if (first) { slidesEl.style.opacity = 0; slidesEl.offsetWidth; show(); return; }
+    slidesEl.style.webkitTransition = 'opacity 900ms ease'; slidesEl.style.transition = 'opacity 900ms ease'; slidesEl.style.opacity = 0;
+    setTimeout(show, 950);
   }
 
   var only = (/[?&]slide=([a-z,]+)/.exec(location.search) || [])[1]; only = only ? only.split(',') : null;   // ?slide=shl,weather shows only those slides (to look at them)
   var onlyComp = (/[?&]comp=(men|women)/.exec(location.search) || [])[1];
-  var slides = [], idx = -1, current = null, timer = 0, dotsEl = document.getElementById('dots');
-  function accentOf(s) {
-    if (s.type === 'streams' || s.type === 'stand') return s.comp === 'women' ? ['#e353fc', '#1a1b38'] : ['#ccff33', '#14142b'];
-    return s.type === 'agenda' ? ['#49FF9F', '#060228'] : ['#3D5AFE', '#ffffff'];
-  }
-  function dots(n, at) { var h = '', i; if (n > 1) for (i = 0; i < n; i++) h += '<i' + (i === at ? ' class="on"' : '') + '></i>'; dotsEl.innerHTML = h; }
+  var busy = false, shownKey = '', timer = 0;
+  var slides = [], idx = -1, current = null, dotsEl = document.getElementById('dots');
+    function dots(n, at) { var h = '', i; if (n > 1) for (i = 0; i < n; i++) h += '<i' + (i === at ? ' class="on"' : '') + '></i>'; dotsEl.innerHTML = h; }
   function next(first) {
+    if (busy) return;
     slides = buildSlides();
     if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0 && (!onlyComp || slides[q].comp === onlyComp)) f.push(slides[q]); } if (f.length) slides = f; }
     if (!slides.length) { timer = setTimeout(next, 3000); return; }
     idx = (idx + 1) % slides.length;
-    var s = slides[idx], a = accentOf(s), html = renderSlide(s);
+    var s = slides[idx], html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
-    sweep(a[0], a[1], function () {
+    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' ? meeting.client : '');
+    if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
+    shownKey = key; busy = true;
+    crossfade(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '');
       dots(slides.length, idx);
-    }, function () { timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
+    }, function () { busy = false; timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)
   var started = false;

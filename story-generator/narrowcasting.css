@@ -24,8 +24,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* slides */
 #slides, .slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
-.slide.shl { background: #1a1b38; }
-.slide.shl.women { background: #ffffff; color: #1a1b38; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 .rz { animation: rise 1s cubic-bezier(.25,.6,.25,1) both; }
 .pre .rz { animation-play-state: paused; }
@@ -45,14 +43,13 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* the sweep between slides */
 .wipe { position: absolute; left: 0; top: 0; width: 2320px; height: 1080px; z-index: 50; -webkit-transform: translateX(-200px); transform: translateX(-200px); }
 .wipe svg { display: block; }
-.mark { position: absolute; left: 900px; top: 472px; z-index: 51; opacity: .95; }
+
 
 /* agenda: groups per day, a round icon, the title and the tags */
 .col { position: absolute; top: 196px; width: 840px; }
-.gh { height: 52px; margin-top: 10px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; font-size: 32px; line-height: 44px; color: #748fff; border-bottom: 2px solid rgba(255,255,255,.28); margin-bottom: 14px; }
+.gh { height: 52px; margin-top: 10px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; font-size: 32px; line-height: 44px; color: #8fa4ff; border-bottom: 2px solid rgba(255,255,255,.25); margin-bottom: 14px; }
 .gh.first { margin-top: 0; }
-.gh.lv { color: #49FF9F; border-bottom-color: rgba(73,255,159,.5); }
-.slide .gh { color: #49FF9F; border-bottom-color: rgba(73,255,159,.35); }
+
 .it { position: relative; height: 96px; margin-bottom: 8px; }
 .ic { position: absolute; left: 0; top: 4px; width: 68px; height: 68px; border-radius: 50%; background: #3D5AFE; border: 3px solid #fff; text-align: center; box-sizing: border-box; }
 .ic .mi { display: block; font-size: 40px; line-height: 62px; color: #fff; }
@@ -181,3 +178,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .slide.shl.women .sr .sc { background: #1a1b38; color: #e353fc; }
 .slide.shl.women .crest { background-color: #fff; box-shadow: 0 0 0 1px rgba(26,27,56,.08); }
 .slide.shl .rs .n1 { width: 226px; font-size: 22px; } .slide.shl .rs .n2 { width: 226px; font-size: 22px; }
+
+/* SHLW on the dark blue: the dark logo turns white */
+.slide.shl.women .shl-logo { -webkit-filter: brightness(0) invert(1); filter: brightness(0) invert(1); }
