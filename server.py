@@ -1061,7 +1061,7 @@ def _safe_export_name(name):
 # certificates or CORS) and kept for 15 minutes.
 # ---------------------------------------------------------------------------
 NARROW_FILE = os.path.join(DATA_DIR, "narrowcasting.json")
-NARROW_PILLARS = ("productie", "jump", "marketing", "content", "standaard", "navy")
+NARROW_PILLARS = ("productie", "jump", "marketing", "content", "standaard", "navy", "lvl", "shl", "shlw", "hnl")
 WEATHER_PLACE = {"name": "Veenendaal", "lat": 52.0267, "lon": 5.5583}
 _weather = {"at": 0, "data": None}
 
