@@ -1106,7 +1106,13 @@ def _clean_narrow(raw):
     show_raw = raw.get("show") if isinstance(raw.get("show"), dict) else {}
     show = {k: show_raw.get(k) is not False for k in NARROW_COMPS}          # which competitions the programme slide shows (default: all)
     mt = raw.get("meeting") if isinstance(raw.get("meeting"), dict) else {}
-    meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome") else "off", "client": str(mt.get("client") or "").strip()[:40]}   # meeting mode: the screen shows one slide only
+    def num(v, lo, hi, d):
+        try:
+            return max(lo, min(hi, int(v)))
+        except (TypeError, ValueError):
+            return d
+    meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome") else "off", "client": str(mt.get("client") or "").strip()[:40],   # meeting mode: the screen shows one slide only
+               "bg": num(mt.get("bg"), 0, 10 ** 15, 0), "dim": num(mt.get("dim"), 0, 90, 45)}      # bg: version of the background photo of the welcome slide (0 = none), dim: how much darker
     return {"items": items, "show": show, "meeting": meeting}
 
 

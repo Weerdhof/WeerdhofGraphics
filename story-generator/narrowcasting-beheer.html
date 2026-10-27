@@ -63,6 +63,11 @@
       <button class="btn small line" type="button" data-meet="welcome">Welkom [klant]</button>
       <input type="text" id="meetClient" placeholder="Naam van de klant" maxlength="40" style="max-width:240px"></div>
     <div class="hint" id="meetHint" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:14px"><b style="min-width:210px">Achtergrond bij Welkom [klant]</b>
+      <label class="btn small line" for="bgFile" style="margin:0">Foto kiezen</label><input type="file" id="bgFile" accept="image/*" hidden>
+      <button class="btn small line" id="bgDel" type="button">Foto verwijderen</button>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Donkerder <input type="range" id="bgDim" min="0" max="90" style="width:150px"> <span id="bgDimV" style="min-width:36px"></span></label>
+      <img id="bgThumb" alt="" style="height:46px;border-radius:6px;display:none"></div>
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Programma-slides en streamagenda tonen</b>
@@ -86,7 +91,7 @@
   var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#EE3124'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames' };
-  var items = [], meeting = { mode: 'off', client: '' }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
+  var items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -134,6 +139,11 @@
     var b = document.querySelectorAll('[data-meet]'), k, el = document.getElementById('meetClient');
     for (k = 0; k < b.length; k++) b[k].className = 'btn small line' + (b[k].getAttribute('data-meet') === meeting.mode ? ' on' : '');
     if (document.activeElement !== el) el.value = meeting.client || '';
+    var th = document.getElementById('bgThumb'), dm = document.getElementById('bgDim');
+    th.style.display = meeting.bg ? '' : 'none'; if (meeting.bg) th.src = '/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg;
+    document.getElementById('bgDel').style.display = meeting.bg ? '' : 'none';
+    if (document.activeElement !== dm) dm.value = meeting.dim == null ? 45 : meeting.dim;
+    document.getElementById('bgDimV').textContent = (meeting.dim == null ? 45 : meeting.dim) + '%';
     document.getElementById('meetHint').textContent = meeting.mode === 'off' ? 'De normale slides draaien.' :
       meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Het scherm schakelt binnen een paar seconden.' :
       'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Het scherm schakelt binnen een paar seconden.';
@@ -170,6 +180,27 @@
   });
   function newItem(o) { var it = { id: 'i' + Date.now() + Math.floor(Math.random() * 1000), date: today(), endDate: '', time: '', end: '', title: '', place: '', pillars: ['jump'], sport: '', featured: false, jump: true, allDay: false }; for (var k in o) it[k] = o[k]; return it; }
   document.addEventListener('click', function (e) { var m = e.target.getAttribute && e.target.getAttribute('data-meet'); if (!m) return; meeting.mode = m; renderMeeting(); save(true); });
+  // the background photo of the welcome slide: scaled down in the browser (the long side 1920 px) and kept on the server
+  document.getElementById('bgFile').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var img = new Image(), url = URL.createObjectURL(f);
+    img.onload = function () {
+      var k = Math.min(1, 1920 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      status('Foto uploaden…');
+      c.toBlob(function (blob) {
+        fetch('/api/photo?key=narrowcasting%3Awelcome-bg', { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+          .then(function (r) { if (!r.ok) throw new Error(r.status); meeting.bg = Date.now(); renderMeeting(); save(true); })
+          .catch(function () { status('Foto uploaden mislukt.'); });
+      }, 'image/jpeg', 0.86);
+    };
+    img.onerror = function () { status('Die foto kon niet worden gelezen.'); };
+    img.src = url; e.target.value = '';
+  });
+  document.getElementById('bgDel').addEventListener('click', function () {
+    fetch('/api/photo?key=narrowcasting%3Awelcome-bg', { method: 'DELETE' }).then(function () { meeting.bg = 0; renderMeeting(); save(true); });
+  });
+  document.getElementById('bgDim').addEventListener('input', function (e) { meeting.dim = +e.target.value; renderMeeting(); save(); });
   document.getElementById('meetClient').addEventListener('input', function (e) { meeting.client = e.target.value; renderMeeting(); save(); });
   document.getElementById('add').addEventListener('click', function () {
     items.push(newItem({})); render(); save();

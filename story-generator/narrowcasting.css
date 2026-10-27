@@ -203,3 +203,9 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* OLED burn-in prevention: inverted for a moment (blue becomes white and the other way round) */
 .stage { -webkit-transition: -webkit-filter 1.2s ease; transition: filter 1.2s ease; }
 .stage.inv { -webkit-filter: invert(1) hue-rotate(180deg); filter: invert(1) hue-rotate(180deg); }
+
+/* the background photo of the welcome slide (meeting mode) with a dark layer on top for the legibility of the text */
+.wbg { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background-size: cover; background-position: center; animation: fadein 1.4s ease both; }
+.wdim { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: #060228; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.pre .wbg { animation-play-state: paused; }

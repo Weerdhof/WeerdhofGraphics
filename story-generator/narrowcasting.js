@@ -53,7 +53,7 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], meeting = { mode: 'off', client: '' }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  var items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() {
     get('/api/narrowcasting', function (j) {
       if (!j) return;
@@ -65,8 +65,8 @@
   // meeting mode switched: go there at once, through the cross-fade (when a fade is still going on, right after it)
   var pendingMeeting = false;
   function applyMeeting(m) {
-    m = m || { mode: 'off', client: '' };
-    if (m.mode === meeting.mode && m.client === meeting.client) return;
+    m = m || { mode: 'off', client: '', bg: 0, dim: 45 };
+    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim) return;
     meeting = m;
     if (!started) return;
     if (busy) { pendingMeeting = true; return; }
@@ -319,7 +319,8 @@
   // ---- slide: welcome (meeting mode), with the name of the client ----
   function welcomeHtml() {
     var name = meeting.client || 'bij ByTomorrow', n = name.length, size = n <= 10 ? 206 : n <= 16 ? 160 : n <= 24 ? 120 : 90;
-    return '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Welkom</span><b style="display:block;margin-top:0;font-size:' + size + 'px;line-height:' + Math.round(size * 1.0) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
+    var bg = meeting.bg ? '<div class="wbg" style="background-image:url(/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg + ')"></div><div class="wdim" style="opacity:' + (meeting.dim / 100) + '"></div>' : '';   // the background photo of the welcome slide, made a bit darker
+    return bg + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Welkom</span><b style="display:block;margin-top:0;font-size:' + size + 'px;line-height:' + Math.round(size * 1.0) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
 
   // ---- slide: a statement in between ----
@@ -457,7 +458,7 @@
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
-    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' ? meeting.client : '');
+    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim : '');
     if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
     shownKey = key; busy = true; stopPillars();
     crossfade(function () {
