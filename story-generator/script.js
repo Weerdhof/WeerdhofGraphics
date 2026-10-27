@@ -5415,12 +5415,58 @@
   // The landing pages: ByTomorrow frame, client content in the client's own look (colours and fonts live in bytomorrow.css).
   const CLIENTS = {
     dash:  { name: 'ByTomorrow Graphics', title: 'ByTomorrow Graphics', sub: 'Alle visuals van onze klanten, op één plek.', pill: 'Graphics' },
-    men:   { name: 'SHL', title: 'Heren', logo: 'assets/footer-logo.png', pill: 'Handbal', sub: 'Story, post, animatie en thumbnails voor de Coinmerce Super Handball League.' },
-    women: { name: 'SHLW', title: 'Vrouwen', logo: 'assets/women/footer-logo-women.png', pill: 'Handbal', sub: 'Story, post, animatie en thumbnails voor de Super Handball League Women.' },
+    men:   { name: 'Super Handball League', short: 'SHL', title: 'Super Handball League', logo: 'assets/footer-logo.png', pill: 'SHL · Heren', sub: 'Story, post, animatie en thumbnails voor de Coinmerce Super Handball League (SHL).' },
+    women: { name: 'Super Handball League Women', short: 'SHLW', title: 'Super Handball League Women', logo: 'assets/women/footer-logo-women.png', pill: 'SHLW · Vrouwen', sub: 'Story, post, animatie en thumbnails voor de Super Handball League Women (SHLW).' },
     hnl:   { name: 'HandbalNL', title: 'HandbalNL', logo: 'assets/hnl/logo-next-light.png', pill: 'HandbalNL.TV', sub: 'Aankondigingen en thumbnails voor HandbalNL en de Next Handball League.' },
     byt:   { name: 'Socials', title: 'ByTomorrow Socials', pill: 'Socials', sub: 'Social templates in de ByTomorrow-huisstijl. Vul de velden in, kies een pijler, voeg een foto toe en exporteer.' },
     lvl:   { name: 'Lotto Volley League', title: 'Lotto Volley League', logo: 'assets/lvl/logo.svg', pill: 'Volleybal', sub: 'Wedstrijdthumbnails voor heren en dames, uit het programma.' },
   };
+  // ---------- Links: /shl, /shl/schedule, /shlw/results, /handbalnl/next-men, /lvl/thumbnails-men, /socials/wedstrijd, /settings ----------
+  // The server serves index.html for these paths (server.py, spa_rewrite); the page reads the path and opens that view.
+  const COMP_PATH = { men: 'shl', women: 'shlw', hnl: 'handbalnl', lvl: 'lvl', byt: 'socials' };
+  const ROUTE_COMP = { shl: 'men', shlw: 'women', handbalnl: 'hnl', lvl: 'lvl', socials: 'byt' };
+  const SHL_ASSETS = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'ranking', 'movers', 'announcement'];
+  const ASSET_ALIAS = { matchschedule: 'schedule', programma: 'schedule', matchresults: 'results', uitslagen: 'results', h2h: 'headtohead', 'head-to-head': 'headtohead', 'now-live': 'nowlive',
+    topscore: 'topscorer', 'top-scorer': 'topscorer', 'player-of-the-week': 'playerweek', spelervandeweek: 'playerweek', stand: 'ranking', standings: 'ranking', 'stand-movers': 'movers', 'match-result': 'matchresult' };
+  const TH_PATH = { shl: '/shl/thumbnails', shlw: '/shlw/thumbnails', nextmen: '/handbalnl/thumbnails-men', nextwomen: '/handbalnl/thumbnails-women', lvlm: '/lvl/thumbnails-men', lvlw: '/lvl/thumbnails-women' };
+  const HNL_PATH = { announce: '/handbalnl/announcement', nextmen: '/handbalnl/next-men', nextwomen: '/handbalnl/next-women' };
+  const landingPath = (comp) => (comp === 'dash' || !COMP_PATH[comp] ? '/' : '/' + COMP_PATH[comp]);
+  const assetPath = (comp, id) => '/' + COMP_PATH[comp] + '/' + id;
+  function parseRoute(pathname) {
+    const segs = String(pathname || '/').split('/').filter(Boolean).map(x => { try { return decodeURIComponent(x).toLowerCase(); } catch (e) { return x.toLowerCase(); } });
+    if (!segs.length) return { kind: 'landing', comp: 'dash' };
+    if (segs[0] === 'settings') return { kind: 'settings' };
+    const comp = ROUTE_COMP[segs[0]]; if (!comp) return null;
+    const sub = segs[1], landing = { kind: 'landing', comp };
+    if (!sub) return landing;
+    if (comp === 'men' || comp === 'women') {
+      if (sub === 'thumbnails') return { kind: 'th', comp, id: comp === 'men' ? 'shl' : 'shlw' };
+      const a = ASSET_ALIAS[sub] || sub;
+      if (SHL_ASSETS.includes(a) && !(comp === 'women' && (a === 'nowlive' || a === 'announcement'))) return { kind: 'asset', comp, id: a };
+    } else if (comp === 'hnl') {
+      const h = { announcement: 'announce', announce: 'announce', 'next-men': 'nextmen', 'next-women': 'nextwomen' }[sub];
+      if (h) return { kind: 'hnl', comp, id: h };
+      const t = { 'thumbnails-men': 'nextmen', 'thumbnails-women': 'nextwomen' }[sub];
+      if (t) return { kind: 'th', comp, id: t };
+    } else if (comp === 'lvl') {
+      const t = { 'thumbnails-men': 'lvlm', 'thumbnails-women': 'lvlw' }[sub];
+      if (t) return { kind: 'th', comp, id: t };
+    } else if (comp === 'byt') {
+      if (window.BYT_ASSETS && window.BYT_ASSETS[sub]) return { kind: 'byt', comp, id: sub };
+    }
+    return landing;   // an unknown page: the landing page of that client
+  }
+  const routeKey = (r) => (r ? [r.kind, r.comp || '', r.id || ''].join(':') : '');
+  var suppressPush = false;   // while a link or the back button is being opened the URL is already right
+  // moves the address bar to `path`; a push also makes the editor a history step (the back button returns to the landing page)
+  function routeUrl(path, push) {
+    if (HEADLESS) return;
+    const same = routeKey(parseRoute(location.pathname)) === routeKey(parseRoute(path));
+    const url = same ? location.pathname + location.search : path;   // keep an alias the way it was typed
+    if (push && !suppressPush) history.pushState({ editor: true }, '', url);
+    else if (!same) history.replaceState(history.state, '', url);
+  }
+
   function syncMenuComp() {
     homeTarget = menuComp;
     ['men', 'women', 'hnl', 'lvl', 'byt', 'dash'].forEach(k => homeMenu.classList.toggle('theme-' + k, menuComp === k));
@@ -5443,7 +5489,7 @@
 
   // The editors' back button names the page it returns to
   function syncBackLabels() {
-    const label = '← ' + (lastHome === 'dash' ? 'Home' : (CLIENTS[lastHome] || CLIENTS.dash).name);
+    const label = '← ' + (lastHome === 'dash' ? 'Home' : ((CLIENTS[lastHome] || CLIENTS.dash).short || (CLIENTS[lastHome] || CLIENTS.dash).name));
     ['backToMenuBtn', 'hnlBack', 'thBack', 'setBack', 'bytBack'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
   }
 
@@ -5457,6 +5503,7 @@
     if (fromByt && window.BYT) window.BYT.close();
     menuComp = lastHome || (fromHnl ? 'hnl' : fromByt ? 'byt' : fromTh ? 'dash' : compKey);
     syncMenuComp();
+    routeUrl(landingPath(menuComp), false);
     document.body.classList.remove('hnl-open', 'th-open', 'set-open', 'byt-open');
     document.body.classList.add('menu-open');
     window.scrollTo(0, 0);
@@ -5486,7 +5533,7 @@
     updateEditorBar();
     jumpWhenReady();
     window.scrollTo(0, 0);
-    if (fromMenu) history.pushState({ editor: true }, '');
+    routeUrl(assetPath(comp, assetMode), !!fromMenu);
     popIn(document.querySelector('.app'));
   }
 
@@ -5592,7 +5639,7 @@
     document.body.classList.add('set-open');
     window.SETUI.open();
     window.scrollTo(0, 0);
-    history.pushState({ editor: true }, '');
+    routeUrl('/settings', true);
     const v = document.getElementById('setApp'); v.scrollTop = 0;
     popIn(v);
   }
@@ -5603,7 +5650,7 @@
     document.body.classList.add('th-open');
     window.TH.open(kind);
     window.scrollTo(0, 0);
-    history.pushState({ editor: true }, '');
+    routeUrl(TH_PATH[kind] || landingPath(menuComp), true);
     popIn(document.getElementById('thApp'));
   }
   // ByTomorrow socials editor (socials.js)
@@ -5613,7 +5660,7 @@
     document.body.classList.add('byt-open');
     window.BYT.open(id);
     window.scrollTo(0, 0);
-    history.pushState({ editor: true }, '');
+    routeUrl('/socials/' + ((window.BYT.state && window.BYT.state.asset) || id), true);
     popIn(document.getElementById('bytApp'));
   }
   // HandbalNL editor (hnl.js): a separate view next to the SHL editor
@@ -5623,7 +5670,7 @@
     document.body.classList.add('hnl-open');
     window.HNL.open(kind);
     window.scrollTo(0, 0);
-    history.pushState({ editor: true }, '');
+    routeUrl(HNL_PATH[kind] || landingPath('hnl'), true);
     popIn(document.getElementById('hnlApp'));
   }
   function openAsset(comp, assetMode, fromMenu, fmt) {
@@ -5674,7 +5721,7 @@
       // men -> women sweeps left to right in purple, women -> men back in SHL green
       const order = { dash: 0, men: 1, women: 2, hnl: 3, lvl: 4, byt: 5 };
       navSweep(order[next] > order[menuComp] ? 'forward' : 'back', () => {
-        menuComp = next; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
+        menuComp = next; syncMenuComp(); routeUrl(landingPath(next), false); loadOverview(false); homeMenu.scrollTop = 0; popIn(homeMenu);
         return lastTickerReady;
       }, accentFor(next));
     });
@@ -5720,9 +5767,46 @@
     if (lastHome === 'men' || lastHome === 'women') lastHome = next;
     navSweep(next === 'women' ? 'forward' : 'back', () => { openAssetNow(next, mode, false); }, accentFor(next));
   });
-  window.addEventListener('popstate', () => showMenu());
+  // opens the view a link or a history step points at, without making new history
+  function routeOpen(r) {
+    if (!r) return;
+    suppressPush = true;
+    try {
+      if (r.kind === 'landing') {
+        lastHome = r.comp;
+        if (document.body.classList.contains('menu-open')) { menuComp = r.comp; syncMenuComp(); loadOverview(false); homeMenu.scrollTop = 0; } else showMenuNow();
+      } else {
+        lastHome = r.comp || 'dash';
+        menuComp = lastHome; syncMenuComp();
+        if (r.kind === 'asset') openAssetNow(r.comp, r.id, false);
+        else if (r.kind === 'th') openThNow(r.id);
+        else if (r.kind === 'hnl') openHnlNow(r.id);
+        else if (r.kind === 'byt') openBytNow(r.id);
+        else if (r.kind === 'settings') openSetNow();
+      }
+    } finally { suppressPush = false; }
+  }
+  window.addEventListener('popstate', () => {
+    const r = parseRoute(location.pathname);
+    if (r && r.kind !== 'landing') routeOpen(r);
+    else { if (r) lastHome = r.comp; showMenu(); }
+  });
+  // while an editor is open, the address follows its competition and graphic (the tabs inside the editor)
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest || !e.target.closest('.mode-tab[data-mode], .competition-tab')) return;
+    setTimeout(() => {
+      if (/(menu|hnl|th|set|byt)-open/.test(document.body.className)) return;
+      routeUrl(assetPath(compKey, tabKey()), false);
+    }, 0);
+  });
   syncMenuComp();
   bootReveal();
+  // a link straight into a page (/shl/schedule): open it once everything is loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    const r = parseRoute(location.pathname);
+    if (!r || HEADLESS || (r.kind === 'landing' && r.comp === 'dash')) return;
+    Promise.resolve(SETTINGS.ready).then(() => routeOpen(r));
+  });
 
 
   // ---------- Home page: all results + programme of the chosen competition ----------

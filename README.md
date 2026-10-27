@@ -62,3 +62,24 @@ The "Socials" tab holds the social templates from the ByTomorrow design handoff.
 
 - **Announcement** (men only): a label, a headline and an optional text on the SHL background (Story or Post), with an optional photo behind it under a navy veil. Code: `buildAnnouncementRow` and `renderAnnouncement` in `script.js`.
 - **Postponed:** on Match and Head to head a checkbox shows POSTPONED (UITGESTELD for the women) instead of the date. Clear the time field if the time should go as well. The option is stored with the item (`smState.postponed`).
+
+
+## Links (deep links)
+
+Every page has its own address; the server (`spa_rewrite` in `server.py`) serves `index.html` for them and the page opens that view.
+The address follows you through the app, and the browser's back and forward buttons work.
+
+| Address | Opens |
+| --- | --- |
+| `/` | Home (dashboard) |
+| `/shl`, `/shlw`, `/handbalnl`, `/lvl`, `/socials` | landing page of that client |
+| `/shl/<graphic>`, `/shlw/<graphic>` | the editor: `results`, `schedule`, `match`, `prediction`, `headtohead`, `nowlive` (SHL only), `matchresult`, `topscorer`, `playerweek`, `ranking`, `movers`, `announcement` (SHL only) |
+| `/shl/thumbnails`, `/shlw/thumbnails` | thumbnails editor |
+| `/handbalnl/announcement`, `/handbalnl/next-men`, `/handbalnl/next-women` | HandbalNL editors |
+| `/handbalnl/thumbnails-men`, `/handbalnl/thumbnails-women` | Next Handball League thumbnails |
+| `/lvl/thumbnails-men`, `/lvl/thumbnails-women` | Lotto Volley League thumbnails |
+| `/socials/<template>` | ByTomorrow Socials: `wedstrijd`, `artikel`, `story`, `video-thumbnail` |
+| `/settings` | settings |
+
+Aliases that also work: `matchschedule` and `programma` (schedule), `uitslagen` and `matchresults` (results), `h2h` (head to head), `stand` (ranking), `topscore` (top scorer) and a few more (`ASSET_ALIAS` in `script.js`).
+An unknown page under a client opens that client's landing page. `stream.html`, `stream-setup.html` and `ticker.html` keep their own addresses.

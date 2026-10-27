@@ -1053,11 +1053,38 @@ def _safe_export_name(name):
     return name if EXPORT_NAME_RE.match(name) else None
 
 
+# Pretty links into the single-page app: /shl, /shl/schedule, /shlw/results, /handbalnl/next-men, /lvl/thumbnails-men,
+# /socials/wedstrijd, /settings. They all serve index.html; the page reads the path and opens that view.
+SPA_ROOTS = {"shl", "shlw", "handbalnl", "lvl", "socials", "settings"}
+SPA_ASSET_DIRS = {"api", "assets", "fonts", "socials", "exports", "data"}
+
+
+def spa_rewrite(raw_path):
+    """Returns the path to serve for a request path: index.html for an app route, the plain file for a relative URL the
+    page asked for from inside a route (/shl/script.js, /socials/socials/templates.js), the same path otherwise."""
+    u = urlparse(raw_path)
+    segs = [unquote(x) for x in u.path.split("/") if x]
+    if not segs or segs[0] not in SPA_ROOTS:
+        return raw_path
+    tail = ("?" + u.query) if u.query else ""
+    if os.path.isfile(os.path.join(STATIC_DIR, *segs)):          # a real file, e.g. /socials/templates.js
+        return raw_path
+    rest = segs[1:]
+    if rest and (rest[0] in SPA_ASSET_DIRS or "." in rest[-1]):  # relative URLs of the page, resolved against the route
+        return "/" + "/".join(rest) + tail
+    return "/index.html" + tail
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
+    def do_HEAD(self):
+        self.path = spa_rewrite(self.path)
+        super().do_HEAD()
+
     def do_GET(self):
+        self.path = spa_rewrite(self.path)
         if self.path.startswith("/api/results"):
             self.handle_results()
         elif self.path.startswith("/api/standings"):
