@@ -90,7 +90,7 @@ An unknown page under a client opens that client's landing page. `stream.html`, 
 | --- | --- |
 | `/narrowcasting` | Het scherm: slides die om de beurt in beeld komen met een rustige cross-fade (30 seconden elk, "Alle sporters zijn helden" 70 seconden). |
 | `/narrowcasting/beheer` | Hier beheer je de streamagenda, kies je de programma-slides en zet je de meeting-modus aan of uit. |
-| `/narrowcasting?slide=agenda,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `streams`, `stand` (met `&comp=men` of `women`), `matches`, `quote`, `news1`, `news2`, `slogan`, `weather`, `logo`. |
+| `/narrowcasting?slide=agenda,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `streams`, `stand` (met `&comp=men` of `women`), `matches`, `quote`, `news1`, `news2`, `platforms`, `slogan`, `weather`, `logo`. |
 
 Slides: **Streamagenda** (alle streams: wat je invult plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma en uit de livestream-agenda van handbalnl.tv (paarse tag HandbalNL TV, wat al in het SHL/SHLW-programma staat wordt overgeslagen), met "LIVE" bij een
 lopende stream), **Uitgelicht** (aangevinkte afspraken als grote kaarten), per SHL en SHLW de **komende 7 streams** en daarna **stand en uitslagen** (in de stijl van de SHL-stream),
@@ -105,6 +105,8 @@ Alles staat op het donkerblauw van ByTomorrow.
 **Beheerpagina:** bovenaan voorbeelden van alle slides met een vinkje voor welke wel en niet draaien, een tabel met alle wedstrijden (uit de programma's, HandbalNL TV en handmatig, met filters per bron) en daaronder het beheer van eigen wedstrijden.
 
 Sportnieuws komt van de NOS-feed (`feeds.nos.nl/nossportalgemeen`, via `/api/narrowcasting-news`, 10 minuten bewaard; de foto's lopen via `/api/narrowcasting-img`). Slide `news1` toont het laatste bericht groot (40 seconden), `news2` de drie daarna klein.
+
+Slide `platforms` ("Powered by JUMP") toont de homepage van alle platformen in één horizontaal scrollende strook (60 seconden). De server maakt die screenshots zelf met Playwright, elke 23 uur opnieuw (`DATA_DIR/platforms/`, lijst `PLATFORMS` in `server.py`), met het grootste icoon van de site als logo en cookiemeldingen weggeklikt of verborgen. Hoofdklasse Coach zit achter een login: daarvan staan screenshot en logo met de hand in `story-generator/assets/platforms/` (`hoofdklasse.jpg`, `hoofdklasse-logo.png`) en worden niet automatisch ververst.
 
 De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume), het weer komt van Open-Meteo via de server (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse
 tijd van de server, ook als het scherm een verkeerde tijd heeft. De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.

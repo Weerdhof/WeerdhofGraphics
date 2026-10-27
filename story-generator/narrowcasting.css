@@ -334,3 +334,15 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .nc .nt { margin-top: 14px; font-size: 34px; line-height: 40px; }
 .nc .ns { margin-top: 14px; font-size: 22px; line-height: 32px; }
 .nsrc { position: absolute; left: 80px; top: 1000px; font-family: "Open Sans", Arial, sans-serif; font-weight: 600; font-size: 20px; line-height: 28px; color: #7f86c9; }
+
+/* platform wall */
+.pw { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+.pstrip { position: absolute; left: 0; top: 0; height: 1080px; }
+.pwc { position: absolute; top: 300px; width: 720px; height: 600px; }
+.pwi { width: 720px; height: 450px; border-radius: 22px; background-color: #12104a; background-size: cover; background-position: center top; }
+.pwl { position: relative; margin-top: 26px; height: 130px; }
+.pwg { position: absolute; left: 0; top: 0; width: 84px; height: 84px; border-radius: 42px; background-color: #1b1960; border: 2px solid rgba(255,255,255,.18); box-sizing: border-box; background-repeat: no-repeat; background-position: center; background-size: 64px 64px; }
+.pwt { position: absolute; left: 110px; top: -2px; width: 610px; }
+.pwn { font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 800; font-size: 34px; line-height: 40px; color: #ffffff; white-space: nowrap; }
+.pwd { margin-top: 2px; font-family: "Open Sans", Arial, sans-serif; font-weight: 600; font-size: 21px; line-height: 29px; color: #a9aedc; }
+.pwu { margin-top: 4px; font-family: "Open Sans", Arial, sans-serif; font-weight: 700; font-size: 20px; line-height: 28px; color: #49FF9F; }

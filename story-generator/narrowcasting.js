@@ -23,7 +23,7 @@
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, news1: 40000, news2: 30000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
+  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, news1: 40000, news2: 30000, platforms: 60000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
 
   // ---- time: the Dutch wall clock, taken from the server (the TV's own clock or time zone may be off) ----
   var wallDelta = null;
@@ -58,7 +58,7 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], news = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  var items = [], news = [], plats = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() {
     get('/api/narrowcasting', function (j) {
       if (!j) return;
@@ -81,9 +81,10 @@
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadNews() { get('/api/narrowcasting-news', function (j) { if (j && j.items && j.items.length) news = j.items; }); }
+  function loadPlats() { get('/api/narrowcasting-platforms', function (j) { if (j && j.items && j.items.length) plats = j.items; }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
-  loadAgenda(); loadMatches(); loadWeather(); loadShl(); loadNews();
-  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); setInterval(loadNews, 600000); }
+  loadAgenda(); loadMatches(); loadWeather(); loadShl(); loadNews(); loadPlats();
+  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); setInterval(loadNews, 600000); setInterval(loadPlats, 1800000); }
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }
@@ -350,6 +351,27 @@
     return h + '<div class="nsrc rz" style="animation-delay:600ms">Bron: NOS Sport (RSS)</div>';
   }
 
+  // ---- slide: platform wall, a snippet of the homepage of every platform that scrolls slowly sideways ----
+  var PLAT_W = 720, PLAT_GAP = 48;
+  function platformsHtml() {
+    if (!plats.length) return null;
+    var h = '<div class="ttl rz">Powered by <b class="jp">JUMP</b></div><div class="pw"><div class="pstrip" id="pstrip" style="width:' + (plats.length * (PLAT_W + PLAT_GAP)) + 'px">', i, p;
+    for (i = 0; i < plats.length; i++) {
+      p = plats[i];
+      h += '<div class="pwc" style="left:' + (80 + i * (PLAT_W + PLAT_GAP)) + 'px"><div class="pwi" style="background-image:url(' + p.img + ')"></div>' +
+        '<div class="pwl"><div class="pwg"' + (p.logo ? ' style="background-image:url(' + p.logo + ')"' : '') + '></div><div class="pwt"><div class="pwn">' + esc(p.name) + '</div><div class="pwd">' + esc(p.desc || '') + '</div><div class="pwu">' + esc(p.url) + '</div></div></div></div>';
+    }
+    return h + '</div></div>';
+  }
+  function startPlatScroll(ms) {                                            // the strip drifts from the first platform to the last, in one slow straight move
+    var el = document.getElementById('pstrip'); if (!el) return;
+    var dist = Math.max(0, plats.length * (PLAT_W + PLAT_GAP) - 1920 + 160);
+    setTimeout(function () {
+      el.style.webkitTransition = el.style.transition = 'transform ' + Math.round(ms / 1000) + 's linear';
+      el.style.webkitTransform = el.style.transform = 'translateX(-' + dist + 'px)';
+    }, 1500);
+  }
+
   // ---- slide: only the logo ----
   function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
@@ -515,6 +537,7 @@
     if (on('quote')) out.push({ type: 'quote' });
     if (on('news1') && news.length) out.push({ type: 'news1' });
     if (on('news2') && news.length > 1) out.push({ type: 'news2' });
+    if (on('platforms') && plats.length) out.push({ type: 'platforms' });
     if (on('weather') && weather) out.push({ type: 'weather' });
     if (on('logo')) out.push({ type: 'logo' });
     return out.length ? out : [{ type: 'logo' }];                              // never a blank screen
@@ -526,6 +549,7 @@
     if (s.type === 'none') return '<div class="empty rz"><b>Geen inhoud</b><span>Deze slide heeft op dit moment niets te tonen.</span></div>';
     if (s.type === 'news1') return newsBigHtml();
     if (s.type === 'news2') return newsSmallHtml();
+    if (s.type === 'platforms') return platformsHtml();
     if (s.type === 'streams') return streamsHtml(s.comp);
     if (s.type === 'stand') return shlHtml(s.comp);
     if (s.type === 'quote') return quoteHtml();
@@ -573,6 +597,7 @@
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
+      if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)

@@ -1068,7 +1068,7 @@ _weather = {"at": 0, "data": None}
 
 
 NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
-NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "weather", "logo")
+NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "platforms", "weather", "logo")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
 
@@ -1242,6 +1242,185 @@ def nos_news():
     except Exception:
         _news["at"] = now - 300                    # keep the last news and try again in 5 minutes
     return _news["items"]
+
+
+# ---- platform wall: a snippet of the homepage of every ByTomorrow platform, made fresh once a day ----
+PLATFORMS = (
+    ("shl", "Super Handball League TV", "https://superhandballeague.tv", "Alle livestreams van de 14 clubs uit de SHL, plus een samenvatting per wedstrijd."),
+    ("handbalnl", "HandbalNL TV", "https://handbalnl.tv", "Handbal live en terugkijken: competities, video's en de agenda."),
+    ("lvl", "Lotto Volley League TV", "https://watch.lottovolleyleague.be", "De Lotto Volley League live: wedstrijden, highlights en agenda."),
+    ("tvv", "Tijd voor Volleyball", "https://tijdvoorvolleybal.nl", "Hier beleef je volleybal het best: wedstrijden en video's."),
+    ("sportinbeeld", "Sport in Beeld", "https://sportinbeeld.tv", "Het videoplatform voor sport in jouw regio: live, highlights en samenvattingen."),
+    ("knltb", "KNLTB TV", "https://knltb.tv", "Live tennis en padel, instructievideo's en documentaires."),
+    ("zwemsport", "Zwemsport TV", "https://zwemsport.tv", "Zwemevenementen live en on demand."),
+    ("kwpn", "KWPN TV", "https://kwpn.tv", "KWPN-kampioenschappen en evenementen live bekijken."),
+    ("willem2", "Willem II Plus", "https://plus.willem-ii.nl", "Interviews, highlights en meer van Willem II."),
+    ("hoofdklasse", "Hoofdklasse Coach", "https://coach.hoofdklasse.com", "Coachplatform voor de Hoofdklasse hockey: wedstrijden en content terugkijken."),
+)
+PLATFORMS_MANUAL = ("hoofdklasse",)               # behind a login: no screenshot by the server, picture and logo are put by hand in story-generator/assets/platforms/<key>.jpg and <key>-logo.png
+PLATFORM_DIR = os.path.join(DATA_DIR, "platforms")
+PLATFORM_MAX_AGE = 23 * 3600
+_plat_lock = threading.Lock()
+
+# click "refuse" on a cookie wall, then hide whatever consent window or dark layer is left
+_PLAT_CLEAN_JS = """() => {
+  var cb = document.querySelector('#CybotCookiebotDialogBodyButtonDecline, #CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll');
+  if (cb) { try { cb.click(); } catch (e) {} }
+  ['CybotCookiebotDialog', 'CybotCookiebotDialogBodyUnderlay', 'CookiebotWidget', 'cmpwrapper', 'cmpbox', 'cmpbox2', 'cmpbox3'].forEach(function (id) { var e = document.getElementById(id); if (e) e.style.display = 'none'; });
+  var re = /^(weiger|alles weigeren|alleen noodzakelijk|noodzakelijk|reject|decline|deny|refuse)/i, bs = [].slice.call(document.querySelectorAll('button,a,[role=button],input[type=button]')), i, t;
+  for (i = 0; i < bs.length; i++) { t = (bs[i].innerText || bs[i].value || '').trim(); if (re.test(t)) { try { bs[i].click(); } catch (e) {} break; } }
+  var vw = innerWidth, vh = innerHeight;
+  [].slice.call(document.querySelectorAll('body *')).forEach(function (e) {
+    var cs = getComputedStyle(e); if (cs.position !== 'fixed') return;
+    var r = e.getBoundingClientRect(), txt = e.innerText || '';
+    if ((/cookie|toestemming|consent/i.test(txt) && txt.length < 4000 && r.height > 20) || (r.width >= vw * .9 && r.height >= vh * .9 && txt.trim().length < 5)) e.style.display = 'none';
+  });
+  [].slice.call(document.querySelectorAll('.cc-window,.cc-banner,.cc-grower')).forEach(function (e) { e.style.display = 'none'; });
+  [].slice.call(document.querySelectorAll('div,section,aside,p')).forEach(function (e) {
+    var t = e.innerText || '', r = e.getBoundingClientRect();
+    if (/cookievoorkeuren|cookie preferences|cookies accepteren|accepteer cookies/i.test(t) && t.length < 700 && r.height < 320 && r.height > 20) e.style.display = 'none';
+  });
+  document.body.style.overflow = 'auto'; document.documentElement.style.overflow = 'auto';
+}"""
+
+
+# a style that keeps the usual consent windows hidden from the first moment, also when they show up late
+_PLAT_HIDE_SCRIPT = """document.addEventListener('DOMContentLoaded', function () {
+  var st = document.createElement('style');
+  st.textContent = '#cmpwrapper,#cmpbox,.cmpwrapper,#CybotCookiebotDialog,#CybotCookiebotDialogBodyUnderlay,#CookiebotWidget,.cc-window,.cc-banner{display:none!important;visibility:hidden!important}';
+  document.head.appendChild(st);
+});"""
+
+
+# bring a slider back to its first slide
+_PLAT_FIRST_JS = """() => {
+  var q = ['.glide__bullet:first-child', '.slick-dots li:first-child button', '.swiper-pagination-bullet:first-child', '.carousel-indicators li:first-child', '[data-slide-to="0"]', '[data-glide-dir="=0"]'], i, e;
+  for (i = 0; i < q.length; i++) { e = document.querySelector(q[i]); if (e) { try { e.click(); } catch (x) {} } }
+}"""
+
+_PLAT_ICONS_JS = """() => [].map.call(document.querySelectorAll('link[rel*=icon]'), function (l) {
+  var m = /(\\d+)x(\\d+)/.exec(l.getAttribute('sizes') || ''); return { href: l.href, size: m ? +m[1] : (/apple-touch/.test(l.getAttribute('rel')) ? 180 : 0) };
+})"""
+
+
+def _plat_save_logo(page, key):
+    """Keep the biggest icon of the site as the logo of the platform."""
+    try:
+        icons = sorted(page.evaluate(_PLAT_ICONS_JS), key=lambda i: -i["size"])
+        for ic in icons[:3]:
+            res = page.context.request.get(ic["href"], timeout=15000)
+            ctype = (res.headers.get("content-type") or "").split(";")[0].strip()
+            ext = {"image/png": "png", "image/x-icon": "ico", "image/vnd.microsoft.icon": "ico", "image/svg+xml": "svg", "image/jpeg": "jpg", "image/webp": "webp"}.get(ctype)
+            if res.ok and ext and len(res.body()) > 200:
+                for old in _LOGO_TYPES:
+                    p = os.path.join(PLATFORM_DIR, key + "-logo." + old)
+                    if old != ext and os.path.exists(p):
+                        os.remove(p)
+                with open(os.path.join(PLATFORM_DIR, key + "-logo." + ext), "wb") as f:
+                    f.write(res.body())
+                return
+    except Exception as err:
+        sys.stderr.write("platform logo %s failed: %s\n" % (key, err))
+
+
+def _plat_meta():
+    try:
+        with open(os.path.join(PLATFORM_DIR, "meta.json"), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def platform_refresh(force=False):
+    """Take a screenshot of the homepage of every platform that is missing or older than 23 hours."""
+    if not _plat_lock.acquire(False):
+        return
+    pw = browser = None
+    try:
+        os.makedirs(PLATFORM_DIR, exist_ok=True)
+        meta = _plat_meta()
+        todo = [p for p in PLATFORMS if p[0] not in PLATFORMS_MANUAL and (force or time.time() - meta.get(p[0], 0) > PLATFORM_MAX_AGE)]
+        if not todo:
+            return
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        kw = {"args": ["--no-sandbox", "--disable-dev-shm-usage"]}
+        if os.environ.get("THUMB_BROWSER_CHANNEL"):
+            kw["channel"] = os.environ["THUMB_BROWSER_CHANNEL"]
+        browser = pw.chromium.launch(**kw)
+        for key, name, url, _desc in todo:
+            page = None
+            try:
+                page = browser.new_page(viewport={"width": 1440, "height": 900})
+                page.add_init_script(_PLAT_HIDE_SCRIPT)
+                page.goto(url, wait_until="load", timeout=45000)
+                for _ in range(2):
+                    page.wait_for_timeout(4500)
+                    page.evaluate(_PLAT_CLEAN_JS)
+                page.evaluate(_PLAT_FIRST_JS)                      # a slider back on its first slide
+                page.wait_for_timeout(1300)
+                _plat_save_logo(page, key)
+                page.screenshot(path=os.path.join(PLATFORM_DIR, key + ".jpg"), type="jpeg", quality=74)
+                meta[key] = int(time.time())
+                with open(os.path.join(PLATFORM_DIR, "meta.json"), "w", encoding="utf-8") as f:
+                    json.dump(meta, f)
+            except Exception as err:
+                sys.stderr.write("platform snippet %s failed: %s\n" % (key, err))
+            finally:
+                try:
+                    page and page.close()
+                except Exception:
+                    pass
+    except Exception as err:
+        sys.stderr.write("platform refresh failed: %s\n" % err)
+    finally:
+        for closer in (lambda: browser and browser.close(), lambda: pw and pw.stop()):
+            try:
+                closer()
+            except Exception:
+                pass
+        _plat_lock.release()
+
+
+def _platform_loop():
+    time.sleep(30)
+    while True:
+        platform_refresh()
+        time.sleep(3600)                           # looks every hour which snippets are older than a day
+
+
+def _plat_file(key):
+    """(path, version) of the picture of a platform, or None when there is none yet."""
+    if key in PLATFORMS_MANUAL:
+        path = os.path.join(STATIC_DIR, "assets", "platforms", key + ".jpg")
+        return (path, int(os.path.getmtime(path))) if os.path.exists(path) else None
+    path = os.path.join(PLATFORM_DIR, key + ".jpg")
+    meta = _plat_meta()
+    return (path, meta[key]) if key in meta and os.path.exists(path) else None
+
+
+_LOGO_TYPES = {"png": "image/png", "ico": "image/x-icon", "svg": "image/svg+xml", "jpg": "image/jpeg", "webp": "image/webp"}
+
+
+def _plat_logo(key):
+    """(path, content type) of the logo (the biggest icon of the site), or None."""
+    base = os.path.join(STATIC_DIR, "assets", "platforms") if key in PLATFORMS_MANUAL else PLATFORM_DIR
+    for ext, ctype in _LOGO_TYPES.items():
+        path = os.path.join(base, key + "-logo." + ext)
+        if os.path.exists(path):
+            return path, ctype
+    return None
+
+
+def platform_list():
+    out = []
+    for k, n, u, d in PLATFORMS:
+        f = _plat_file(k)
+        if f:
+            lg = _plat_logo(k)
+            out.append({"key": k, "name": n, "url": u.replace("https://", ""), "desc": d, "img": "/api/narrowcasting-platform?k=%s&v=%d" % (k, f[1]),
+                        "logo": "/api/narrowcasting-platform?k=%s&logo=1&v=%d" % (k, f[1]) if lg else ""})
+    return out
 
 
 def news_image(url):
@@ -1435,6 +1614,22 @@ class Handler(SimpleHTTPRequestHandler):
                 self._nocache_json(200, {"items": nos_news()})
             except Exception as err:
                 self._json(502, {"error": str(err)})
+        elif self.path.split("?")[0] == "/api/narrowcasting-platforms":
+            self._nocache_json(200, {"items": platform_list()})
+        elif self.path.split("?")[0] == "/api/narrowcasting-platform":
+            key = parse_qs(urlparse(self.path).query).get("k", [""])[0]
+            known = key in [p[0] for p in PLATFORMS]
+            got = (_plat_logo(key) if parse_qs(urlparse(self.path).query).get("logo") else _plat_file(key)) if known else None
+            if not got:
+                return self.send_error(404)
+            with open(got[0], "rb") as f:
+                data = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", got[1] if isinstance(got[1], str) else "image/jpeg")
+            self.send_header("Cache-Control", "public, max-age=3600")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
         elif self.path.startswith("/api/narrowcasting-img"):
             try:
                 got = news_image(parse_qs(urlparse(self.path).query).get("u", [""])[0])
@@ -2167,4 +2362,5 @@ if __name__ == "__main__":
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Serving {STATIC_DIR} on port {PORT}")
     threading.Thread(target=_monitor_loop, daemon=True).start()
+    threading.Thread(target=_platform_loop, daemon=True).start()
     server.serve_forever()
