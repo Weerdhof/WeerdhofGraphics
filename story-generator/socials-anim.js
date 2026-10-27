@@ -173,11 +173,11 @@
     slideIn(ctx, L.title, ms, T_TITLE, 800, 170);
     if (geo.tag) morph(ctx, L.tag, geo.tag, ms, T_TAG, { outline: true, pad: 4 });
 
-    // photo: wipes up from the bottom
+    // photo: wipes in from the left to the right
     const pp = inOutExpo(seg(ms, T_TITLE, 800));          // the photo goes with the title
     if (pp > 0) {
       const ph = geo.photo;
-      ctx.save(); ctx.beginPath(); ctx.rect(0, ph.y + ph.h * (1 - pp) - 2, A.w, ph.h * pp + 4); ctx.clip();
+      ctx.save(); ctx.beginPath(); ctx.rect(ph.x - 2, ph.y - 2, ph.w * pp + 4, ph.h + 4); ctx.clip();
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
 
@@ -191,29 +191,29 @@
     if (!noLogo) ctx.drawImage(L.logo, 0, 0);
   }
 
-  // the way out, and so the way back to the start of the loop, in two moves: a big ByT monogram in the alternative colour
-  // (the colour of the pills) falls over the design from left to right, the colour filling in behind it until everything is
-  // covered; then that colour fades into the colour of the background. What is left is the plain colour and the logo, as
-  // in the first frame. `p` is how far it is (0 = finished, 1 = back at the start).
-  const OUT_SWEEP = .6;                                             // the first part of the way out is the monogram, the rest is the colour fade
+  // the way out, and so the way back to the start of the loop, in one movement: a big ByT monogram goes slowly to the
+  // middle and then away to the right, ever faster; on its way its colour goes from the alternative colour (the pills) to
+  // the colour of the background, while the design fades into that colour. What is left is the plain colour and the
+  // logo, as in the first frame. `p` is how far it is (0 = finished, 1 = back at the start).
   const rgb = (c) => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#000'; x.fillStyle = c; const v = x.fillStyle;
     if (v[0] === '#') return [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16));
     return (v.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number); };
+  const smooth = (p) => p * p * (3 - 2 * p), sineInOut = (p) => -(Math.cos(Math.PI * p) - 1) / 2;
+  let outCv = null;
   function drawOut(ctx, p) {
-    const A = layers; draw(ctx, DUR, true);
-    if (p > 0) {
-      const e = inOutExpo(Math.min(1, p / OUT_SWEEP)), f = seg(p, OUT_SWEEP, 1 - OUT_SWEEP), f2 = f * f * (3 - 2 * f);
-      const from = rgb(A.alt), to = rgb(A.bg), col = `rgb(${from.map((v, i) => Math.round(lerp(v, to[i], f2))).join(',')})`;
-      const H = A.h * 1.3, k = H / 1121, w = 988 * k, cover = w * .35;
-      const xl = lerp(-w, A.w - cover, e);                          // left edge of the monogram: from outside the left edge until the colour covers everything
-      ctx.save(); ctx.fillStyle = col;
-      ctx.fillRect(0, 0, Math.min(A.w, xl + cover), A.h);           // the colour behind it
-      ctx.translate(xl, (A.h - H) / 2); ctx.scale(k, k); ctx.fill(BUG, 'evenodd');
-      ctx.restore();
-    }
+    const A = layers; if (!outCv) outCv = document.createElement('canvas');
+    if (outCv.width !== A.w || outCv.height !== A.h) { outCv.width = A.w; outCv.height = A.h; }
+    draw(outCv.getContext('2d'), DUR, true);
+    ctx.clearRect(0, 0, A.w, A.h); ctx.fillStyle = A.bg; ctx.fillRect(0, 0, A.w, A.h);
+    ctx.save(); ctx.globalAlpha = 1 - smooth(clamp((p - .1) / .6)); ctx.drawImage(outCv, 0, 0); ctx.restore();
+    const H = A.h * 1.3, k = H / 1121, w = 988 * k, mid = (A.w - w) / 2, T = .5;
+    const xl = p < T ? lerp(-w, mid, sineInOut(p / T)) : lerp(mid, A.w + 20, Math.pow((p - T) / (1 - T), 3));
+    const from = rgb(A.alt), to = rgb(A.bg), f = smooth(clamp(p / .85));
+    ctx.save(); ctx.fillStyle = `rgb(${from.map((v, i) => Math.round(lerp(v, to[i], f))).join(',')})`;
+    ctx.translate(xl, (A.h - H) / 2); ctx.scale(k, k); ctx.fill(BUG, 'evenodd'); ctx.restore();
     ctx.drawImage(A.L.logo, 0, 0);
   }
-  const LOOP_HOLD = 1800, LOOP_OUT = 2000;
+  const LOOP_HOLD = 1800, LOOP_OUT = 1000;
 
   // ---------- preview ----------
   function ensureCanvas() {
@@ -233,7 +233,7 @@
   }
   function frame(ts) {
     if (!on || !layers || recording) return;
-    const ms = (ts - t0) % (DUR + LOOP_HOLD + LOOP_OUT);   // the preview pauses a moment on the finished design, then the monogram wipes it away
+    const ms = (ts - t0) % (DUR + LOOP_HOLD + LOOP_OUT);   // the preview pauses a moment on the finished design, then the monogram takes it away
     if (ms <= DUR) draw(canvas.getContext('2d'), ms); else drawOut(canvas.getContext('2d'), Math.max(0, (ms - DUR - LOOP_HOLD) / LOOP_OUT));
     raf = requestAnimationFrame(frame);
   }
@@ -267,7 +267,7 @@
   // ---------- GIF (loops) ----------
   // the movement at 33 frames per second, then the finished design stays as one long frame and is wiped away by the monogram (full colour and
   // logo are left), where the loop begins again. Smaller than the video: the longest side is 800 px.
-  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_OUT = 2000, GIF_MAX = 800;
+  const GIF_STEP = 30, GIF_HOLD = 2600, GIF_OUT = 1000, GIF_MAX = 800;
   async function recordGif() {
     const b = B(), btn = $('bytGif'), A = layers;
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
@@ -287,7 +287,7 @@
         setStatus('GIF maken… ' + Math.round(i / n * 40) + '%');
         if (i % 6 === 0) await new Promise(r => setTimeout(r));
       }
-      // the way out: the monogram wipes the design away, so the loop starts again from the plain colour and the logo
+      // the way out: the monogram goes by and the design fades, so the loop starts again from the plain colour and the logo
       const fn = Math.round(GIF_OUT / GIF_STEP);
       for (let j = 1; j < fn; j++) {
         drawOut(fctx, j / fn); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
@@ -331,5 +331,5 @@
     document.body.classList.remove('byt-animating'); setStatus('');
   }
 
-  window.BYT_ANIM = { mount, changed, reset, draw: (ctx, ms) => layers && draw(ctx, ms), get layers() { return layers; }, DUR };
+  window.BYT_ANIM = { mount, changed, reset, draw: (ctx, ms, noLogo) => layers && draw(ctx, ms, noLogo), get layers() { return layers; }, DUR };
 })();
