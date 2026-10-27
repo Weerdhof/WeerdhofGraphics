@@ -25,7 +25,7 @@ body.byt-open #bytApp { display: flex; }
 .byt-frame * { -webkit-user-select: none; user-select: none; }
 .byt-slot.empty { display: flex !important; align-items: center; justify-content: center; background: repeating-linear-gradient(45deg, rgba(6,2,40,.06), rgba(6,2,40,.06) 14px, rgba(6,2,40,.10) 14px, rgba(6,2,40,.10) 28px); }
 .byt-slot.empty span { font: 600 30px 'Open Sans', Arial, sans-serif; color: rgba(6,2,40,.45); }
-.byt-slot { touch-action: none; }
+.byt-slot { touch-action: pan-y; }
 
 /* animation preview: a canvas over the frame while "Animeer" is on */
 .byt-anim-canvas { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; box-shadow: 0 24px 70px rgba(0,0,0,.5); background: #fff; }
@@ -35,7 +35,7 @@ body.byt-animating #bytFrame { visibility: hidden; }
 #bytMp4 { margin-bottom: 8px; }
 
 /* elements that can be dragged up and down, and the Instagram safe zones (preview only) */
-.byt-frame [data-drag] { cursor: ns-resize; touch-action: none; }
+.byt-frame [data-drag] { cursor: ns-resize; touch-action: pan-y; }
 .byt-frame [data-drag]:hover { outline: 2px dashed rgba(61,90,254,.9); outline-offset: 8px; }
 .byt-safe { position: absolute; inset: 0; pointer-events: none; }
 .byt-safe i { position: absolute; background: repeating-linear-gradient(45deg, rgba(255,40,70,.30), rgba(255,40,70,.30) 8px, rgba(255,40,70,.16) 8px, rgba(255,40,70,.16) 16px); }

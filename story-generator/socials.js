@@ -136,7 +136,7 @@
     const t = cur.t, stage = $('bytStage'), scaler = $('bytScale'); if (!t || !stage || !scaler) return;
     const narrow = window.innerWidth <= 860;
     const availW = Math.max(240, stage.clientWidth - (narrow ? 32 : 80));
-    const availH = narrow ? 99999 : Math.max(300, window.innerHeight - 96);
+    const availH = narrow ? Math.max(300, window.innerHeight * 0.62) : Math.max(300, window.innerHeight - 96);
     const k = Math.min(availW / t.w, availH / t.h, 1);
     cur.scale = k;
     scaler.style.width = Math.round(t.w * k) + 'px'; scaler.style.height = Math.round(t.h * k) + 'px';
@@ -164,19 +164,36 @@
   let drag = null;
   function bindDrag() {
     const stage = $('bytStage');
-    stage.addEventListener('pointerdown', (e) => {
-      const el = e.target.closest('[data-drag]');
+    // a finger that swipes over the frame must scroll the page: on touch a drag only starts after a short hold
+    let hold = null;
+    const begin = (e, target) => {
+      const el = target.closest('[data-drag]');
       if (el) {            // a marked element (title block, icon): drag it up or down
-        e.preventDefault(); el.setPointerCapture && el.setPointerCapture(e.pointerId);
+        el.setPointerCapture && el.setPointerCapture(e.pointerId);
         drag = { kind: 'el', el, key: el.dataset.drag, base: Number(el.dataset.base), axis: el.dataset.axis, y: e.clientY, off: Number(cur.props[el.dataset.drag]) || 0 };
         return;
       }
-      const slot = e.target.closest('.byt-slot'); if (!slot || !cur.photo) return;
-      e.preventDefault(); slot.setPointerCapture && slot.setPointerCapture(e.pointerId);
+      const slot = target.closest('.byt-slot'); if (!slot || !cur.photo) return;
+      slot.setPointerCapture && slot.setPointerCapture(e.pointerId);
       drag = { x: e.clientX, y: e.clientY, slot };
       slot.style.cursor = 'grabbing';
+    };
+    stage.addEventListener('pointerdown', (e) => {
+      const target = e.target;
+      if (e.pointerType === 'touch') {
+        if (!target.closest('[data-drag], .byt-slot')) return;
+        const pt = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        hold = { pt, startX: e.clientX, startY: e.clientY, timer: setTimeout(() => { hold = null; begin({ pointerId: pt.id, clientX: pt.x, clientY: pt.y }, target); if (navigator.vibrate) navigator.vibrate(12); }, 320) };
+        return;
+      }
+      if (!target.closest('[data-drag], .byt-slot')) return;
+      if (target.closest('[data-drag]') || cur.photo) e.preventDefault();
+      begin(e, target);
     });
+    stage.addEventListener('touchmove', (e) => { if (drag && e.cancelable) e.preventDefault(); }, { passive: false });
+    const cancelHold = () => { if (hold) { clearTimeout(hold.timer); hold = null; } };
     stage.addEventListener('pointermove', (e) => {
+      if (hold) { hold.pt.x = e.clientX; hold.pt.y = e.clientY; if (Math.hypot(e.clientX - hold.startX, e.clientY - hold.startY) > 8) cancelHold(); }
       if (drag && drag.kind === 'el') {
         const t = cur.t, d = drag, h = d.el.offsetHeight;
         d.off += (e.clientY - d.y) / cur.scale; d.y = e.clientY;
@@ -196,7 +213,7 @@
       if (Math.abs(h - bh) > 0.5) p.y = Math.min(1, Math.max(0, p.y + dy / (h - bh)));
       frameEl().querySelectorAll('.byt-slot').forEach(applySlot);
     });
-    const end = () => { if (drag) { if (drag.kind === 'el') saveProps(); else drag.slot.style.cursor = 'grab'; drag = null; } };
+    const end = () => { cancelHold(); if (drag) { if (drag.kind === 'el') saveProps(); else drag.slot.style.cursor = 'grab'; drag = null; } };
     stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
     ['dragover', 'drop'].forEach(ev => stage.addEventListener(ev, (e) => {
       if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
@@ -246,7 +263,7 @@
         <input type="file" id="bytPhotoInput" accept="image/*" hidden>
         ${p ? `<div class="field"><label for="bytZoom">Zoom</label><input type="range" id="bytZoom" min="100" max="300" value="${Math.round(p.z * 100)}"></div>
         <button class="btn btn-link" id="bytPhotoRemove" type="button">✕ Verwijder foto</button>
-        <p class="hint">Sleep in het voorbeeld om de foto te verschuiven. Zoom in om hem verder te kunnen verplaatsen.</p>` : ''}</div>`;
+        <p class="hint">Sleep in het voorbeeld om de foto te verschuiven. Zoom in om hem verder te kunnen verplaatsen. Op een telefoon: houd even vast en sleep dan.</p>` : ''}</div>`;
     }
     const toggles = Object.keys(t.props).filter(k => t.props[k].editor === 'toggle'), ranges = Object.keys(t.props).filter(k => t.props[k].editor === 'range');
     if (toggles.length) {
