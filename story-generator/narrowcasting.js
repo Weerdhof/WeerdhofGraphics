@@ -116,7 +116,7 @@
     }
     return out;
   }
-  function isStream(it) { var i; if (it.auto) return true; for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump') return true; } return false; }
+  function isStream(it) { var i, prod = false; if (it.auto) return true; for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump') return true; if (it.pillars[i] === 'productie') prod = true; } return !prod; }          // a stream, unless it is only a production
   function isLive(it) { var n = wallNow(); return !!it.time && !it.allDay && startMs(it) <= n && endMs(it) > n; }
   function inTxt(it) {                                                      // "over 45 min" for a broadcast that starts soon today
     var m = Math.round((startMs(it) - wallNow()) / 60000);
@@ -131,12 +131,21 @@
     var a = new Date(parseYmd(it.date)), b = new Date(parseYmd(it.endDate));
     return WD_LOW[a.getUTCDay()] + ' ' + a.getUTCDate() + ' ' + MON[a.getUTCMonth()] + ' – ' + WD_LOW[b.getUTCDay()] + ' ' + b.getUTCDate() + ' ' + MON[b.getUTCMonth()];
   }
+  // the tags of a match, in this order: the coloured tag(s) of the client, then a white "Stream" (every match is a stream, unless it is only a
+  // production), then a pink "Productie" when it is a production
   function tagsHtml(it, all) {
-    var cp = it.comp && COMPS[it.comp] ? '<span class="tg" style="color:' + compColor(it.comp) + ';border-color:' + compColor(it.comp) + '">' + COMPS[it.comp].label + '</span>' : '';                                             // on the JUMP agenda the JUMP tag would be on every row, so it is left out there
-    var h = '', i, P;
-    var prodOnly = it.pillars.length === 1 && it.pillars[0] === 'productie';                  // only a production, no stream: a pink pill
-    for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg' + (prodOnly ? ' prod' : '') + '" style="' + (P.fill ? 'background:' + P.c + ';color:#fff;' : 'color:' + P.c + ';') + 'border-color:' + P.c + '">' + P.label + '</span>'; }
-    return cp + h;
+    var h = '', i, P, k, prod = false;
+    if (it.comp && COMPS[it.comp]) h += '<span class="tg" style="color:' + compColor(it.comp) + ';border-color:' + compColor(it.comp) + '">' + COMPS[it.comp].label + '</span>';
+    for (i = 0; i < it.pillars.length; i++) {
+      k = it.pillars[i];
+      if (k === 'jump') continue;
+      if (k === 'productie') { prod = true; continue; }
+      P = PILLARS[k] || PILLARS.standaard;
+      h += '<span class="tg" style="color:' + P.c + ';border-color:' + P.c + '">' + P.label + '</span>';
+    }
+    if (isStream(it)) h += '<span class="tg st">Stream</span>';
+    if (prod) h += '<span class="tg prod">Productie</span>';
+    return h;
   }
   // the colour of the client of a match: the sport icon takes it
   var CLIENTS = { shl: ['#ccff33', '#060228'], shlw: ['#e353fc', '#060228'], lvl: ['#FF4B3E', '#ffffff'], lvlm: ['#FF4B3E', '#ffffff'], lvlw: ['#FF4B3E', '#ffffff'], hnl: ['#ff8a4d', '#060228'],
