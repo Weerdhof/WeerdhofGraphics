@@ -269,11 +269,11 @@
   function logoHtml() { return '<div class="lg1">' + document.getElementById('logoTpl').innerHTML + '</div>'; }
 
   // the current weather, small, top left: on the slides of the meeting mode
-  function miniWeather() {                                                  // the weather: the icon in a circle with the temperature in a pill next to it, and the same for the place
+  function miniWeather() {                                                  // two pills, each with its icon in a circle inside: the temperature and the place
     if (!weather) return '';
-    var n = weather.now, pin = '<svg width="38" height="38" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>';
-    return '<span class="wm-g"><span class="wm-c">' + icon(n.code, n.day, 46) + '</span><span class="wm-p"><b>' + n.temp + '&deg;</b></span></span>' +
-      '<span class="wm-g"><span class="wm-c">' + pin + '</span><span class="wm-p">' + esc(weather.place) + '</span></span>';
+    var n = weather.now, pin = '<svg width="34" height="34" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>';
+    return '<span class="wm-g"><span class="wm-p"><span class="wm-i">' + icon(n.code, n.day, 42) + '</span><b>' + n.temp + '&deg;</b></span></span>' +
+      '<span class="wm-g"><span class="wm-p"><span class="wm-i">' + pin + '</span>' + esc(weather.place) + '</span></span>';
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
