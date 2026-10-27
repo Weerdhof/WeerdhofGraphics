@@ -133,52 +133,56 @@
   function iconHtml(it) { return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>'; }
   function dly(i) { return ' style="animation-delay:' + (i * 70 + 150) + 'ms"'; }
 
-  // ---- slide: agenda (two columns per page, grouped by day) ----
-  function agendaPages() {
-    var list = upcoming(false), today = ymd(wallNow()), week = [], days = {}, order = [], live = [], i, it, key, entries = [];
-    var wEnd = parseYmd(today) + 7 * 86400000;
+  // ---- slides: the stream agenda, one slide per day, slowly scrolling when there are more streams than fit ----
+  function daySlides() {
+    var list = upcoming(false), today = ymd(wallNow()), wEnd = parseYmd(today) + 7 * 86400000, week = [], days = {}, order = [], out = [], i, it;
     for (i = 0; i < list.length; i++) {
       it = list[i];
       if (it.endDate && parseYmd(it.date) < wEnd) { week.push(it); continue; }
-      key = it.date < today ? today : it.date;
+      var key = it.date < today ? today : it.date;
       if (!days[key]) { days[key] = []; order.push(key); }
       days[key].push(it);
     }
     order.sort();
-    if (week.length) { entries.push({ h: 'Deze week' }); for (i = 0; i < week.length; i++) entries.push({ it: week[i], range: true }); }
-    for (i = 0; i < order.length; i++) { entries.push({ h: dayHead(order[i], today) }); for (key = 0; key < days[order[i]].length; key++) entries.push({ it: days[order[i]][key] }); }
-    var HEAD = 66, ITEM = 104, COLH = 740, pages = [], cols = [], col = { h: 0, rows: [] }, lastHead = '';
-    function nextCol() { if (col.rows.length) cols.push(col); col = { h: 0, rows: [] }; if (cols.length === 2) { pages.push(cols); cols = []; } }
-    for (i = 0; i < entries.length; i++) {
-      var e = entries[i];
-      if (e.h !== undefined) {
-        if (col.h + HEAD + ITEM > COLH) nextCol();
-        col.rows.push(e); col.h += HEAD; lastHead = e.h;
-      } else {
-        if (col.h + ITEM > COLH) { nextCol(); if (lastHead) { col.rows.push({ h: lastHead }); col.h += HEAD; } }
-        col.rows.push(e); col.h += ITEM;
-      }
+    for (i = 0; i < order.length; i++) {
+      out.push({ type: 'agenda', date: order[i], items: days[order[i]] });
+      if (i === 0 && order[0] === today && week.length) out.push({ type: 'agenda', week: true, items: week });      // the events over several days come after today
     }
-    if (col.rows.length) cols.push(col);
-    if (cols.length) pages.push(cols);
-    return pages;
+    if (week.length && !(order.length && order[0] === today)) out.splice(0, 0, { type: 'agenda', week: true, items: week });
+    return out;
   }
-  function agendaHtml(cols) {
-    var html = '<div class="ttl rz">Stream<b>agenda</b></div>', c, r, k = 0, row, it, live, tm, sub;
-    if (!cols) return html + '<div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
-    for (c = 0; c < cols.length; c++) {
-      html += '<div class="col" style="left:' + (80 + c * 920) + 'px">';
-      for (r = 0; r < cols[c].rows.length; r++) {
-        row = cols[c].rows[r];
-        if (row.h !== undefined) { html += '<div class="gh rz' + (r === 0 ? ' first' : '') + (row.live ? ' lv' : '') + '"' + dly(k++) + '>' + esc(row.h) + '</div>'; continue; }
-        it = row.it; live = isLive(it); sub = live ? '' : inTxt(it);
-        tm = live ? '<span class="tm now"><i></i>LIVE</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
-        html += '<div class="it rz' + (live ? ' live' : '') + '"' + dly(k++) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
-          '<div class="tgs">' + tagsHtml(it) + (row.range ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>';
-      }
-      html += '</div>';
+  function dayTitle(s) {
+    var today = ymd(wallNow());
+    if (s.week) return 'Deze <b>week</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' evenement' : ' evenementen') + '</span>';
+    var diff = Math.round((parseYmd(s.date) - parseYmd(today)) / 86400000), d = new Date(parseYmd(s.date));
+    var name = diff <= 0 ? 'vandaag' : diff === 1 ? 'morgen' : WD_FULL[d.getUTCDay()];
+    return 'Streams <b>' + name + '</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' stream' : ' streams') + '</span><span class="cd">' + WD_FULL[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MON_FULL[d.getUTCMonth()] + '</span>';
+  }
+  function dayHtml(s) {
+    if (s.empty) return '<div class="ttl rz">Stream<b>agenda</b></div><div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
+    var html = '<div class="ttl rz">' + dayTitle(s) + '</div>';
+    if (!s.items) return html + '<div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
+    var big = !s.week && s.date <= ymd(wallNow()), h = '<div class="vp"><div class="sc" id="sc">', i, it, live, sub, tm;
+    for (i = 0; i < s.items.length; i++) {                                     // today is larger than the other days
+      it = s.items[i]; live = isLive(it); sub = live ? '' : inTxt(it);
+      tm = live ? '<span class="tm now"><i></i>LIVE</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
+      h += '<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(i) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
+        '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>';
     }
-    return html;
+    return html + h + '</div></div>';
+  }
+  // more streams than fit: after a few seconds the list scrolls slowly up and stays at the end
+  var scTimer = 0;
+  function startScroll() {
+    clearTimeout(scTimer);
+    var sc = document.getElementById('sc'); if (!sc) return;
+    var over = sc.offsetHeight - sc.parentNode.clientHeight;
+    if (over < 6) return;
+    var dur = Math.min(21, Math.max(8, over / 28));
+    scTimer = setTimeout(function () {
+      sc.style.webkitTransition = 'transform ' + dur + 's linear'; sc.style.transition = 'transform ' + dur + 's linear';
+      sc.style.webkitTransform = 'translateY(' + (-over) + 'px)'; sc.style.transform = 'translateY(' + (-over) + 'px)';
+    }, 5000);
   }
 
   // ---- slide: featured (the starred agenda items as big cards, four to a page) ----
@@ -408,7 +412,7 @@
     var out = [], p, i;
     if (meeting.mode === 'slogan') return [{ type: 'slogan' }];
     if (meeting.mode === 'welcome') return [{ type: 'welcome' }];
-    p = agendaPages(); if (!p.length) out.push({ type: 'agenda', html: agendaHtml(null) }); else for (i = 0; i < p.length; i++) out.push({ type: 'agenda', cols: p[i] });
+    p = daySlides(); if (!p.length) out.push({ type: 'agenda', empty: true }); else for (i = 0; i < p.length; i++) out.push(p[i]);
     p = featuredPages(); for (i = 0; i < p.length; i++) out.push({ type: 'featured', list: p[i] });
     if (streamsHtml('men')) { out.push({ type: 'streams', comp: 'men' }); out.push({ type: 'stand', comp: 'men' }); }
     out.push({ type: 'slogan' });
@@ -420,7 +424,7 @@
     return out;
   }
   function renderSlide(s) {
-    if (s.type === 'agenda') return s.html || agendaHtml(s.cols);
+    if (s.type === 'agenda') return dayHtml(s);
     if (s.type === 'featured') return featuredHtml(s.list);
     if (s.type === 'matches') return matchesHtml();
     if (s.type === 'streams') return streamsHtml(s.comp);
@@ -448,13 +452,14 @@
 
   var only = (/[?&]slide=([a-z,]+)/.exec(location.search) || [])[1]; only = only ? only.split(',') : null;   // ?slide=shl,weather shows only those slides (to look at them)
   var onlyComp = (/[?&]comp=(men|women)/.exec(location.search) || [])[1];
+  var onlyN = +((/[?&]n=(\d+)/.exec(location.search) || [])[1] || 0);       // ?slide=agenda&n=3 shows the third of those slides
   var busy = false, shownKey = '', timer = 0;
-  var slides = [], idx = -1, current = null, dotsEl = document.getElementById('dots');
-    function dots(n, at) { var h = '', i; if (n > 1) for (i = 0; i < n; i++) h += '<i' + (i === at ? ' class="on"' : '') + '></i>'; dotsEl.innerHTML = h; }
+  var slides = [], idx = -1, current = null, dotsEl = null;
+    function dots() { }                                                     // the slide dots at the bottom are gone
   function next(first) {
     if (busy) return;
     slides = buildSlides();
-    if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0 && (!onlyComp || slides[q].comp === onlyComp)) f.push(slides[q]); } if (f.length) slides = f; }
+    if (only) { var f = [], q; for (q = 0; q < slides.length; q++) { if (only.indexOf(slides[q].type) >= 0 && (!onlyComp || slides[q].comp === onlyComp)) f.push(slides[q]); } if (f.length) slides = f; if (onlyN && slides[onlyN - 1]) slides = [slides[onlyN - 1]]; }
     if (!slides.length) { timer = setTimeout(next, 3000); return; }
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
@@ -468,7 +473,7 @@
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
-      startPillars();
+      startPillars(); startScroll();
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)

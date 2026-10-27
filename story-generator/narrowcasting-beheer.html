@@ -101,7 +101,7 @@
     saveTimer = setTimeout(function () {
       fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function () { status('✓ Opgeslagen'); })
+        .then(function () { saveTimer = 0; status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
     }, now ? 0 : 500);
   }
@@ -215,7 +215,15 @@
   document.getElementById('clearPast').addEventListener('click', function () {
     var t = today(); items = items.filter(function (it) { return (it.endDate || it.date) >= t; }); render(); save();
   });
-  fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) { items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; render(); }).catch(function () { status('Laden mislukt.'); });
+  // load, and load again when the page comes back into view, so that a page that has been open a long time never saves old data over newer data
+  function load() {
+    fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) {
+      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; render();
+    }).catch(function () { status('Laden mislukt.'); });
+  }
+  load();
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && !saveTimer) load(); });
+  window.addEventListener('focus', function () { if (!saveTimer) load(); });
   fetch('/api/narrowcasting-matches').then(function (r) { return r.json(); }).then(function (j) { matches = j.matches || []; renderPick(); }).catch(function () { });
 })();
 </script>

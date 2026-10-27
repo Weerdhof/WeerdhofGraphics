@@ -31,9 +31,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .stage.noclock .clockbox { display: none; }
 .clockbox .clock { font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 84px; line-height: 90px; letter-spacing: -1px; }
 .clockbox .date { font-size: 26px; font-weight: 600; color: #a5b4ff; line-height: 32px; }
-.dots { position: absolute; right: 80px; top: 1048px; width: 400px; height: 20px; text-align: right; z-index: 5; }
-.dots i { display: inline-block; width: 12px; height: 12px; margin-left: 9px; border-radius: 50%; background: rgba(255,255,255,.22); }
-.dots i.on { background: #fff; }
 
 /* the sweep between slides */
 .wipe { position: absolute; left: 0; top: 0; width: 2320px; height: 1080px; z-index: 50; -webkit-transform: translateX(-200px); transform: translateX(-200px); }
@@ -210,3 +207,29 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .wdim { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: #060228; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 .pre .wbg { animation-play-state: paused; }
+
+/* the streams of today: large, on their own slide */
+.it.xl { height: 120px; margin-bottom: 12px; }
+.it.xl .ic { width: 96px; height: 96px; top: 4px; border-width: 4px; }
+.it.xl .ic .mi { font-size: 56px; line-height: 88px; }
+.it.xl .ic .dn { font-size: 46px; line-height: 88px; }
+.it.xl .tt { left: 132px; top: -4px; width: 1180px; font-size: 62px; line-height: 72px; }
+.it.xl .tm { width: 300px; top: 0; font-size: 62px; line-height: 72px; }
+.it.xl .tm small { margin-top: -8px; font-size: 24px; line-height: 28px; }
+.it.xl .tm.now { width: auto; height: 56px; line-height: 56px; top: 8px; padding: 0 30px 0 24px; border-radius: 30px; font-size: 32px; }
+.it.xl .tm.now i { width: 18px; height: 18px; margin-right: 12px; }
+.it.xl .tgs { left: 132px; top: 76px; width: 1300px; }
+.it.xl .tg { height: 34px; line-height: 31px; font-size: 20px; padding: 0 18px; }
+.it.xl .pl { height: 38px; line-height: 36px; font-size: 26px; }
+.it.xl.live:before { left: -22px; right: -22px; top: -12px; bottom: -4px; border-radius: 40px; }
+
+/* the stream agenda: one slide per day, the list scrolls slowly when it is longer than the screen */
+.vp { position: absolute; left: 56px; top: 190px; width: 1808px; height: 820px; overflow: hidden; }
+.sc { position: relative; padding: 10px 24px 10px; }
+.vp .it .tt { width: 1100px; }
+.vp .it .tgs { width: 1500px; }
+.vp .it .tm { width: 260px; }
+.vp .it.xl .tt { width: 1180px; }
+.ttl .cn, .ttl .cd { display: inline-block; vertical-align: middle; margin-left: 24px; margin-top: 8px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 34px; line-height: 44px; border-radius: 30px; letter-spacing: 0; }
+.ttl .cn { background: #3D5AFE; color: #ffffff; padding: 8px 28px; }
+.ttl .cd { border: 3px solid rgba(255,255,255,.6); color: #ffffff; padding: 5px 26px; }
