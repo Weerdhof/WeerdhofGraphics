@@ -15,12 +15,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; overflow: hidden; background: #060228; }
 .mi { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; -webkit-font-feature-settings: "liga"; font-feature-settings: "liga"; }
 
-/* soft colour circles in the background, drifting slowly */
-.orb { position: absolute; display: block; }                                  /* the big ByT icon in the background */
-.orb-a { width: 780px; height: 885px; right: -70px; top: -170px; opacity: .15; animation: drift-a 48s ease-in-out infinite alternate; }
-.orb-b { width: 560px; height: 636px; left: -170px; bottom: -270px; opacity: .09; animation: drift-b 60s ease-in-out infinite alternate; }
-@keyframes drift-a { from { transform: translate(0,0); } to { transform: translate(-120px,90px); } }
-@keyframes drift-b { from { transform: translate(0,0); } to { transform: translate(140px,-70px); } }
 
 /* slides */
 #slides, .slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
@@ -162,11 +156,11 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* a statement in between */
 .sg { position: absolute; left: 80px; top: 190px; width: 1700px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 206px; line-height: 212px; letter-spacing: -4px; }
 .sg b { color: #3D5AFE; font-weight: 900; }
-.sgl { position: absolute; left: 84px; top: 760px; width: 600px; height: 117px; }
-.sgl svg { width: 600px; height: 117px; }
+.sgl { position: absolute; left: 80px; top: 760px; width: 600px; height: 116px; }
+.sgl svg { width: 600px; height: 116px; }
 
 /* a slide with only the logo */
-.lg1 { position: absolute; left: 460px; top: 443px; width: 1000px; height: 195px; animation: lg-in 2.4s .5s cubic-bezier(.25,.6,.25,1) both; }
+.lg1 { position: absolute; left: 460px; top: 443px; width: 1000px; height: 194px; animation: lg-in 2.4s .5s cubic-bezier(.25,.6,.25,1) both; }
 @keyframes lg-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 .pre .lg1 { animation-play-state: paused; }
 
