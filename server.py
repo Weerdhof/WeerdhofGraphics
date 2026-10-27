@@ -1061,7 +1061,7 @@ def _safe_export_name(name):
 # certificates or CORS) and kept for 15 minutes.
 # ---------------------------------------------------------------------------
 NARROW_FILE = os.path.join(DATA_DIR, "narrowcasting.json")
-NARROW_PILLARS = ("productie", "jump", "marketing", "content", "standaard", "navy", "lvl", "shl", "shlw", "hnl", "hhd", "hhh")
+NARROW_PILLARS = ("productie", "jump", "marketing", "content", "standaard", "navy", "lvl", "shl", "shlw", "hnl", "hhd", "hhh", "hnltv")
 WEATHER_PLACE = {"name": "Veenendaal", "lat": 52.0267, "lon": 5.5583}
 _weather = {"at": 0, "data": None}
 
@@ -1116,7 +1116,8 @@ def _clean_narrow(raw):
                "bg": num(mt.get("bg"), 0, 10 ** 15, 0), "dim": num(mt.get("dim"), 0, 90, 45)}      # bg: version of the background photo of the welcome slide (0 = none), dim: how much darker
     sl_raw = raw.get("slides") if isinstance(raw.get("slides"), dict) else {}
     slides = {k: sl_raw.get(k) is not False for k in NARROW_SLIDES}          # which slides take part in the rotation (default: all)
-    return {"items": items, "show": show, "meeting": meeting, "slides": slides}
+    hidden = [str(h)[:200] for h in (raw.get("hidden") if isinstance(raw.get("hidden"), list) else [])[:600] if isinstance(h, str)]   # fetched matches that have been deleted from the agenda
+    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden}
 
 
 def narrow_data():

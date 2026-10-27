@@ -263,3 +263,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* will it rain: the pill on the weather slide is filled */
 .wp.wrain { background: #3D5AFE; border-color: #3D5AFE; color: #ffffff; }
+
+/* the sport icon takes the colour of the client */
+.ic { color: #ffffff; }
+.ic .mi, .ic .dn { color: inherit; }

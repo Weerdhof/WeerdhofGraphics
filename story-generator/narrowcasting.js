@@ -8,7 +8,7 @@
     standaard: { label: 'Algemeen', c: '#748FFF', bg: '#3D5AFE', ink: '#ffffff' }, navy: { label: 'Navy', c: '#A5B4FF', bg: '#2D43A8', ink: '#ffffff' },
     lvl: { label: 'Lotto Volley League', c: '#FF4B3E', bg: '#EE3124', ink: '#ffffff' }, shl: { label: 'SHL', c: '#ccff33', bg: '#ccff33', ink: '#060228' },
     shlw: { label: 'SHLW', c: '#e353fc', bg: '#e353fc', ink: '#060228' }, hnl: { label: 'HandbalNL', c: '#ff8a4d', bg: '#ff7429', ink: '#060228' },
-    hhd: { label: 'Hoofdklasse Dames', c: '#2FD6C0', bg: '#2FD6C0', ink: '#060228' }, hhh: { label: 'Hoofdklasse Heren', c: '#8F66FF', bg: '#8F66FF', ink: '#ffffff' }
+    hnltv: { label: 'HandbalNL TV', c: '#B58CFF', bg: '#A66BFF', ink: '#060228' }, hhd: { label: 'Hoofdklasse Dames', c: '#2FD6C0', bg: '#2FD6C0', ink: '#060228' }, hhh: { label: 'Hoofdklasse Heren', c: '#8F66FF', bg: '#8F66FF', ink: '#ffffff' }
   };
   var SPORTS = { basketbal: 'sports_basketball', volleybal: 'sports_volleyball', handbal: 'sports_handball', voetbal: 'sports_soccer', tennis: 'sports_tennis', padel: 'sports_tennis',
     hockey: 'sports_hockey', zwemmen: 'pool', hardlopen: 'directions_run', wielrennen: 'directions_bike', turnen: 'sports_gymnastics', vechtsport: 'sports_martial_arts',
@@ -56,12 +56,12 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  var items = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() {
     get('/api/narrowcasting', function (j) {
       if (!j) return;
       if (j.wall) wallDelta = j.wall - Date.now();
-      items = j.items || []; show = j.show || show; slidesOn = j.slides || slidesOn; tick();
+      items = j.items || []; show = j.show || show; slidesOn = j.slides || slidesOn; hidden = j.hidden || []; tick();
       applyMeeting(j.meeting);
     });
   }
@@ -108,6 +108,7 @@
     for (i = 0; i < matches.length; i++) {
       m = matches[i]; C = COMPS[m.comp];
       if (!C || show[m.comp] === false || m.date > last) continue;
+      if (hidden.indexOf(m.date + '|' + (m.away ? m.home + ' - ' + m.away : m.home).toLowerCase()) >= 0) continue;                  // deleted on the beheer page
       out.push({ id: 'm' + i, auto: true, comp: m.comp, date: m.date, endDate: '', time: m.time || '', end: '', title: m.away ? m.home + ' - ' + m.away : m.home, place: '', pillars: [],
         sport: m.comp.indexOf('lvl') === 0 ? 'volleybal' : 'handbal', jump: true, allDay: false });
     }
@@ -135,6 +136,15 @@
     for (i = 0; i < it.pillars.length; i++) { if (it.pillars[i] === 'jump' && !all) continue; P = PILLARS[it.pillars[i]] || PILLARS.standaard; h += '<span class="tg' + (prodOnly ? ' prod' : '') + '" style="' + (P.fill ? 'background:' + P.c + ';color:#fff;' : 'color:' + P.c + ';') + 'border-color:' + P.c + '">' + P.label + '</span>'; }
     return cp + h;
   }
+  // the colour of the client of a match: the sport icon takes it
+  var CLIENTS = { shl: ['#ccff33', '#060228'], shlw: ['#e353fc', '#060228'], lvl: ['#FF4B3E', '#ffffff'], lvlm: ['#FF4B3E', '#ffffff'], lvlw: ['#FF4B3E', '#ffffff'], hnl: ['#ff8a4d', '#060228'],
+    hnltv: ['#B58CFF', '#060228'], hhd: ['#2FD6C0', '#060228'], hhh: ['#8F66FF', '#ffffff'] };
+  function clientOf(it) {
+    var i; if (it.comp && CLIENTS[it.comp]) return CLIENTS[it.comp];
+    for (i = 0; i < it.pillars.length; i++) { if (CLIENTS[it.pillars[i]]) return CLIENTS[it.pillars[i]]; }
+    return null;
+  }
+  function icStyle(it) { var c = clientOf(it); return c ? ' style="background:' + c[0] + ';border-color:' + c[0] + ';color:' + c[1] + '"' : ''; }
   function iconHtml(it) { return SPORTS[it.sport] ? '<span class="mi">' + SPORTS[it.sport] + '</span>' : '<span class="dn">' + new Date(parseYmd(it.date)).getUTCDate() + '</span>'; }
   function dly(i) { return ' style="animation-delay:' + (i * 70 + 150) + 'ms"'; }
 
@@ -189,7 +199,7 @@
     for (i = 0; i < s.items.length; i++) {
       it = s.items[i]; live = isLive(it); sub = live ? '' : inTxt(it);
       tm = live ? '<span class="tm now"><i></i>' + (isStream(it) ? 'LIVE' : 'BEZIG') + '</span>' : (it.time ? '<span class="tm">' + esc(it.time) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' : (it.allDay ? '<span class="tm">hele dag</span>' : ''));
-      rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
+      rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic"' + icStyle(it) + '>' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
         '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>');
     }
     if (big) return html + '<div class="vp"><div class="scr" id="sc">' + rows.join('') + '</div></div>' + dayPills(s.date);

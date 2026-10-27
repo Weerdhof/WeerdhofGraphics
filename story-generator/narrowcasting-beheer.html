@@ -53,8 +53,9 @@
   .th iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
   .scard .sl { padding: 9px 12px; font: 700 14px "Open Sans", sans-serif; display: flex; align-items: center; gap: 9px; }
   table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.t input[type=text], table.t input[type=date], table.t input[type=time], table.t select { padding: 7px 6px; font-size: 14px; }
   table.t th { text-align: left; font: 700 11px "Open Sans", sans-serif; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; padding: 8px 10px; position: sticky; top: 0; background: var(--surface); }
-  table.t td { padding: 7px 10px; border-top: 1px solid var(--line); vertical-align: middle; }
+  table.t td { padding: 6px 6px; border-top: 1px solid var(--line); vertical-align: middle; }
   table.t tr.day td { background: var(--surface-2); font: 700 14px "Niveau Grotesk", Arial, sans-serif; border-top: 0; padding: 9px 10px; }
   table.t tr.off td { opacity: .4; }
   .src { display: inline-block; border: 2px solid; border-radius: 14px; padding: 1px 10px; font: 700 12px "Niveau Grotesk", Arial, sans-serif; white-space: nowrap; }
@@ -91,7 +92,7 @@
     <div class="sgrid" id="slidesGrid"></div>
   </div>
   <div class="box">
-    <div class="row"><b>Alle wedstrijden</b><span class="status" id="tblCount"></span>
+    <div class="row"><b>Alle wedstrijden</b><span class="status" id="tblCount"></span><button class="btn small" id="tblAdd" type="button">+ Wedstrijd toevoegen</button>
       <span id="chips"></span>
       <select id="range" style="max-width:190px"><option value="7">komende 7 dagen</option><option value="14" selected>komende 14 dagen</option><option value="35">komende 5 weken</option><option value="400">alles</option></select></div>
     <div class="tblwrap"><table class="t" id="tbl"></table></div>
@@ -102,7 +103,7 @@
       <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label><label class="chk"><input type="checkbox" data-show="hnltv"> HandbalNL TV</label></div>
     <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League) en uit de livestream-agenda van handbalnl.tv, zonder dat je ze hoeft in te vullen. Wedstrijden die al in het SHL-, SHLW- of LVL-programma staan, worden bij HandbalNL TV overgeslagen.</div>
   </div>
-  <details class="ed" id="editor"><summary>Eigen wedstrijden beheren</summary>
+  <details class="ed" id="editor"><summary>Meer opties voor eigen wedstrijden (plaats, meerdere dagen, hele dag, andere tags)</summary>
   <div class="box">
     <div class="row"><b style="min-width:210px">Uit het programma toevoegen</b><select id="pick" style="flex:1;min-width:260px"></select><button class="btn small" id="pickAdd" type="button">Toevoegen</button></div>
   </div>
@@ -128,7 +129,7 @@
   function save(now) {
     clearTimeout(saveTimer); status('Opslaan…');
     saveTimer = setTimeout(function () {
-      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn }) })
+      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn, hidden: hidden }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function () { saveTimer = 0; status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
@@ -193,35 +194,75 @@
   window.addEventListener('resize', scaleThumbs);
   document.addEventListener('change', function (e) { var k = e.target.getAttribute && e.target.getAttribute('data-slide'); if (!k) return; slidesOn[k] = e.target.checked; renderSlides(); save(); });
 
-  // ---- the table with every match: what has been fetched from the schedules and HandbalNL TV, and what has been entered by hand ----
+  // ---- the table with every match: what has been fetched (only to delete) and what has been entered by hand (to fill in and change here) ----
   var SRC = { shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], lvlm: ['LVL heren', '#FF4B3E'], lvlw: ['LVL dames', '#FF4B3E'], hnltv: ['HandbalNL TV', '#B58CFF'], hand: ['Handmatig', '#ffffff'] };
-  var PLAB = { productie: 'Productie', jump: 'JUMP', marketing: 'Marketing', content: 'Content', standaard: 'Algemeen', navy: 'Navy', lvl: 'Lotto Volley League', shl: 'SHL', shlw: 'SHLW', hnl: 'HandbalNL', hhd: 'Hoofdklasse Dames', hhh: 'Hoofdklasse Heren' };
+  var CLIENTS = [['', 'Geen klant'], ['shl', 'SHL'], ['shlw', 'SHLW'], ['lvl', 'Lotto Volley League'], ['hnltv', 'HandbalNL TV'], ['hnl', 'HandbalNL'], ['hhd', 'Hoofdklasse Dames'], ['hhh', 'Hoofdklasse Heren']];
+  var CKEYS = CLIENTS.map(function (c) { return c[0]; }).filter(Boolean);
+  var hidden = [];
+  function clientOfItem(it) { var i; for (i = 0; i < (it.pillars || []).length; i++) { if (CKEYS.indexOf(it.pillars[i]) >= 0) return it.pillars[i]; } return ''; }
+  function hasP(it, k) { return (it.pillars || []).indexOf(k) >= 0; }
+  function setP(it, k, on) { var at = it.pillars.indexOf(k); if (on && at < 0) it.pillars.push(k); if (!on && at >= 0) it.pillars.splice(at, 1); if (!it.pillars.length) it.pillars = ['standaard']; }
+  function matchKey(m) { return m.date + '|' + (m.away ? m.home + ' - ' + m.away : m.home).toLowerCase(); }
   function renderTable() {
     var t = document.getElementById('tbl'), today0 = today(), lim = new Date(); lim.setDate(lim.getDate() + (+document.getElementById('range').value));
-    var last = lim.getFullYear() + '-' + ('0' + (lim.getMonth() + 1)).slice(-2) + '-' + ('0' + lim.getDate()).slice(-2), rows = [], seen = {}, i;
-    items.forEach(function (it, idx) { if ((it.endDate || it.date) >= today0 && it.date <= last) { rows.push({ date: it.date, time: it.time || '', title: it.title || '(zonder titel)', src: 'hand', tags: it.pillars || [], on: it.jump !== false, feat: it.featured, idx: idx }); seen[it.date + '|' + (it.title || '').toLowerCase()] = 1; } });
-    matches.forEach(function (m) { var title = m.away ? m.home + ' - ' + m.away : m.home; if (m.date >= today0 && m.date <= last && !seen[m.date + '|' + title.toLowerCase()]) rows.push({ date: m.date, time: m.time || '', title: title, src: m.comp, tags: [], on: show[m.comp] !== false, feat: false }); });
-    rows.sort(function (a, b) { return (a.date + (a.time || '00:00')) < (b.date + (b.time || '00:00')) ? -1 : 1; });
+    var last = lim.getFullYear() + '-' + ('0' + (lim.getMonth() + 1)).slice(-2) + '-' + ('0' + lim.getDate()).slice(-2), rows = [], seen = {}, hid = 0;
+    items.forEach(function (it, idx) { if ((it.endDate || it.date) >= today0 && it.date <= last) { rows.push({ date: it.date, time: it.time || '', title: it.title || '', src: 'hand', idx: idx }); seen[it.date + '|' + (it.title || '').toLowerCase()] = 1; } });
+    matches.forEach(function (m) {
+      var title = m.away ? m.home + ' - ' + m.away : m.home;
+      if (m.date < today0 || m.date > last || seen[m.date + '|' + title.toLowerCase()]) return;
+      if (hidden.indexOf(matchKey(m)) >= 0) { hid++; return; }
+      rows.push({ date: m.date, time: m.time || '', title: title, src: m.comp, key: matchKey(m), on: show[m.comp] !== false });
+    });
+    rows.sort(function (a, b) { return (a.date + (a.time || '00:00')) < (b.date + (b.time || '00:00')) ? -1 : (a.date + (a.time || '00:00')) > (b.date + (b.time || '00:00')) ? 1 : (a.idx === undefined ? 1 : 0) - (b.idx === undefined ? 1 : 0); });
     var counts = {}; rows.forEach(function (r) { counts[r.src] = (counts[r.src] || 0) + 1; });
     document.getElementById('chips').innerHTML = Object.keys(SRC).map(function (k) { return counts[k] ? '<span class="chip' + (srcFilter[k] === false ? '' : ' on') + '" data-chip="' + k + '">' + SRC[k][0] + ' ' + counts[k] + '</span> ' : ''; }).join('');
     rows = rows.filter(function (r) { return srcFilter[r.src] !== false; });
     var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
-    var h = '<tr><th style="width:70px">Tijd</th><th>Wedstrijd</th><th style="width:150px">Bron</th><th style="width:240px">Tags</th><th style="width:90px">Op scherm</th><th style="width:90px">Uitgelicht</th><th style="width:80px"></th></tr>', cur = '';
+    var h = '<tr><th style="width:128px">Datum</th><th style="width:90px">Tijd</th><th>Wedstrijd</th><th style="width:104px">Sport</th><th style="width:150px">Klant</th><th style="width:50px">JUMP</th><th style="width:70px">Prod.</th><th style="width:44px">&#9733;</th><th style="width:44px"></th></tr>', cur = '';
+    var sportOpts = function (v) { return '<option value="">-</option>' + SPORTS.map(function (s) { return '<option value="' + s + '"' + (v === s ? ' selected' : '') + '>' + s + '</option>'; }).join(''); };
     rows.forEach(function (r) {
-      if (r.date !== cur) { cur = r.date; var d = new Date(r.date + 'T12:00:00'), n = rows.filter(function (x) { return x.date === cur; }).length; h += '<tr class="day"><td colspan="7">' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' · ' + n + ' wedstrijd' + (n === 1 ? '' : 'en') + '</td></tr>'; }
-      var s = SRC[r.src];
-      h += '<tr' + (r.on ? '' : ' class="off"') + '><td>' + esc(r.time) + '</td><td>' + esc(r.title) + '</td><td><span class="src" style="color:' + s[1] + ';border-color:' + s[1] + '">' + s[0] + '</span></td><td>' +
-        r.tags.map(function (k) { return '<span class="src" style="color:#a9aedc;border-color:#3a4896">' + (PLAB[k] || k) + '</span>'; }).join(' ') + '</td><td>' + (r.on ? '✓' : 'uit') + '</td><td>' + (r.feat ? '★' : '') + '</td><td>' + (r.idx !== undefined ? '<a href="#" data-edit="' + r.idx + '" style="color:#8fa4ff">bewerk</a>' : '') + '</td></tr>';
+      if (r.date !== cur) { cur = r.date; var d = new Date(r.date + 'T12:00:00'), n = rows.filter(function (x) { return x.date === cur; }).length; h += '<tr class="day"><td colspan="9">' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' · ' + n + ' wedstrijd' + (n === 1 ? '' : 'en') + '</td></tr>'; }
+      if (r.idx !== undefined) {                                                     // entered by hand: everything can be filled in and changed here
+        var it = items[r.idx];
+        h += '<tr data-i="' + r.idx + '"><td><input type="date" data-t="date" value="' + esc(it.date) + '"></td><td><input type="time" data-t="time" value="' + esc(it.time || '') + '"></td>' +
+          '<td><input type="text" data-t="title" maxlength="80" placeholder="Wedstrijd" value="' + esc(it.title || '') + '"></td><td><select data-t="sport">' + sportOpts(it.sport) + '</select></td>' +
+          '<td><select data-t="client">' + CLIENTS.map(function (c) { return '<option value="' + c[0] + '"' + (clientOfItem(it) === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></td>' +
+          '<td style="text-align:center"><input type="checkbox" data-t="jump"' + (hasP(it, 'jump') ? ' checked' : '') + '></td><td style="text-align:center"><input type="checkbox" data-t="productie"' + (hasP(it, 'productie') ? ' checked' : '') + '></td>' +
+          '<td style="text-align:center"><input type="checkbox" data-t="featured"' + (it.featured ? ' checked' : '') + '></td><td><button class="del" type="button" data-tdel="' + r.idx + '" title="Verwijderen">&times;</button></td></tr>';
+      } else {                                                                       // fetched: only to delete
+        var s = SRC[r.src];
+        h += '<tr' + (r.on ? '' : ' class="off"') + '><td>' + esc(r.date.slice(8) + '-' + r.date.slice(5, 7)) + '</td><td>' + esc(r.time) + '</td><td>' + esc(r.title) + '</td><td></td><td><span class="src" style="color:' + s[1] + ';border-color:' + s[1] + '">' + s[0] + '</span></td><td></td><td></td><td></td>' +
+          '<td><button class="del" type="button" data-hide="' + esc(r.key) + '" title="Weghalen uit de agenda">&times;</button></td></tr>';
+      }
     });
     t.innerHTML = rows.length ? h : '<tr><td style="padding:16px;color:var(--dim)">Geen wedstrijden in deze periode.</td></tr>';
-    document.getElementById('tblCount').textContent = rows.length + ' wedstrijden';
+    document.getElementById('tblCount').innerHTML = rows.length + ' wedstrijden' + (hid ? ' · <a href="#" data-restore="1" style="color:#8fa4ff">' + hid + ' weggehaald, herstel</a>' : '');
   }
+  // edit in the table: the fields of a hand-made match change at once; the date and time re-sort the table
+  document.getElementById('tbl').addEventListener('input', function (e) {
+    var tr = e.target.closest('tr[data-i]'), f = e.target.getAttribute('data-t'); if (!tr || !f) return;
+    var it = items[+tr.getAttribute('data-i')];
+    if (f === 'jump' || f === 'productie') setP(it, f, e.target.checked);
+    else if (f === 'featured') it.featured = e.target.checked;
+    else if (f === 'client') { CKEYS.forEach(function (k) { setP(it, k, false); }); if (e.target.value) setP(it, e.target.value, true); }
+    else it[f] = e.target.value;
+    save();
+  });
+  document.getElementById('tbl').addEventListener('change', function (e) { var f = e.target.getAttribute('data-t'); if (f === 'date' || f === 'time') { renderTable(); render(); } });
   document.addEventListener('click', function (e) {
     var c = e.target.getAttribute && e.target.getAttribute('data-chip'); if (c) { srcFilter[c] = srcFilter[c] === false; renderTable(); return; }
-    var ed = e.target.getAttribute && e.target.getAttribute('data-edit');
-    if (ed !== null && ed !== undefined && e.target.tagName === 'A') { e.preventDefault(); document.getElementById('editor').open = true; var card = document.querySelector('.it[data-i="' + ed + '"]'); if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.style.outline = '2px solid #49FF9F'; setTimeout(function () { card.style.outline = ''; }, 2500); } }
+    var dl = e.target.getAttribute && e.target.getAttribute('data-tdel');
+    if (dl !== null && dl !== undefined && e.target.tagName === 'BUTTON') { items.splice(+dl, 1); renderTable(); render(); save(true); return; }
+    var hd = e.target.getAttribute && e.target.getAttribute('data-hide');
+    if (hd) { hidden.push(hd); renderTable(); save(true); return; }
+    if (e.target.getAttribute && e.target.getAttribute('data-restore')) { e.preventDefault(); hidden = []; renderTable(); save(true); }
   });
   document.getElementById('range').addEventListener('change', renderTable);
+  document.getElementById('tblAdd').addEventListener('click', function () {
+    srcFilter.hand = true; items.push(newItem({}));
+    renderTable(); render(); save();
+    var row = document.querySelector('#tbl tr[data-i="' + (items.length - 1) + '"]'); if (row) { row.scrollIntoView({ block: 'center' }); var ti = row.querySelector('[data-t=title]'); if (ti) ti.focus(); }
+  });
   function renderPick() {
     var sel = document.getElementById('pick'), h = '<option value="">Kies een wedstrijd uit het SHL- of LVL-programma…</option>';
     matches.slice(0, 80).forEach(function (m, i) {
@@ -292,7 +333,7 @@
   // load, and load again when the page comes back into view, so that a page that has been open a long time never saves old data over newer data
   function load() {
     fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) {
-      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; render(); renderSlides();
+      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; hidden = j.hidden || []; render(); renderSlides();
     }).catch(function () { status('Laden mislukt.'); });
   }
   load();
