@@ -306,13 +306,13 @@
       at(t, function () { txt.style.opacity = 0; });
       at(t + FADE, function () { seg.style.width = PB_D + 'px'; ico.style.opacity = 1; });
     }
-    // the whole routine once per 5 minutes: first one, two, three and four on their own, then all four together, then rest
+    // the whole routine once per 3 minutes: first one, two, three and four on their own, then all four together, then rest
     function cycle() {
       var t = 2000, k, one = STRETCH + 2200 + FADE + STRETCH;
       for (k = 0; k < segs.length; k++) { open(k, t); close(k, t + STRETCH + 2200); t += one + 150; }
       t += 250;
       for (k = 0; k < segs.length; k++) { open(k, t); close(k, t + STRETCH + 3000); }
-      at(300000, cycle);                                                         // much less often: the next round starts 5 minutes after this one
+      at(180000, cycle);                                                         // much less often: the next round starts 3 minutes after this one
     }
     cycle();
   }
