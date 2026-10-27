@@ -276,10 +276,10 @@
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
-  // the four pillars as round icons along the bottom (the letter in the alternative colour of the pillar, the name in the dark blue of the background; the JUMP wordmark has green letters and a white arrow). Once every 30 seconds one of them stretches (left anchored, like the circles
+  // the four pillars as round icons along the bottom (the letter in the alternative colour of the pillar, the name in the dark blue of the background; the JUMP wordmark has green letters and a white arrow). One by one they stretch, then nothing for 30 seconds: each stretches (left anchored, like the circles
   // of the ByTomorrow socials) into a pill with its full name and goes back to a circle; the colours never mix
   // (only on the slogan and the meeting mode)
-  var PB = [['Marketing', '#FFCC00', '#C25100', 'marketing.png'], ['Content', '#00FFE6', '#008B8B', 'content.png'], ['Productie', '#FC06E5', '#7B1FA2', 'productie.png'], ['JUMP', '#49FF9F', '#2F7E4D', 'jump.svg']], pbTimers = [], pbIndex = 0, PB_D = 68;
+  var PB = [['Marketing', '#FFCC00', '#C25100', 'marketing.png'], ['Content', '#00FFE6', '#008B8B', 'content.png'], ['Productie', '#FC06E5', '#7B1FA2', 'productie.png'], ['JUMP', '#49FF9F', '#2F7E4D', 'jump.svg']], pbTimers = [], PB_D = 68;
   function pillarBar() {
     var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
     for (i = 0; i < PB.length; i++) h += '<div class="pbc" style="background:' + PB[i][1] + '"><span class="pbw"><img src="/assets/pillars/' + PB[i][3] + '" alt=""></span><span class="pbt"' + (i === 3 ? ' style="left:24px"' : '') + '>' + (i === 3 ? '<img src="/assets/pillars/jump-wordmark.svg" alt="JUMP">' : PB[i][0]) + '</span></div>';
@@ -291,14 +291,21 @@
     var el = document.getElementById('pb'); if (!el) return;
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
-    function cycle() {
-      var n = pbIndex, seg = segs[n], ico = seg.children[0], txt = seg.children[1]; pbIndex = (pbIndex + 1) % PB.length;
+    // one pill: the circle stretches into a pill, the name fades in and out, and the pill becomes a circle again
+    function pill(n, t0) {
+      var seg = segs[n], ico = seg.children[0], txt = seg.children[1];
       // JUMP shows its full wordmark (with its own arrow) instead of the name, so the round arrow gives way to it
-      at(4000, function () { seg.style.width = ((n === 3 ? 24 : PB_D + 8) + txt.offsetWidth + 30) + 'px'; if (n === 3) ico.style.opacity = 0; });      // the circle stretches into a pill
-      at(4900, function () { txt.style.opacity = 1; });                                          // the name fades in just before the pill has landed
-      at(4000 + 1500 + 4500, function () { txt.style.opacity = 0; });                            // stays a moment, the name fades away
-      at(4000 + 1500 + 4500 + 700, function () { seg.style.width = PB_D + 'px'; ico.style.opacity = 1; });             // and the pill becomes a circle again
-      at(30000, cycle);
+      at(t0, function () { seg.style.width = ((n === 3 ? 24 : PB_D + 8) + txt.offsetWidth + 30) + 'px'; if (n === 3) ico.style.opacity = 0; });
+      at(t0 + 900, function () { txt.style.opacity = 1; });                                      // the name fades in just before the pill has landed
+      at(t0 + 1500 + 4500, function () { txt.style.opacity = 0; });                              // stays a moment, the name fades away
+      at(t0 + 1500 + 4500 + 700, function () { seg.style.width = PB_D + 'px'; ico.style.opacity = 1; });   // and the pill becomes a circle again
+      return t0 + 1500 + 4500 + 700 + 1500;
+    }
+    // the four pills one after the other, then nothing for 30 seconds
+    function cycle() {
+      var t = 4000, k;
+      for (k = 0; k < segs.length; k++) t = pill(k, t) + 400;
+      at(t + 30000, cycle);
     }
     cycle();
   }
@@ -306,7 +313,7 @@
   // ---- slide: welcome (meeting mode), with the name of the client ----
   function welcomeHtml() {
     var name = meeting.client || 'bij ByTomorrow', n = name.length, size = n <= 10 ? 206 : n <= 16 ? 160 : n <= 24 ? 120 : 90;
-    return '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500">Welkom</span><br><b style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.03) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
+    return '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Welkom</span><b style="display:block;margin-top:0;font-size:' + size + 'px;line-height:' + Math.round(size * 1.0) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
 
   // ---- slide: a statement in between ----

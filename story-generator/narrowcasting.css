@@ -155,7 +155,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .pill-o { border: 3px solid rgba(255,255,255,.85); line-height: 56px; }
 
 /* a statement in between */
-.sg { position: absolute; left: 80px; top: 190px; width: 1700px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 206px; line-height: 212px; letter-spacing: -4px; }
+.sg { position: absolute; left: 80px; top: 190px; width: 1700px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 206px; line-height: 194px; letter-spacing: -4px; }
 .sg b { color: #3D5AFE; font-weight: 900; }
 .sgl { position: absolute; left: 80px; top: 820px; width: 600px; height: 116px; }
 .sgl svg { width: 600px; height: 116px; }
