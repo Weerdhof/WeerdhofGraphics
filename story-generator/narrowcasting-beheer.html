@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Narrowcasting beheer</title>
+<style>
+  @font-face { font-family: "Niveau Grotesk"; font-weight: 700; src: url("/socials/fonts/NiveauGroteskBold.otf") format("opentype"); }
+  @font-face { font-family: "Niveau Grotesk"; font-weight: 900; src: url("/socials/fonts/NiveauGroteskBlack.otf") format("opentype"); }
+  @font-face { font-family: "Open Sans"; font-weight: 400; src: url("/fonts/bt/OpenSans-Regular.ttf") format("truetype"); }
+  @font-face { font-family: "Open Sans"; font-weight: 600; src: url("/fonts/bt/OpenSans-SemiBold.ttf") format("truetype"); }
+  @font-face { font-family: "Open Sans"; font-weight: 700; src: url("/fonts/bt/OpenSans-Bold.ttf") format("truetype"); }
+  :root { --navy: #060228; --blue: #3D5AFE; --green: #49FF9F; --surface: #0d0940; --surface-2: #151058; --line: #252070; --dim: #a9aedc; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--navy); color: #fff; font-family: "Open Sans", Arial, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 24px 90px; }
+  h1 { margin: 0 0 6px; font: 900 40px/1.1 "Niveau Grotesk", "Arial Black", sans-serif; }
+  h1 b { color: var(--green); }
+  h2 { font: 700 20px "Niveau Grotesk", Arial, sans-serif; margin: 34px 0 12px; }
+  .sub { color: var(--dim); margin: 0 0 22px; line-height: 1.5; }
+  .top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+  .btn { display: inline-block; border: 0; border-radius: 22px; padding: 10px 22px; background: var(--blue); color: #fff; font: 700 15px "Niveau Grotesk", Arial, sans-serif; cursor: pointer; text-decoration: none; }
+  .btn.line { background: transparent; border: 2px solid rgba(255,255,255,.7); padding: 8px 20px; }
+  .btn.small { padding: 7px 16px; font-size: 13px; }
+  .status { color: var(--dim); font-size: 14px; min-height: 20px; }
+  .box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
+  .box label.chk { display: inline-flex; align-items: center; gap: 8px; margin-right: 18px; font-size: 15px; cursor: pointer; }
+  .box .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .it { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; display: grid; grid-template-columns: 140px 140px 100px 100px 1fr; gap: 10px 12px; align-items: end; }
+  .it.past { opacity: .5; }
+  .it label { display: block; font: 700 11px "Open Sans", sans-serif; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
+  .it .f2 { grid-column: span 2; } .it .f3 { grid-column: span 3; } .it .f5 { grid-column: 1 / -1; }
+  input[type=text], input[type=date], input[type=time], select { width: 100%; background: var(--surface-2); color: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: 400 15px "Open Sans", sans-serif; }
+  input:disabled { opacity: .35; }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--blue); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; border: 2px solid; border-radius: 20px; padding: 3px 12px 3px 8px; font: 700 13px "Niveau Grotesk", Arial, sans-serif; cursor: pointer; opacity: .45; }
+  .tag.on { opacity: 1; background: rgba(255,255,255,.07); }
+  .tag input { display: none; }
+  .tag i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .flags { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .flags label { display: inline-flex; align-items: center; gap: 7px; margin: 0; font: 600 14px "Open Sans", sans-serif; color: #fff; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .del { margin-left: auto; background: transparent; border: 0; color: var(--dim); font-size: 14px; cursor: pointer; border-radius: 8px; padding: 6px 10px; }
+  .del:hover { color: #fff; background: var(--surface-2); }
+  .hint { color: var(--dim); font-size: 14px; margin-top: 18px; line-height: 1.6; }
+  .empty { color: var(--dim); padding: 14px 4px; }
+  @media (max-width: 900px) { .it { grid-template-columns: 1fr 1fr; } .it .f2, .it .f3 { grid-column: span 2; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Narrowcasting <b>JUMP</b></h1>
+    <a class="btn line small" href="/narrowcasting" target="_blank">Open het scherm</a>
+  </div>
+  <p class="sub">Wat je hier invult verschijnt binnen een minuut op het scherm. De agenda toont alleen wat <b>live op JUMP</b> is. Afgelopen afspraken verdwijnen vanzelf. Elke slide staat 30 seconden in beeld.</p>
+
+  <div class="box">
+    <div class="row"><b style="min-width:210px">Slide "Komende wedstrijden" toont</b>
+      <label class="chk"><input type="checkbox" data-show="shl"> SHL</label><label class="chk"><input type="checkbox" data-show="shlw"> SHLW</label>
+      <label class="chk"><input type="checkbox" data-show="lvlm"> LVL heren</label><label class="chk"><input type="checkbox" data-show="lvlw"> LVL dames</label></div>
+    <div class="hint" style="margin-top:8px">Die wedstrijden komen vanzelf uit de programma's van het platform (SHL, SHLW en de Lotto Volley League). HandbalNL heeft in het platform geen programma, die voeg je zelf toe.</div>
+  </div>
+  <div class="box">
+    <div class="row"><b style="min-width:210px">Uit het programma toevoegen</b><select id="pick" style="flex:1;min-width:260px"></select><button class="btn small" id="pickAdd" type="button">Toevoegen</button></div>
+  </div>
+
+  <div class="top"><button class="btn" id="add" type="button">+ Nieuwe afspraak</button><span class="status" id="status"></span></div>
+  <div id="list"></div>
+  <h2>Afgelopen</h2>
+  <div id="past"></div>
+  <p><button class="btn line small" id="clearPast" type="button">Verwijder alle afgelopen afspraken</button></p>
+  <p class="hint">"Live op JUMP" zet een afspraak op de agenda. "Uitgelicht" zet hem ook op de slide met grote kaarten. Zonder eindtijd staat een uitzending een uur als live op het scherm. Met een "t/m"-datum loopt een evenement over meerdere dagen en staat het onder "Deze week". Het weer is voor Veenendaal.</p>
+</div>
+<script>
+(function () {
+  var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'] };
+  var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
+  var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames' };
+  var items = [], show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
+  var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+  function status(t) { statusEl.textContent = t; }
+  function save() {
+    clearTimeout(saveTimer); status('Opslaan…');
+    saveTimer = setTimeout(function () {
+      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show }) })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function () { status('✓ Opgeslagen'); })
+        .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
+    }, 500);
+  }
+  function itemHtml(it, i, past) {
+    var tags = Object.keys(COLORS).map(function (k) {
+      var on = (it.pillars || []).indexOf(k) >= 0;
+      return '<label class="tag' + (on ? ' on' : '') + '" style="color:' + COLORS[k][1] + ';border-color:' + COLORS[k][1] + '"><input type="checkbox" data-pillar="' + k + '"' + (on ? ' checked' : '') + '><i style="background:' + COLORS[k][1] + '"></i>' + COLORS[k][0] + '</label>';
+    }).join('');
+    var sports = '<option value="">Geen</option>' + SPORTS.map(function (s) { return '<option value="' + s + '"' + (it.sport === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>'; }).join('');
+    return '<div class="it' + (past ? ' past' : '') + '" data-i="' + i + '">' +
+      '<div><label>Datum</label><input type="date" data-f="date" value="' + esc(it.date) + '"></div>' +
+      '<div><label>t/m (meerdere dagen)</label><input type="date" data-f="endDate" value="' + esc(it.endDate || '') + '"></div>' +
+      '<div><label>Van</label><input type="time" data-f="time" value="' + esc(it.time || '') + '"' + (it.allDay ? ' disabled' : '') + '></div>' +
+      '<div><label>Tot</label><input type="time" data-f="end" value="' + esc(it.end || '') + '"' + (it.allDay ? ' disabled' : '') + '></div>' +
+      '<div><label>Sport</label><select data-f="sport">' + sports + '</select></div>' +
+      '<div class="f3"><label>Titel</label><input type="text" data-f="title" maxlength="80" placeholder="Bijvoorbeeld BEVO HC - DFS Arnhem" value="' + esc(it.title) + '"></div>' +
+      '<div class="f2"><label>Competitie / plaats</label><input type="text" data-f="place" maxlength="60" placeholder="SHL · Sporthal De Koepel" value="' + esc(it.place || '') + '"></div>' +
+      '<div class="f5 tags">' + tags + '</div>' +
+      '<div class="f5 flags"><label><input type="checkbox" data-f="jump"' + (it.jump !== false ? ' checked' : '') + '> Live op JUMP</label>' +
+      '<label><input type="checkbox" data-f="featured"' + (it.featured ? ' checked' : '') + '> Uitgelicht</label>' +
+      '<label><input type="checkbox" data-f="allDay"' + (it.allDay ? ' checked' : '') + '> Hele dag</label>' +
+      '<button class="del" type="button" data-del="1">Verwijderen</button></div></div>';
+  }
+  function render() {
+    var t = today(), up = '', pa = '', order = items.map(function (it, i) { return i; });
+    order.sort(function (a, b) { var x = items[a], y = items[b]; return (x.date + (x.time || '00:00')) < (y.date + (y.time || '00:00')) ? -1 : 1; });
+    order.forEach(function (i) { var last = items[i].endDate || items[i].date; if (last < t) pa += itemHtml(items[i], i, true); else up += itemHtml(items[i], i, false); });
+    document.getElementById('list').innerHTML = up || '<div class="empty">Nog geen afspraken. Klik op "Nieuwe afspraak" of kies er een uit het programma.</div>';
+    document.getElementById('past').innerHTML = pa || '<div class="empty">Niets afgelopen.</div>';
+    document.getElementById('clearPast').style.display = pa ? '' : 'none';
+    var boxes = document.querySelectorAll('[data-show]'); for (var k = 0; k < boxes.length; k++) boxes[k].checked = show[boxes[k].getAttribute('data-show')] !== false;
+  }
+  function renderPick() {
+    var sel = document.getElementById('pick'), h = '<option value="">Kies een wedstrijd uit het SHL- of LVL-programma…</option>';
+    matches.slice(0, 80).forEach(function (m, i) {
+      var d = new Date(m.date + 'T12:00:00');
+      h += '<option value="' + i + '">' + COMP_LABEL[m.comp] + ' · ' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + (m.time ? ' ' + m.time : '') + ' · ' + esc(m.home) + ' - ' + esc(m.away) + '</option>';
+    });
+    sel.innerHTML = h;
+  }
+  function field(el) { var row = el.closest('.it'); return row && row.getAttribute('data-i') !== null ? [items[+row.getAttribute('data-i')], el.getAttribute('data-f')] : null; }
+  document.addEventListener('input', function (e) {
+    var el = e.target, s = el.getAttribute('data-show');
+    if (s) { show[s] = el.checked; save(); return; }
+    var p = el.getAttribute('data-pillar');
+    if (p) {
+      var it0 = items[+el.closest('.it').getAttribute('data-i')], at = it0.pillars.indexOf(p);
+      if (el.checked && at < 0) it0.pillars.push(p); if (!el.checked && at >= 0) it0.pillars.splice(at, 1);
+      if (!it0.pillars.length) it0.pillars = ['standaard'];
+      el.closest('.tag').className = 'tag' + (el.checked ? ' on' : ''); save(); return;
+    }
+    var fi = el.getAttribute('data-f') && field(el); if (!fi) return;
+    var it = fi[0], f = fi[1];
+    it[f] = (f === 'allDay' || f === 'jump' || f === 'featured') ? el.checked : el.value;
+    if (f === 'allDay') { if (it.allDay) { it.time = ''; it.end = ''; } render(); }
+    save();
+  });
+  document.addEventListener('change', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-f'); if (f === 'date' || f === 'endDate') render(); });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-del]') : null; if (!b) return;
+    items.splice(+b.closest('.it').getAttribute('data-i'), 1); render(); save();
+  });
+  function newItem(o) { var it = { id: 'i' + Date.now() + Math.floor(Math.random() * 1000), date: today(), endDate: '', time: '', end: '', title: '', place: '', pillars: ['jump'], sport: '', featured: false, jump: true, allDay: false }; for (var k in o) it[k] = o[k]; return it; }
+  document.getElementById('add').addEventListener('click', function () {
+    items.push(newItem({})); render(); save();
+    var t = document.querySelectorAll('#list .it[data-i="' + (items.length - 1) + '"] [data-f=title]'); if (t[0]) t[0].focus();
+  });
+  document.getElementById('pickAdd').addEventListener('click', function () {
+    var v = document.getElementById('pick').value; if (v === '') return;
+    var m = matches[+v];
+    items.push(newItem({ date: m.date, time: m.time, title: m.home + ' - ' + m.away, place: COMP_LABEL[m.comp], sport: COMP_SPORT[m.comp], pillars: ['jump', 'productie'] }));
+    render(); save();
+  });
+  document.getElementById('clearPast').addEventListener('click', function () {
+    var t = today(); items = items.filter(function (it) { return (it.endDate || it.date) >= t; }); render(); save();
+  });
+  fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) { items = j.items || []; show = j.show || show; render(); }).catch(function () { status('Laden mislukt.'); });
+  fetch('/api/narrowcasting-matches').then(function (r) { return r.json(); }).then(function (j) { matches = j.matches || []; renderPick(); }).catch(function () { });
+})();
+</script>
+</body>
+</html>

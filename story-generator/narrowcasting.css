@@ -1,0 +1,156 @@
+/* ByTomorrow narrowcasting: a 1920 x 1080 stage scaled to the screen, slides that take turns. Written for the browser of an
+   LG webOS TV (old Chromium): no flex gap, no inset, no clamp, no aspect-ratio, no CSS variables; only transform and opacity move. */
+@font-face { font-family: "Niveau Grotesk"; font-weight: 700; src: url("/socials/fonts/NiveauGroteskBold.otf") format("opentype"); }
+@font-face { font-family: "Niveau Grotesk"; font-weight: 900; src: url("/socials/fonts/NiveauGroteskBlack.otf") format("opentype"); }
+@font-face { font-family: "Open Sans"; font-weight: 400; src: url("/fonts/bt/OpenSans-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Open Sans"; font-weight: 600; src: url("/fonts/bt/OpenSans-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: "Open Sans"; font-weight: 700; src: url("/fonts/bt/OpenSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "ClashDisplay"; font-weight: 700; src: url("/fonts/ClashDisplay-Bold.otf") format("opentype"); }
+@font-face { font-family: "ClashDisplay"; font-weight: 600; src: url("/fonts/ClashDisplay-Semibold.otf") format("opentype"); }
+@font-face { font-family: "ClashDisplay"; font-weight: 500; src: url("/fonts/ClashDisplay-Medium.otf") format("opentype"); }
+@font-face { font-family: "Material Symbols Rounded"; font-weight: 400; src: url("/socials/fonts/MaterialSymbolsRounded-sports.woff2") format("woff2"); }
+
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #060228; overflow: hidden; cursor: none; }
+body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
+.stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; overflow: hidden; background: #060228; }
+.mi { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; -webkit-font-feature-settings: "liga"; font-feature-settings: "liga"; }
+
+/* soft colour circles in the background, drifting slowly */
+.orb { position: absolute; display: block; }                                  /* the big ByT icon in the background */
+.orb-a { width: 780px; height: 885px; right: -70px; top: -170px; opacity: .15; animation: drift-a 48s ease-in-out infinite alternate; }
+.orb-b { width: 560px; height: 636px; left: -170px; bottom: -270px; opacity: .09; animation: drift-b 60s ease-in-out infinite alternate; }
+@keyframes drift-a { from { transform: translate(0,0); } to { transform: translate(-120px,90px); } }
+@keyframes drift-b { from { transform: translate(0,0); } to { transform: translate(140px,-70px); } }
+
+/* slides */
+#slides, .slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+.slide.shl { background: #1a1b38; }
+.slide.shl.women { background: #2a1148; }
+@keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+.rz { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; }
+.pre .rz { animation-play-state: paused; }
+.ttl { position: absolute; left: 80px; top: 40px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 92px; line-height: 110px; white-space: nowrap; letter-spacing: -1px; }
+.ttl b { color: #3D5AFE; font-weight: 900; }
+.ttl b.jp { color: #49FF9F; }
+
+/* clock (top right), slide dots and the logo that goes to and fro along the bottom */
+.clockbox { position: absolute; right: 80px; top: 46px; text-align: right; }
+.stage.noclock .clockbox { display: none; }
+.clockbox .clock { font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 84px; line-height: 90px; letter-spacing: -1px; }
+.clockbox .date { font-size: 26px; font-weight: 600; color: #a5b4ff; line-height: 32px; }
+.dots { position: absolute; right: 80px; top: 1010px; width: 400px; height: 20px; text-align: right; z-index: 5; }
+.dots i { display: inline-block; width: 12px; height: 12px; margin-left: 9px; border-radius: 50%; background: rgba(255,255,255,.22); }
+.dots i.on { background: #fff; }
+.lane { position: absolute; left: 0; top: 982px; width: 1920px; height: 76px; z-index: 5; }
+.lane:before { content: ""; position: absolute; left: 80px; top: 37px; width: 1760px; height: 2px; background: rgba(255,255,255,.08); }
+.logo { position: absolute; left: 80px; top: 8px; width: 300px; height: 58px; animation: sway 30s cubic-bezier(.65,0,.35,1) infinite alternate; }
+@keyframes sway { from { transform: translateX(0); } to { transform: translateX(1460px); } }
+
+/* the sweep between slides */
+.wipe { position: absolute; left: 0; top: 0; width: 2320px; height: 1080px; z-index: 50; -webkit-transform: translateX(-200px); transform: translateX(-200px); }
+.wipe svg { display: block; }
+.mark { position: absolute; left: 900px; top: 472px; z-index: 51; opacity: .95; }
+
+/* agenda: groups per day, a round icon, the title and the tags */
+.col { position: absolute; top: 196px; width: 840px; }
+.gh { height: 52px; margin-top: 10px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; font-size: 32px; line-height: 44px; color: #748fff; border-bottom: 2px solid rgba(255,255,255,.28); margin-bottom: 14px; }
+.gh.first { margin-top: 0; }
+.gh.lv { color: #49FF9F; border-bottom-color: rgba(73,255,159,.5); }
+.slide .gh { color: #49FF9F; border-bottom-color: rgba(73,255,159,.35); }
+.it { position: relative; height: 96px; margin-bottom: 8px; }
+.ic { position: absolute; left: 0; top: 4px; width: 68px; height: 68px; border-radius: 50%; background: #3D5AFE; border: 3px solid #fff; text-align: center; box-sizing: border-box; }
+.ic .mi { display: block; font-size: 40px; line-height: 62px; color: #fff; }
+.ic .dn { display: block; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 34px; line-height: 62px; color: #fff; }
+.it .tt { position: absolute; left: 92px; top: -2px; width: 620px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 42px; line-height: 50px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.it .tm { position: absolute; right: 0; top: 2px; width: 190px; text-align: right; font-size: 30px; font-weight: 700; line-height: 40px; color: #a9aedc; white-space: nowrap; }
+.it .tm small { display: block; margin-top: -4px; font-size: 20px; font-weight: 600; line-height: 24px; color: #49FF9F; }
+.it .tm.now { width: auto; color: #060228; background: #49FF9F; height: 40px; padding: 0 20px 0 16px; border-radius: 22px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 900; font-size: 26px; line-height: 40px; letter-spacing: 1px; }
+.it .tm.now i { display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 50%; background: #FF2D55; vertical-align: -1px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: .25; } 100% { opacity: 1; } }
+.it.live:before { content: ""; position: absolute; left: -18px; right: -18px; top: -10px; bottom: -2px; border-radius: 30px; background: rgba(73,255,159,.12); }
+.it.live .ic { border-color: #49FF9F; }
+.it .tgs { position: absolute; left: 92px; top: 54px; white-space: nowrap; width: 750px; overflow: hidden; }
+.tg { display: inline-block; margin-right: 10px; padding: 0 16px; height: 30px; border: 2px solid; border-radius: 20px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 18px; line-height: 27px; vertical-align: top; }
+.pl { display: inline-block; height: 34px; margin-left: 4px; font-size: 22px; font-weight: 600; line-height: 32px; color: #a9aedc; vertical-align: top; }
+.empty { position: absolute; left: 80px; top: 300px; }
+.empty b { display: block; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 96px; line-height: 104px; }
+.empty span { display: block; margin-top: 20px; font-size: 38px; font-weight: 600; color: #a9aedc; }
+
+/* featured: big cards in the colour of their pillar */
+.card { position: absolute; width: 860px; height: 340px; border-radius: 44px; overflow: hidden; }
+.card .ic2 { position: absolute; left: 36px; top: 34px; width: 108px; height: 108px; border-radius: 50%; background: #fff; text-align: center; }
+.card .ic2 .mi { display: block; font-size: 66px; line-height: 108px; }
+.card .ic2 .dn { display: block; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 56px; line-height: 108px; }
+.card .dl { position: absolute; right: 36px; top: 44px; height: 54px; padding: 0 28px; border-radius: 30px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 28px; line-height: 54px; }
+.card .ct { position: absolute; left: 36px; top: 150px; width: 790px; height: 112px; overflow: hidden; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 50px; line-height: 56px; }
+.card .cm { position: absolute; left: 36px; bottom: 24px; width: 790px; white-space: nowrap; overflow: hidden; }
+.card .cm .t { display: inline-block; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 46px; line-height: 50px; margin-right: 22px; vertical-align: middle; }
+.card .cm .p { display: inline-block; font-size: 26px; font-weight: 700; line-height: 50px; vertical-align: middle; opacity: .8; margin-right: 18px; }
+.card .cm .tg { vertical-align: middle; }
+
+/* programme: the next matches per competition */
+.mcol { position: absolute; top: 196px; }
+.mh { height: 58px; border-radius: 30px; padding: 0 30px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 900; font-size: 32px; line-height: 58px; margin-bottom: 18px; white-space: nowrap; }
+.mc { position: relative; height: 146px; margin-bottom: 14px; border-radius: 28px; background: #12104a; overflow: hidden; }
+.mc .md { position: absolute; left: 24px; top: 16px; height: 34px; padding: 0 16px; border-radius: 18px; font-size: 20px; font-weight: 700; line-height: 34px; white-space: nowrap; }
+.mc .mt { position: absolute; left: 24px; top: 58px; right: 24px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 32px; line-height: 38px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc .mt2 { position: absolute; left: 24px; top: 98px; right: 24px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; font-size: 30px; line-height: 36px; color: #a9aedc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* SHL slide: the look of the SHL stream graphics (off-white bars, a lime tab, Clash Display) */
+.slide.shl { font-family: "ClashDisplay", Arial, sans-serif; color: #14142b; }
+.slide.shl .pn { position: absolute; top: 150px; }
+.slide.shl .tab { height: 56px; padding: 0 40px; background: #ccff33; color: #14142b; font-weight: 700; font-size: 32px; line-height: 56px; letter-spacing: .5px; text-transform: uppercase; display: inline-block; }
+.slide.shl.women .tab { background: #e353fc; }
+.slide.shl .tab small { font-size: 22px; font-weight: 600; opacity: .7; margin-left: 14px; }
+.slide.shl .shl-logo { position: absolute; right: 80px; top: 36px; height: 92px; }
+.crest { display: inline-block; vertical-align: middle; background-repeat: no-repeat; background-color: #fff; }
+.st-h, .st-r { position: relative; height: 44px; margin-bottom: 4px; background: #f3f3ee; font-size: 27px; font-weight: 600; line-height: 44px; }
+.st-h { height: 40px; background: #14142b; color: #ccff33; font-size: 20px; font-weight: 700; line-height: 40px; border-bottom: 0; text-transform: uppercase; letter-spacing: 1px; }
+.slide.shl.women .st-h { color: #e353fc; }
+.st-r span, .st-h span { position: absolute; top: 0; text-align: center; }
+.st-r .pos, .st-h .pos { left: 8px; width: 44px; }
+.st-r .cr { left: 62px; top: 4px; }
+.st-r .nm, .st-h .nm { left: 124px; width: 400px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-r .c1, .st-h .c1 { left: 540px; width: 56px; } .st-r .c2, .st-h .c2 { left: 600px; width: 56px; } .st-r .c3, .st-h .c3 { left: 660px; width: 56px; } .st-r .c4, .st-h .c4 { left: 720px; width: 56px; }
+.st-r .pts, .st-h .pts { left: 790px; width: 80px; font-weight: 700; }
+.st-r .pts { background: #ccff33; height: 44px; }
+.slide.shl.women .st-r .pts { background: #e353fc; }
+.st-r:nth-child(2) .nm { font-weight: 700; }
+.rs { position: relative; height: 84px; margin-bottom: 8px; background: #f3f3ee; }
+.rs .cr1 { position: absolute; left: 14px; top: 11px; } .rs .cr2 { position: absolute; right: 14px; top: 11px; }
+.rs .n1 { position: absolute; left: 96px; width: 240px; top: 0; font-size: 24px; font-weight: 700; line-height: 84px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.rs .n2 { position: absolute; right: 96px; width: 240px; top: 0; font-size: 24px; font-weight: 700; line-height: 84px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.rs .sc { position: absolute; left: 50%; margin-left: -85px; top: 12px; width: 170px; height: 60px; background: #ccff33; text-align: center; font-weight: 700; font-size: 36px; line-height: 60px; }
+.slide.shl.women .rs .sc { background: #e353fc; }
+.rs .dt { position: absolute; left: 0; top: -22px; font-size: 18px; opacity: .55; }
+.rs.noscore .sc { background: #14142b; color: #ccff33; font-size: 30px; }
+
+/* weather */
+.wbig { position: absolute; left: 80px; top: 190px; width: 1760px; height: 360px; }
+.wbig .wi { position: absolute; left: 0; top: 0; width: 330px; height: 330px; }
+.wbig .wi svg { display: block; }
+.wbig .wt { position: absolute; left: 380px; top: -14px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 330px; line-height: 350px; letter-spacing: -8px; }
+.wbig .wd { position: absolute; left: 1010px; top: 40px; width: 750px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 74px; line-height: 82px; }
+.wbig .ws { position: absolute; left: 1010px; top: 170px; width: 750px; }
+.wp { display: inline-block; margin: 0 12px 14px 0; height: 54px; padding: 0 26px; border: 3px solid rgba(255,255,255,.85); border-radius: 30px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 28px; line-height: 48px; white-space: nowrap; }
+.wh, .wdy { position: absolute; top: 590px; }
+.wlbl { font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 28px; color: #748fff; height: 44px; line-height: 40px; }
+.hc { float: left; width: 130px; height: 250px; margin-right: 12px; border-radius: 28px; background: #0d0940; border: 2px solid #252070; text-align: center; }
+.hc .h1 { display: block; margin-top: 18px; font-size: 24px; font-weight: 700; color: #a9aedc; line-height: 30px; }
+.hc .h2 { display: block; width: 72px; height: 72px; margin: 8px auto 0; }
+.hc .h3 { display: block; margin-top: 8px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 44px; line-height: 50px; }
+.hc .h4 { display: block; font-size: 20px; font-weight: 600; color: #748fff; line-height: 26px; }
+.dc { float: left; width: 270px; height: 250px; margin-right: 14px; border-radius: 28px; background: #0d0940; border: 2px solid #252070; text-align: center; }
+.dc .h1 { display: block; margin-top: 16px; font-size: 26px; font-weight: 700; color: #a9aedc; line-height: 32px; text-transform: uppercase; letter-spacing: 1px; }
+.dc .h2 { display: block; width: 88px; height: 88px; margin: 6px auto 0; }
+.dc .h3 { display: block; margin-top: 6px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 46px; line-height: 52px; }
+.dc .h3 s { text-decoration: none; opacity: .5; font-weight: 700; }
+.dc .h4 { display: block; font-size: 22px; font-weight: 600; color: #748fff; line-height: 28px; }
+
+/* quote */
+.qm { position: absolute; left: 70px; top: 150px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 420px; line-height: 420px; color: #3D5AFE; height: 230px; overflow: hidden; }
+.qt { position: absolute; left: 80px; top: 360px; width: 1640px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; letter-spacing: -1px; }
+.qa { position: absolute; left: 80px; top: 860px; white-space: nowrap; }
+.pill-b, .pill-o { display: inline-block; margin-right: 16px; height: 62px; padding: 0 36px; border-radius: 34px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 34px; line-height: 62px; }
+.pill-b { background: #3D5AFE; color: #fff; }
+.pill-o { border: 3px solid rgba(255,255,255,.85); line-height: 56px; }

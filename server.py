@@ -10,6 +10,7 @@ Everything else reads from that store:
     GET /api/schedule?comp=    full fixture list (played + upcoming)
     GET /api/standings?comp=   league table
     GET /api/stream-state|stream-matches|stream-config, PUT /api/stream-config   stream dashboard (stream.html)
+    GET|PUT /api/narrowcasting, GET /api/weather   the narrowcasting screen (/narrowcasting) and its agenda editor (/narrowcasting/beheer)
     GET /api/movers?comp=&since=0  table before the latest matchday + position changes (since = matchdays back)
     GET /api/overview?comp=    results + upcoming for the home page and the ticker
     GET /api/sync-status       when each competition was last checked / last changed
@@ -37,6 +38,7 @@ The port can also be supplied via the PORT environment variable (Railway sets it
 """
 
 import base64
+import calendar
 import html
 import json
 import os
@@ -1053,6 +1055,163 @@ def _safe_export_name(name):
     return name if EXPORT_NAME_RE.match(name) else None
 
 
+# ---------------------------------------------------------------------------
+# Narrowcasting (narrowcasting.html on a screen): the agenda is filled in by hand on /narrowcasting/beheer and stored here
+# (narrowcasting.json); the weather comes from Open-Meteo, fetched by the server (the TV's browser then needs no
+# certificates or CORS) and kept for 15 minutes.
+# ---------------------------------------------------------------------------
+NARROW_FILE = os.path.join(DATA_DIR, "narrowcasting.json")
+NARROW_PILLARS = ("productie", "jump", "marketing", "content", "standaard", "navy")
+WEATHER_PLACE = {"name": "Veenendaal", "lat": 52.0267, "lon": 5.5583}
+_weather = {"at": 0, "data": None}
+
+
+NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw")
+NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
+                 "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
+
+
+def _clean_narrow(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    items = []
+    def valid_date(v):
+        try:
+            datetime.strptime(str(v or ""), "%Y-%m-%d")
+            return str(v)
+        except ValueError:
+            return ""
+    def hhmm(v):
+        v = str(v or "")
+        return v if re.match(r"^([01]\d|2[0-3]):[0-5]\d$", v) else ""
+    for x in (raw.get("items") if isinstance(raw.get("items"), list) else [])[:300]:
+        if not isinstance(x, dict):
+            continue
+        date = valid_date(x.get("date"))
+        if not date:
+            continue
+        end_date = valid_date(x.get("endDate"))
+        if end_date <= date:
+            end_date = ""
+        all_day = x.get("allDay") is True
+        pillars = x.get("pillars") if isinstance(x.get("pillars"), list) else ([x.get("pillar")] if x.get("pillar") else [])
+        pillars = [p for i, p in enumerate(pillars) if p in NARROW_PILLARS and p not in pillars[:i]][:4] or ["standaard"]
+        items.append({
+            "id": re.sub(r"[^A-Za-z0-9_-]", "", str(x.get("id") or ""))[:24] or "i%d" % int(time.time() * 1000 + len(items)),
+            "date": date, "endDate": end_date, "time": "" if all_day else hhmm(x.get("time")), "end": "" if all_day else hhmm(x.get("end")),
+            "title": str(x.get("title") or "").strip()[:80], "place": str(x.get("place") or "").strip()[:60],
+            "pillars": pillars, "sport": x.get("sport") if x.get("sport") in NARROW_SPORTS else "",
+            "featured": x.get("featured") is True, "jump": x.get("jump") is not False, "allDay": all_day,
+        })
+    items.sort(key=lambda i: (i["date"], i["time"] or "00:00", i["title"]))
+    show_raw = raw.get("show") if isinstance(raw.get("show"), dict) else {}
+    show = {k: show_raw.get(k) is not False for k in NARROW_COMPS}          # which competitions the programme slide shows (default: all)
+    return {"items": items, "show": show}
+
+
+def narrow_data():
+    try:
+        with open(NARROW_FILE, "r", encoding="utf-8") as f:
+            return _clean_narrow(json.load(f))
+    except (OSError, ValueError):
+        return _clean_narrow({})
+
+
+def _season_date(day, month, today):
+    """The date (YYYY-MM-DD) of a fixture given as day + month: the year is the one that puts it closest after today."""
+    for y in (today.year, today.year + 1, today.year - 1):
+        try:
+            d = datetime(y, month, day).date()
+        except ValueError:
+            continue
+        if -120 <= (d - today).days <= 245:
+            return d.isoformat()
+    return ""
+
+
+def _clean_team(name):
+    return re.sub(r"\s+[HD]S\d+$", "", str(name or "")).strip()
+
+
+def narrow_matches():
+    """The next matches of SHL, SHLW and the Lotto Volley League (men and women) for the programme slide."""
+    today = _ams_now_parts(time.time()).date()
+    out = []
+    for comp, key in (("men", "shl"), ("women", "shlw")):
+        try:
+            for m in get_comp_data(comp).get("upcoming", []):
+                date = _season_date(int(m.get("day") or 0), int(m.get("month") or 0), today)
+                if date and date >= today.isoformat():
+                    out.append({"comp": key, "home": _clean_team(m.get("home")), "away": _clean_team(m.get("away")), "date": date, "time": str(m.get("time") or "")[:5]})
+        except Exception:
+            pass
+    rows = None
+    try:                                             # a programme that was read in on the LVL thumbnails page wins over the file that ships with the app
+        with open(os.path.join(ITEM_DIR, _key_hash("lvl:schedule") + ".json"), "r", encoding="utf-8") as f:
+            rows = (json.load(f).get("data") or {}).get("rows")
+    except (OSError, ValueError, AttributeError):
+        rows = None
+    if not rows:
+        try:
+            import csv
+            with open(os.path.join(STATIC_DIR, "assets", "lvl", "schedule.csv"), "r", encoding="utf-8-sig", newline="") as f:
+                rows = list(csv.DictReader(f))
+        except OSError:
+            rows = []
+    for r in rows or []:
+        try:
+            name, when = str(r.get("Naam") or ""), str(r.get("TijdText") or "")
+            tag = re.match(r"^\[(LVL[MW])\]\s*", name)
+            body = name[tag.end():] if tag else name
+            teams = re.split(r"\s+[\u2013\u2014-]\s+", body, maxsplit=1)
+            mt = re.match(r"^(\d{1,2})/(\d{1,2})(?:\s*-\s*(\d{1,2}[:.]\d{2}))?", when)
+            if not mt or len(teams) != 2:
+                continue
+            date = _season_date(int(mt.group(1)), int(mt.group(2)), today)
+            if date and date >= today.isoformat():
+                out.append({"comp": "lvlw" if (tag and tag.group(1) == "LVLW") else "lvlm", "home": teams[0].strip(), "away": teams[1].strip(), "date": date,
+                            "time": (mt.group(3) or "").replace(".", ":").rjust(5, "0") if mt.group(3) else ""})
+        except Exception:
+            continue
+    out.sort(key=lambda m: (m["date"], m["time"] or "00:00", m["home"]))
+    counts, res = {}, []
+    for m in out:
+        counts[m["comp"]] = counts.get(m["comp"], 0) + 1
+        if counts[m["comp"]] <= 12:
+            res.append(m)
+    return {"matches": res}
+
+
+def get_weather():
+    """Weather for the place of the screen (Open-Meteo, no key), trimmed to what the screen shows."""
+    now = time.time()
+    if _weather["data"] and now - _weather["at"] < 900:
+        return _weather["data"]
+    url = ("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&timezone=Europe%%2FAmsterdam&forecast_days=4"
+           "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
+           "&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max") % (WEATHER_PLACE["lat"], WEATHER_PLACE["lon"])
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "ByTomorrow-narrowcasting"})
+        with urllib.request.urlopen(req, timeout=15) as res:
+            j = json.loads(res.read().decode("utf-8"))
+        c, d, hr = j["current"], j["daily"], j["hourly"]
+        cur_hour = c["time"][:13]
+        start = next((i for i, t in enumerate(hr["time"]) if t[:13] >= cur_hour), 0) + 1
+        hours = [{"time": hr["time"][i][11:16], "temp": round(hr["temperature_2m"][i]), "code": hr["weather_code"][i], "rain": hr["precipitation_probability"][i]}
+                 for i in range(start, min(len(hr["time"]), start + 12), 2)]
+        data = {"place": WEATHER_PLACE["name"], "fetchedAt": int(now),
+                "now": {"temp": round(c["temperature_2m"]), "feels": round(c["apparent_temperature"]), "code": c["weather_code"],
+                        "wind": round(c["wind_speed_10m"]), "day": bool(c.get("is_day", 1))},
+                "hours": hours, "rain": d["precipitation_probability_max"][0],
+                "days": [{"date": d["time"][i], "code": d["weather_code"][i], "max": round(d["temperature_2m_max"][i]),
+                          "min": round(d["temperature_2m_min"][i]), "rain": d["precipitation_probability_max"][i]} for i in range(len(d["time"]))]}
+        _weather["data"], _weather["at"] = data, now
+    except Exception:
+        if not _weather["data"]:
+            raise
+        _weather["at"] = now - 600       # keep showing the last weather and try again in 5 minutes
+    return _weather["data"]
+
+
 # Pretty links into the single-page app: /shl, /shl/schedule, /shlw/results, /handbalnl/next-men, /lvl/thumbnails-men,
 # /socials/wedstrijd, /settings. They all serve index.html; the page reads the path and opens that view.
 SPA_ROOTS = {"shl", "shlw", "handbalnl", "lvl", "socials", "settings"}
@@ -1064,6 +1223,8 @@ def spa_rewrite(raw_path):
     page asked for from inside a route (/shl/script.js, /socials/socials/templates.js), the same path otherwise."""
     u = urlparse(raw_path)
     segs = [unquote(x) for x in u.path.split("/") if x]
+    if segs and segs[0] == "narrowcasting" and len(segs) <= 2 and (len(segs) == 1 or segs[1] == "beheer"):
+        return ("/narrowcasting.html" if len(segs) == 1 else "/narrowcasting-beheer.html") + (("?" + u.query) if u.query else "")
     if not segs or segs[0] not in SPA_ROOTS:
         return raw_path
     tail = ("?" + u.query) if u.query else ""
@@ -1097,6 +1258,26 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_stream_matches()
         elif self.path.startswith("/api/stream-config"):
             self._json(200, stream_config())
+        elif self.path.startswith("/api/narrowcasting-matches"):
+            try:
+                self._nocache_json(200, narrow_matches())
+            except Exception as err:
+                self._json(502, {"error": str(err)})
+        elif self.path.startswith("/api/narrowcasting-shl"):
+            try:
+                st = stream_state({})
+                self._nocache_json(200, {"standings": st.get("standings", []), "results": st.get("results", []), "round": (st.get("matchday") or {}).get("round")})
+            except Exception as err:
+                self._json(502, {"error": str(err)})
+        elif self.path.startswith("/api/narrowcasting"):
+            d = narrow_data()
+            d["wall"] = int(calendar.timegm(_ams_now_parts(time.time()).timetuple()) * 1000)   # the Dutch wall clock, for screens with a wrong clock
+            self._nocache_json(200, d)
+        elif self.path.startswith("/api/weather"):
+            try:
+                self._nocache_json(200, get_weather())
+            except Exception as err:
+                self._json(502, {"error": str(err)})
         elif self.path.startswith("/api/schedule"):
             self.handle_schedule()
         elif self.path.startswith("/api/save"):
@@ -1153,6 +1334,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_export_put()
         elif self.path.startswith("/api/stream-config"):
             self.handle_stream_config_put()
+        elif self.path.startswith("/api/narrowcasting"):
+            self.handle_narrow_put()
         elif self.path.startswith("/api/settings"):
             self.handle_settings_put()
         elif self.path.startswith("/api/logo"):
@@ -1710,6 +1893,30 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, {"matches": stream_matches(), "config": stream_config()})
         except Exception as err:
             self._json(502, {"error": str(err)})
+
+    def _nocache_json(self, status, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def handle_narrow_put(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0 or length > 200000:
+                return self._send_json(413, {"error": "te groot"})
+            data = _clean_narrow(json.loads(self.rfile.read(length).decode("utf-8")))
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = NARROW_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, NARROW_FILE)
+            self._send_json(200, data)
+        except Exception as err:
+            self._send_json(400, {"error": str(err)})
 
     def handle_stream_config_put(self):
         try:

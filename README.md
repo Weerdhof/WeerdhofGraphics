@@ -83,3 +83,17 @@ The address follows you through the app, and the browser's back and forward butt
 
 Aliases that also work: `matchschedule` and `programma` (schedule), `uitslagen` and `matchresults` (results), `h2h` (head to head), `stand` (ranking), `topscore` (top scorer) and a few more (`ASSET_ALIAS` in `script.js`).
 An unknown page under a client opens that client's landing page. `stream.html`, `stream-setup.html` and `ticker.html` keep their own addresses.
+
+## Narrowcasting (scherm voor op kantoor, LG webOS)
+
+| Adres | Wat |
+| --- | --- |
+| `/narrowcasting` | Het scherm: slides die om de beurt 30 seconden in beeld staan, met de chevron-overgang van het platform. |
+| `/narrowcasting/beheer` | Hier vul je de agenda in: wat is er live op JUMP, uitgelicht, sport, tags, meerdere dagen. |
+| `/narrowcasting?slide=shl,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `matches`, `shl`, `quote`, `weather`. |
+
+Slides: **Live op JUMP** (de agenda, alleen wat op JUMP staat, met "nu live"), **Uitgelicht** (aangevinkte afspraken als grote kaarten),
+**Komende wedstrijden** (automatisch uit het SHL-, SHLW- en LVL-programma), **Stand en uitslagen SHL** (in de SHL-stijl), **Quote** (random sportquote) en
+**Weer in Veenendaal**. De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume). Het weer komt van Open-Meteo, via de server
+(`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse tijd van de server, ook als het scherm een verkeerde tijd heeft.
+De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.
