@@ -156,7 +156,18 @@
     if (s.week) return 'Deze <b>week</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' evenement' : ' evenementen') + '</span>';
     var diff = Math.round((parseYmd(s.date) - parseYmd(today)) / 86400000), d = new Date(parseYmd(s.date));
     var name = diff <= 0 ? 'vandaag' : diff === 1 ? 'morgen' : WD_FULL[d.getUTCDay()];
-    return 'Streams <b>' + name + '</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' stream' : ' streams') + '</span><span class="cd">' + WD_FULL[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MON_FULL[d.getUTCMonth()] + '</span>';
+    return 'Streams <b>' + name + '</b><span class="cn">' + s.items.length + (s.items.length === 1 ? ' stream' : ' streams') + '</span>';
+  }
+  // under the days: the next seven days as pills, today marked, the day of this slide filled, and the number of streams per day
+  function dayPills(curDate) {
+    var today = ymd(wallNow()), l = upcoming(false), counts = {}, i, d, key, lab, n, h = '<div class="dpills rz" style="animation-delay:500ms">';
+    for (i = 0; i < l.length; i++) { if (!l[i].endDate) { key = l[i].date < today ? today : l[i].date; counts[key] = (counts[key] || 0) + 1; } }
+    for (i = 0; i < 7; i++) {
+      d = new Date(parseYmd(today) + i * 86400000); key = ymd(d.getTime()); n = counts[key] || 0;
+      lab = WD_LOW[d.getUTCDay()] + ' ' + two(d.getUTCDate()) + '-' + two(d.getUTCMonth() + 1);                  // za 31-10
+      h += '<div class="dpill' + (n ? ' has' : '') + (i === 0 ? ' td' : '') + (key === curDate ? ' cur' : '') + '"><span>' + lab + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</div>';
+    }
+    return h + '</div>';
   }
   function dayHtml(s) {
     if (s.empty) return '<div class="ttl rz">Stream<b>agenda</b></div><div class="empty rz"><b>Geen streams</b><span>Er staat op dit moment geen stream gepland.</span></div>';
@@ -170,9 +181,9 @@
       rows.push('<div class="it' + (big ? ' xl' : '') + ' rz' + (live ? ' live' : '') + '"' + dly(big ? i : i % Math.ceil(s.items.length / 2)) + '><div class="ic">' + iconHtml(it) + '</div><div class="tt">' + esc(it.title || 'Zonder titel') + '</div>' + tm +
         '<div class="tgs">' + tagsHtml(it) + (s.week ? '<span class="pl">' + rangeTxt(it) + '</span>' : (it.place ? '<span class="pl">' + esc(it.place) + '</span>' : '')) + '</div></div>');
     }
-    if (big) return html + '<div class="vp"><div class="sc" id="sc">' + rows.join('') + '</div></div>';
+    if (big) return html + '<div class="vp"><div class="scr" id="sc">' + rows.join('') + '</div></div>' + dayPills(s.date);
     var half = Math.ceil(rows.length / 2);
-    return html + '<div class="vp two"><div class="sc" id="sc"><div class="dcol">' + rows.slice(0, half).join('') + '</div><div class="dcol">' + rows.slice(half).join('') + '</div></div></div>';
+    return html + '<div class="vp two"><div class="scr" id="sc"><div class="dcol">' + rows.slice(0, half).join('') + '</div><div class="dcol">' + rows.slice(half).join('') + '</div></div></div>' + dayPills(s.week ? '' : s.date);
   }
   // more streams than fit: after a few seconds the list scrolls slowly up and stays at the end
   var scTimer = 0;

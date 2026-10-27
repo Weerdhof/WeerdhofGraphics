@@ -224,8 +224,8 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .it.xl.live:before { left: -22px; right: -22px; top: -12px; bottom: -4px; border-radius: 40px; }
 
 /* the stream agenda: one slide per day, the list scrolls slowly when it is longer than the screen */
-.vp { position: absolute; left: 56px; top: 190px; width: 1808px; height: 820px; overflow: hidden; }
-.sc { position: relative; padding: 10px 24px 10px; }
+.vp { position: absolute; left: 56px; top: 190px; width: 1808px; height: 764px; overflow: hidden; }
+.scr { position: relative; padding: 10px 24px 10px; }
 .vp .it .tt { width: 1100px; }
 .vp .it .tgs { width: 1500px; }
 .vp .it .tm { width: 260px; }
@@ -235,9 +235,20 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .ttl .cd { border: 3px solid rgba(255,255,255,.6); color: #ffffff; padding: 5px 26px; }
 
 /* the days after today: two columns */
-.vp.two .sc { font-size: 0; white-space: nowrap; }
+.vp.two .scr { font-size: 0; white-space: nowrap; }
 .vp.two .dcol { display: inline-block; vertical-align: top; width: 860px; margin-right: 36px; white-space: normal; }
 .vp.two .it .tt { width: 672px; }
 .vp.two .it .tm { width: 200px; }
 .vp.two .it .tgs { width: 740px; }
 .vp.two .it.live:before { left: -14px; right: -14px; }
+
+/* under the days: the next seven days as pills */
+.dpills { position: absolute; left: 80px; top: 976px; width: 1760px; height: 54px; white-space: nowrap; font-size: 0; }
+.dpill { position: relative; display: inline-block; vertical-align: top; box-sizing: border-box; width: 242px; height: 54px; margin-right: 11px; border: 3px solid rgba(255,255,255,.25); border-radius: 27px; text-align: center; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 24px; line-height: 48px; color: rgba(255,255,255,.5); }
+.dpill:last-child { margin-right: 0; }
+.dpill.has { color: #ffffff; border-color: rgba(255,255,255,.7); }
+.dpill.td { border-color: #49FF9F; }
+.dpill.cur { background: #3D5AFE; border-color: #3D5AFE; color: #ffffff; }
+.dpill.td.cur { border-color: #49FF9F; }
+.dpill i { position: absolute; right: 9px; top: 8px; min-width: 28px; height: 28px; padding: 0 4px; box-sizing: border-box; border-radius: 14px; background: rgba(255,255,255,.2); font-style: normal; font-size: 18px; line-height: 28px; }
+.dpill.cur i { background: #ffffff; color: #3D5AFE; }
