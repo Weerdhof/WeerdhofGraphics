@@ -13,7 +13,7 @@
   :root { --navy: #060228; --blue: #3D5AFE; --green: #49FF9F; --surface: #0d0940; --surface-2: #151058; --line: #252070; --dim: #a9aedc; color-scheme: dark; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--navy); color: #fff; font-family: "Open Sans", Arial, sans-serif; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 24px 90px; }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 36px 24px 90px; }
   h1 { margin: 0 0 6px; font: 900 40px/1.1 "Niveau Grotesk", "Arial Black", sans-serif; }
   h1 b { color: var(--green); }
   h2 { font: 700 20px "Niveau Grotesk", Arial, sans-serif; margin: 34px 0 12px; }
@@ -196,6 +196,8 @@
 
   // ---- the table with every match: what has been fetched (only to delete) and what has been entered by hand (to fill in and change here) ----
   var SRC = { shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], lvlm: ['LVL heren', '#FF4B3E'], lvlw: ['LVL dames', '#FF4B3E'], hnltv: ['HandbalNL TV', '#B58CFF'], hand: ['Handmatig', '#ffffff'] };
+  // where a fetched match comes from, and its sport
+  var VIA = { shl: 'SHL-programma van het platform', shlw: 'SHLW-programma van het platform', lvlm: 'LVL-programma van het platform', lvlw: 'LVL-programma van het platform', hnltv: 'handbalnl.tv/agenda' }, SPORT_OF = { shl: 'handbal', shlw: 'handbal', hnltv: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal' };
   var CLIENTS = [['', 'Geen klant'], ['shl', 'SHL'], ['shlw', 'SHLW'], ['lvl', 'Lotto Volley League'], ['hnltv', 'HandbalNL TV'], ['hnl', 'HandbalNL'], ['hhd', 'Hoofdklasse Dames'], ['hhh', 'Hoofdklasse Heren']];
   var CKEYS = CLIENTS.map(function (c) { return c[0]; }).filter(Boolean);
   var hidden = [];
@@ -218,20 +220,20 @@
     document.getElementById('chips').innerHTML = Object.keys(SRC).map(function (k) { return counts[k] ? '<span class="chip' + (srcFilter[k] === false ? '' : ' on') + '" data-chip="' + k + '">' + SRC[k][0] + ' ' + counts[k] + '</span> ' : ''; }).join('');
     rows = rows.filter(function (r) { return srcFilter[r.src] !== false; });
     var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
-    var h = '<tr><th style="width:128px">Datum</th><th style="width:90px">Tijd</th><th>Wedstrijd</th><th style="width:104px">Sport</th><th style="width:150px">Klant</th><th style="width:50px">JUMP</th><th style="width:70px">Prod.</th><th style="width:44px">&#9733;</th><th style="width:44px"></th></tr>', cur = '';
+    var h = '<tr><th style="width:128px">Datum</th><th style="width:90px">Tijd</th><th>Wedstrijd</th><th style="width:104px">Sport</th><th style="width:150px">Klant</th><th style="width:200px">Bron</th><th style="width:50px">JUMP</th><th style="width:70px">Prod.</th><th style="width:44px">&#9733;</th><th style="width:44px"></th></tr>', cur = '';
     var sportOpts = function (v) { return '<option value="">-</option>' + SPORTS.map(function (s) { return '<option value="' + s + '"' + (v === s ? ' selected' : '') + '>' + s + '</option>'; }).join(''); };
     rows.forEach(function (r) {
-      if (r.date !== cur) { cur = r.date; var d = new Date(r.date + 'T12:00:00'), n = rows.filter(function (x) { return x.date === cur; }).length; h += '<tr class="day"><td colspan="9">' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' · ' + n + ' wedstrijd' + (n === 1 ? '' : 'en') + '</td></tr>'; }
+      if (r.date !== cur) { cur = r.date; var d = new Date(r.date + 'T12:00:00'), n = rows.filter(function (x) { return x.date === cur; }).length; h += '<tr class="day"><td colspan="10">' + WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' · ' + n + ' wedstrijd' + (n === 1 ? '' : 'en') + '</td></tr>'; }
       if (r.idx !== undefined) {                                                     // entered by hand: everything can be filled in and changed here
         var it = items[r.idx];
         h += '<tr data-i="' + r.idx + '"><td><input type="date" data-t="date" value="' + esc(it.date) + '"></td><td><input type="time" data-t="time" value="' + esc(it.time || '') + '"></td>' +
           '<td><input type="text" data-t="title" maxlength="80" placeholder="Wedstrijd" value="' + esc(it.title || '') + '"></td><td><select data-t="sport">' + sportOpts(it.sport) + '</select></td>' +
           '<td><select data-t="client">' + CLIENTS.map(function (c) { return '<option value="' + c[0] + '"' + (clientOfItem(it) === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></td>' +
-          '<td style="text-align:center"><input type="checkbox" data-t="jump"' + (hasP(it, 'jump') ? ' checked' : '') + '></td><td style="text-align:center"><input type="checkbox" data-t="productie"' + (hasP(it, 'productie') ? ' checked' : '') + '></td>' +
+          '<td style="color:#a9aedc;font-size:13px">Handmatig ingevoerd</td><td style="text-align:center"><input type="checkbox" data-t="jump"' + (hasP(it, 'jump') ? ' checked' : '') + '></td><td style="text-align:center"><input type="checkbox" data-t="productie"' + (hasP(it, 'productie') ? ' checked' : '') + '></td>' +
           '<td style="text-align:center"><input type="checkbox" data-t="featured"' + (it.featured ? ' checked' : '') + '></td><td><button class="del" type="button" data-tdel="' + r.idx + '" title="Verwijderen">&times;</button></td></tr>';
       } else {                                                                       // fetched: only to delete
         var s = SRC[r.src];
-        h += '<tr' + (r.on ? '' : ' class="off"') + '><td>' + esc(r.date.slice(8) + '-' + r.date.slice(5, 7)) + '</td><td>' + esc(r.time) + '</td><td>' + esc(r.title) + '</td><td></td><td><span class="src" style="color:' + s[1] + ';border-color:' + s[1] + '">' + s[0] + '</span></td><td></td><td></td><td></td>' +
+        h += '<tr' + (r.on ? '' : ' class="off"') + '><td>' + esc(r.date.slice(8) + '-' + r.date.slice(5, 7)) + '</td><td>' + esc(r.time) + '</td><td>' + esc(r.title) + '</td><td style="color:#a9aedc">' + (SPORT_OF[r.src] || '') + '</td><td><span class="src" style="color:' + s[1] + ';border-color:' + s[1] + '">' + s[0] + '</span></td><td style="color:#a9aedc;font-size:13px">Automatisch opgehaald via ' + (VIA[r.src] || '') + '</td><td></td><td></td><td></td>' +
           '<td><button class="del" type="button" data-hide="' + esc(r.key) + '" title="Weghalen uit de agenda">&times;</button></td></tr>';
       }
     });
