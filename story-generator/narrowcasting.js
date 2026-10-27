@@ -276,13 +276,13 @@
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
-  // the four pillars as round icons along the bottom. Once every 30 seconds one of them stretches (left anchored, like the circles
+  // the four pillars as round icons along the bottom (the letter in the alternative colour of the pillar, the name in the dark blue of the background; the JUMP wordmark has green letters and a white arrow). Once every 30 seconds one of them stretches (left anchored, like the circles
   // of the ByTomorrow socials) into a pill with its full name and goes back to a circle; the colours never mix
   // (only on the slogan and the meeting mode)
   var PB = [['Marketing', '#FFCC00', '#C25100', 'marketing.png'], ['Content', '#00FFE6', '#008B8B', 'content.png'], ['Productie', '#FC06E5', '#7B1FA2', 'productie.png'], ['JUMP', '#49FF9F', '#2F7E4D', 'jump.svg']], pbTimers = [], pbIndex = 0, PB_D = 68;
   function pillarBar() {
     var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
-    for (i = 0; i < PB.length; i++) h += '<div class="pbc" style="background:' + PB[i][1] + '"><span class="pbw"><img src="/assets/pillars/' + PB[i][3] + '" alt=""></span><span class="pbt" style="color:' + PB[i][2] + '">' + PB[i][0] + '</span></div>';
+    for (i = 0; i < PB.length; i++) h += '<div class="pbc" style="background:' + PB[i][1] + '"><span class="pbw"><img src="/assets/pillars/' + PB[i][3] + '" alt=""></span><span class="pbt"' + (i === 3 ? ' style="left:24px"' : '') + '>' + (i === 3 ? '<img src="/assets/pillars/jump-wordmark.svg" alt="JUMP">' : PB[i][0]) + '</span></div>';
     return h + '</div>';
   }
   function stopPillars() { while (pbTimers.length) clearTimeout(pbTimers.pop()); }
@@ -292,11 +292,12 @@
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
     function cycle() {
-      var n = pbIndex, seg = segs[n], txt = seg.children[1]; pbIndex = (pbIndex + 1) % PB.length;
-      at(4000, function () { seg.style.width = (PB_D + 8 + txt.offsetWidth + 30) + 'px'; });      // the circle stretches into a pill
+      var n = pbIndex, seg = segs[n], ico = seg.children[0], txt = seg.children[1]; pbIndex = (pbIndex + 1) % PB.length;
+      // JUMP shows its full wordmark (with its own arrow) instead of the name, so the round arrow gives way to it
+      at(4000, function () { seg.style.width = ((n === 3 ? 24 : PB_D + 8) + txt.offsetWidth + 30) + 'px'; if (n === 3) ico.style.opacity = 0; });      // the circle stretches into a pill
       at(4900, function () { txt.style.opacity = 1; });                                          // the name fades in just before the pill has landed
       at(4000 + 1500 + 4500, function () { txt.style.opacity = 0; });                            // stays a moment, the name fades away
-      at(4000 + 1500 + 4500 + 700, function () { seg.style.width = PB_D + 'px'; });             // and the pill becomes a circle again
+      at(4000 + 1500 + 4500 + 700, function () { seg.style.width = PB_D + 'px'; ico.style.opacity = 1; });             // and the pill becomes a circle again
       at(30000, cycle);
     }
     cycle();
