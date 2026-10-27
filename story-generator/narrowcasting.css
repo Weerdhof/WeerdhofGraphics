@@ -247,9 +247,9 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .dpill { position: relative; display: inline-block; vertical-align: top; box-sizing: border-box; width: 242px; height: 54px; margin-right: 11px; border: 3px solid rgba(255,255,255,.25); border-radius: 27px; text-align: center; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 24px; line-height: 48px; color: rgba(255,255,255,.5); }
 .dpill:last-child { margin-right: 0; }
 .dpill.has { color: #ffffff; border-color: rgba(255,255,255,.7); }
-.dpill.td { border-color: #49FF9F; }
+.dpill.td { border-color: #3D5AFE; }
 .dpill.cur { background: #3D5AFE; border-color: #3D5AFE; color: #ffffff; }
-.dpill.td.cur { border-color: #49FF9F; }
+.dpill.td.cur { border-color: #3D5AFE; }
 .dpill i { position: absolute; right: 9px; top: 8px; min-width: 28px; height: 28px; padding: 0 4px; box-sizing: border-box; border-radius: 14px; background: rgba(255,255,255,.2); font-style: normal; font-size: 18px; line-height: 28px; }
 .dpill.cur i { background: #ffffff; color: #3D5AFE; }
 
