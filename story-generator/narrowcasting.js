@@ -276,12 +276,13 @@
   }
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
-  // the four pillars as colour blocks along the bottom (like the example): they slide out one by one with the word in them,
-  // stay a while and slide back again (only on the slogan and the meeting mode)
-  var PB = [['Marketing', '#FFCC00'], ['Content', '#00FFE6'], ['Productie', '#FC06E5'], ['JUMP', '#49FF9F']], pbTimers = [];
+  // the four pillars as colour blocks along the bottom (like the example), the words in the alternative colour of the pillar. Very
+  // subtle: now and then one pillar slowly fills the whole bar in its colour and the bar goes back to the four blocks again
+  // (only on the slogan and the meeting mode)
+  var PB = [['Marketing', '#FFCC00', '#C25100'], ['Content', '#00FFE6', '#008B8B'], ['Productie', '#FC06E5', '#7B1FA2'], ['JUMP', '#49FF9F', '#2F7E4D']], pbTimers = [];
   function pillarBar() {
     var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
-    for (i = 0; i < PB.length; i++) h += '<div class="pbs" style="background:' + PB[i][1] + '"><span>' + PB[i][0] + '</span></div>';
+    for (i = 0; i < PB.length; i++) h += '<div class="pbs" style="background:' + PB[i][1] + '"><span style="color:' + PB[i][2] + '">' + PB[i][0] + '</span></div>';
     return h + '</div>';
   }
   function stopPillars() { while (pbTimers.length) clearTimeout(pbTimers.pop()); }
@@ -290,13 +291,14 @@
     var el = document.getElementById('pb'); if (!el) return;
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
+    function widths(only) { var k; for (k = 0; k < segs.length; k++) segs[k].style.width = only < 0 ? '25%' : (k === only ? '100%' : '0'); }
     function cycle() {
-      var i;
-      for (i = 0; i < segs.length; i++) (function (k) {
-        at(900 + k * 1500, function () { segs[k].style.width = '25%'; });                    // slide out, one after the other
-        at(900 + 4 * 1500 + 9000 + k * 1100, function () { segs[k].style.width = '0'; });   // and back
-      })(i);
-      at(900 + 4 * 1500 + 9000 + 4 * 1100 + 3500, cycle);
+      var t = 4000, k;
+      for (k = 0; k < segs.length; k++) (function (n) {
+        at(t, function () { widths(n); }); t += 2800 + 2500;                      // slowly fills the whole bar, stays a moment
+        at(t, function () { widths(-1); }); t += 2800 + 4500;                     // and slowly goes back to the four blocks
+      })(k);
+      at(t, cycle);
     }
     cycle();
   }
