@@ -277,9 +277,9 @@
   function meetingWeather() { return meeting.mode === 'off' ? '' : '<div class="wmini rz" id="wmini" style="animation-delay:400ms">' + miniWeather() + '</div>'; }
 
   // the four pillars as colour blocks along the bottom (like the example), the words in the alternative colour of the pillar. Very
-  // subtle: now and then the whole bar slowly fades to the colour of one pillar and fades back to the four blocks again (a fade, nothing moves)
+  // subtle: now and then the whole bar slowly fades to the colour of one pillar and back (only the opacity moves, the colours never mix)
   // (only on the slogan and the meeting mode)
-  var PB = [['Marketing', '#FFCC00', '#C25100'], ['Content', '#00FFE6', '#008B8B'], ['Productie', '#FC06E5', '#7B1FA2'], ['JUMP', '#49FF9F', '#2F7E4D']], pbTimers = [];
+  var PB = [['Marketing', '#FFCC00', '#C25100'], ['Content', '#00FFE6', '#008B8B'], ['Productie', '#FC06E5', '#7B1FA2'], ['JUMP', '#49FF9F', '#2F7E4D']], pbTimers = [], pbIndex = 0;
   function pillarBar() {
     var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
     for (i = 0; i < PB.length; i++) h += '<div class="pbs" style="background:' + PB[i][1] + '"><span style="color:' + PB[i][2] + '">' + PB[i][0] + '</span></div>';
@@ -291,14 +291,16 @@
     var el = document.getElementById('pb'); if (!el) return;
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
-    function fadeTo(only) { var k; for (k = 0; k < segs.length; k++) { segs[k].style.backgroundColor = only < 0 ? PB[k][1] : PB[only][1]; segs[k].firstChild.style.opacity = only < 0 || k === only ? 1 : 0; } }
-    function cycle() {
-      var t = 4000, k;
-      for (k = 0; k < segs.length; k++) (function (n) {
-        at(t, function () { fadeTo(n); }); t += 2800 + 2500;                         // the whole bar fades to the colour of the pillar, stays a moment
-        at(t, function () { fadeTo(-1); }); t += 2800 + 4500;                        // and fades back to the four blocks
-      })(k);
-      at(t, cycle);
+    function opacity(o) { var k; for (k = 0; k < segs.length; k++) segs[k].style.opacity = o; }
+    function paint(only) { var k; for (k = 0; k < segs.length; k++) { segs[k].style.backgroundColor = only < 0 ? PB[k][1] : PB[only][1]; segs[k].firstChild.style.visibility = only < 0 || k === only ? 'visible' : 'hidden'; } }
+    // only the opacity moves, the colours never mix: the bar fades out, comes back in the colour of one pillar, and later does the same to return
+    function cycle() {                                                         // once every 30 seconds, the next pillar each time
+      var n = pbIndex; pbIndex = (pbIndex + 1) % PB.length;
+      at(4000, function () { opacity(0); });
+      at(5800, function () { paint(n); opacity(1); });
+      at(10400, function () { opacity(0); });
+      at(12200, function () { paint(-1); opacity(1); });
+      at(30000, cycle);
     }
     cycle();
   }

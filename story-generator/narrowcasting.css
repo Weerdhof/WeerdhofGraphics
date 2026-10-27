@@ -186,8 +186,8 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* the pillars as colour blocks along the bottom, no rounding; now and then one slowly fills the whole bar */
 .pb { position: absolute; left: 80px; top: 992px; width: 1760px; height: 24px; white-space: nowrap; font-size: 0; }
-.pbs { display: inline-block; vertical-align: top; height: 24px; width: 25%; overflow: hidden; -webkit-transition: background-color 2.8s ease; transition: background-color 2.8s ease; }
-.pbs span { display: block; width: 440px; padding-left: 12px; height: 24px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 14px; line-height: 24px; letter-spacing: .3px; white-space: nowrap; box-sizing: border-box; -webkit-transition: opacity 2.8s ease; transition: opacity 2.8s ease; }
+.pbs { display: inline-block; vertical-align: top; height: 24px; width: 25%; overflow: hidden; -webkit-transition: opacity 1.6s ease; transition: opacity 1.6s ease; }
+.pbs span { display: block; width: 440px; padding-left: 12px; height: 24px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 14px; line-height: 24px; letter-spacing: .3px; white-space: nowrap; box-sizing: border-box; }
 
 /* meeting mode: a little less padding around everything */
 .stage.mm .clockbox { right: 56px; top: 30px; }
