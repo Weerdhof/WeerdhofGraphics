@@ -118,7 +118,7 @@
 </div>
 <script>
 (function () {
-  var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'], hhd: ['Hoofdklasse Dames', '#2FD6C0'], hhh: ['Hoofdklasse Heren', '#8F66FF'], zwem: ['Zwemsport TV', '#38BDF8'], kwpn: ['KWPN TV', '#22C55E'], tvv: ['Tijd voor Volleyball', '#FB7185'] };
+  var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'], hhd: ['Hoofdklasse Dames', '#2FD6C0'], hhh: ['Hoofdklasse Heren', '#8F66FF'], zwem: ['Zwemsport TV', '#38BDF8'], kwpn: ['KWPN TV', '#22C55E'], tvv: ['Tijd voor Volleyball', '#FB7185'], futsal: ['Eredivisie Futsal', '#D5DCE8'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal', hnltv: 'handbal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames', hnltv: 'HandbalNL TV' };
   var slidesOn = {}, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
@@ -198,7 +198,7 @@
   var SRC = { shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], lvlm: ['LVL heren', '#FF4B3E'], lvlw: ['LVL dames', '#FF4B3E'], hnltv: ['HandbalNL TV', '#B58CFF'], hand: ['Handmatig', '#ffffff'] };
   // where a fetched match comes from, and its sport
   var VIA = { shl: 'SHL-programma van het platform', shlw: 'SHLW-programma van het platform', lvlm: 'LVL-programma van het platform', lvlw: 'LVL-programma van het platform', hnltv: 'handbalnl.tv/agenda' }, SPORT_OF = { shl: 'handbal', shlw: 'handbal', hnltv: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal' };
-  var CLIENTS = [['', 'Geen klant'], ['shl', 'SHL'], ['shlw', 'SHLW'], ['lvl', 'Lotto Volley League'], ['hnltv', 'HandbalNL TV'], ['hnl', 'HandbalNL'], ['hhd', 'Hoofdklasse Dames'], ['hhh', 'Hoofdklasse Heren'], ['zwem', 'Zwemsport TV'], ['kwpn', 'KWPN TV'], ['tvv', 'Tijd voor Volleyball']];
+  var CLIENTS = [['', 'Geen klant'], ['shl', 'SHL'], ['shlw', 'SHLW'], ['lvl', 'Lotto Volley League'], ['hnltv', 'HandbalNL TV'], ['hnl', 'HandbalNL'], ['hhd', 'Hoofdklasse Dames'], ['hhh', 'Hoofdklasse Heren'], ['zwem', 'Zwemsport TV'], ['kwpn', 'KWPN TV'], ['tvv', 'Tijd voor Volleyball'], ['futsal', 'Eredivisie Futsal']];
   var CKEYS = CLIENTS.map(function (c) { return c[0]; }).filter(Boolean);
   var hidden = [];
   function clientOfItem(it) { var i; for (i = 0; i < (it.pillars || []).length; i++) { if (CKEYS.indexOf(it.pillars[i]) >= 0) return it.pillars[i]; } return ''; }

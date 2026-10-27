@@ -10,7 +10,7 @@
     lvl: { label: 'Lotto Volley League', c: '#FF4B3E', bg: '#EE3124', ink: '#ffffff' }, shl: { label: 'SHL', c: '#ccff33', bg: '#ccff33', ink: '#060228' },
     shlw: { label: 'SHLW', c: '#e353fc', bg: '#e353fc', ink: '#060228' }, hnl: { label: 'HandbalNL', c: '#ff8a4d', bg: '#ff7429', ink: '#060228' },
     hnltv: { label: 'HandbalNL TV', c: '#B58CFF', bg: '#A66BFF', ink: '#060228' }, zwem: { label: 'Zwemsport TV', c: '#38BDF8', bg: '#38BDF8', ink: '#060228' }, kwpn: { label: 'KWPN TV', c: '#22C55E', bg: '#22C55E', ink: '#060228' },
-    tvv: { label: 'Tijd voor Volleyball', c: '#FB7185', bg: '#FB7185', ink: '#060228' }, hhd: { label: 'Hoofdklasse Dames', c: '#2FD6C0', bg: '#2FD6C0', ink: '#060228' }, hhh: { label: 'Hoofdklasse Heren', c: '#8F66FF', bg: '#8F66FF', ink: '#ffffff' }
+    tvv: { label: 'Tijd voor Volleyball', c: '#FB7185', bg: '#FB7185', ink: '#060228' }, futsal: { label: 'Eredivisie Futsal', c: '#D5DCE8', bg: '#D5DCE8', ink: '#060228' }, hhd: { label: 'Hoofdklasse Dames', c: '#2FD6C0', bg: '#2FD6C0', ink: '#060228' }, hhh: { label: 'Hoofdklasse Heren', c: '#8F66FF', bg: '#8F66FF', ink: '#ffffff' }
   };
   var SPORTS = { basketbal: 'sports_basketball', volleybal: 'sports_volleyball', handbal: 'sports_handball', voetbal: 'sports_soccer', tennis: 'sports_tennis', padel: 'sports_tennis',
     hockey: 'sports_hockey', zwemmen: 'pool', hardlopen: 'directions_run', wielrennen: 'directions_bike', turnen: 'sports_gymnastics', vechtsport: 'sports_martial_arts',
@@ -140,7 +140,7 @@
   }
   // the colour of the client of a match: the sport icon takes it
   var CLIENTS = { shl: ['#ccff33', '#060228'], shlw: ['#e353fc', '#060228'], lvl: ['#FF4B3E', '#ffffff'], lvlm: ['#FF4B3E', '#ffffff'], lvlw: ['#FF4B3E', '#ffffff'], hnl: ['#ff8a4d', '#060228'],
-    hnltv: ['#B58CFF', '#060228'], zwem: ['#38BDF8', '#060228'], kwpn: ['#22C55E', '#060228'], tvv: ['#FB7185', '#060228'], hhd: ['#2FD6C0', '#060228'], hhh: ['#8F66FF', '#ffffff'] };
+    hnltv: ['#B58CFF', '#060228'], zwem: ['#38BDF8', '#060228'], kwpn: ['#22C55E', '#060228'], tvv: ['#FB7185', '#060228'], futsal: ['#D5DCE8', '#060228'], hhd: ['#2FD6C0', '#060228'], hhh: ['#8F66FF', '#ffffff'] };
   function clientOf(it) {
     var i; if (it.comp && CLIENTS[it.comp]) return CLIENTS[it.comp];
     for (i = 0; i < it.pillars.length; i++) { if (CLIENTS[it.pillars[i]]) return CLIENTS[it.pillars[i]]; }
