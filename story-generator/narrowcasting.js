@@ -336,7 +336,7 @@
     var n = news[0];
     return '<div class="ttl rz">Laatste <b>nieuws</b><span class="cn">NOS Sport</span></div>' +
       '<div class="nbg rz" style="animation-delay:150ms"><span class="na">' + esc(ago(n)) + '</span><div class="nt">' + esc(n.title) + '</div><div class="ns">' + esc(n.summary) + '</div></div>' +
-      '<div class="nbp">' + newsImg(n, 'nbi') + '<div class="nlg">' + document.getElementById('logoTpl').innerHTML + '</div></div>';
+      '<div class="nbp">' + newsImg(n, 'nbi') + '<div class="nlg">' + document.getElementById('logoTpl').innerHTML + '</div></div>' + '<div class="nsrc rz" style="animation-delay:600ms">Bron: NOS Sport (RSS)</div>';
   }
   // small: the next three items as rows
   function newsSmallHtml() {
@@ -347,7 +347,7 @@
       h += '<div class="nc rz" style="left:' + (80 + (i - 1) * 600) + 'px;animation-delay:' + (i * 150) + 'ms">' + newsImg(n, 'ni') +
         '<div class="nb"><span class="na">' + esc(ago(n)) + '</span><div class="nt">' + esc(n.title) + '</div><div class="ns">' + esc(n.summary) + '</div></div></div>';
     }
-    return h;
+    return h + '<div class="nsrc rz" style="animation-delay:600ms">Bron: NOS Sport (RSS)</div>';
   }
 
   // ---- slide: only the logo ----
