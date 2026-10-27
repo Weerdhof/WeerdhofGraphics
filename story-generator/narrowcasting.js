@@ -282,7 +282,7 @@
   var PB = [['Marketing', '#FFCC00', '#C25100', 'marketing.png'], ['Content', '#00FFE6', '#008B8B', 'content.png'], ['Productie', '#FC06E5', '#7B1FA2', 'productie.png'], ['JUMP', '#49FF9F', '#2F7E4D', 'jump.svg']], pbTimers = [], PB_D = 68;
   function pillarBar() {
     var h = '<div class="pb rz" id="pb" style="animation-delay:600ms">', i;
-    for (i = 0; i < PB.length; i++) h += '<div class="pbc" style="background:' + PB[i][1] + '"><span class="pbw"><img src="/assets/pillars/' + PB[i][3] + '" alt=""></span><span class="pbt"' + (i === 3 ? ' style="left:24px"' : '') + '>' + (i === 3 ? '<img src="/assets/pillars/jump-wordmark.svg" alt="JUMP">' : PB[i][0]) + '</span></div>';
+    for (i = 0; i < PB.length; i++) h += '<div class="pbc" style="background:' + PB[i][1] + '"><span class="pbw"><img src="/assets/pillars/' + PB[i][3] + '" alt=""></span><span class="pbt"' + (i === 3 ? ' style="left:28px"' : '') + '>' + (i === 3 ? '<img src="/assets/pillars/jump-wordmark.svg" alt="JUMP">' : PB[i][0]) + '</span></div>';
     return h + '</div>';
   }
   function stopPillars() { while (pbTimers.length) clearTimeout(pbTimers.pop()); }
@@ -291,20 +291,21 @@
     var el = document.getElementById('pb'); if (!el) return;
     var segs = el.children;
     function at(ms, fn) { pbTimers.push(setTimeout(fn, ms)); }
-    // one pill: the circle stretches into a pill, the name fades in and out, and the pill becomes a circle again
+    // one pill, with the timing of the circles in the ByTomorrow socials (stretch 650 ms with a hard start and a long brake,
+    // the name fades in 250 ms just before the pill has landed): the circle stretches into a pill, the name shows, and it goes back
     function pill(n, t0) {
       var seg = segs[n], ico = seg.children[0], txt = seg.children[1];
       // JUMP shows its full wordmark (with its own arrow) instead of the name, so the round arrow gives way to it
-      at(t0, function () { seg.style.width = ((n === 3 ? 24 : PB_D + 8) + txt.offsetWidth + 30) + 'px'; if (n === 3) ico.style.opacity = 0; });
-      at(t0 + 900, function () { txt.style.opacity = 1; });                                      // the name fades in just before the pill has landed
-      at(t0 + 1500 + 4500, function () { txt.style.opacity = 0; });                              // stays a moment, the name fades away
-      at(t0 + 1500 + 4500 + 700, function () { seg.style.width = PB_D + 'px'; ico.style.opacity = 1; });   // and the pill becomes a circle again
-      return t0 + 1500 + 4500 + 700 + 1500;
+      at(t0, function () { seg.style.width = (n === 3 ? 28 + txt.offsetWidth + 28 : PB_D + 8 + txt.offsetWidth + 30) + 'px'; if (n === 3) ico.style.opacity = 0; });
+      at(t0 + 450, function () { txt.style.opacity = 1; });
+      at(t0 + 650 + 2600, function () { txt.style.opacity = 0; });
+      at(t0 + 650 + 2600 + 250, function () { seg.style.width = PB_D + 'px'; ico.style.opacity = 1; });
+      return t0 + 650 + 2600 + 250 + 650;
     }
     // the four pills one after the other, then nothing for 30 seconds
     function cycle() {
       var t = 4000, k;
-      for (k = 0; k < segs.length; k++) t = pill(k, t) + 400;
+      for (k = 0; k < segs.length; k++) t = pill(k, t) + 150;
       at(t + 30000, cycle);
     }
     cycle();
