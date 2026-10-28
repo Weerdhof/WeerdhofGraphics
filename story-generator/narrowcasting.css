@@ -503,3 +503,9 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .cf i { display: block; -webkit-will-change: transform; will-change: transform; }
 @-webkit-keyframes fall { from { -webkit-transform: translate3d(0, -120px, 0); } to { -webkit-transform: translate3d(0, 1200px, 0); } }
 @keyframes fall { from { transform: translate3d(0, -120px, 0); } to { transform: translate3d(0, 1200px, 0); } }
+
+/* buttons on the screen: next slide, and closing the vrijmibo */
+#ctl { position: fixed; right: 28px; bottom: 24px; z-index: 100; opacity: 0; pointer-events: none; -webkit-transition: opacity .3s; transition: opacity .3s; }
+#ctl.show { opacity: 1; pointer-events: auto; }
+#ctl button { margin-left: 12px; height: 52px; padding: 0 28px; border: 0; border-radius: 26px; background: rgba(6,2,40,.88); color: #ffffff; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 20px; cursor: pointer; }
+#ctl button:hover { background: #3D5AFE; }

@@ -1979,6 +1979,17 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_thumbnail()
         elif self.path.startswith("/api/usage"):
             self.handle_usage_post()
+        elif self.path.split("?")[0] == "/api/narrowcasting-vrijmibo-close":
+            data = narrow_data()                                   # the "Vrijmibo sluiten" button on the screen: back to the normal slides, and not again today
+            data["vrijmibo"]["closed"] = _ams_now_parts(time.time()).strftime("%Y-%m-%d")
+            if data["meeting"]["mode"] == "vrijmibo":
+                data["meeting"]["mode"] = "off"
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = NARROW_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(_clean_narrow(data), f)
+            os.replace(tmp, NARROW_FILE)
+            self._json(200, {"effective": effective_meeting(narrow_data())})
         elif self.path.split("?")[0] == "/api/narrowcasting-next":
             _next_at[0] = int(time.time() * 1000)
             self._json(200, {"nextAt": _next_at[0]})
