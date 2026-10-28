@@ -52,6 +52,32 @@
     return { photo: rel(P.photo), live: rel(P.live), icon: rel(P.icon), pills: Array.from(P.pills.children).map(rel), tag: tag ? rel(tag) : null };
   }
 
+  // the pills that run through the picture along the seam of field and photo: one long strip (canvas), drawn like the DOM pills
+  // of the template (white and secondary colour by turns), repeated without a seam
+  async function pillStrip(frame) {
+    const b = B(), items = (b.pillItems || (() => []))(b.state.props.pills);
+    if (!items.length || b.state.props.showPills === false) return null;
+    try { await document.fonts.load('700 34px "Niveau Grotesk"'); } catch (e) { /* the fallback font will do */ }
+    const cs = getComputedStyle(frame), dark = cs.getPropertyValue('--pill-bg').trim() || '#008B8B', ink = cs.getPropertyValue('--title').trim() || '#060228';
+    const H = 76, PADY = 30, GAP = 24, c0 = document.createElement('canvas').getContext('2d');
+    c0.font = '700 34px "Niveau Grotesk","Arial Black",sans-serif';
+    const widths = items.map(s => Math.ceil(c0.measureText(s).width) + 76);
+    const period = widths.reduce((s, w) => s + w + GAP, 0);
+    const cv = document.createElement('canvas'); cv.width = period; cv.height = H + PADY * 2;
+    const x = cv.getContext('2d'); x.font = c0.font; x.textBaseline = 'middle'; x.textAlign = 'center';
+    let px = 0;
+    items.forEach((s, i) => {
+      const w = widths[i];
+      x.save(); x.shadowColor = 'rgba(6,2,40,.18)'; x.shadowBlur = 24; x.shadowOffsetY = 8;
+      x.fillStyle = i % 2 ? dark : '#ffffff'; x.beginPath();
+      if (x.roundRect) x.roundRect(px, PADY, w, H, H / 2); else x.rect(px, PADY, w, H);
+      x.fill(); x.restore();
+      x.fillStyle = i % 2 ? '#ffffff' : ink; x.fillText(s, px + w / 2, PADY + H / 2 + 2);
+      px += w + GAP;
+    });
+    return { cv, period, pad: PADY, h: H };
+  }
+
   async function build() {
     const b = B(), t = b.state.t, frame = b.frameEl();
     const P = parts(frame, t.asset), IDS = layerIds(t);
@@ -70,6 +96,7 @@
       })));
     } finally { IDS.forEach(id => { if (P[id]) P[id].removeAttribute('data-al'); }); }
     const L = {}; IDS.forEach((id, i) => { L[id] = imgs[i]; });
+    if (t.asset === 'vacature') L.strip = await pillStrip(frame);
     // the colour of each pill at its left edge: that is the colour of its circle
     const col = (img, r) => { const d = img.getContext('2d').getImageData(Math.round(r.x + 2), Math.round(r.y + r.h / 2), 1, 1).data; return `rgba(${d[0]},${d[1]},${d[2]},${(d[3] / 255).toFixed(3)})`; };
     if (t.asset !== 'vacature') {
@@ -169,7 +196,8 @@
 
   // the vacancy: the label and the title slide in together, then the line under the title slides in while the photo wipes open from the
   // left to the right; the logo is there from the first frame
-  function drawVacature(ctx, ms, noLogo) {
+  const PILL_V = 0.14;                                      // the speed of the pills along the seam, in pixels per millisecond
+  function drawVacature(ctx, ms, noLogo, clock) {
     const A = layers, { L, geo } = A;
     ctx.clearRect(0, 0, A.w, A.h);
     ctx.drawImage(L.bg, 0, 0);
@@ -182,11 +210,19 @@
       ctx.save(); ctx.beginPath(); ctx.rect(ph.x - 2, ph.y - 2, ph.w * pp + 4, ph.h + 4); ctx.clip();
       ctx.drawImage(L.photo, 0, 0); ctx.restore();
     }
+    // the pills enter from the right at the seam and keep running through the picture (the clock goes on after the movement)
+    const S = L.strip, cl = clock == null ? ms : clock, pa = seg(cl, 1100, 600);
+    if (S && pa > 0) {
+      const x0 = A.w - Math.max(0, cl - 1100) * PILL_V, y = geo.photo.y - S.h / 2 - S.pad;
+      ctx.save(); ctx.globalAlpha = pa;
+      for (let k = 0; k < 3; k++) { const x = x0 + k * S.period; if (x < A.w && x + S.period > 0) ctx.drawImage(S.cv, x, y); }
+      ctx.restore();
+    }
     if (!noLogo) ctx.drawImage(L.logo, 0, 0);
   }
 
-  function draw(ctx, ms, noLogo) {
-    if (layers.asset === 'vacature') return drawVacature(ctx, ms, noLogo);
+  function draw(ctx, ms, noLogo, clock) {
+    if (layers.asset === 'vacature') return drawVacature(ctx, ms, noLogo, clock);
     const A = layers, { L, geo } = A;
     ctx.clearRect(0, 0, A.w, A.h);
     ctx.drawImage(L.bg, 0, 0);
@@ -224,11 +260,11 @@
     if (v[0] === '#') return [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16));
     return (v.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number); };
   const smooth = (p) => p * p * (3 - 2 * p), sineInOut = (p) => -(Math.cos(Math.PI * p) - 1) / 2;
-  let outCv = null;
+  let outCv = null, outClock = DUR;
   function drawOut(ctx, p) {
     const A = layers; if (!outCv) outCv = document.createElement('canvas');
     if (outCv.width !== A.w || outCv.height !== A.h) { outCv.width = A.w; outCv.height = A.h; }
-    draw(outCv.getContext('2d'), DUR, true);
+    draw(outCv.getContext('2d'), DUR, true, outClock);
     ctx.clearRect(0, 0, A.w, A.h); ctx.fillStyle = A.bg; ctx.fillRect(0, 0, A.w, A.h);
     ctx.save(); ctx.globalAlpha = 1 - smooth(clamp((p - .1) / .6)); ctx.drawImage(outCv, 0, 0); ctx.restore();
     const H = A.h * 1.3, k = H / 1121, w = 988 * k, mid = (A.w - w) / 2, T = .5;
@@ -259,7 +295,7 @@
   function frame(ts) {
     if (!on || !layers || recording) return;
     const ms = (ts - t0) % (DUR + LOOP_HOLD + LOOP_OUT);   // the preview pauses a moment on the finished design, then the monogram takes it away
-    if (ms <= DUR) draw(canvas.getContext('2d'), ms); else drawOut(canvas.getContext('2d'), Math.max(0, (ms - DUR - LOOP_HOLD) / LOOP_OUT));
+    if (ms <= DUR) draw(canvas.getContext('2d'), ms); else { outClock = ms; drawOut(canvas.getContext('2d'), Math.max(0, (ms - DUR - LOOP_HOLD) / LOOP_OUT)); }
     raf = requestAnimationFrame(frame);
   }
   function start() { stop(); t0 = performance.now(); raf = requestAnimationFrame(frame); }
@@ -279,7 +315,7 @@
       const chunks = []; rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       const stopped = new Promise(res => { rec.onstop = res; });
       const s = performance.now(); rec.start();
-      await new Promise(res => { const loop = () => { const ms = performance.now() - s; draw(ctx, Math.min(ms, DUR)); if (ms < CLIP) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
+      await new Promise(res => { const loop = () => { const ms = performance.now() - s; draw(ctx, Math.min(ms, DUR), false, ms); if (ms < CLIP) requestAnimationFrame(loop); else res(); }; requestAnimationFrame(loop); });
       rec.stop(); await stopped;
       const blob = new Blob(chunks, { type: mime }), ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = b.fileName().replace(/\.png$/, '-animatie.' + ext);
@@ -298,7 +334,7 @@
     if (!A || typeof GIF === 'undefined') { setStatus('GIF-export niet beschikbaar'); return; }
     stop(); recording = true; btn.disabled = true; $('bytMp4').disabled = true;
     try {
-      const k = Math.min(1, GIF_MAX / Math.max(A.w, A.h)), w = Math.round(A.w * k), h = Math.round(A.h * k);
+      const k = Math.min(1, (A.asset === 'vacature' ? 640 : GIF_MAX) / Math.max(A.w, A.h)), w = Math.round(A.w * k), h = Math.round(A.h * k);
       const full = document.createElement('canvas'); full.width = A.w; full.height = A.h;
       const small = document.createElement('canvas'); small.width = w; small.height = h;
       const fctx = full.getContext('2d'), sctx = small.getContext('2d', { willReadFrequently: true });
@@ -307,10 +343,19 @@
       const step = GIF_STEP, n = Math.ceil(DUR / step);
       for (let i = 0; i <= n; i++) {
         const last = i === n;
-        draw(fctx, Math.min(DUR, i * step)); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
-        gif.addFrame(sctx, { copy: true, delay: last ? GIF_HOLD : step });
+        draw(fctx, Math.min(DUR, i * step), false, i * step); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
+        gif.addFrame(sctx, { copy: true, delay: last && A.asset !== 'vacature' ? GIF_HOLD : step });
         setStatus('GIF maken… ' + Math.round(i / n * 40) + '%');
         if (i % 6 === 0) await new Promise(r => setTimeout(r));
+      }
+      // the vacancy: the pills keep running while the finished design stays (a few seconds, coarser frames), instead of one long still frame
+      outClock = DUR;
+      if (A.asset === 'vacature') {
+        for (let c = DUR + 100; c <= DUR + 5000; c += 100) {
+          draw(fctx, DUR, false, c); sctx.fillStyle = A.bg; sctx.fillRect(0, 0, w, h); sctx.drawImage(full, 0, 0, w, h);
+          gif.addFrame(sctx, { copy: true, delay: 100 }); outClock = c;
+          if ((c / 100) % 6 === 0) await new Promise(r => setTimeout(r));
+        }
       }
       // the way out: the monogram goes by and the design fades, so the loop starts again from the plain colour and the logo
       const fn = Math.round(GIF_OUT / GIF_STEP);

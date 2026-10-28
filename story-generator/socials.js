@@ -29,9 +29,9 @@
     quote: 'Quote', author: 'Auteur', cta: 'Tekst op de knop',
     person: 'Persoon', name: 'Naam', role: 'Functie', eyebrow: 'Label (klein, boven de titel)', duration: 'Duur', version: 'Versie',
     intro: 'Intro', u1: 'Update 1 (mag leeg)', u2: 'Update 2 (mag leeg)', u3: 'Update 3 (mag leeg)',
-    subline: 'Regel onder de titel (plaats, periode)', homeTeam: 'Thuisploeg', awayTeam: 'Uitploeg', homeScore: 'Score thuis', awayScore: 'Score uit',
+    subline: 'Regel onder de titel (plaats, periode)', pills: 'Pills op de scheidslijn (termen, met komma\'s ertussen)', homeTeam: 'Thuisploeg', awayTeam: 'Uitploeg', homeScore: 'Score thuis', awayScore: 'Score uit',
   };
-  const LONG = { quote: 4, intro: 4, title: 0 };   // textarea rows
+  const LONG = { quote: 4, intro: 4, title: 0, pills: 3 };   // textarea rows
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   const cur = { asset: null, t: null, props: {}, photo: null, scale: 1, safe: false };
@@ -71,6 +71,13 @@
     }
   }
 
+  // ---------- the row of pills on the seam (vacancy): terms, white and in the secondary colour by turns ----------
+  const pillItems = (txt) => String(txt || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean).slice(0, 14);
+  function pillsHtml(txt) {
+    return '<div style="display:flex; gap:24px; position:absolute; left:-90px; top:0; white-space:nowrap;">' + pillItems(txt).map((s, i) =>
+      `<span style="flex:none; height:76px; line-height:76px; padding:0 38px; border-radius:38px; font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:34px; ${i % 2 ? 'background:var(--pill-bg,#008B8B); color:#ffffff;' : 'background:#ffffff; color:var(--title,#060228);'} box-shadow:0 8px 24px rgba(6,2,40,.18);">${esc(s)}</span>`).join('') + '</div>';
+  }
+
   // ---------- rendering ----------
   function frameEl() { return $('bytFrame'); }
   function render() {
@@ -89,6 +96,7 @@
     const chSrc = !ch ? '' : (arrow ? 'data:image/svg+xml;base64,' + btoa(atob(ch.src.split(',')[1]).replace(/#49FF9F/gi, arrow)) : ch.src);
     if (ch) h = h.replace(/<span([^>]*)>\{\{\s*platform\s*\}\}<\/span>/, (m, a) =>
       `<span${a.replace(/style="([^"]*)"/, (mm, st) => `style="${st}; display:flex; align-items:center;"`)}><img src="${chSrc}" alt="${esc(ch.label)}" style="height:1.35em; width:auto; display:block;"></span>`);
+    if ('pills' in t.props) h = h.replace('<!--pills-->', pillsHtml(cur.props.pills));
     h = h.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => esc(vals[k] != null ? vals[k] : cur.props[k]));
     frame.innerHTML = h;
     frame.querySelectorAll('.byt-slot').forEach(applySlot);
@@ -440,7 +448,7 @@
     close() { saveProps(); if (window.BYT_ANIM) window.BYT_ANIM.reset(); },
     get state() { return cur; },
     renderBlob: () => renderBlob(cur.t),
-    renderCanvas, frameEl, fileName,
+    renderCanvas, frameEl, fileName, pillItems,
   };
   buildCards();
   document.querySelectorAll('[data-go-byt]').forEach(c => c.addEventListener('click', () => document.dispatchEvent(new CustomEvent('byt-go', { detail: c.dataset.goByt }))));

@@ -32,9 +32,13 @@
     <x-import component-from-global-scope="ByTomorrowDesignSystem_c9da89.Logo" color="#ffffff" width="357" hint-size="357px,69px"></x-import>
   </div>
 
+
+  <!-- the pills on the line between the field and the photo: terms and tasks, filled in by the editor (a row that runs through the picture in the animation) -->
+  <!--if:showPills--><div style="position:absolute; left:0; right:0; top:449px; height:76px;"><!--pills--></div><!--/if-->
+
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1080, &quot;height&quot;: 1350}, &quot;pillar&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;content&quot;, &quot;jump&quot;, &quot;marketing&quot;, &quot;productie&quot;, &quot;standaard&quot;, &quot;navy&quot;], &quot;default&quot;: &quot;content&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;eyebrow&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Wij zoeken....&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;title&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Stagiair(e) Design &amp; Sportcontent&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;subline&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Veenendaal | feb t/m jul 2027&quot;, &quot;tsType&quot;: &quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1080, &quot;height&quot;: 1350}, &quot;pillar&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;content&quot;, &quot;jump&quot;, &quot;marketing&quot;, &quot;productie&quot;, &quot;standaard&quot;, &quot;navy&quot;], &quot;default&quot;: &quot;content&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;eyebrow&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Wij zoeken....&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;title&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Stagiair(e) Design &amp; Sportcontent&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;subline&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Veenendaal | feb t/m jul 2027&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;showPills&quot;: {&quot;editor&quot;: &quot;toggle&quot;, &quot;default&quot;: true, &quot;label&quot;: &quot;Pills op de scheidslijn&quot;, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;pills&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Socialmedia, Campagnebeelden, Streamgraphics, Branding, Video editen, Livestreams, Photoshop, Premiere Pro, Zelfstandig, Sport&quot;, &quot;tsType&quot;: &quot;string&quot;}}">
 class Component extends DCLogic {
   pillar() {
     const PILLARS = {
