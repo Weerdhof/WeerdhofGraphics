@@ -622,11 +622,11 @@
       '<circle cx="76" cy="96" r="38" fill="#ffffff"/><circle cx="130" cy="70" r="46" fill="#ffffff"/><circle cx="186" cy="92" r="40" fill="#ffffff"/>' +
       '<rect x="40" y="92" width="186" height="46" fill="#ffffff"/></svg>';
   }
-  function confettiHtml() {                                                  // circles and pills in the colours of the pillars, drifting down slowly (no noise: clean shapes)
-    var cols = ['#FC06E5', '#49FF9F', '#00FFE6', '#3D5AFE', '#060228'], h = '', i, n = 22, c, left, size, dur, del, pill, rot;
+  function confettiHtml() {                                                  // circles and pills in the colours of the pillars, drifting down slowly (clean shapes); only transforms are animated, so the TV can do it on the graphics chip
+    var cols = ['#FC06E5', '#49FF9F', '#00FFE6', '#3D5AFE', '#060228'], h = '', i, n = 16, c, left, size, dur, del, pill, rot;
     for (i = 0; i < n; i++) {
-      c = cols[i % cols.length]; left = (i * 83 + 40) % 1840; size = 22 + (i * 7) % 26; dur = 9 + (i * 5) % 7; del = -((i * 13) % 14); pill = i % 3 === 0; rot = (i * 47) % 360;
-      h += '<i class="cf' + (i % 2 ? ' cf2' : '') + '" style="left:' + left + 'px;width:' + (pill ? size * 2.2 : size) + 'px;height:' + size + 'px;border-radius:' + size + 'px;background:' + c + ';-webkit-animation-duration:' + dur + 's;animation-duration:' + dur + 's;-webkit-animation-delay:' + del + 's;animation-delay:' + del + 's;-webkit-transform:rotate(' + rot + 'deg)"></i>';
+      c = cols[i % cols.length]; left = (i * 113 + 40) % 1840; size = 22 + (i * 7) % 26; dur = 10 + (i * 5) % 7; del = -((i * 13) % 14); pill = i % 3 === 0; rot = (i * 47) % 360;
+      h += '<div class="cf" style="left:' + left + 'px;-webkit-animation-duration:' + dur + 's;animation-duration:' + dur + 's;-webkit-animation-delay:' + del + 's;animation-delay:' + del + 's"><i class="' + (i % 2 ? 'cs2' : 'cs1') + '" style="width:' + (pill ? size * 2.2 : size) + 'px;height:' + size + 'px;border-radius:' + size + 'px;background:' + c + ';-webkit-transform:rotate(' + rot + 'deg);transform:rotate(' + rot + 'deg)"></i></div>';
     }
     return '<div class="cfl">' + h + '</div>';
   }

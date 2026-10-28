@@ -485,7 +485,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 @keyframes bubble { 0% { opacity: 0; transform: translateY(0); } 15% { opacity: .9; } 85% { opacity: .9; } 100% { opacity: 0; transform: translateY(-170px); } }
 /* the two glasses clink: they lean away, swing together, a spark flashes and they swing back */
 .toast { position: absolute; left: 980px; top: 300px; width: 840px; height: 560px; }
-.mug { position: absolute; top: 80px; width: 360px; height: 427px; -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%; }
+.mug { -webkit-will-change: transform; will-change: transform; position: absolute; top: 80px; width: 360px; height: 427px; -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%; }
 .mug .mi1 { width: 360px; height: 427px; }
 .mug.ml { left: 40px; -webkit-animation: clinkl 3.6s ease-in-out infinite; animation: clinkl 3.6s ease-in-out infinite; }
 .mug.ml .mi1 { -webkit-transform: scaleX(-1); transform: scaleX(-1); }
@@ -497,11 +497,9 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .spark { position: absolute; left: 320px; top: 20px; opacity: 0; -webkit-transform: scale(.4); transform: scale(.4); -webkit-animation: spark 3.6s ease-out infinite; animation: spark 3.6s ease-out infinite; }
 @-webkit-keyframes spark { 0%, 50% { opacity: 0; -webkit-transform: scale(.4); } 56% { opacity: 1; -webkit-transform: scale(1); } 72%, 100% { opacity: 0; -webkit-transform: scale(1.25); } }
 @keyframes spark { 0%, 50% { opacity: 0; transform: scale(.4); } 56% { opacity: 1; transform: scale(1); } 72%, 100% { opacity: 0; transform: scale(1.25); } }
-/* confetti: clean circles and pills in the colours of the pillars, drifting down */
+/* confetti: clean circles and pills in the colours of the pillars, drifting down; only transforms are animated (a smooth ride on the TV) */
 .cfl { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
-.cf { position: absolute; top: -80px; opacity: .95; -webkit-animation: fall 11s linear infinite; animation: fall 11s linear infinite; }
-.cf2 { -webkit-animation-name: fall2; animation-name: fall2; }
-@-webkit-keyframes fall { from { top: -80px; margin-left: 0; } 50% { margin-left: 26px; } to { top: 1120px; margin-left: 0; } }
-@keyframes fall { from { top: -80px; margin-left: 0; } 50% { margin-left: 26px; } to { top: 1120px; margin-left: 0; } }
-@-webkit-keyframes fall2 { from { top: -80px; margin-left: 0; } 50% { margin-left: -26px; } to { top: 1120px; margin-left: 0; } }
-@keyframes fall2 { from { top: -80px; margin-left: 0; } 50% { margin-left: -26px; } to { top: 1120px; margin-left: 0; } }
+.cf { position: absolute; left: 0; top: 0; -webkit-will-change: transform; will-change: transform; -webkit-transform: translate3d(0, -120px, 0); transform: translate3d(0, -120px, 0); -webkit-animation: fall 11s linear infinite; animation: fall 11s linear infinite; }
+.cf i { display: block; -webkit-will-change: transform; will-change: transform; }
+@-webkit-keyframes fall { from { -webkit-transform: translate3d(0, -120px, 0); } to { -webkit-transform: translate3d(0, 1200px, 0); } }
+@keyframes fall { from { transform: translate3d(0, -120px, 0); } to { transform: translate3d(0, 1200px, 0); } }
