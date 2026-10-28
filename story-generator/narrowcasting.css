@@ -474,3 +474,4 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .sgcal svg { display: inline-block; vertical-align: middle; margin-top: -4px; }
 .slide.soonl .sgs + .sgt { top: 900px; }
 .slide.soonl .sgs + .sgt + .sgb { top: 990px; }
+.sgp2 { margin-left: 16px; }
