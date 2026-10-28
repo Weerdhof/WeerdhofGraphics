@@ -381,3 +381,19 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .cdu i { display: block; font-style: normal; font-family: "Open Sans", Arial, sans-serif; font-weight: 700; font-size: 15px; line-height: 18px; letter-spacing: 1.5px; text-transform: uppercase; }
 .cdlv { display: none; height: 92px; padding: 0 30px; border-radius: 18px; border: 2px solid currentColor; box-sizing: border-box; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 900; font-size: 44px; line-height: 88px; }
 .cdpo { background: transparent; border: 2px solid; line-height: 42px; }
+.cdg .mi { position: absolute; left: 0; top: 0; width: 100%; text-align: center; font-size: 56px; line-height: 98px; }
+/* six cards (another client goes live earlier): three columns */
+.cds .cdp { left: 24px; top: 24px; }
+.cds .cdpl { height: 38px; padding: 0 18px; margin-right: 8px; border-radius: 19px; font-size: 20px; line-height: 38px; }
+.cds .cdpd { line-height: 34px; }
+.cds .cdt { left: 24px; top: 84px; width: 512px; }
+.cds .cdm { left: 24px; bottom: 24px; }
+.cds .cdu { width: 80px; height: 76px; margin-right: 7px; border-radius: 14px; }
+.cds .cdu b { margin-top: 6px; font-size: 38px; line-height: 42px; }
+.cds .cdu i { font-size: 12px; line-height: 15px; letter-spacing: 1px; }
+.cds .cdlv { height: 76px; font-size: 34px; line-height: 72px; padding: 0 22px; }
+.cds .cdg { right: 20px; bottom: 24px; width: 80px; height: 80px; border-radius: 40px; }
+.cds .cdg img { width: 50px; height: 50px; margin: -25px 0 0 -25px; }
+.cds .cdg .mi { font-size: 44px; line-height: 74px; }
+.cds .cdn { left: 24px; font-size: 30px; }
+.cdc.cds { width: 560px; }
