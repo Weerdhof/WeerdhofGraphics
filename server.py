@@ -1114,7 +1114,7 @@ def _clean_narrow(raw):
             return max(lo, min(hi, int(v)))
         except (TypeError, ValueError):
             return d
-    meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome") else "off", "client": str(mt.get("client") or "").strip()[:40],   # meeting mode: the screen shows one slide only
+    meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome", "vrijmibo") else "off", "client": str(mt.get("client") or "").strip()[:40],   # meeting mode: the screen shows one slide only
                "bg": num(mt.get("bg"), 0, 10 ** 15, 0), "dim": num(mt.get("dim"), 0, 90, 45),
                "theme": mt.get("theme") if mt.get("theme") in NARROW_THEMES else "navy"}      # bg: version of the background photo of the welcome slide (0 = none), dim: how much darker
     sl_raw = raw.get("slides") if isinstance(raw.get("slides"), dict) else {}
@@ -1136,15 +1136,54 @@ def _clean_narrow(raw):
                          "showEnd": x.get("showEnd") is not False, "theme": x.get("theme") if x.get("theme") in NARROW_THEMES else "navy",
                          "label": str(x.get("label") or "").strip()[:24]})              # the word on the slide instead of "Meeting"                  # the end time on the screen can be left out
     meetings.sort(key=lambda m: (m["date"], m["start"], m["client"]))
+    vm = raw.get("vrijmibo") if isinstance(raw.get("vrijmibo"), dict) else {}
+    vrijmibo = {"enabled": vm.get("enabled") is not False, "start": hhmm(vm.get("start")) or "16:00", "end": hhmm(vm.get("end")) or "18:00"}      # Friday afternoon drinks: the screen shows only that slide
+    if vrijmibo["end"] <= vrijmibo["start"]:
+        vrijmibo["end"] = "23:59"
     ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
     instagram = {k: (str(ig_raw.get(k) or "").strip() if _ig_feed_ok(str(ig_raw.get(k) or "").strip()) else "") for k in IG_LABELS}          # Behold feed URL per account
-    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden, "instagram": instagram, "meetings": meetings}
+    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden, "instagram": instagram, "meetings": meetings, "vrijmibo": vrijmibo}
+
+
+def vrijmibo_on(data, now):
+    """Friday afternoon drinks: on Fridays from the start time (16:00) until the end time, unless something is planned around the start (a planned
+    meeting that overlaps the half hour before and after it, or an appointment of the agenda in that time): then there is no vrijmibo that day."""
+    vm = data.get("vrijmibo") or {}
+    if not vm.get("enabled") or now.weekday() != 4:
+        return False
+    day, hm = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+    if not (vm["start"] <= hm < vm["end"]):
+        return False
+    try:
+        st = datetime.strptime(day + " " + vm["start"], "%Y-%m-%d %H:%M")
+    except ValueError:
+        return False
+    lo, hi = st - timedelta(minutes=30), st + timedelta(minutes=30)
+    for m in data.get("meetings", []):
+        try:
+            a = datetime.strptime(m["date"] + " " + m["start"], "%Y-%m-%d %H:%M"); b = datetime.strptime(m["date"] + " " + m["end"], "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        if m["date"] == day and a < hi and b > lo:
+            return False
+    for it in data.get("items", []):
+        if it.get("date") != day or not it.get("time"):
+            continue
+        try:
+            a = datetime.strptime(day + " " + it["time"], "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        if lo <= a < hi:
+            return False
+    return True
 
 
 def effective_meeting(data):
     """What the screen shows now: the guest mode that was switched on by hand, else a planned meeting (10 minutes before the start the "soon" notice,
     from the start until the end the meeting itself), else nothing."""
     mt = data["meeting"]
+    if mt["mode"] == "vrijmibo":
+        return dict(mt, theme="marketing", start=(data.get("vrijmibo") or {}).get("start", "16:00"))
     if mt["mode"] != "off":
         return mt
     now = _ams_now_parts(time.time()).replace(tzinfo=None)
@@ -1159,6 +1198,8 @@ def effective_meeting(data):
             return dict(base, mode=m["mode"])
         if m["mode"] in ("meeting", "welcome") and start - timedelta(minutes=10) <= now < start:
             return dict(base, mode="soon", kind=m["mode"])
+    if vrijmibo_on(data, now):
+        return {"mode": "vrijmibo", "client": "", "bg": 0, "dim": mt["dim"], "theme": "marketing", "start": data["vrijmibo"]["start"]}
     return mt
 
 

@@ -89,10 +89,18 @@
     <div class="row"><b style="min-width:210px">Gastmodus nu</b>
       <button class="btn small line" type="button" data-meet="off">Uit: alle slides</button>
       <button class="btn small line" type="button" data-meet="welcome">Welkom [klant]</button>
+      <button class="btn small line" type="button" data-meet="vrijmibo">Vrijmibo nu</button>
       <button class="btn small line" type="button" data-meet="slogan">Alleen "Alle sporters zijn helden"</button>
       <input type="text" id="meetClient" placeholder="Naam van de klant" maxlength="40" style="max-width:240px">
       <select id="meetTheme" title="Kleurstelling van Welkom [klant]" style="max-width:150px"></select></div>
     <div class="hint" id="meetHint" style="margin-top:8px"></div>
+  </div>
+  <div class="box">
+    <div class="row"><b style="min-width:210px">Vrijmibo</b>
+      <label class="chk" style="margin:0"><input type="checkbox" id="vmOn"> Elke vrijdag</label>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Van <input type="time" id="vmStart" style="width:120px"></label>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">tot <input type="time" id="vmEnd" style="width:120px"></label></div>
+    <div class="hint" style="margin-top:8px">Dan laat het scherm alleen de vrijmibo-slide zien (marketing-kleuren en een biertje). Staat er rond die tijd (een half uur eromheen) een meeting gepland of een afspraak in de agenda, dan slaat het scherm de vrijmibo die dag over. Een geplande meeting gaat altijd voor.</div>
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Meetings plannen</b><button class="btn small" id="mtAdd" type="button">+ Meeting plannen</button>
@@ -148,7 +156,7 @@
   var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'], hhd: ['Hoofdklasse Dames', '#2FD6C0'], hhh: ['Hoofdklasse Heren', '#8F66FF'], zwem: ['Zwemsport TV', '#38BDF8'], kwpn: ['KWPN TV', '#FF8A1F'], tvv: ['Tijd voor Volleyball', '#D08A4E'], futsal: ['Eredivisie Futsal', '#D4E04A'], sibv: ['Sport in Beeld Veenendaal', '#20B2A0'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal', hnltv: 'handbal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames', hnltv: 'HandbalNL TV' };
-  var slidesOn = {}, meetings = [], effective = null, instagram = { shl: '', shlw: '' }, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
+  var slidesOn = {}, vrijmibo = { enabled: true, start: '16:00', end: '18:00' }, meetings = [], effective = null, instagram = { shl: '', shlw: '' }, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -156,7 +164,7 @@
   function save(now) {
     clearTimeout(saveTimer); status('Opslaan…');
     saveTimer = setTimeout(function () {
-      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn, hidden: hidden, instagram: instagram, meetings: meetings }) })
+      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn, hidden: hidden, instagram: instagram, meetings: meetings, vrijmibo: vrijmibo }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function () { saveTimer = 0; status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
@@ -204,8 +212,17 @@
     document.getElementById('bgDimV').textContent = (meeting.dim == null ? 45 : meeting.dim) + '%';
     document.getElementById('meetHint').textContent = meeting.mode === 'off' ? (effective && effective.planned ? 'Een geplande meeting is nu aan de beurt: het scherm laat die zien en gaat daarna vanzelf terug naar de normale slides.' : 'De normale slides draaien.') :
       meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Het scherm schakelt binnen een paar seconden.' :
+      meeting.mode === 'vrijmibo' ? 'Het scherm laat alleen de vrijmibo zien (marketing-kleuren en een biertje), tot je op "Uit" klikt.' :
       'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Het scherm schakelt binnen een paar seconden.';
   }
+  // ---- vrijmibo: Friday afternoon drinks ----
+  function renderVrijmibo() {
+    var on = document.getElementById('vmOn'), st = document.getElementById('vmStart'), en = document.getElementById('vmEnd');
+    on.checked = vrijmibo.enabled !== false; if (document.activeElement !== st) st.value = vrijmibo.start || '16:00'; if (document.activeElement !== en) en.value = vrijmibo.end || '18:00';
+  }
+  document.getElementById('vmOn').addEventListener('change', function (e) { vrijmibo.enabled = e.target.checked; save(true); });
+  document.getElementById('vmStart').addEventListener('input', function (e) { vrijmibo.start = e.target.value; save(); });
+  document.getElementById('vmEnd').addEventListener('input', function (e) { vrijmibo.end = e.target.value; save(); });
   // ---- planned meetings: a row each, the screen switches by itself ----
   var THEMES = [['navy', 'Navy'], ['blauw', 'Blauw'], ['lichtblauw', 'Lichtblauw'], ['productie', 'Productie'], ['jump', 'JUMP'], ['marketing', 'Marketing'], ['content', 'Content'], ['wit', 'Wit']];
   function themeOpts(v) { return THEMES.map(function (t) { return '<option value="' + t[0] + '"' + ((v || 'navy') === t[0] ? ' selected' : '') + '>' + t[1] + '</option>'; }).join(''); }
@@ -409,7 +426,7 @@
   // load, and load again when the page comes back into view, so that a page that has been open a long time never saves old data over newer data
   function load() {
     fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) {
-      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; instagram = j.instagram || instagram; meetings = j.meetings || []; effective = j.effective || null; document.getElementById('igShl').value = instagram.shl || ''; document.getElementById('igShlw').value = instagram.shlw || ''; hidden = j.hidden || []; render(); renderSlides();
+      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; instagram = j.instagram || instagram; meetings = j.meetings || []; vrijmibo = j.vrijmibo || vrijmibo; renderVrijmibo(); effective = j.effective || null; document.getElementById('igShl').value = instagram.shl || ''; document.getElementById('igShlw').value = instagram.shlw || ''; hidden = j.hidden || []; render(); renderSlides();
     }).catch(function () { status('Laden mislukt.'); });
   }
   load();

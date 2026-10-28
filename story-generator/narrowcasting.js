@@ -586,6 +586,7 @@
   function guestBg() { return meeting.bg ? '<div class="wbg" style="background-image:url(/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg + ')"></div><div class="wdim" style="opacity:' + (meeting.dim / 100) + '"></div>' : ''; }
   function guestName(txt, def) { var n = txt.length; return '<b style="display:block;font-size:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px;line-height:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px">' + esc(txt || def) + '</b>'; }
   function themeKey(type) {                                                  // the colour scheme of the guest and meeting slides (a background photo keeps the navy look)
+    if (type === 'vrijmibo') return 'marketing';                              // the vrijmibo is always in the marketing colours
     if (type !== 'welcome' && type !== 'meeting' && type !== 'soon') return '';
     if (type === 'soon') return 'blauw';
     return meeting.bg ? '' : (meeting.theme && meeting.theme !== 'navy' ? meeting.theme : '');
@@ -611,6 +612,32 @@
   }
   function meetingHtml() {
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">' + esc(meeting.label || 'Meeting') + '</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' +
+      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
+  }
+  // ---- the vrijmibo (Friday afternoon drinks): marketing colours, confetti in the colours of ByT and two glasses of beer that clink; the only slide ----
+  function mugSvg() {
+    return '<svg viewBox="0 0 320 380" width="360" height="427" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M214 150h34a46 46 0 0 1 46 46v66a46 46 0 0 1-46 46h-34" fill="none" stroke="#060228" stroke-width="26" stroke-linecap="round"/>' +
+      '<rect x="40" y="96" width="186" height="262" rx="22" fill="#C25100" stroke="#060228" stroke-width="14"/>' +
+      '<rect x="64" y="150" width="14" height="170" rx="7" fill="#ffffff" opacity=".35"/><rect x="92" y="170" width="8" height="120" rx="4" fill="#ffffff" opacity=".25"/>' +
+      '<circle class="bb b1" cx="120" cy="320" r="9" fill="#ffcc00"/><circle class="bb b2" cx="160" cy="330" r="6" fill="#ffcc00"/><circle class="bb b3" cx="190" cy="318" r="8" fill="#ffcc00"/><circle class="bb b4" cx="140" cy="335" r="5" fill="#ffcc00"/>' +
+      '<circle cx="74" cy="92" r="38" fill="#ffffff" stroke="#060228" stroke-width="10"/><circle cx="128" cy="68" r="46" fill="#ffffff" stroke="#060228" stroke-width="10"/><circle cx="184" cy="88" r="40" fill="#ffffff" stroke="#060228" stroke-width="10"/>' +
+      '<rect x="46" y="86" width="174" height="40" fill="#ffffff"/></svg>';
+  }
+  function confettiHtml() {                                                  // circles and pills in the colours of the pillars, drifting down slowly (no noise: clean shapes)
+    var cols = ['#FC06E5', '#49FF9F', '#00FFE6', '#3D5AFE', '#060228'], h = '', i, n = 22, c, left, size, dur, del, pill, rot;
+    for (i = 0; i < n; i++) {
+      c = cols[i % cols.length]; left = (i * 83 + 40) % 1840; size = 22 + (i * 7) % 26; dur = 9 + (i * 5) % 7; del = -((i * 13) % 14); pill = i % 3 === 0; rot = (i * 47) % 360;
+      h += '<i class="cf' + (i % 2 ? ' cf2' : '') + '" style="left:' + left + 'px;width:' + (pill ? size * 2.2 : size) + 'px;height:' + size + 'px;border-radius:' + size + 'px;background:' + c + ';-webkit-animation-duration:' + dur + 's;animation-duration:' + dur + 's;-webkit-animation-delay:' + del + 's;animation-delay:' + del + 's;-webkit-transform:rotate(' + rot + 'deg)"></i>';
+    }
+    return '<div class="cfl">' + h + '</div>';
+  }
+  function vrijmiboHtml() {
+    var when = 'Vrijdagmiddag ' + (meeting.start || '16:00');
+    return confettiHtml() + '<div class="sg vm rz" style="animation-delay:150ms"><span style="display:block;line-height:240px;font-size:250px">Vrijmibo</span></div>' +
+      '<div class="sgs vms rz" style="animation-delay:450ms"><span class="sgpill" style="padding-left:40px">' + esc(when) + '</span></div>' +
+      '<div class="toast rz" style="animation-delay:400ms"><div class="mug ml"><div class="mi1">' + mugSvg() + '</div></div><div class="mug mr"><div class="mi1">' + mugSvg() + '</div></div>' +
+      '<svg class="spark" viewBox="0 0 200 200" width="200" height="200"><g stroke="#060228" stroke-width="12" stroke-linecap="round"><path d="M100 10v50M100 140v50M10 100h50M140 100h50M36 36l34 34M130 130l34 34M164 36l-34 34M70 130l-34 34"/></g></svg></div>' +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   var soonTimer = 0, soonOnce = 0, burstNext = false;
@@ -732,6 +759,7 @@
     if (meeting.mode === 'slogan') return [{ type: 'slogan' }];
     if (meeting.mode === 'welcome') return [{ type: 'welcome' }];
     if (meeting.mode === 'soon') return [{ type: 'soon' }];
+    if (meeting.mode === 'vrijmibo') return [{ type: 'vrijmibo' }];
     if (meeting.mode === 'meeting') return [{ type: 'meeting' }];
     // which slides take part is set on the beheer page; when looking at one slide (?slide=...) they all do
     var on = function (k) { return !!only || slidesOn[k] !== false; };
@@ -767,6 +795,7 @@
     if (s.type === 'slogan') return sloganHtml();
     if (s.type === 'welcome') return welcomeHtml();
     if (s.type === 'soon') return soonHtml();
+    if (s.type === 'vrijmibo') return vrijmiboHtml();
     if (s.type === 'meeting') return meetingHtml();
     if (s.type === 'logo') return logoHtml();
     return weatherHtml();
@@ -806,8 +835,8 @@
     var useBurst = burstNext; burstNext = false;
     (useBurst ? burst : crossfade)(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
-      var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting');
-      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + (s.type === 'soon' ? ' soonl' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (s.type === 'soon' || s.type === 'meeting' ? ' lowlogo' : '') + '">' + html + '</div>';
+      var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' || s.type === 'vrijmibo');
+      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + (s.type === 'soon' ? ' soonl' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (s.type === 'soon' || s.type === 'meeting' || s.type === 'vrijmibo' ? ' lowlogo' : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
