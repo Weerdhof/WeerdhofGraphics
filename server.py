@@ -1068,7 +1068,7 @@ _weather = {"at": 0, "data": None}
 
 
 NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
-NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "platforms", "instagram", "weather", "logo")
+NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "platforms", "instagram", "countdown", "weather", "logo")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
 

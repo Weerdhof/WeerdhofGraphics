@@ -90,7 +90,7 @@ An unknown page under a client opens that client's landing page. `stream.html`, 
 | --- | --- |
 | `/narrowcasting` | Het scherm: slides die om de beurt in beeld komen met een rustige cross-fade (30 seconden elk, "Alle sporters zijn helden" 70 seconden). |
 | `/narrowcasting/beheer` | Hier beheer je de streamagenda, kies je de programma-slides en zet je de meeting-modus aan of uit. |
-| `/narrowcasting?slide=agenda,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `streams`, `stand` (met `&comp=men` of `women`), `matches`, `quote`, `news1`, `news2`, `platforms`, `instagram`, `slogan`, `weather`, `logo`. |
+| `/narrowcasting?slide=agenda,weather` | Toont alleen die slides (om ze te bekijken): `agenda`, `featured`, `streams`, `stand` (met `&comp=men` of `women`), `matches`, `quote`, `news1`, `news2`, `platforms`, `instagram`, `countdown`, `slogan`, `weather`, `logo`. |
 
 Slides: **Streamagenda** (alle streams: wat je invult plus automatisch alle wedstrijden van de komende 7 dagen uit het SHL-, SHLW- en LVL-programma en uit de livestream-agenda van handbalnl.tv (paarse tag HandbalNL TV, wat al in het SHL/SHLW-programma staat wordt overgeslagen), met "LIVE" bij een
 lopende stream), **Uitgelicht** (aangevinkte afspraken als grote kaarten), per SHL en SHLW de **komende 7 streams** en daarna **stand en uitslagen** (in de stijl van de SHL-stream),
@@ -109,6 +109,8 @@ Sportnieuws komt van de NOS-feed (`feeds.nos.nl/nossportalgemeen`, via `/api/nar
 Slide `platforms` ("Powered by JUMP") toont de homepage van alle platformen in één horizontaal scrollende strook (60 seconden). De server maakt die screenshots zelf met Playwright, elke ochtend rond 08:00 (Nederlandse tijd) opnieuw, en direct met `POST /api/narrowcasting-platforms/refresh` (`DATA_DIR/platforms/`, lijst `PLATFORMS` in `server.py`), met het grootste icoon van de site als logo en cookiemeldingen weggeklikt of verborgen. Hoofdklasse Coach zit achter een login: daarvan staan screenshot en logo met de hand in `story-generator/assets/platforms/` (`hoofdklasse.jpg`, `hoofdklasse-logo.png`) en worden niet automatisch ververst.
 
 Slide `instagram` toont de laatste post of reel van @superhandball_league en SHL Women, naast elkaar; een reel speelt (zonder geluid, in een lus). De posts komen uit een Behold-JSON-feed per account (feed-URL's in het beheer, `DATA_DIR/narrowcasting.json`); de server controleert elke 2 uur en bewaart foto/video in `DATA_DIR/instagram/` zodat het scherm alleen onze eigen server nodig heeft.
+
+Slide `countdown` ("Volgende live") toont een grote aftelklok naar de eerstvolgende wedstrijd en vier kleurkaarten met de volgende wedstrijd van SHL, SHLW, Hoofdklasse Hockey (agenda-items met `hhd`/`hhh`) en de Lotto Volley League. Beginnen er meerdere tegelijk, dan kiest hij elke keer willekeurig welke de klok volgt (witte rand).
 
 De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume), het weer komt van Open-Meteo via de server (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse
 tijd van de server, ook als het scherm een verkeerde tijd heeft. De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.
