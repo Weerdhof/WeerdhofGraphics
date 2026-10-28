@@ -362,7 +362,7 @@
       media = p.type === 'video'
         ? '<video class="igv" src="' + p.media + '"' + (p.poster ? ' poster="' + p.poster + '"' : '') + ' muted loop playsinline webkit-playsinline preload="auto"></video>'
         : '<div class="igi" style="background-image:url(' + p.media + ')"></div>';
-      h += '<div class="igc rz" style="left:' + left + 'px;animation-delay:' + (i * 200 + 150) + 'ms"><div class="igm">' + media + '</div>' +
+      h += '<div class="igc rz' + (p.reel ? ' igr' : '') + '" style="left:' + left + 'px;animation-delay:' + (i * 200 + 150) + 'ms"><div class="igm">' + media + '</div>' +
         '<div class="igt"><span class="na">' + esc(p.label) + (p.reel ? ' \u00b7 reel' : '') + '</span><span class="na ig2">' + esc(ago(p)) + '</span>' +
         '<div class="igp">' + esc(p.caption || '') + '</div></div>' +
         '<div class="igu">' + (p.avatar ? '<span class="iga" style="background-image:url(' + p.avatar + ')"></span>' : '') + '<span>@' + esc(p.username) + '</span></div></div>';

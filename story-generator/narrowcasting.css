@@ -358,3 +358,5 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .igp { margin-top: 14px; font-family: "Open Sans", Arial, sans-serif; font-weight: 600; font-size: 27px; line-height: 37px; color: #ffffff; word-wrap: break-word; }
 .igu { position: absolute; left: 0; top: 724px; height: 64px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 28px; line-height: 64px; color: #a9aedc; white-space: nowrap; }
 .iga { display: inline-block; width: 64px; height: 64px; border-radius: 32px; background-size: cover; background-position: center; vertical-align: top; margin-right: 18px; }
+.igr .igm, .igr .igi, .igr .igv { width: 394px; }                      /* a reel is shown 9:16 */
+.igr .igt { left: 430px; width: 430px; }
