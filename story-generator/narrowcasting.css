@@ -506,6 +506,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 
 /* buttons on the screen: next slide, and closing the vrijmibo */
 #ctl { position: fixed; right: 28px; bottom: 24px; z-index: 100; opacity: 0; pointer-events: none; -webkit-transition: opacity .3s; transition: opacity .3s; }
-#ctl.show { opacity: 1; pointer-events: auto; }
+#ctl.show { opacity: .35; pointer-events: auto; }
+#ctl.show:hover { opacity: .9; }
 #ctl button { margin-left: 10px; width: 48px; height: 48px; padding: 0; border: 0; border-radius: 24px; background: rgba(6,2,40,.4); cursor: pointer; line-height: 0; }
 #ctl button:hover { background: rgba(6,2,40,.85); }
