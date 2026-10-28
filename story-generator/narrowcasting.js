@@ -505,7 +505,7 @@
     if (c === 45 || c === 48) return 'fog'; if (c >= 51 && c <= 57) return 'drizzle'; if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return 'rain';
     if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow'; if (c >= 95) return 'thunder'; return 'cloud';
   };
-  var DESC = { 0: 'Onbewolkt', 1: 'Overwegend zonnig', 2: 'Half bewolkt', 3: 'Bewolkt', 45: 'Mist', 48: 'Rijpmist', 51: 'Lichte motregen', 53: 'Motregen', 55: 'Zware motregen',
+  var DESC = { 0: 'Zonnig', 1: 'Overwegend zonnig', 2: 'Half bewolkt', 3: 'Bewolkt', 45: 'Mist', 48: 'Rijpmist', 51: 'Lichte motregen', 53: 'Motregen', 55: 'Zware motregen',
     56: 'IJzel', 57: 'IJzel', 61: 'Lichte regen', 63: 'Regen', 65: 'Zware regen', 66: 'IJzel', 67: 'IJzel', 71: 'Lichte sneeuw', 73: 'Sneeuw', 75: 'Zware sneeuw', 77: 'Sneeuwkorrels',
     80: 'Lichte buien', 81: 'Buien', 82: 'Zware buien', 85: 'Sneeuwbuien', 86: 'Zware sneeuwbuien', 95: 'Onweer', 96: 'Onweer met hagel', 99: 'Onweer met hagel' };
   var CLOUD = 'M30 74a18 18 0 0 1-2-35.9A24 24 0 0 1 74 36a19 19 0 0 1 0 38z';
@@ -529,7 +529,7 @@
     if (!weather) return null;
     var n = weather.now, h = '<div class="ttl rz">Weer in <b>' + esc(weather.place) + '</b></div>', i, d, x;
     h += '<div class="wbig rz" style="animation-delay:120ms"><div class="wi">' + icon(n.code, n.day, 330) + '</div><div class="wt">' + n.temp + '&deg;</div>' +
-      '<div class="wd">' + esc(DESC[n.code] || '') + '</div><div class="ws">' + (rainTxt(false) ? '<span class="wp wrain" id="wrain">' + esc(rainTxt(false)) + '</span>' : '') + '<span class="wp">voelt als ' + n.feels + '&deg;</span><span class="wp">wind ' + n.wind + ' km/u</span>' +
+      '<div class="wd">' + esc(n.day === false ? (n.code === 0 ? 'Helder' : n.code === 1 ? 'Overwegend helder' : DESC[n.code] || '') : DESC[n.code] || '') + '</div><div class="ws">' + (rainTxt(false) ? '<span class="wp wrain" id="wrain">' + esc(rainTxt(false)) + '</span>' : '') + '<span class="wp">voelt als ' + n.feels + '&deg;</span><span class="wp">wind ' + n.wind + ' km/u</span>' +
       (weather.rain !== undefined ? '<span class="wp">regen ' + weather.rain + '%</span>' : '') + '</div></div>';
     h += '<div class="wh rz" style="left:80px;animation-delay:260ms"><div class="wlbl">Komende uren</div>';
     for (i = 0; i < Math.min(6, (weather.hours || []).length); i++) {
