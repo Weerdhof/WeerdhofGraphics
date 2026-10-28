@@ -110,7 +110,7 @@ Slide `platforms` ("Powered by JUMP") toont de homepage van alle platformen in Ã
 
 Slide `instagram` toont de laatste post of reel van @superhandball_league en SHL Women, naast elkaar; een reel speelt (zonder geluid, in een lus). De posts komen uit een Behold-JSON-feed per account (feed-URL's in het beheer, `DATA_DIR/narrowcasting.json`); de server controleert elke 2 uur en bewaart foto/video in `DATA_DIR/instagram/` zodat het scherm alleen onze eigen server nodig heeft.
 
-Slide `countdown` ("Volgende live") toont een grote aftelklok naar de eerstvolgende wedstrijd en vier kleurkaarten met de volgende wedstrijd van SHL, SHLW, Hoofdklasse Hockey (agenda-items met `hhd`/`hhh`) en de Lotto Volley League. Beginnen er meerdere tegelijk, dan kiest hij elke keer willekeurig welke de klok volgt (witte rand).
+Slide `countdown` ("Volgende live") toont vier kaarten met de volgende wedstrijd van SHL, SHLW, Hoofdklasse Hockey (agenda-items met `hhd`/`hhh`) en de Lotto Volley League, elk met een eigen aftel-timer. De kleur van de competitie is alleen accent op een donkere kaart.
 
 De agenda staat in `DATA_DIR/narrowcasting.json` (op Railway op het volume), het weer komt van Open-Meteo via de server (`/api/weather`, 15 minuten bewaard). De klok volgt de Nederlandse
 tijd van de server, ook als het scherm een verkeerde tijd heeft. De pagina is bewust ES5 en zonder moderne CSS, zodat hij ook op oudere webOS-browsers draait.

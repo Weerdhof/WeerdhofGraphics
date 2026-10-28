@@ -387,45 +387,48 @@
     var s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
     return (d ? d + 'd ' : '') + two2(h) + ':' + two2(m) + ':' + two2(s % 60);
   }
+  function hexMix(a, b, t) {                                                 // t of colour a over colour b
+    function p(h, i) { return parseInt(h.slice(1 + i * 2, 3 + i * 2), 16); }
+    var r = Math.round(p(a, 0) * t + p(b, 0) * (1 - t)), g = Math.round(p(a, 1) * t + p(b, 1) * (1 - t)), l = Math.round(p(a, 2) * t + p(b, 2) * (1 - t));
+    return 'rgb(' + r + ',' + g + ',' + l + ')';
+  }
+  function hexA(a, t) { return 'rgba(' + parseInt(a.slice(1, 3), 16) + ',' + parseInt(a.slice(3, 5), 16) + ',' + parseInt(a.slice(5, 7), 16) + ',' + t + ')'; }
+  // subtle cards: a dark surface with a faint tint of the colour of the competition, the colour itself only as an accent (pills, line, circle)
   function cdCard(k, it, pos, target) {
-    var C = CD[k], left = 80 + (pos % 2) * 900, top = 196 + Math.floor(pos / 2) * 440, bg = C.bg, text = C.text, parts, home, away, h, size, pillBg = '#14142b', circle = C.circle;
-    if (it && k === 'hockey' && hasPillar(it, 'hhh')) { bg = '#8F66FF'; text = '#ffffff'; }
+    var C = CD[k], left = 80 + (pos % 2) * 900, top = 196 + Math.floor(pos / 2) * 440, acc = C.bg, ink = C.text, parts, home, away, h, size, circle = C.bg, dark = k === 'shl' || k === 'shlw';
+    if (it && k === 'hockey' && hasPillar(it, 'hhh')) { acc = '#8F66FF'; ink = '#ffffff'; circle = acc; }
     var label = k === 'hockey' && it ? (hasPillar(it, 'hhh') ? 'Hoofdklasse Heren' : 'Hoofdklasse Dames') : C.label;
-    h = '<div class="cdc rz' + (target ? ' cdt1' : '') + '" style="left:' + left + 'px;top:' + top + 'px;background:' + bg + ';color:' + text + ';animation-delay:' + (pos * 120 + 150) + 'ms">';
+    h = '<div class="cdc rz' + (target ? ' cdt1' : '') + '" style="left:' + left + 'px;top:' + top + 'px;background:' + hexMix(acc, '#0a0836', 0.17) + ';border-color:' + hexA(acc, target ? 0.9 : 0.4) + ';animation-delay:' + (pos * 120 + 150) + 'ms">' +
+      '<span class="cdbar" style="background:' + acc + '"></span>';
     if (!it) {
-      return h + '<div class="cdp"><span class="cdpl" style="background:' + pillBg + '">' + esc(label) + '</span></div><div class="cdn">Nog geen wedstrijd bekend</div></div>';
+      return h + '<div class="cdp"><span class="cdpl" style="background:' + acc + ';color:' + ink + '">' + esc(label) + '</span></div><div class="cdn">Nog geen wedstrijd bekend</div></div>';
     }
-    parts = it.title.split(' - '); home = parts[0]; away = parts.slice(1).join(' - ');
+    parts = it.title.replace(/\[cup\]\s*/ig, '').split(' - '); home = parts[0]; away = parts.slice(1).join(' - ');
     size = Math.max(home.length, away.length) > 30 ? 36 : Math.max(home.length, away.length) > 20 ? 46 : 62;
     var live = isLive(it), prod = hasPillar(it, 'productie') && !isStream(it);
-    h += '<div class="cdp"><span class="cdpl" style="background:' + pillBg + '">' + esc(label) + '</span><span class="cdpl" style="background:' + pillBg + '">' +
-      (live ? 'NU LIVE' : it.date.slice(8, 10) + '-' + it.date.slice(5, 7) + ' | ' + it.time) + '</span></div>' +
+    h += '<div class="cdp"><span class="cdpl" style="background:' + acc + ';color:' + ink + '">' + esc(label) + '</span><span class="cdpl cdpd">' +
+      (live ? 'NU LIVE' : it.date.slice(8, 10) + '-' + it.date.slice(5, 7) + ' | ' + it.time) + '</span><span class="cdpl cdpo" style="border-color:' + hexA(acc, 0.85) + ';color:' + acc + '">' + (prod ? 'Productie' : 'Livestream') + '</span></div>' +
       '<div class="cdt" style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.08) + 'px">' + esc(home) + (away ? '<br>' + esc(away) : '') + '</div>' +
-      '<span class="cdo" style="border-color:' + text + '">' + (prod ? 'Productie' : 'Livestream') + '</span>' +
-      '<div class="cdb"><span class="cdcap"><i style="color:' + C.cap + '">LIVE OP</i><b>JUMP</b></span></div>' +
-      '<div class="cdg" style="background:' + circle + '"><img src="' + C.logo + '" alt=""></div></div>';
+      '<div class="cdm" data-ms="' + startMs(it) + '"><span class="cdtm">' + cdText(startMs(it) - wallNow()) + '</span><span class="cdtl">tot de aftrap</span></div>' +
+      '<div class="cdg" style="background:' + circle + '"><img src="' + C.logo + '" alt=""' + (dark ? ' class="cdk0"' : '') + '></div></div>';
     return h;
   }
-  var cdTarget = null;
   function countdownHtml() {
-    var best = cdNext(), k, first = [], i, t = null, h, label = '';
-    for (i = 0; i < CD_KEYS.length; i++) { k = CD_KEYS[i]; if (best[k]) { if (t === null || startMs(best[k]) < t) { t = startMs(best[k]); first = [k]; } else if (startMs(best[k]) === t) first.push(k); } }
-    if (!first.length) return null;
-    var pick = first[Math.floor(Math.random() * first.length)];            // several start together: another one every time
-    cdTarget = { ms: t, key: pick };
-    h = '<div class="ttl rz">Volgende <b>live</b></div><div class="cdk rz"><div class="cdd" id="cdd">' + cdText(t - wallNow()) + '</div>' +
-      '<div class="cdl" id="cdl"></div></div>';
-    for (i = 0; i < CD_KEYS.length; i++) h += cdCard(CD_KEYS[i], best[CD_KEYS[i]], i, CD_KEYS[i] === pick);
-    return h;
+    var best = cdNext(), i, any = false, h = '<div class="ttl rz">Volgende <b>live</b></div>';
+    for (i = 0; i < CD_KEYS.length; i++) { if (best[CD_KEYS[i]]) any = true; h += cdCard(CD_KEYS[i], best[CD_KEYS[i]], i, false); }
+    return any ? h : null;
   }
-  function startCountdown() {
+  function startCountdown() {                                                // every card has its own timer, ticking every second
     clearInterval(cdTimer);
-    var d = document.getElementById('cdd'), l = document.getElementById('cdl');
-    if (!d || !cdTarget) return;
+    var els = document.getElementsByClassName('cdm');
+    if (!els.length) return;
     function upd() {
-      var left = cdTarget.ms - wallNow();
-      d.innerHTML = left > 0 ? cdText(left) : 'NU LIVE';
-      l.innerHTML = left > 0 ? 'tot de eerstvolgende wedstrijd · ' + esc(CD[cdTarget.key].label) : esc(CD[cdTarget.key].label) + ' is begonnen';
+      var i, left, t;
+      for (i = 0; i < els.length; i++) {
+        left = +els[i].getAttribute('data-ms') - wallNow(); t = els[i].firstChild;
+        t.innerHTML = left > 0 ? cdText(left) : 'NU LIVE';
+        els[i].lastChild.style.visibility = left > 0 ? 'visible' : 'hidden';
+      }
     }
     upd(); cdTimer = setInterval(upd, 1000);
   }
@@ -699,7 +702,7 @@
       var shlSlide = s.type === 'streams' || s.type === 'stand';
       var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome');
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (shlSlide || s.type === 'logo' || s.type === 'countdown' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
+      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
       if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);
