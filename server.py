@@ -1068,7 +1068,7 @@ _weather = {"at": 0, "data": None}
 
 
 NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
-NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "platforms", "weather", "logo")
+NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "platforms", "instagram", "weather", "logo")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
 
@@ -1118,15 +1118,21 @@ def _clean_narrow(raw):
     sl_raw = raw.get("slides") if isinstance(raw.get("slides"), dict) else {}
     slides = {k: sl_raw.get(k) is not False for k in NARROW_SLIDES}          # which slides take part in the rotation (default: all)
     hidden = [str(h)[:200] for h in (raw.get("hidden") if isinstance(raw.get("hidden"), list) else [])[:600] if isinstance(h, str)]   # fetched matches that have been deleted from the agenda
-    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden}
+    ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
+    instagram = {k: (str(ig_raw.get(k) or "").strip() if _ig_feed_ok(str(ig_raw.get(k) or "").strip()) else "") for k in IG_LABELS}          # Behold feed URL per account
+    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden, "instagram": instagram}
 
 
 def narrow_data():
     try:
         with open(NARROW_FILE, "r", encoding="utf-8") as f:
-            return _clean_narrow(json.load(f))
+            data = _clean_narrow(json.load(f))
     except (OSError, ValueError):
-        return _clean_narrow({})
+        data = _clean_narrow({})
+    for k, v in IG_DEFAULT_FEEDS.items():                  # an account without its own feed URL uses the built-in one
+        if not data["instagram"].get(k):
+            data["instagram"][k] = v
+    return data
 
 
 def _season_date(day, month, today):
@@ -1433,6 +1439,161 @@ def platform_list():
     return out
 
 
+# ---- Instagram: the latest post or reel of the SHL and SHL Women accounts, through a Behold JSON feed, checked every 2 hours ----
+IG_DEFAULT_FEEDS = {"shl": "https://feeds.behold.so/9vn0wJbK5r7PDeAVFDHa"}
+IG_LABELS = {"shl": "SHL", "shlw": "SHL Women"}
+IG_DIR = os.path.join(DATA_DIR, "instagram")
+IG_EVERY = 2 * 3600
+IG_HOSTS = ("behold.pictures", "behold.so", "cdninstagram.com", "fbcdn.net")      # the media is only fetched from these hosts
+_ig_lock = threading.Lock()
+_ig_state = {}
+
+
+def _ig_feed_ok(url):
+    return bool(re.match(r"^https://feeds\.behold\.so/[A-Za-z0-9_-]+$", url or "")) or (os.environ.get("IG_ALLOW_ANY_FEED") and str(url).startswith("http"))
+
+
+def ig_feeds():
+    feeds = dict(IG_DEFAULT_FEEDS)
+    for k, v in (narrow_data().get("instagram") or {}).items():
+        if v:
+            feeds[k] = v
+    return {k: v for k, v in feeds.items() if k in IG_LABELS and _ig_feed_ok(v)}
+
+
+def _ig_short(caption):
+    """First paragraph of the caption without hashtags and links; whole sentences up to 220 characters."""
+    text = (caption or "").strip().split("\n\n")[0]
+    text = re.sub(r"#\w+", "", text)
+    text = re.sub(r"https?://\S+", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > 220:
+        sents, text = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text), ""
+        for sn in sents:
+            if text and len(text) + 1 + len(sn) > 220:
+                break
+            text = (text + " " + sn).strip()
+    return text
+
+
+def _ig_get(url, limit=40 * 1024 * 1024):
+    host = urlparse(url).hostname or ""
+    if urlparse(url).scheme != "https" or not any(host == h or host.endswith("." + h) for h in IG_HOSTS):
+        if not os.environ.get("IG_ALLOW_ANY_FEED"):
+            raise ValueError("host niet toegestaan: " + host)
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ByTomorrow narrowcasting)"})
+    with urllib.request.urlopen(req, timeout=60) as res:
+        data = res.read(limit + 1)
+        if len(data) > limit:
+            raise ValueError("bestand te groot")
+        return data, (res.headers.get("Content-Type") or "").split(";")[0].strip()
+
+
+_IG_EXT = {"image/jpeg": "jpg", "image/webp": "webp", "image/png": "png", "video/mp4": "mp4"}
+
+
+def _ig_save(key, name, url):
+    data, ctype = _ig_get(url)
+    ext = _IG_EXT.get(ctype)
+    if not ext:
+        raise ValueError("onbekend type: " + ctype)
+    for old in set(_IG_EXT.values()):
+        p = os.path.join(IG_DIR, "%s-%s.%s" % (key, name, old))
+        if old != ext and os.path.exists(p):
+            os.remove(p)
+    with open(os.path.join(IG_DIR, "%s-%s.%s" % (key, name, ext)), "wb") as f:
+        f.write(data)
+    return ext
+
+
+def ig_refresh(force=False):
+    if not _ig_lock.acquire(False):
+        return
+    try:
+        os.makedirs(IG_DIR, exist_ok=True)
+        feeds = ig_feeds()
+        for key in list(_ig_state):
+            if key not in feeds:
+                _ig_state.pop(key, None)
+        for key, url in feeds.items():
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (ByTomorrow narrowcasting)"})
+                with urllib.request.urlopen(req, timeout=30) as res:
+                    feed = json.loads(res.read().decode("utf-8"))
+                posts = sorted([p for p in feed.get("posts", []) if isinstance(p, dict)], key=lambda p: p.get("timestamp") or "", reverse=True)
+                if not posts:
+                    continue
+                p = posts[0]
+                kids = p.get("children") or []
+                sizes = p.get("sizes") or (kids[0].get("sizes") if kids else {}) or {}
+                still = (sizes.get("large") or sizes.get("medium") or sizes.get("full") or {}).get("mediaUrl") or p.get("thumbnailUrl") or ""
+                video = p.get("mediaType") == "VIDEO"
+                old = _ig_state.get(key) or {}
+                have = old.get("id") == p.get("id") and not force and os.path.exists(os.path.join(IG_DIR, "%s-media.%s" % (key, old.get("media_ext", "x"))))
+                st = dict(old) if have else {}
+                if not have:
+                    st["media_ext"] = _ig_save(key, "media", p["mediaUrl"] if video else still)
+                    st["poster_ext"] = _ig_save(key, "poster", still) if video and still else ""
+                st.update({"id": p.get("id"), "type": "video" if video else "image", "reel": video and "/reel/" in (p.get("permalink") or ""),
+                           "caption": _ig_short(p.get("prunedCaption") or p.get("caption")), "timestamp": p.get("timestamp") or "",
+                           "permalink": p.get("permalink") or "", "username": feed.get("username") or "", "at": int(time.time())})
+                if feed.get("profilePictureUrl") and not (have and st.get("avatar_ext")):
+                    try:
+                        st["avatar_ext"] = _ig_save(key, "avatar", feed["profilePictureUrl"])
+                    except Exception:
+                        st["avatar_ext"] = ""
+                _ig_state[key] = st
+            except Exception as err:
+                sys.stderr.write("instagram %s failed: %s\n" % (key, err))
+        with open(os.path.join(IG_DIR, "state.json"), "w", encoding="utf-8") as f:
+            json.dump(_ig_state, f)
+    finally:
+        _ig_lock.release()
+
+
+def _ig_load():
+    try:
+        with open(os.path.join(IG_DIR, "state.json"), "r", encoding="utf-8") as f:
+            _ig_state.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+
+
+def _ig_loop():
+    _ig_load()
+    time.sleep(40)
+    while True:
+        ig_refresh()
+        time.sleep(IG_EVERY)
+
+
+def ig_items():
+    out = []
+    for key in ("shl", "shlw"):
+        st = _ig_state.get(key)
+        if not st or not _ig_file(key, "media"):
+            continue
+        try:
+            dt = datetime.strptime(st["timestamp"], "%Y-%m-%dT%H:%M:%S%z")
+            local = _ams_now_parts(dt.timestamp()).replace(tzinfo=None)
+            pub = int(calendar.timegm(local.timetuple()) * 1000)
+        except Exception:
+            pub = 0
+        v = "&v=" + str(st.get("id", ""))
+        out.append({"key": key, "label": IG_LABELS[key], "username": st.get("username", ""), "type": st["type"], "reel": bool(st.get("reel")), "caption": st.get("caption", ""),
+                    "pubWall": pub, "media": "/api/narrowcasting-ig?k=%s&f=media%s" % (key, v),
+                    "poster": ("/api/narrowcasting-ig?k=%s&f=poster%s" % (key, v)) if _ig_file(key, "poster") else "",
+                    "avatar": ("/api/narrowcasting-ig?k=%s&f=avatar%s" % (key, v)) if _ig_file(key, "avatar") else ""})
+    return out
+
+
+def _ig_file(key, name):
+    st = _ig_state.get(key) or {}
+    ext = st.get(name + "_ext")
+    path = os.path.join(IG_DIR, "%s-%s.%s" % (key, name, ext)) if ext else ""
+    return path if path and os.path.exists(path) else None
+
+
 def news_image(url):
     """An image of the news, through the server (the TV needs no other hosts); only from the image server of the NOS, kept for an hour."""
     p = urlparse(url)
@@ -1624,6 +1785,15 @@ class Handler(SimpleHTTPRequestHandler):
                 self._nocache_json(200, {"items": nos_news()})
             except Exception as err:
                 self._json(502, {"error": str(err)})
+        elif self.path.split("?")[0] == "/api/narrowcasting-instagram":
+            self._nocache_json(200, {"items": ig_items()})
+        elif self.path.split("?")[0] == "/api/narrowcasting-ig":
+            q = parse_qs(urlparse(self.path).query)
+            key, name = q.get("k", [""])[0], q.get("f", [""])[0]
+            path = _ig_file(key, name) if key in IG_LABELS and name in ("media", "poster", "avatar") else None
+            if not path:
+                return self.send_error(404)
+            self._send_range_file(path, {"jpg": "image/jpeg", "webp": "image/webp", "png": "image/png", "mp4": "video/mp4"}.get(path.rsplit(".", 1)[-1], "application/octet-stream"))
         elif self.path.split("?")[0] == "/api/narrowcasting-platforms":
             self._nocache_json(200, {"items": platform_list()})
         elif self.path.split("?")[0] == "/api/narrowcasting-platform":
@@ -2306,17 +2476,51 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_range_file(self, path, ctype):
+        """A file with support for Range requests (a video player asks for pieces)."""
+        size = os.path.getsize(path)
+        start, end, code = 0, size - 1, 200
+        mt = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range", "") or "")
+        if mt and (mt.group(1) or mt.group(2)):
+            if mt.group(1):
+                start = int(mt.group(1))
+                end = int(mt.group(2)) if mt.group(2) else size - 1
+            else:
+                start = max(0, size - int(mt.group(2)))
+            end = min(end, size - 1)
+            if start > end:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % size)
+                self.end_headers()
+                return
+            code = 206
+        with open(path, "rb") as f:
+            f.seek(start)
+            data = f.read(end - start + 1)
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "public, max-age=3600")
+        if code == 206:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def handle_narrow_put(self):
         try:
             length = int(self.headers.get("Content-Length", 0))
             if length <= 0 or length > 200000:
                 return self._send_json(413, {"error": "te groot"})
             data = _clean_narrow(json.loads(self.rfile.read(length).decode("utf-8")))
+            ig_changed = data.get("instagram") != narrow_data().get("instagram")
             os.makedirs(DATA_DIR, exist_ok=True)
             tmp = NARROW_FILE + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(data, f)
             os.replace(tmp, NARROW_FILE)
+            if ig_changed:
+                threading.Thread(target=ig_refresh, args=(True,), daemon=True).start()          # new feed URLs: fetch right away
             self._send_json(200, data)
         except Exception as err:
             self._send_json(400, {"error": str(err)})
@@ -2379,4 +2583,5 @@ if __name__ == "__main__":
     print(f"Serving {STATIC_DIR} on port {PORT}")
     threading.Thread(target=_monitor_loop, daemon=True).start()
     threading.Thread(target=_platform_loop, daemon=True).start()
+    threading.Thread(target=_ig_loop, daemon=True).start()
     server.serve_forever()

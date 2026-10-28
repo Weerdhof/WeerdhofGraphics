@@ -87,6 +87,11 @@
       <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Donkerder <input type="range" id="bgDim" min="0" max="90" style="width:150px"> <span id="bgDimV" style="min-width:36px"></span></label>
       <img id="bgThumb" alt="" style="height:46px;border-radius:6px;display:none"></div>
   </div>
+  <div class="box" id="igBox">
+    <div class="row"><b style="min-width:210px">Instagram-feeds (Behold)</b><span class="hint" style="margin:0">De laatste post of reel van elk account komt op de Instagram-slide; de server controleert elke 2 uur. Plak de feed-URL uit Behold (https://feeds.behold.so/...).</span></div>
+    <div class="row" style="margin-top:10px"><label style="min-width:210px">SHL (@superhandball_league)</label><input type="text" id="igShl" placeholder="https://feeds.behold.so/..." style="max-width:520px"></div>
+    <div class="row" style="margin-top:8px"><label style="min-width:210px">SHL Women</label><input type="text" id="igShlw" placeholder="https://feeds.behold.so/..." style="max-width:520px"></div>
+  </div>
   <div class="box">
     <div class="row"><b>Slides</b><span class="hint" style="margin:0">Zet een vinkje bij de slides die op het scherm moeten draaien. Het voorbeeld is de slide zoals hij nu is.</span></div>
     <div class="sgrid" id="slidesGrid"></div>
@@ -121,7 +126,7 @@
   var COLORS = { jump: ['JUMP', '#49FF9F'], productie: ['Productie', '#FC06E5'], content: ['Content', '#00FFE6'], marketing: ['Marketing', '#FFCC00'], standaard: ['Algemeen', '#748FFF'], navy: ['Navy', '#A5B4FF'], lvl: ['Lotto Volley League', '#FF4B3E'], shl: ['SHL', '#ccff33'], shlw: ['SHLW', '#e353fc'], hnl: ['HandbalNL', '#ff8a4d'], hhd: ['Hoofdklasse Dames', '#2FD6C0'], hhh: ['Hoofdklasse Heren', '#8F66FF'], zwem: ['Zwemsport TV', '#38BDF8'], kwpn: ['KWPN TV', '#FF8A1F'], tvv: ['Tijd voor Volleyball', '#D08A4E'], futsal: ['Eredivisie Futsal', '#D4E04A'], sibv: ['Sport in Beeld Veenendaal', '#20B2A0'] };
   var SPORTS = ['basketbal', 'volleybal', 'handbal', 'voetbal', 'tennis', 'padel', 'hockey', 'zwemmen', 'hardlopen', 'wielrennen', 'turnen', 'vechtsport', 'honkbal', 'rugby', 'golf', 'schaatsen', 'skien', 'fitness', 'roeien', 'zeilen', 'esports', 'finish'];
   var COMP_SPORT = { shl: 'handbal', shlw: 'handbal', lvlm: 'volleybal', lvlw: 'volleybal', hnltv: 'handbal' }, COMP_LABEL = { shl: 'SHL', shlw: 'SHLW', lvlm: 'LVL heren', lvlw: 'LVL dames', hnltv: 'HandbalNL TV' };
-  var slidesOn = {}, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
+  var slidesOn = {}, instagram = { shl: '', shlw: '' }, srcFilter = {}, items = [], meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], saveTimer = 0, statusEl = document.getElementById('status');
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -129,7 +134,7 @@
   function save(now) {
     clearTimeout(saveTimer); status('Opslaan…');
     saveTimer = setTimeout(function () {
-      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn, hidden: hidden }) })
+      fetch('/api/narrowcasting', { method: 'PUT', body: JSON.stringify({ items: items, show: show, meeting: meeting, slides: slidesOn, hidden: hidden, instagram: instagram }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function () { saveTimer = 0; status('✓ Opgeslagen'); })
         .catch(function () { status('Opslaan mislukt, probeer het opnieuw.'); });
@@ -181,7 +186,7 @@
   // ---- the slides: a preview of every slide with a tick for whether it takes part ----
   var SLIDES = [['agenda', 'Wedstrijdagenda (een slide per dag)', 'slide=agenda&n=1'], ['featured', 'Uitgelicht', 'slide=featured'], ['streams_men', 'SHL: komende wedstrijden', 'slide=streams&comp=men'],
     ['stand_men', 'SHL: stand en uitslagen', 'slide=stand&comp=men'], ['streams_women', 'SHLW: komende wedstrijden', 'slide=streams&comp=women'], ['stand_women', 'SHLW: stand en uitslagen', 'slide=stand&comp=women'],
-    ['matches', 'Lotto Volley League', 'slide=matches'], ['quote', 'Quote van de dag', 'slide=quote'], ['news1', 'Laatste nieuws (groot)', 'slide=news1'], ['news2', 'Meer nieuws (klein)', 'slide=news2'], ['platforms', 'Powered by JUMP (platformen)', 'slide=platforms'], ['slogan', 'Alle sporters zijn helden', 'slide=slogan'], ['weather', 'Weer in Veenendaal', 'slide=weather'], ['logo', 'Logo', 'slide=logo']];
+    ['matches', 'Lotto Volley League', 'slide=matches'], ['quote', 'Quote van de dag', 'slide=quote'], ['news1', 'Laatste nieuws (groot)', 'slide=news1'], ['news2', 'Meer nieuws (klein)', 'slide=news2'], ['platforms', 'Powered by JUMP (platformen)', 'slide=platforms'], ['instagram', 'Instagram (laatste posts)', 'slide=instagram'], ['slogan', 'Alle sporters zijn helden', 'slide=slogan'], ['weather', 'Weer in Veenendaal', 'slide=weather'], ['logo', 'Logo', 'slide=logo']];
   function renderSlides() {
     var g = document.getElementById('slidesGrid'), h = '', k;
     if (!g.children.length) {
@@ -192,6 +197,8 @@
   }
   function scaleThumbs() { var t = document.querySelectorAll('.th'), i; for (i = 0; i < t.length; i++) t[i].firstChild.style.transform = 'scale(' + (t[i].clientWidth / 1920) + ')'; }
   window.addEventListener('resize', scaleThumbs);
+  document.getElementById('igShl').addEventListener('change', function () { instagram.shl = this.value.trim(); save(true); });
+  document.getElementById('igShlw').addEventListener('change', function () { instagram.shlw = this.value.trim(); save(true); });
   document.addEventListener('change', function (e) { var k = e.target.getAttribute && e.target.getAttribute('data-slide'); if (!k) return; slidesOn[k] = e.target.checked; renderSlides(); save(); });
 
   // ---- the table with every match: what has been fetched (only to delete) and what has been entered by hand (to fill in and change here) ----
@@ -335,7 +342,7 @@
   // load, and load again when the page comes back into view, so that a page that has been open a long time never saves old data over newer data
   function load() {
     fetch('/api/narrowcasting').then(function (r) { return r.json(); }).then(function (j) {
-      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; hidden = j.hidden || []; render(); renderSlides();
+      items = j.items || []; show = j.show || show; meeting = j.meeting || meeting; slidesOn = j.slides || slidesOn; instagram = j.instagram || instagram; document.getElementById('igShl').value = instagram.shl || ''; document.getElementById('igShlw').value = instagram.shlw || ''; hidden = j.hidden || []; render(); renderSlides();
     }).catch(function () { status('Laden mislukt.'); });
   }
   load();

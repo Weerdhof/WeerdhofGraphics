@@ -346,3 +346,15 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .pwn { font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 800; font-size: 34px; line-height: 40px; color: #ffffff; white-space: nowrap; }
 .pwd { margin-top: 2px; font-family: "Open Sans", Arial, sans-serif; font-weight: 600; font-size: 21px; line-height: 29px; color: #a9aedc; }
 .pwu { margin-top: 4px; font-family: "Open Sans", Arial, sans-serif; font-weight: 700; font-size: 20px; line-height: 28px; color: #49FF9F; }
+
+/* Instagram: the latest post or reel of SHL and SHL Women */
+.igc { position: absolute; top: 196px; width: 860px; height: 800px; }
+.igm { position: absolute; left: 0; top: 0; width: 560px; height: 700px; border-radius: 26px; overflow: hidden; background: #12104a; }
+.igi { width: 560px; height: 700px; background-size: cover; background-position: center; }
+.igv { width: 560px; height: 700px; object-fit: cover; display: block; background: #12104a; }
+.igt { position: absolute; left: 596px; top: 0; width: 264px; }
+.igt .na { margin-right: 8px; margin-bottom: 10px; }
+.igt .ig2 { background: transparent; border: 2px solid rgba(255,255,255,.45); box-sizing: border-box; line-height: 28px; }
+.igp { margin-top: 14px; font-family: "Open Sans", Arial, sans-serif; font-weight: 600; font-size: 27px; line-height: 37px; color: #ffffff; word-wrap: break-word; }
+.igu { position: absolute; left: 0; top: 724px; height: 64px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 28px; line-height: 64px; color: #a9aedc; white-space: nowrap; }
+.iga { display: inline-block; width: 64px; height: 64px; border-radius: 32px; background-size: cover; background-position: center; vertical-align: top; margin-right: 18px; }

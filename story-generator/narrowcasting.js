@@ -23,7 +23,7 @@
   var WD_LOW = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'], WD_FULL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MON = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var MON_FULL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, news1: 40000, news2: 30000, platforms: 60000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
+  var SLIDE_MS = { agenda: 30000, featured: 30000, matches: 30000, streams: 30000, stand: 30000, quote: 30000, news1: 40000, news2: 30000, platforms: 60000, instagram: 30000, slogan: 70000, welcome: 70000, logo: 30000, weather: 30000 };      // every slide stays 30 seconds
 
   // ---- time: the Dutch wall clock, taken from the server (the TV's own clock or time zone may be off) ----
   var wallDelta = null;
@@ -58,7 +58,7 @@
   setInterval(tick, 1000); tick();
 
   // ---- data ----
-  var items = [], news = [], plats = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
+  var items = [], news = [], plats = [], ig = [], hidden = [], slidesOn = {}, meeting = { mode: 'off', client: '', bg: 0, dim: 45 }, show = { shl: true, shlw: true, lvlm: true, lvlw: true }, matches = [], weather = null, shl = { men: null, women: null };
   function loadAgenda() {
     get('/api/narrowcasting', function (j) {
       if (!j) return;
@@ -81,10 +81,11 @@
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadNews() { get('/api/narrowcasting-news', function (j) { if (j && j.items && j.items.length) news = j.items; }); }
+  function loadIg() { get('/api/narrowcasting-instagram', function (j) { if (j && j.items) ig = j.items; }); }
   function loadPlats() { get('/api/narrowcasting-platforms', function (j) { if (j && j.items && j.items.length) plats = j.items; }); }
   function loadShl() { ['men', 'women'].forEach(function (c) { get('/api/narrowcasting-shl?comp=' + c, function (j) { if (j && j.standings && j.standings.length) shl[c] = j; }); }); }
-  loadAgenda(); loadMatches(); loadWeather(); loadShl(); loadNews(); loadPlats();
-  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); setInterval(loadNews, 600000); setInterval(loadPlats, 1800000); }
+  loadAgenda(); loadMatches(); loadWeather(); loadShl(); loadNews(); loadPlats(); loadIg();
+  if (!PREVIEW) { setInterval(loadAgenda, 15000); setInterval(loadMeeting, 2000); setInterval(loadMatches, 600000); setInterval(loadWeather, 300000); setInterval(loadShl, 600000); setInterval(loadNews, 600000); setInterval(loadPlats, 1800000); setInterval(loadIg, 600000); }
 
   // ---- agenda helpers ----
   function startMs(it) { var b = parseYmd(it.date); if (it.time) b += (+it.time.slice(0, 2)) * 3600000 + (+it.time.slice(3, 5)) * 60000; return b; }
@@ -351,6 +352,28 @@
     return h + '<div class="nsrc rz" style="animation-delay:600ms">Bron: NOS Sport (RSS)</div>';
   }
 
+  // ---- slide: the latest Instagram post or reel of SHL and SHL Women; a reel plays (muted, looping) ----
+  function igHtml() {
+    if (!ig.length) return null;
+    var h = '<div class="ttl rz">Laatste <b>posts</b><span class="cn">Instagram</span></div>', i, p, left, media;
+    for (i = 0; i < ig.length; i++) {
+      p = ig[i];
+      left = ig.length === 1 ? 530 : 80 + i * 900;
+      media = p.type === 'video'
+        ? '<video class="igv" src="' + p.media + '"' + (p.poster ? ' poster="' + p.poster + '"' : '') + ' muted loop playsinline webkit-playsinline preload="auto"></video>'
+        : '<div class="igi" style="background-image:url(' + p.media + ')"></div>';
+      h += '<div class="igc rz" style="left:' + left + 'px;animation-delay:' + (i * 200 + 150) + 'ms"><div class="igm">' + media + '</div>' +
+        '<div class="igt"><span class="na">' + esc(p.label) + (p.reel ? ' \u00b7 reel' : '') + '</span><span class="na ig2">' + esc(ago(p)) + '</span>' +
+        '<div class="igp">' + esc(p.caption || '') + '</div></div>' +
+        '<div class="igu">' + (p.avatar ? '<span class="iga" style="background-image:url(' + p.avatar + ')"></span>' : '') + '<span>@' + esc(p.username) + '</span></div></div>';
+    }
+    return h;
+  }
+  function playIgVideos() {                                                 // autoplay can be blocked: start it ourselves, retry once
+    var v = document.getElementsByClassName('igv'), i;
+    for (i = 0; i < v.length; i++) { try { v[i].muted = true; var pr = v[i].play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {} }
+  }
+
   // ---- slide: platform wall, a snippet of the homepage of every platform that scrolls slowly sideways ----
   var PLAT_W = 720, PLAT_GAP = 48;
   function platformsHtml() {
@@ -538,6 +561,7 @@
     if (on('news1') && news.length) out.push({ type: 'news1' });
     if (on('news2') && news.length > 1) out.push({ type: 'news2' });
     if (on('platforms') && plats.length) out.push({ type: 'platforms' });
+    if (on('instagram') && ig.length) out.push({ type: 'instagram' });
     if (on('weather') && weather) out.push({ type: 'weather' });
     if (on('logo')) out.push({ type: 'logo' });
     return out.length ? out : [{ type: 'logo' }];                              // never a blank screen
@@ -550,6 +574,7 @@
     if (s.type === 'news1') return newsBigHtml();
     if (s.type === 'news2') return newsSmallHtml();
     if (s.type === 'platforms') return platformsHtml();
+    if (s.type === 'instagram') return igHtml();
     if (s.type === 'streams') return streamsHtml(s.comp);
     if (s.type === 'stand') return shlHtml(s.comp);
     if (s.type === 'quote') return quoteHtml();
@@ -598,6 +623,7 @@
       dots(slides.length, idx);
       startPillars();
       if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);
+      if (s.type === 'instagram') setTimeout(playIgVideos, 300);
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)
