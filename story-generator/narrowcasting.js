@@ -355,7 +355,7 @@
   // ---- slide: the latest Instagram post or reel of SHL and SHL Women; a reel plays (muted, looping) ----
   function igHtml() {
     if (!ig.length) return null;
-    var h = '<div class="ttl rz">Laatste <b>posts</b><span class="cn">Instagram</span></div>', i, p, left, media;
+    var h = '<div class="ttl rz">Laatste <b>posts</b><span class="cn" style="background:' + COMPS.shl.bg + ';color:' + COMPS.shl.ink + '">SHL</span><span class="cn" style="margin-left:14px;background:' + COMPS.shlw.bg + ';color:' + COMPS.shlw.ink + '">SHLW</span></div>', i, p, left, media;
     for (i = 0; i < ig.length; i++) {
       p = ig[i];
       left = ig.length === 1 ? 530 : 80 + i * 900;
@@ -363,7 +363,7 @@
         ? '<video class="igv" src="' + p.media + '"' + (p.poster ? ' poster="' + p.poster + '"' : '') + ' muted loop playsinline webkit-playsinline preload="auto"></video>'
         : '<div class="igi" style="background-image:url(' + p.media + ')"></div>';
       h += '<div class="igc rz' + (p.reel ? ' igr' : '') + '" style="left:' + left + 'px;animation-delay:' + (i * 200 + 150) + 'ms"><div class="igm">' + media + '</div>' +
-        '<div class="igt"><span class="na">' + esc(p.label) + (p.reel ? ' \u00b7 reel' : '') + '</span><span class="na ig2">' + esc(ago(p)) + '</span>' +
+        '<div class="igt"><span class="na" style="background:' + COMPS[p.key].bg + ';color:' + COMPS[p.key].ink + '">' + esc(p.label) + (p.reel ? ' \u00b7 reel' : '') + '</span><span class="na ig2">' + esc(ago(p)) + '</span>' +
         '<div class="igp">' + esc(p.caption || '') + '</div></div>' +
         '<div class="igu">' + (p.avatar ? '<span class="iga" style="background-image:url(' + p.avatar + ')"></span>' : '') + '<span>@' + esc(p.username) + '</span></div></div>';
     }
