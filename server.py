@@ -1440,7 +1440,7 @@ def platform_list():
 
 
 # ---- Instagram: the latest post or reel of the SHL and SHL Women accounts, through a Behold JSON feed, checked every 2 hours ----
-IG_DEFAULT_FEEDS = {"shl": "https://feeds.behold.so/9vn0wJbK5r7PDeAVFDHa"}
+IG_DEFAULT_FEEDS = {"shl": "https://feeds.behold.so/9vn0wJbK5r7PDeAVFDHa", "shlw": "https://feeds.behold.so/BmQnoQoHyYdTQqUghcl2"}
 IG_LABELS = {"shl": "SHL", "shlw": "SHL Women"}
 IG_DIR = os.path.join(DATA_DIR, "instagram")
 IG_EVERY = 2 * 3600
