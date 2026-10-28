@@ -526,6 +526,67 @@
     animRafId = requestAnimationFrame(loop);
   }
 
+  // ---------- TikTok opening ("stinger") ----------
+  // The Coinmerce SHL logo on the dark brand background, then a slanted wipe from left to right that reveals the
+  // social while its own animation starts. Only drawn on top of the canvas while recording (see tiktokOn()).
+  const STINGER_HOLD_MS = 1500;   // the logo stands this long; the social's own animation starts when the wipe starts
+  const STINGER_WIPE_MS = 750;
+  const stingerClamp = (x) => Math.max(0, Math.min(1, x));
+  const stingerExpoOut = (x) => { x = stingerClamp(x); return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); };
+  const stingerInOut = (x) => { x = stingerClamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  function stingerLogoSrc() { return compKey === 'women' ? 'assets/women/singlematch/footer-white.png' : 'assets/shl-logo-stacked.png'; }
+  function drawStinger(ctx2, w, h, t, logoImg) {
+    const total = STINGER_HOLD_MS + STINGER_WIPE_MS;
+    if (t >= total) return;
+    const k = w / 1080, women = compKey === 'women';
+    const c1 = women ? '#c93cf0' : '#ff7a59', c2 = women ? '#e353fc' : '#f0527e';
+    const wp = t <= STINGER_HOLD_MS ? 0 : (t - STINGER_HOLD_MS) / STINGER_WIPE_MS;
+    // the wipe front is a ">": its legs run at the angle of the logo's slash (55.5 degrees from vertical), tip leading
+    const lead = Math.tan(55.5 * Math.PI / 180) * h / 2, edge = stingerInOut(wp) * (w + lead) - lead;
+    ctx2.save();
+    ctx2.beginPath();
+    ctx2.moveTo(edge, 0); ctx2.lineTo(edge + lead, h / 2); ctx2.lineTo(edge, h); ctx2.lineTo(w + lead, h); ctx2.lineTo(w + lead, 0); ctx2.closePath();
+    ctx2.clip();
+    ctx2.fillStyle = '#1a1b38';
+    ctx2.fillRect(0, 0, w, h);
+    // two nested-chevron accents drifting slowly behind the logo
+    // two nested-chevron accents that slide in out of the bottom-left and top-right corners and keep drifting
+    const slide = stingerExpoOut(t / 900), drift = stingerClamp(t / STINGER_HOLD_MS), grow = (2.3 + 0.25 * drift) * k, ca = 0.9 * stingerClamp(t / 250);
+    const out = 0.32 * w * (1 - slide);                                     // starts outside the corner, ends on it
+    drawSmCardChevron(ctx2, 0.03 * w - out, 0.97 * h + out, true, c1, grow, ca);
+    ctx2.save();                                                            // top right: the same chevron turned half a circle, so its tip points down
+    ctx2.translate(w, h); ctx2.rotate(Math.PI);
+    drawSmCardChevron(ctx2, 0.03 * w - out, 0.97 * h + out, true, c2, grow, ca);
+    ctx2.restore();
+    // the logo: fades and grows in, fades out together with the wipe
+    if (logoImg && logoImg.complete && logoImg.naturalWidth) {
+      const e = stingerExpoOut((t - 150) / 700), out = 1 - stingerClamp(wp / 0.45);
+      const lw = w * (compKey === 'women' ? 0.72 : 0.6) * (0.9 + 0.1 * e), lh = lw * logoImg.naturalHeight / logoImg.naturalWidth;
+      ctx2.globalAlpha = e * out;
+      ctx2.drawImage(logoImg, (w - lw) / 2, h * 0.5 - lh / 2, lw, lh);
+      ctx2.globalAlpha = 1;
+    }
+    // the accent band follows the ">" along the front of the wipe
+    if (wp > 0) {
+      const bandW = 90 * k, g2 = ctx2.createLinearGradient(edge, 0, edge + lead, h);
+      g2.addColorStop(0, c1); g2.addColorStop(1, c2);
+      ctx2.fillStyle = g2;
+      ctx2.beginPath();
+      ctx2.moveTo(edge, 0); ctx2.lineTo(edge + lead, h / 2); ctx2.lineTo(edge, h);
+      ctx2.lineTo(edge + bandW, h); ctx2.lineTo(edge + lead + bandW, h / 2); ctx2.lineTo(edge + bandW, 0); ctx2.closePath();
+      ctx2.fill();
+    }
+    ctx2.restore();
+  }
+  const tiktokField = document.getElementById('tiktokField');
+  const tiktokToggle = document.getElementById('tiktokToggle');
+  const tiktokOn = () => !!(tiktokToggle && tiktokToggle.checked && tiktokField && !tiktokField.hidden);
+  // preload the logo once, so the first frame of the recording already has it
+  function stingerLogoReady() {
+    const img = loadImg(stingerLogoSrc());
+    return new Promise((resolve) => { if (!img || img.complete) resolve(img); else { img.addEventListener('load', () => resolve(img)); img.addEventListener('error', () => resolve(img)); } });
+  }
+
   async function recordResultsAnimation() {
     stopResultsAnimationLoop();
     let mimeType = 'video/mp4;codecs=avc1';
@@ -537,13 +598,20 @@
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
 
-    animStartTs = performance.now();
+    const stinger = tiktokOn();
+    const logoImg = stinger ? await stingerLogoReady() : null;
+    const intro = stinger ? STINGER_HOLD_MS : 0;
+    animStartTs = stinger ? null : performance.now();     // with the opening the clip starts when the wipe starts
+    const recStart = performance.now();
     recorder.start();
-    const total = animClipDuration(visibleMatches().length);
+    const total = intro + animClipDuration(visibleMatches().length);
     await new Promise((resolve) => {
       const loop = () => {
+        const t = performance.now() - recStart;
+        if (stinger && animStartTs == null && t >= intro) animStartTs = performance.now();
         render();
-        if (performance.now() - animStartTs < total) requestAnimationFrame(loop);
+        if (stinger) drawStinger(ctx, canvas.width, canvas.height, t, logoImg);
+        if (t < total) requestAnimationFrame(loop);
         else resolve();
       };
       requestAnimationFrame(loop);
@@ -556,7 +624,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${compKey}-results-animatie.${ext}`;
+    a.download = `${compKey}-results-animatie${tiktokOn() ? '-tiktok' : ''}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -693,13 +761,20 @@
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
 
-    smAnimStartTs = performance.now();
+    const stinger = tiktokOn();
+    const logoImg = stinger ? await stingerLogoReady() : null;
+    const intro = stinger ? STINGER_HOLD_MS : 0;
+    smAnimStartTs = stinger ? null : performance.now();   // with the opening the clip starts when the wipe starts
+    const recStart = performance.now();
     recorder.start();
-    const total = smAnimClipDuration();
+    const total = intro + smAnimClipDuration();
     await new Promise((resolve) => {
       const loop = () => {
+        const t = performance.now() - recStart;
+        if (stinger && smAnimStartTs == null && t >= intro) smAnimStartTs = performance.now();
         render();
-        if (performance.now() - smAnimStartTs < total) requestAnimationFrame(loop);
+        if (stinger) drawStinger(ctx, canvas.width, canvas.height, t, logoImg);
+        if (t < total) requestAnimationFrame(loop);
         else resolve();
       };
       requestAnimationFrame(loop);
@@ -712,7 +787,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${compKey}-${mode}-animatie.${ext}`;
+    a.download = `${compKey}-${mode}-animatie${tiktokOn() ? '-tiktok' : ''}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1079,9 +1154,18 @@
   const downloadMp4Btn = document.getElementById('downloadMp4Btn');
   const mp4Status = document.getElementById('mp4Status');
 
+  // the TikTok option shows up as soon as an animation (and so its MP4 button) is on
+  function syncTiktokField() {
+    if (!tiktokField) return;
+    tiktokField.hidden = downloadMp4Btn.hidden && smDownloadMp4Btn.hidden;
+    const ok = canvas.height === 1920;
+    tiktokField.querySelector('.tiktok-note').textContent = ok ? '' : ' (kies het Story-formaat voor 9:16)';
+  }
+
   resultsAnimateToggle.addEventListener('change', () => {
     resultsAnimating = resultsAnimateToggle.checked;
     downloadMp4Btn.hidden = !resultsAnimating;
+    syncTiktokField();
     if (resultsAnimating) startResultsAnimationLoop();
     else { stopResultsAnimationLoop(); animStartTs = null; render(); }
   });
@@ -1113,6 +1197,7 @@
     resultsAnimField.hidden = true;
     downloadMp4Btn.hidden = true;
     mp4Status.hidden = true;
+    syncTiktokField();
   }
 
   // ---------- Single-match "pop in" animation ----------
@@ -1124,6 +1209,7 @@
   smAnimateToggle.addEventListener('change', () => {
     smAnimating = smAnimateToggle.checked;
     smDownloadMp4Btn.hidden = !smAnimating;
+    syncTiktokField();
     if (smAnimating) startSmAnimationLoop();
     else { stopSmAnimationLoop(); smAnimStartTs = null; render(); }
   });
@@ -1155,6 +1241,7 @@
     smAnimField.hidden = true;
     smDownloadMp4Btn.hidden = true;
     smMp4Status.hidden = true;
+    syncTiktokField();
   }
 
   const modeTabs = document.querySelectorAll('.mode-tab');
