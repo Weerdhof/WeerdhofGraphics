@@ -354,8 +354,8 @@
 
   // ---- slide: countdown to the next match of SHL, SHLW, Hoofdklasse Hockey and the Lotto Volley League ----
   var CD = {                                                                 // the colours, label and logo of the four cards
-    shl: { label: 'SHL', bg: '#ccff33', text: '#14142b', cap: '#14142b', circle: '#ffffff', logo: 'assets/ranking/mark.png' },
-    shlw: { label: 'SHLW', bg: '#e353fc', text: '#1a1b38', cap: '#1a1b38', circle: '#ffffff', logo: 'assets/women/singlematch/mark.png' },
+    shl: { label: 'SHL', bg: '#ccff33', text: '#14142b', cap: '#14142b', circle: '#ffffff', logo: 'assets/ranking/mark-white.png' },
+    shlw: { label: 'SHLW', bg: '#e353fc', text: '#1a1b38', cap: '#1a1b38', circle: '#ffffff', logo: 'assets/women/singlematch/mark-white.png' },
     hockey: { label: 'Hoofdklasse Hockey', bg: '#2FD6C0', text: '#060228', cap: '#060228', circle: '#1a1b38', logo: 'assets/platforms/hoofdklasse-logo.png' },
     lvl: { label: 'Lotto Volley League', bg: '#EE3124', text: '#ffffff', cap: '#EE3124', circle: '#1a1b38', logo: 'assets/lvl/logo.svg' }
   };
@@ -394,12 +394,17 @@
   }
   function hexA(a, t) { return 'rgba(' + parseInt(a.slice(1, 3), 16) + ',' + parseInt(a.slice(3, 5), 16) + ',' + parseInt(a.slice(5, 7), 16) + ',' + t + ')'; }
   // subtle cards: a dark surface with a faint tint of the colour of the competition, the colour itself only as an accent (pills, line, circle)
+  function cdUnits(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400);
+    function u(n, l, cls) { return '<span class="cdu' + (cls ? ' ' + cls : '') + '"><b>' + n + '</b><i>' + l + '</i></span>'; }
+    return u(d, d === 1 ? 'dag' : 'dagen', 'cdud') + u(two2(Math.floor(s % 86400 / 3600)), 'uur') + u(two2(Math.floor(s % 3600 / 60)), 'min') + u(two2(s % 60), 'sec') + '<span class="cdlv">NU LIVE</span>';
+  }
   function cdCard(k, it, pos, target) {
     var C = CD[k], left = 80 + (pos % 2) * 900, top = 196 + Math.floor(pos / 2) * 440, acc = C.bg, ink = C.text, parts, home, away, h, size, circle = C.bg, dark = k === 'shl' || k === 'shlw';
     if (it && k === 'hockey' && hasPillar(it, 'hhh')) { acc = '#8F66FF'; ink = '#ffffff'; circle = acc; }
     var label = k === 'hockey' && it ? (hasPillar(it, 'hhh') ? 'Hoofdklasse Heren' : 'Hoofdklasse Dames') : C.label;
     h = '<div class="cdc rz' + (target ? ' cdt1' : '') + '" style="left:' + left + 'px;top:' + top + 'px;background:' + hexMix(acc, '#0a0836', 0.17) + ';border-color:' + hexA(acc, target ? 0.9 : 0.4) + ';animation-delay:' + (pos * 120 + 150) + 'ms">' +
-      '<span class="cdbar" style="background:' + acc + '"></span>';
+      '';
     if (!it) {
       return h + '<div class="cdp"><span class="cdpl" style="background:' + acc + ';color:' + ink + '">' + esc(label) + '</span></div><div class="cdn">Nog geen wedstrijd bekend</div></div>';
     }
@@ -409,8 +414,8 @@
     h += '<div class="cdp"><span class="cdpl" style="background:' + acc + ';color:' + ink + '">' + esc(label) + '</span><span class="cdpl cdpd">' +
       (live ? 'NU LIVE' : it.date.slice(8, 10) + '-' + it.date.slice(5, 7) + ' | ' + it.time) + '</span><span class="cdpl cdpo" style="border-color:' + hexA(acc, 0.85) + ';color:' + acc + '">' + (prod ? 'Productie' : 'Livestream') + '</span></div>' +
       '<div class="cdt" style="font-size:' + size + 'px;line-height:' + Math.round(size * 1.08) + 'px">' + esc(home) + (away ? '<br>' + esc(away) : '') + '</div>' +
-      '<div class="cdm" data-ms="' + startMs(it) + '"><span class="cdtm">' + cdText(startMs(it) - wallNow()) + '</span><span class="cdtl">tot de aftrap</span></div>' +
-      '<div class="cdg" style="background:' + circle + '"><img src="' + C.logo + '" alt=""' + (dark ? ' class="cdk0"' : '') + '></div></div>';
+      '<div class="cdm" data-ms="' + startMs(it) + '" style="color:' + acc + '">' + cdUnits(startMs(it) - wallNow()) + '</div>' +
+      '<div class="cdg" style="background:' + hexA(acc, 0.2) + ';border-color:' + acc + '"><img src="' + C.logo + '" alt=""></div></div>';
     return h;
   }
   function countdownHtml() {
@@ -423,11 +428,16 @@
     var els = document.getElementsByClassName('cdm');
     if (!els.length) return;
     function upd() {
-      var i, left, t;
+      var i, left, s, d, bs, u, k;
       for (i = 0; i < els.length; i++) {
-        left = +els[i].getAttribute('data-ms') - wallNow(); t = els[i].firstChild;
-        t.innerHTML = left > 0 ? cdText(left) : 'NU LIVE';
-        els[i].lastChild.style.visibility = left > 0 ? 'visible' : 'hidden';
+        left = +els[i].getAttribute('data-ms') - wallNow(); s = Math.max(0, Math.floor(left / 1000)); d = Math.floor(s / 86400);
+        bs = els[i].getElementsByTagName('b'); u = els[i].getElementsByClassName('cdu');
+        bs[0].innerHTML = d; bs[1].innerHTML = two2(Math.floor(s % 86400 / 3600)); bs[2].innerHTML = two2(Math.floor(s % 3600 / 60)); bs[3].innerHTML = two2(s % 60);
+        u[0].getElementsByTagName('i')[0].innerHTML = d === 1 ? 'dag' : 'dagen';
+        u[0].style.display = d > 0 ? 'inline-block' : 'none';
+        for (k = 0; k < u.length; k++) { if (k) u[k].style.display = left > 0 ? 'inline-block' : 'none'; }
+        if (left <= 0) u[0].style.display = 'none';
+        els[i].lastChild.style.display = left > 0 ? 'none' : 'inline-block';
       }
     }
     upd(); cdTimer = setInterval(upd, 1000);

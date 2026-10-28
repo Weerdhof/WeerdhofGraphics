@@ -364,7 +364,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 /* countdown: the next match of SHL, SHLW, Hoofdklasse Hockey and the Lotto Volley League */
 .cdc { position: absolute; width: 860px; height: 400px; border-radius: 30px; overflow: hidden; border: 2px solid; box-sizing: border-box; color: #ffffff; }
 .cdt1 { box-shadow: 0 0 0 4px rgba(255,255,255,.14); }
-.cdbar { position: absolute; left: 0; top: 0; width: 100%; height: 6px; }
 .cdp { position: absolute; left: 30px; top: 30px; white-space: nowrap; }
 .cdpl { display: inline-block; height: 46px; padding: 0 24px; margin-right: 12px; border-radius: 23px; box-sizing: border-box; color: #ffffff; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 800; font-size: 25px; line-height: 46px; }
 .cdpd { background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.28); line-height: 42px; }
@@ -374,10 +373,11 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .cdb { position: absolute; left: 30px; bottom: 28px; }
 .cdcap { display: inline-block; height: 62px; padding: 0 26px; border-radius: 31px; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.22); box-sizing: border-box; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 900; font-size: 28px; line-height: 58px; color: #ffffff; }
 .cdcap i { font-style: normal; margin-right: 14px; padding-right: 16px; border-right: 2px solid rgba(255,255,255,.3); }
-.cdg { position: absolute; right: 28px; bottom: 28px; width: 100px; height: 100px; border-radius: 50px; }
-.cdg img { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; object-fit: contain; }
-.cdk0 { -webkit-filter: brightness(0); filter: brightness(0); opacity: .85; }
-.cdm { position: absolute; left: 30px; bottom: 24px; white-space: nowrap; }
-.cdtm { display: block; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 64px; line-height: 68px; letter-spacing: -1px; color: #ffffff; }
-.cdtl { display: block; margin-top: 2px; font-family: "Open Sans", Arial, sans-serif; font-weight: 600; font-size: 20px; line-height: 24px; color: rgba(255,255,255,.6); }
+.cdg { position: absolute; right: 28px; bottom: 28px; width: 104px; height: 104px; border-radius: 52px; border: 3px solid; box-sizing: border-box; }
+.cdg img { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; object-fit: contain; }
+.cdm { position: absolute; left: 30px; bottom: 28px; white-space: nowrap; }
+.cdu { display: inline-block; width: 104px; height: 92px; margin-right: 10px; border-radius: 18px; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.16); box-sizing: border-box; text-align: center; }
+.cdu b { display: block; margin-top: 8px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 48px; line-height: 52px; color: #ffffff; }
+.cdu i { display: block; font-style: normal; font-family: "Open Sans", Arial, sans-serif; font-weight: 700; font-size: 15px; line-height: 18px; letter-spacing: 1.5px; text-transform: uppercase; }
+.cdlv { display: none; height: 92px; padding: 0 30px; border-radius: 18px; border: 2px solid currentColor; box-sizing: border-box; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 900; font-size: 44px; line-height: 88px; }
 .cdpo { background: transparent; border: 2px solid; line-height: 42px; }
