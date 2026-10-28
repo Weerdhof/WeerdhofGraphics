@@ -584,26 +584,26 @@
   function guestBg() { return meeting.bg ? '<div class="wbg" style="background-image:url(/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg + ')"></div><div class="wdim" style="opacity:' + (meeting.dim / 100) + '"></div>' : ''; }
   function guestName(txt, def) { var n = txt.length; return '<b style="display:block;font-size:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px;line-height:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px">' + esc(txt || def) + '</b>'; }
   function meetStartMs() { return meeting.date ? parseYmd(meeting.date) + (+meeting.start.slice(0, 2)) * 3600000 + (+meeting.start.slice(3, 5)) * 60000 : 0; }
-  function soonLeft() {
-    var left = Math.max(0, Math.round((meetStartMs() - wallNow()) / 1000));
-    return 'over ' + two(Math.floor(left / 60)) + ':' + two(left % 60);
+  function soonProg() {                                                      // 0 to 1 over the ten minutes before the start
+    var left = Math.max(0, (meetStartMs() - wallNow()) / 1000);
+    return Math.max(0, Math.min(1, 1 - left / 600));
   }
   function soonHtml() {
     var visit = meeting.kind === 'welcome';
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:176px">' + (visit ? 'bezoek' : 'meeting') + '</b></div>' +
-      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '<span class="sgp">' + esc(meeting.start) + '</span><span class="sgp" id="soonc">' + soonLeft() + '</span></div>' +
+      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' +
+      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
   function meetingHtml() {
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Meeting</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' +
-      (meeting.start ? '<div class="sgs rz" style="animation-delay:500ms"><span class="sgp">' + esc(meeting.start) + ' – ' + esc(meeting.end) + '</span></div>' : '') +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
   var soonTimer = 0;
-  function startSoon() {                                                     // the "over 07:23" ticks every second
+  function startSoon() {                                                     // the loading bar fills up while the start comes closer
     clearInterval(soonTimer);
-    var el = document.getElementById('soonc'); if (!el) return;
-    soonTimer = setInterval(function () { el.innerHTML = soonLeft(); }, 1000);
+    var el = document.getElementById('soonb'); if (!el) return;
+    soonTimer = setInterval(function () { el.style.width = (soonProg() * 100).toFixed(2) + '%'; }, 1000);
   }
 
   // ---- slide: a statement in between ----

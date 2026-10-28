@@ -403,3 +403,6 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .slide.mm .sgs { left: 56px; }
 .sgn { display: inline-block; vertical-align: middle; margin-right: 26px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 64px; line-height: 76px; color: #ffffff; }
 .sgp { display: inline-block; vertical-align: middle; height: 64px; padding: 0 30px; margin-right: 16px; border: 3px solid rgba(255,255,255,.6); border-radius: 32px; box-sizing: border-box; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 34px; line-height: 58px; color: #ffffff; }
+.sgb { position: absolute; left: 80px; top: 716px; width: 1100px; height: 16px; border-radius: 8px; background: rgba(255,255,255,.16); overflow: hidden; }
+.slide.mm .sgb { left: 56px; }
+.sgb i { display: block; height: 16px; border-radius: 8px; background: #3D5AFE; -webkit-transition: width 1s linear; transition: width 1s linear; }
