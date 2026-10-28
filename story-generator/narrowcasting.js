@@ -615,14 +615,12 @@
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   // ---- the vrijmibo (Friday afternoon drinks): marketing colours, confetti in the colours of ByT and two glasses of beer that clink; the only slide ----
-  function mugSvg() {
+  function mugSvg() {                                                        // a flat icon: one colour for the glass, white foam
     return '<svg viewBox="0 0 320 380" width="360" height="427" xmlns="http://www.w3.org/2000/svg">' +
-      '<path d="M214 150h34a46 46 0 0 1 46 46v66a46 46 0 0 1-46 46h-34" fill="none" stroke="#060228" stroke-width="26" stroke-linecap="round"/>' +
-      '<rect x="40" y="96" width="186" height="262" rx="22" fill="#C25100" stroke="#060228" stroke-width="14"/>' +
-      '<rect x="64" y="150" width="14" height="170" rx="7" fill="#ffffff" opacity=".35"/><rect x="92" y="170" width="8" height="120" rx="4" fill="#ffffff" opacity=".25"/>' +
-      '<circle class="bb b1" cx="120" cy="320" r="9" fill="#ffcc00"/><circle class="bb b2" cx="160" cy="330" r="6" fill="#ffcc00"/><circle class="bb b3" cx="190" cy="318" r="8" fill="#ffcc00"/><circle class="bb b4" cx="140" cy="335" r="5" fill="#ffcc00"/>' +
-      '<circle cx="74" cy="92" r="38" fill="#ffffff" stroke="#060228" stroke-width="10"/><circle cx="128" cy="68" r="46" fill="#ffffff" stroke="#060228" stroke-width="10"/><circle cx="184" cy="88" r="40" fill="#ffffff" stroke="#060228" stroke-width="10"/>' +
-      '<rect x="46" y="86" width="174" height="40" fill="#ffffff"/></svg>';
+      '<path d="M214 150h34a46 46 0 0 1 46 46v66a46 46 0 0 1-46 46h-34" fill="none" stroke="#C25100" stroke-width="30" stroke-linecap="round"/>' +
+      '<rect x="40" y="96" width="186" height="262" rx="26" fill="#C25100"/>' +
+      '<circle cx="76" cy="96" r="38" fill="#ffffff"/><circle cx="130" cy="70" r="46" fill="#ffffff"/><circle cx="186" cy="92" r="40" fill="#ffffff"/>' +
+      '<rect x="40" y="92" width="186" height="46" fill="#ffffff"/></svg>';
   }
   function confettiHtml() {                                                  // circles and pills in the colours of the pillars, drifting down slowly (no noise: clean shapes)
     var cols = ['#FC06E5', '#49FF9F', '#00FFE6', '#3D5AFE', '#060228'], h = '', i, n = 22, c, left, size, dur, del, pill, rot;
