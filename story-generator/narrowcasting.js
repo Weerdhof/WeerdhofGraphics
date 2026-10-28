@@ -73,7 +73,7 @@
     m = m || { mode: 'off', client: '', bg: 0, dim: 45 };
     if (m.mode === 'soon' && meeting.planned && meeting.planned === m.planned && meeting.mode !== 'soon') return;     // the screen already went live a moment before the server did
     if (meeting.mode === 'soon' && m.planned && m.planned === meeting.planned && m.mode !== 'soon' && m.mode !== 'off') { goLive(); return; }     // the server went live first: still do it with the animation
-    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind && m.showEnd === meeting.showEnd && m.theme === meeting.theme && m.label === meeting.label) return;
+    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind && m.theme === meeting.theme && m.label === meeting.label) return;
     meeting = m;
     if (!started) return;
     if (busy) { pendingMeeting = true; return; }
@@ -590,7 +590,6 @@
     if (type === 'soon') return 'blauw';
     return meeting.bg ? '' : (meeting.theme && meeting.theme !== 'navy' ? meeting.theme : '');
   }
-  function meetClock() { return meeting.start ? '<div class="sgtl rz" style="animation-delay:600ms">' + esc(meeting.start) + (meeting.end && meeting.showEnd !== false ? ' – ' + esc(meeting.end) : '') + '</div>' : ''; }   // the time, in the bottom left corner
   function meetStartMs() { return meeting.date ? parseYmd(meeting.date) + (+meeting.start.slice(0, 2)) * 3600000 + (+meeting.start.slice(3, 5)) * 60000 : 0; }
   function soonProg() {                                                      // 0 to 1 over the ten minutes before the start
     var left = Math.max(0, (meetStartMs() - wallNow()) / 1000);
@@ -605,11 +604,11 @@
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:' + fs + 'px">' + esc(word) + '</b></div>' +
       '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' +
       '<div class="sgt rz" id="soonleft" style="animation-delay:550ms">' + soonText() + '</div>' +
-      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' + meetClock() +
+      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   function meetingHtml() {
-    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">' + esc(meeting.label || 'Meeting') + '</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' + meetClock() +
+    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">' + esc(meeting.label || 'Meeting') + '</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   var soonTimer = 0, soonOnce = 0, burstNext = false;
@@ -627,7 +626,7 @@
     clearInterval(soonTimer); clearTimeout(soonOnce);
     if (meeting.mode !== 'soon') return;
     var el = document.getElementById('soonb'); if (el) el.style.width = '100%';
-    meeting = { mode: meeting.kind === 'welcome' ? 'welcome' : 'meeting', client: meeting.client, bg: meeting.bg, dim: meeting.dim, theme: meeting.theme, label: meeting.label, start: meeting.start, end: meeting.end, date: meeting.date, showEnd: meeting.showEnd, planned: meeting.planned };
+    meeting = { mode: meeting.kind === 'welcome' ? 'welcome' : 'meeting', client: meeting.client, bg: meeting.bg, dim: meeting.dim, theme: meeting.theme, label: meeting.label, start: meeting.start, end: meeting.end, date: meeting.date, planned: meeting.planned };
     burstNext = true; clearTimeout(timer);
     setTimeout(function () { if (busy) pendingMeeting = true; else next(); }, 450);
   }
@@ -799,7 +798,7 @@
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
-    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end + '|' + meeting.showEnd + '|' + meeting.theme + '|' + meeting.label : '');
+    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end + '|' + meeting.theme + '|' + meeting.label : '');
     if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
     shownKey = key; busy = true; stopPillars();
     var useBurst = burstNext; burstNext = false;

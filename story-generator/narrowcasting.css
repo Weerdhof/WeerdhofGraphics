@@ -408,8 +408,8 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .sgb i { display: block; height: 16px; border-radius: 8px; background: #3D5AFE; -webkit-transition: width 1s linear; transition: width 1s linear; }
 .sgt { position: absolute; left: 80px; top: 636px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 56px; line-height: 64px; color: #a5b4ff; }
 .slide.mm .sgt { left: 56px; }
-.sgs + .sgt { top: 668px; }
-.sgs + .sgt + .sgb { top: 756px; }
+.sgs + .sgt { top: 748px; }
+.sgs + .sgt + .sgb { top: 836px; }
 .sgs { top: 596px; }
 
 /* colour schemes of the guest and meeting slides: the colours of ByT (background, title, accent = the alternative colour) */
@@ -454,11 +454,11 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .slide.soonl .sgt { color: #ffffff; }
 
 /* the time in the bottom left corner, and the logo lower on the "Binnenkort" and meeting slides */
-.slide.lowlogo .sgl, .slide.mm.lowlogo .sgl { top: 866px; }
+.slide.lowlogo .sgl, .slide.mm.lowlogo .sgl { top: 934px; }
 .sgtl { position: absolute; left: 80px; top: 1006px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 40px; line-height: 48px; color: #a5b4ff; }
 .slide.mm .sgtl { left: 56px; }
 .slide.soonl .sgtl { color: #ffffff; }
-.burst { position: absolute; width: 40px; height: 40px; left: 1136px; top: 744px; border-radius: 20px; z-index: 40; -webkit-transform: scale(.3); transform: scale(.3); -webkit-transition: -webkit-transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; transition: transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; }
+.burst { position: absolute; width: 40px; height: 40px; left: 1136px; top: 826px; border-radius: 20px; z-index: 40; -webkit-transform: scale(.3); transform: scale(.3); -webkit-transition: -webkit-transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; transition: transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; }
 .slide.th-blauw .sgtl { color: #060228; }
 .slide.th-lichtblauw .sgtl { color: #2D43A8; }
 .slide.th-productie .sgtl { color: #7B1FA2; }
