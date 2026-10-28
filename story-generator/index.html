@@ -480,6 +480,15 @@
         <button class="btn btn-link" id="exportRoundBtn" type="button">Hele ronde (zip)</button>
         <div class="hint" id="batchStatus" hidden></div>
       </div>
+      <div class="field" id="musicField" hidden>
+        <label for="musicSelect">Muziek onder de video</label>
+        <select id="musicSelect" autocomplete="off">
+          <option value="none">Geen muziek</option>
+          <optgroup label="High energy (zelf gegenereerd, rechtenvrij)" id="musicBuiltIn"></optgroup>
+          <optgroup label="Eigen tracks" id="musicOwn" hidden></optgroup>
+        </select>
+        <button class="btn btn-link" id="musicPreviewBtn" type="button">▶ Luister</button>
+      </div>
       <label class="upcoming-toggle results-anim-toggle" id="tiktokField" hidden>
         <input type="checkbox" id="tiktokToggle">
         TikTok-versie: opening met het Coinmerce SHL-logo<span class="tiktok-note"></span>
@@ -693,6 +702,7 @@
 
 <script src="settings.js"></script>
 <script src="dashboard.js"></script>
+<script src="music.js"></script>
 <script src="script.js"></script>
 <script src="settings-ui.js"></script>
 <script src="hnl.js"></script>

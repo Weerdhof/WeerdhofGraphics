@@ -587,24 +587,57 @@
     return new Promise((resolve) => { if (!img || img.complete) resolve(img); else { img.addEventListener('load', () => resolve(img)); img.addEventListener('error', () => resolve(img)); } });
   }
 
+  // ---------- Music under the videos ----------
+  const musicField = document.getElementById('musicField');
+  const musicSelect = document.getElementById('musicSelect');
+  const musicPreviewBtn = document.getElementById('musicPreviewBtn');
+  if (musicSelect && window.ShlMusic) {
+    const grp = musicSelect.querySelector('#musicBuiltIn');
+    Object.keys(ShlMusic.PRESETS).forEach((k) => { const o = document.createElement('option'); o.value = 'preset:' + k; o.textContent = ShlMusic.PRESETS[k].name; grp.appendChild(o); });
+    fetch('assets/music/manifest.json').then((r) => (r.ok ? r.json() : [])).then((list) => {
+      const own = musicSelect.querySelector('#musicOwn');
+      (Array.isArray(list) ? list : []).forEach((t) => { if (!t || !t.file) return; const o = document.createElement('option'); o.value = 'file:' + t.file; o.textContent = t.name || t.file; own.appendChild(o); });
+      own.hidden = !own.children.length;
+    }).catch(() => { musicSelect.querySelector('#musicOwn').hidden = true; });
+    const setPreviewLabel = () => { musicPreviewBtn.textContent = ShlMusic.isPlaying() ? '■ Stop' : '▶ Luister'; };
+    musicSelect.addEventListener('change', () => { ShlMusic.stopPreview(); setPreviewLabel(); });
+    musicPreviewBtn.addEventListener('click', async () => {
+      if (ShlMusic.isPlaying()) { ShlMusic.stopPreview(); setPreviewLabel(); return; }
+      if (musicSelect.value === 'none') return;
+      musicPreviewBtn.textContent = 'Laden…';
+      try { await ShlMusic.preview(musicSelect.value, tiktokOn() ? STINGER_HOLD_MS : 0); } catch (e) { console.error('Muziek voorbeeld mislukt:', e); }
+      setPreviewLabel();
+    });
+  }
+  // the recorder for a clip: with music the audio track is added to the canvas stream (the drop lands when the opening ends)
+  async function createRecorder(totalMs, dropMs) {
+    const choice = musicSelect ? musicSelect.value : 'none';
+    const music = choice !== 'none' && window.ShlMusic ? await ShlMusic.prepare(choice, totalMs, dropMs) : null;
+    const candidates = music
+      ? ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=vp9,opus', 'video/webm']
+      : ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm'];
+    const mimeType = candidates.find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || 'video/webm';
+    const stream = canvas.captureStream(30);
+    if (music) music.tracks.forEach((t) => stream.addTrack(t));
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000, audioBitsPerSecond: 192000 });
+    return { recorder, music, mimeType };
+  }
+
   async function recordResultsAnimation() {
     stopResultsAnimationLoop();
-    let mimeType = 'video/mp4;codecs=avc1';
-    if (!(window.MediaRecorder && MediaRecorder.isTypeSupported(mimeType))) mimeType = 'video/webm;codecs=vp9';
-    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-    const stream = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 });
+    const stinger = tiktokOn();
+    const intro = stinger ? STINGER_HOLD_MS : 0;
+    const total = intro + animClipDuration(visibleMatches().length);
+    const { recorder, music, mimeType } = await createRecorder(total, intro);
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
 
-    const stinger = tiktokOn();
     const logoImg = stinger ? await stingerLogoReady() : null;
-    const intro = stinger ? STINGER_HOLD_MS : 0;
     animStartTs = stinger ? null : performance.now();     // with the opening the clip starts when the wipe starts
     const recStart = performance.now();
     recorder.start();
-    const total = intro + animClipDuration(visibleMatches().length);
+    if (music) music.start();
     await new Promise((resolve) => {
       const loop = () => {
         const t = performance.now() - recStart;
@@ -618,6 +651,7 @@
     });
     recorder.stop();
     await stopped;
+    if (music) music.close();
 
     const blob = new Blob(chunks, { type: mimeType });
     const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
@@ -752,22 +786,19 @@
 
   async function recordSmAnimation() {
     stopSmAnimationLoop();
-    let mimeType = 'video/mp4;codecs=avc1';
-    if (!(window.MediaRecorder && MediaRecorder.isTypeSupported(mimeType))) mimeType = 'video/webm;codecs=vp9';
-    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-    const stream = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 });
+    const stinger = tiktokOn();
+    const intro = stinger ? STINGER_HOLD_MS : 0;
+    const total = intro + smAnimClipDuration();
+    const { recorder, music, mimeType } = await createRecorder(total, intro);
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
 
-    const stinger = tiktokOn();
     const logoImg = stinger ? await stingerLogoReady() : null;
-    const intro = stinger ? STINGER_HOLD_MS : 0;
     smAnimStartTs = stinger ? null : performance.now();   // with the opening the clip starts when the wipe starts
     const recStart = performance.now();
     recorder.start();
-    const total = intro + smAnimClipDuration();
+    if (music) music.start();
     await new Promise((resolve) => {
       const loop = () => {
         const t = performance.now() - recStart;
@@ -781,6 +812,7 @@
     });
     recorder.stop();
     await stopped;
+    if (music) music.close();
 
     const blob = new Blob(chunks, { type: mimeType });
     const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
@@ -1158,6 +1190,7 @@
   function syncTiktokField() {
     if (!tiktokField) return;
     tiktokField.hidden = downloadMp4Btn.hidden && smDownloadMp4Btn.hidden;
+    if (musicField) { musicField.hidden = tiktokField.hidden; if (musicField.hidden && window.ShlMusic) ShlMusic.stopPreview(); }
     const ok = canvas.height === 1920;
     tiktokField.querySelector('.tiktok-note').textContent = ok ? '' : ' (kies het Story-formaat voor 9:16)';
   }
