@@ -11,7 +11,7 @@
   const $ = (id) => document.getElementById(id);
   const DUR = 4500;                         // the movement, in ms
   const CLIP = 15000;                       // the video: the movement, then the finished graphic stays until 15 seconds
-  const SUPPORTED = ['wedstrijd'];          // assets that have an animation
+  const SUPPORTED = ['wedstrijd', 'vacature'];   // assets that have an animation
 
   let on = false, layers = null, buildTimer = 0, building = false, again = false;
   let raf = 0, t0 = 0, recording = false, canvas = null;
@@ -32,30 +32,34 @@
 
   // ---------- layers ----------
   const LAYERS = ['bg', 'photo', 'pills', 'title', 'tag', 'live', 'icon', 'logo'];
+  const LAYERS_V = ['bg', 'photo', 'eyebrow', 'title', 'sub', 'logo'];          // the vacancy: label, title and line under it, photo, logo
+  const layerIds = (t) => (t.asset === 'vacature' ? LAYERS_V : LAYERS);
 
   // the elements of one wedstrijd template, by their place in the handoff markup
-  function parts(frame) {
+  function parts(frame, asset) {
     const root = frame.firstElementChild;
     const kids = Array.from(root.children).filter(e => e.tagName !== 'STYLE');
+    if (asset === 'vacature') return { root, photo: kids[0], eyebrow: kids[1].children[0], title: kids[1].children[1], sub: kids[1].children[2], logo: kids[2] };
     const top = kids[1];
     return { root, photo: kids[0], pills: top.children[0], title: top.children[1], tag: top.children[2], live: kids[2], icon: kids[3], logo: kids[4] };
   }
 
-  function rects(frame, k) {
-    const P = parts(frame), fr = frame.getBoundingClientRect();
+  function rects(frame, k, asset) {
+    const P = parts(frame, asset), fr = frame.getBoundingClientRect();
     const rel = (e) => { const r = e.getBoundingClientRect(); return { x: (r.left - fr.left) / k, y: (r.top - fr.top) / k, w: r.width / k, h: r.height / k }; };
+    if (asset === 'vacature') return { photo: rel(P.photo) };
     const tag = P.tag.firstElementChild;
     return { photo: rel(P.photo), live: rel(P.live), icon: rel(P.icon), pills: Array.from(P.pills.children).map(rel), tag: tag ? rel(tag) : null };
   }
 
   async function build() {
     const b = B(), t = b.state.t, frame = b.frameEl();
-    const P = parts(frame);
-        const geo = rects(frame, b.state.scale || 1);
-    LAYERS.forEach(id => { if (P[id]) P[id].setAttribute('data-al', id); });
+    const P = parts(frame, t.asset), IDS = layerIds(t);
+    const geo = rects(frame, b.state.scale || 1, t.asset);
+    IDS.forEach(id => { if (P[id]) P[id].setAttribute('data-al', id); });
     let imgs;
     try {
-      imgs = await Promise.all(LAYERS.map(id => b.renderCanvas(t, (clone) => {
+      imgs = await Promise.all(IDS.map(id => b.renderCanvas(t, (clone) => {
         const r = clone.firstElementChild;
         r.querySelectorAll('*').forEach(e => { e.style.visibility = 'hidden'; });
         if (id !== 'bg') {
@@ -64,15 +68,17 @@
           if (el) { el.style.visibility = 'visible'; el.querySelectorAll('*').forEach(e => { e.style.visibility = 'visible'; }); }
         }
       })));
-    } finally { LAYERS.forEach(id => { if (P[id]) P[id].removeAttribute('data-al'); }); }
-    const L = {}; LAYERS.forEach((id, i) => { L[id] = imgs[i]; });
+    } finally { IDS.forEach(id => { if (P[id]) P[id].removeAttribute('data-al'); }); }
+    const L = {}; IDS.forEach((id, i) => { L[id] = imgs[i]; });
     // the colour of each pill at its left edge: that is the colour of its circle
     const col = (img, r) => { const d = img.getContext('2d').getImageData(Math.round(r.x + 2), Math.round(r.y + r.h / 2), 1, 1).data; return `rgba(${d[0]},${d[1]},${d[2]},${(d[3] / 255).toFixed(3)})`; };
-    geo.pills.forEach(r => { r.col = col(L.pills, r); });
-    if (geo.tag) geo.tag.col = col(L.tag, geo.tag);
-    geo.live.col = col(L.live, geo.live);
+    if (t.asset !== 'vacature') {
+      geo.pills.forEach(r => { r.col = col(L.pills, r); });
+      if (geo.tag) geo.tag.col = col(L.tag, geo.tag);
+      geo.live.col = col(L.live, geo.live);
+    }
     const cs = getComputedStyle(frame), bg = cs.getPropertyValue('--bg').trim() || '#060228';
-    return { tid: t.id, w: t.w, h: t.h, L, geo, bg, alt: cs.getPropertyValue('--pill-bg').trim() || bg };
+    return { tid: t.id, asset: t.asset, w: t.w, h: t.h, L, geo, bg, alt: cs.getPropertyValue('--pill-bg').trim() || bg };
   }
 
   async function rebuild() {
@@ -161,7 +167,26 @@
     ctx.save(); ctx.translate(lerp(-r.h * 1.3 - r.x, 0, mv), 0); ctx.drawImage(img, 0, 0); ctx.restore();
   }
 
+  // the vacancy: the label and the title slide in together, then the line under the title slides in while the photo wipes open from the
+  // left to the right; the logo is there from the first frame
+  function drawVacature(ctx, ms, noLogo) {
+    const A = layers, { L, geo } = A;
+    ctx.clearRect(0, 0, A.w, A.h);
+    ctx.drawImage(L.bg, 0, 0);
+    slideIn(ctx, L.eyebrow, ms, 300, 800, 120);
+    slideIn(ctx, L.title, ms, 300, 900, 170);
+    slideIn(ctx, L.sub, ms, 1000, 800, 120);
+    const pp = inOutExpo(seg(ms, 1000, 1000));
+    if (pp > 0) {
+      const ph = geo.photo;
+      ctx.save(); ctx.beginPath(); ctx.rect(ph.x - 2, ph.y - 2, ph.w * pp + 4, ph.h + 4); ctx.clip();
+      ctx.drawImage(L.photo, 0, 0); ctx.restore();
+    }
+    if (!noLogo) ctx.drawImage(L.logo, 0, 0);
+  }
+
   function draw(ctx, ms, noLogo) {
+    if (layers.asset === 'vacature') return drawVacature(ctx, ms, noLogo);
     const A = layers, { L, geo } = A;
     ctx.clearRect(0, 0, A.w, A.h);
     ctx.drawImage(L.bg, 0, 0);
@@ -309,7 +334,7 @@
     if (!box) return;
     const asset = B().state.asset;
     if (!SUPPORTED.includes(asset)) { box.innerHTML = ''; return; }
-    box.innerHTML = `<label class="upcoming-toggle byt-anim-toggle"><input type="checkbox" id="bytAnimToggle"${on ? ' checked' : ''}> Animeer (rondjes worden balken)</label>
+    box.innerHTML = `<label class="upcoming-toggle byt-anim-toggle"><input type="checkbox" id="bytAnimToggle"${on ? ' checked' : ''}> ${asset === 'vacature' ? 'Animeer (tekst schuift in, foto veegt open)' : 'Animeer (rondjes worden balken)'}</label>
       <button class="btn btn-primary" id="bytMp4" type="button"${on ? '' : ' hidden'}>Download MP4</button>
       <button class="btn" id="bytGif" type="button"${on ? '' : ' hidden'}>Download GIF (loopt)</button>
       <p class="save-status" id="bytAnimStatus" hidden></p>`;

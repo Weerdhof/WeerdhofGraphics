@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- template name="Social — Vacature" description="1080×1350 vacature: pijlerveld met label, grote titel en regel eronder, foto over de onderste helft, logo onderaan" -->
+<helmet>
+<script src="./ds-base.js"></script>
+<script src="../../_download-png.js"></script>
+<style>
+  body { margin: 0; background: #d9d9e3; }
+</style>
+</helmet>
+<div style="width:1080px; height:1350px; position:relative; overflow:hidden; background:var(--bg,#00FFE6); font-family:'Open Sans',Arial,sans-serif;">
+
+  <!-- photo: the lower part -->
+  <div class="byt-slot" data-slot="foto" data-ph="Sleep hier een foto" style="position:absolute; left:0; right:0; bottom:0; height:863px; display:block;"></div>
+
+  <!-- label, title and line under it -->
+  <div style="position:absolute; top:127px; left:98px; right:98px;">
+    <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:32px; line-height:1.2; color:var(--title,#060228);">{{ eyebrow }}</div>
+    <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:88px; line-height:80px; color:var(--title,#060228); margin-top:14px;">{{ title }}</div>
+    <div style="font-family:'Niveau Grotesk','Arial Black',sans-serif; font-weight:700; font-size:36px; line-height:1.2; color:var(--title,#060228); margin-top:20px;">{{ subline }}</div>
+  </div>
+
+  <!-- logo bottom centre, on the photo -->
+  <div style="position:absolute; bottom:30px; left:0; right:0; text-align:center;">
+    <x-import component-from-global-scope="ByTomorrowDesignSystem_c9da89.Logo" color="#ffffff" width="357" hint-size="357px,69px"></x-import>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1080, &quot;height&quot;: 1350}, &quot;pillar&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;content&quot;, &quot;jump&quot;, &quot;marketing&quot;, &quot;productie&quot;, &quot;standaard&quot;, &quot;navy&quot;], &quot;default&quot;: &quot;content&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;eyebrow&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Wij zoeken....&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;title&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Stagiair(e) Design &amp; Sportcontent&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;subline&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Veenendaal | feb t/m jul 2027&quot;, &quot;tsType&quot;: &quot;string&quot;}}">
+class Component extends DCLogic {
+  pillar() {
+    const PILLARS = {
+      content:   { bg: "#00FFE6", dark: "#008B8B", title: "#060228" },
+      jump:      { bg: "#49FF9F", dark: "#2F7E4D", title: "#060228" },
+      marketing: { bg: "#FFCC00", dark: "#C25100", title: "#060228" },
+      productie: { bg: "#FC06E5", dark: "#7B1FA2", title: "#060228" },
+      standaard: { bg: "#3D5AFE", dark: "#060228", title: "#ffffff" },
+      navy:      { bg: "#060228", dark: "#3D5AFE", title: "#ffffff" },
+    };
+    return PILLARS[this.props.pillar] || PILLARS.content;
+  }
+  applyVars() {
+    const p = this.pillar(), r = document.documentElement.style;
+    r.setProperty("--bg", p.bg); r.setProperty("--title", p.title); r.setProperty("--pill-bg", p.dark);
+  }
+  componentDidMount() { this.applyVars(); }
+  componentDidUpdate() { this.applyVars(); }
+  renderVals() {
+    return {
+      eyebrow: this.props.eyebrow ?? "Wij zoeken....",
+      title: this.props.title ?? "Stagiair(e) Design & Sportcontent",
+      subline: this.props.subline ?? "Veenendaal | feb t/m jul 2027",
+    };
+  }
+}
+</script>
+</body>
+</html>

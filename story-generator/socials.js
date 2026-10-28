@@ -29,7 +29,7 @@
     quote: 'Quote', author: 'Auteur', cta: 'Tekst op de knop',
     person: 'Persoon', name: 'Naam', role: 'Functie', eyebrow: 'Label (klein, boven de titel)', duration: 'Duur', version: 'Versie',
     intro: 'Intro', u1: 'Update 1 (mag leeg)', u2: 'Update 2 (mag leeg)', u3: 'Update 3 (mag leeg)',
-    homeTeam: 'Thuisploeg', awayTeam: 'Uitploeg', homeScore: 'Score thuis', awayScore: 'Score uit',
+    subline: 'Regel onder de titel (plaats, periode)', homeTeam: 'Thuisploeg', awayTeam: 'Uitploeg', homeScore: 'Score thuis', awayScore: 'Score uit',
   };
   const LONG = { quote: 4, intro: 4, title: 0 };   // textarea rows
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);

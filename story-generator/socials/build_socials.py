@@ -22,12 +22,14 @@ ENABLED = [
     ("wedstrijd-linkedin", "wedstrijd", "LinkedIn 1:1"),
     ("social-artikel", "artikel", "Slide 1 · Artikel"),
     ("social-quote", "artikel", "Slide 2 · Quote"),
+    ("social-vacature", "vacature", "Feed"),
     ("social-story", "story", "Story"),
     ("video-thumbnail", "video-thumbnail", "16:9"),
 ]
 ASSETS = {
     "wedstrijd": {"label": "Wedstrijd aankondiging", "desc": "Competitie en tijd, grote titel, sport-icoon en LIVE OP over de foto. Kies feed, story of LinkedIn."},
     "artikel": {"label": "Artikel en quote", "desc": "Een carrousel van twee slides. Slide 1: de titel van het artikel in een pijlerblok met een persoon, over een volledige foto. Slide 2: een quote met auteur en een knop naar het artikel."},
+    "vacature": {"label": "Vacature", "desc": "Een vacature: pijlerveld met label, grote titel en een regel eronder (plaats en periode), een foto over de onderste helft en het logo. Met animatie."},
     "story": {"label": "Story achtergrond", "desc": "Een foto als achtergrond voor een story, met een kleurverloop vanaf boven, een label en een titel. Alle onderdelen kun je aan of uit zetten."},
     "video-thumbnail": {"label": "Video thumbnail", "desc": "Een YouTube-thumbnail in 16:9 met titel, foto en pijler."},
 }
