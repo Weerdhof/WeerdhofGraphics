@@ -79,7 +79,7 @@
     if (busy) { pendingMeeting = true; return; }
     clearTimeout(timer); next();
   }
-  // buttons on the screen itself: they show when the mouse (the pointer of the magic remote) moves or a key is pressed and hide again after a few seconds
+  // buttons on the screen itself: they show when the mouse (the pointer of the magic remote) moves and hide again after a few seconds
   var ctl = document.getElementById('ctl'), ctlT = 0, ctlClose = document.getElementById('ctlClose');
   function skipSlide() { if (started && !busy) { clearTimeout(timer); next(); } }
   function showCtl() {
@@ -88,8 +88,8 @@
     ctl.className = 'show'; clearTimeout(ctlT); ctlT = setTimeout(function () { ctl.className = ''; }, 4000);
   }
   if (ctl && !PREVIEW) {
-    document.addEventListener('mousemove', showCtl); document.addEventListener('touchstart', showCtl);
-    document.addEventListener('keydown', function (e) { var k = e.keyCode; if (k === 39 || k === 32 || k === 13 || k === 427) skipSlide(); showCtl(); });          // right arrow, space, OK, channel up
+    document.addEventListener('mousemove', showCtl);                         // the buttons show on mouse movement only
+    document.addEventListener('keydown', function (e) { var k = e.keyCode; if (k === 39 || k === 32 || k === 13 || k === 427) skipSlide(); });          // right arrow, space, OK, channel up
     document.getElementById('ctlNext').addEventListener('click', function () { skipSlide(); showCtl(); });
     ctlClose.addEventListener('click', function () {
       var x = new XMLHttpRequest(); x.open('POST', '/api/narrowcasting-vrijmibo-close', true);
