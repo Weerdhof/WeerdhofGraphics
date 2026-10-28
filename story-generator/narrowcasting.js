@@ -602,7 +602,7 @@
   var CAL_SVG = '<svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm-2 8h14v10H5V10zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2z"/></svg>';
   var CLOCK_SVG = '<svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm.5-13H11v6l5.2 3.1.8-1.3-4.5-2.7V7z"/></svg>';
   function soonHtml() {
-    var visit = meeting.kind === 'welcome', word = meeting.label ? meeting.label.toLowerCase() : (visit ? 'bezoek' : 'meeting'), fs = word.length > 9 ? 120 : 176;
+    var visit = meeting.kind === 'welcome', word = meeting.label ? meeting.label.toLowerCase() : (visit ? 'bezoek' : 'meeting'), fs = word.length > 20 ? 130 : 176;
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:' + fs + 'px">' + esc(word) + '</b></div>' +
       '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgpill"><span class="sgcal">' + CAL_SVG + '</span>' + esc(meeting.client) + '</span>' : '') +
       (meeting.start ? '<span class="sgpill sgp2"><span class="sgcal">' + CLOCK_SVG + '</span>' + esc(meeting.start) + '</span>' : '') + '</div>' +
