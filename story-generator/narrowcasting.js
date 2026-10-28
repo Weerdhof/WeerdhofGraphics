@@ -399,12 +399,14 @@
       if (it && startMs(it) > last) last = startMs(it);
     }
     extras.sort(function (a, b) { return startMs(a) - startMs(b); });
-    for (i = 0; i < extras.length && cards.length < 6; i++) {                // another client that goes live before the last of the four: in between
-      if (last && startMs(extras[i]) >= last) break;
-      o = cdOther(extras[i]); if (!o) continue;
+    var seen = {};
+    for (i = 0; i < extras.length; i++) {                                    // another client goes live: its next match takes its place in the order (one card per client)
+      o = cdOther(extras[i]); if (!o || seen[o.label]) continue;
+      seen[o.label] = 1;
       cards.push({ it: extras[i], label: o.label, acc: o.acc, ink: o.ink, logo: o.logo, icon: o.icon, ms: startMs(extras[i]) });
     }
     cards.sort(function (a, b) { return (a.ms || 9e15) - (b.ms || 9e15); });
+    cards = cards.slice(0, 4);                                               // never more than four: the four that go live first
     return cards;
   }
   function cdSoon(cards) {                                                   // shown only when the first match is less than a day away
