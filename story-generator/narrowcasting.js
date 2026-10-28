@@ -79,7 +79,13 @@
     if (busy) { pendingMeeting = true; return; }
     clearTimeout(timer); next();
   }
-  function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) applyMeeting(j.meeting); }); }
+  // the beheer page can send the screen to the next slide: it leaves a time stamp that the screen sees in its 2 second poll
+  var lastNext = null;
+  function checkNext(n) {
+    if (lastNext === null) { lastNext = n || 0; return; }                    // the first look only notes the value
+    if (n && n !== lastNext) { lastNext = n; if (started && !busy && !PREVIEW) { clearTimeout(timer); next(); } }
+  }
+  function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) { applyMeeting(j.meeting); checkNext(j.nextAt); } }); }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadNews() { get('/api/narrowcasting-news', function (j) { if (j && j.items && j.items.length) news = j.items; }); }

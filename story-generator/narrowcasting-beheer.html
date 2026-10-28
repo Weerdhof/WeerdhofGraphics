@@ -81,6 +81,7 @@
   <div class="top">
     <h1>Narrowcasting <b>gastmodus</b></h1>
     <span class="status" id="status"></span>
+    <button class="btn small" id="nextSlide" type="button">Volgende slide &#9654;</button>
     <a class="btn line small" href="/narrowcasting" target="_blank">Open het scherm</a>
   </div>
   <p class="sub">Zet het scherm in gastmodus als er bezoek is, of plan een meeting vooruit: het scherm schakelt dan zelf aan en uit. Alles wat bij de normale slides hoort staat onderaan bij "Overige instellingen".</p>
@@ -99,7 +100,8 @@
     <div class="row"><b style="min-width:210px">Vrijmibo</b>
       <label class="chk" style="margin:0"><input type="checkbox" id="vmOn"> Elke vrijdag</label>
       <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Van <input type="time" id="vmStart" style="width:120px"></label>
-      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">tot <input type="time" id="vmEnd" style="width:120px"></label></div>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">tot <input type="time" id="vmEnd" style="width:120px"></label>
+      <button class="btn small line" id="vmClose" type="button" hidden>Vrijmibo afsluiten</button></div>
     <div class="hint" style="margin-top:8px">Dan laat het scherm alleen de vrijmibo-slide zien (marketing-kleuren en een biertje). Staat er rond die tijd (een half uur eromheen) een meeting gepland of een afspraak in de agenda, dan slaat het scherm de vrijmibo die dag over. Een geplande meeting gaat altijd voor.</div>
   </div>
   <div class="box">
@@ -218,8 +220,24 @@
   // ---- vrijmibo: Friday afternoon drinks ----
   function renderVrijmibo() {
     var on = document.getElementById('vmOn'), st = document.getElementById('vmStart'), en = document.getElementById('vmEnd');
+    var cl = document.getElementById('vmClose'), live = effective && effective.mode === 'vrijmibo', closed = vrijmibo.closed === today();
+    cl.hidden = !(live || closed); cl.textContent = live ? 'Vrijmibo afsluiten' : 'Vrijmibo weer aan';
     on.checked = vrijmibo.enabled !== false; if (document.activeElement !== st) st.value = vrijmibo.start || '16:00'; if (document.activeElement !== en) en.value = vrijmibo.end || '18:00';
   }
+  // close the vrijmibo (also when it was started by hand): the normal slides come back, and it does not start again today; or open it again
+  document.getElementById('vmClose').addEventListener('click', function () {
+    if (effective && effective.mode === 'vrijmibo') { vrijmibo.closed = today(); if (meeting.mode === 'vrijmibo') meeting.mode = 'off'; effective = { mode: 'off' }; }
+    else vrijmibo.closed = '';
+    renderVrijmibo(); renderMeeting(); save(true);
+  });
+  document.getElementById('nextSlide').addEventListener('click', function () {
+    fetch('/api/narrowcasting-next', { method: 'POST' }).then(function (r) { if (!r.ok) throw new Error(r.status); status('\u2713 Het scherm gaat naar de volgende slide'); }).catch(function () { status('Versturen mislukt.'); });
+  });
+  // the "now" state follows the clock: look at what the screen shows every 20 seconds
+  setInterval(function () {
+    if (document.hidden) return;
+    fetch('/api/narrowcasting-meeting').then(function (r) { return r.json(); }).then(function (j) { effective = j.meeting; renderVrijmibo(); renderMeeting(); }).catch(function () { });
+  }, 20000);
   document.getElementById('vmOn').addEventListener('change', function (e) { vrijmibo.enabled = e.target.checked; save(true); });
   document.getElementById('vmStart').addEventListener('input', function (e) { vrijmibo.start = e.target.value; save(); });
   document.getElementById('vmEnd').addEventListener('input', function (e) { vrijmibo.end = e.target.value; save(); });

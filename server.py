@@ -1137,7 +1137,8 @@ def _clean_narrow(raw):
                          "label": str(x.get("label") or "").strip()[:24]})              # the word on the slide instead of "Meeting"                  # the end time on the screen can be left out
     meetings.sort(key=lambda m: (m["date"], m["start"], m["client"]))
     vm = raw.get("vrijmibo") if isinstance(raw.get("vrijmibo"), dict) else {}
-    vrijmibo = {"enabled": vm.get("enabled") is not False, "start": hhmm(vm.get("start")) or "16:00", "end": hhmm(vm.get("end")) or "18:00"}      # Friday afternoon drinks: the screen shows only that slide
+    vrijmibo = {"enabled": vm.get("enabled") is not False, "start": hhmm(vm.get("start")) or "16:00", "end": hhmm(vm.get("end")) or "18:00",
+                "closed": valid_date(vm.get("closed"))}                          # closed: the day on which the vrijmibo was closed by hand      # Friday afternoon drinks: the screen shows only that slide
     if vrijmibo["end"] <= vrijmibo["start"]:
         vrijmibo["end"] = "23:59"
     ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
@@ -1152,6 +1153,8 @@ def vrijmibo_on(data, now):
     if not vm.get("enabled") or now.weekday() != 4:
         return False
     day, hm = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+    if vm.get("closed") == day:
+        return False
     if not (vm["start"] <= hm < vm["end"]):
         return False
     try:
@@ -1528,6 +1531,7 @@ IG_HOSTS = ("behold.pictures", "behold.so", "cdninstagram.com", "fbcdn.net")    
 _ig_lock = threading.Lock()
 _ig_state = {}
 _ig_last_manual = [0]
+_next_at = [0]                                              # when the beheer page last asked the screens for the next slide (they poll it)
 
 
 def _ig_feed_ok(url):
@@ -1905,7 +1909,7 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception:
                 self.send_error(502)
         elif self.path.startswith("/api/narrowcasting-meeting"):          # tiny and polled every 2 seconds: the screen switches to meeting mode at once
-            self._nocache_json(200, {"meeting": effective_meeting(narrow_data())})
+            self._nocache_json(200, {"meeting": effective_meeting(narrow_data()), "nextAt": _next_at[0]})
         elif self.path.startswith("/api/narrowcasting-matches"):
             try:
                 self._nocache_json(200, narrow_matches_cached())
@@ -1975,6 +1979,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_thumbnail()
         elif self.path.startswith("/api/usage"):
             self.handle_usage_post()
+        elif self.path.split("?")[0] == "/api/narrowcasting-next":
+            _next_at[0] = int(time.time() * 1000)
+            self._json(200, {"nextAt": _next_at[0]})
         elif self.path.split("?")[0] == "/api/narrowcasting-instagram/refresh":
             if time.time() - _ig_last_manual[0] < 60 or _ig_lock.locked():
                 return self._json(429, {"error": "net ververst of bezig, probeer het over een minuut opnieuw"})
