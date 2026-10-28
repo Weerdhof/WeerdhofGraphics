@@ -209,7 +209,7 @@
   // ---- planned meetings: a row each, the screen switches by itself ----
   var THEMES = [['navy', 'Navy'], ['blauw', 'Blauw'], ['lichtblauw', 'Lichtblauw'], ['productie', 'Productie'], ['jump', 'JUMP'], ['marketing', 'Marketing'], ['content', 'Content'], ['wit', 'Wit']];
   function themeOpts(v) { return THEMES.map(function (t) { return '<option value="' + t[0] + '"' + ((v || 'navy') === t[0] ? ' selected' : '') + '>' + t[1] + '</option>'; }).join(''); }
-  var LABELS = ['Meeting', 'Brainstorm', 'Kickoff', 'Start van de week', 'Overleg'];
+  var LABELS = ['Meeting', 'Brainstorm', 'Kickoff', 'Start van de week', 'Overleg', 'Welkom'];
   function labelOpts(v) {
     v = v || 'Meeting'; var l = LABELS.indexOf(v) < 0 ? LABELS.concat([v]) : LABELS;             // an older, own word stays in the list
     return l.map(function (w) { return '<option value="' + esc(w) + '"' + (w === v ? ' selected' : '') + '>' + esc(w) + '</option>'; }).join('');
