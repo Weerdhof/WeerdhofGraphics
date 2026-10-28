@@ -1447,6 +1447,7 @@ IG_EVERY = 2 * 3600
 IG_HOSTS = ("behold.pictures", "behold.so", "cdninstagram.com", "fbcdn.net")      # the media is only fetched from these hosts
 _ig_lock = threading.Lock()
 _ig_state = {}
+_ig_last_manual = [0]
 
 
 def _ig_feed_ok(url):
@@ -1893,6 +1894,12 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_thumbnail()
         elif self.path.startswith("/api/usage"):
             self.handle_usage_post()
+        elif self.path.split("?")[0] == "/api/narrowcasting-instagram/refresh":
+            if time.time() - _ig_last_manual[0] < 60 or _ig_lock.locked():
+                return self._json(429, {"error": "net ververst of bezig, probeer het over een minuut opnieuw"})
+            _ig_last_manual[0] = time.time()
+            threading.Thread(target=ig_refresh, args=(True,), daemon=True).start()
+            self._json(202, {"started": True})
         elif self.path.split("?")[0] == "/api/narrowcasting-platforms/refresh":
             if time.time() - _plat_last_manual[0] < 300 or _plat_lock.locked():
                 return self._json(429, {"error": "net ververst of bezig, probeer het over een paar minuten opnieuw"})
