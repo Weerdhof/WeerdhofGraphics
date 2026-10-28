@@ -1118,9 +1118,36 @@ def _clean_narrow(raw):
     sl_raw = raw.get("slides") if isinstance(raw.get("slides"), dict) else {}
     slides = {k: sl_raw.get(k) is not False for k in NARROW_SLIDES}          # which slides take part in the rotation (default: all)
     hidden = [str(h)[:200] for h in (raw.get("hidden") if isinstance(raw.get("hidden"), list) else [])[:600] if isinstance(h, str)]   # fetched matches that have been deleted from the agenda
+    meetings = []                                                           # planned meetings: the screen goes into guest mode by itself from start to end
+    today_s = _ams_now_parts(time.time()).strftime("%Y-%m-%d")
+    for x in (raw.get("meetings") if isinstance(raw.get("meetings"), list) else [])[:80]:
+        if not isinstance(x, dict):
+            continue
+        date, st, en = valid_date(x.get("date")), hhmm(x.get("start")), hhmm(x.get("end"))
+        if not date or not st or date < today_s:
+            continue
+        if not en or en <= st:
+            en = "%02d:%s" % (min(23, int(st[:2]) + 1), st[3:]) if int(st[:2]) < 23 else "23:59"
+        meetings.append({"id": re.sub(r"[^A-Za-z0-9_-]", "", str(x.get("id") or ""))[:24] or "g%d" % int(time.time() * 1000 + len(meetings)),
+                         "client": str(x.get("client") or "").strip()[:40], "date": date, "start": st, "end": en,
+                         "mode": x.get("mode") if x.get("mode") in ("welcome", "slogan") else "welcome"})
+    meetings.sort(key=lambda m: (m["date"], m["start"], m["client"]))
     ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
     instagram = {k: (str(ig_raw.get(k) or "").strip() if _ig_feed_ok(str(ig_raw.get(k) or "").strip()) else "") for k in IG_LABELS}          # Behold feed URL per account
-    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden, "instagram": instagram}
+    return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden, "instagram": instagram, "meetings": meetings}
+
+
+def effective_meeting(data):
+    """What the screen shows now: the guest mode that was switched on by hand, else the planned meeting that is on right now, else nothing."""
+    mt = data["meeting"]
+    if mt["mode"] != "off":
+        return mt
+    now = _ams_now_parts(time.time())
+    day, hm = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+    for m in data.get("meetings", []):
+        if m["date"] == day and m["start"] <= hm < m["end"]:
+            return {"mode": m["mode"], "client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"]}
+    return mt
 
 
 def narrow_data():
@@ -1825,7 +1852,7 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception:
                 self.send_error(502)
         elif self.path.startswith("/api/narrowcasting-meeting"):          # tiny and polled every 2 seconds: the screen switches to meeting mode at once
-            self._nocache_json(200, {"meeting": narrow_data()["meeting"]})
+            self._nocache_json(200, {"meeting": effective_meeting(narrow_data())})
         elif self.path.startswith("/api/narrowcasting-matches"):
             try:
                 self._nocache_json(200, narrow_matches_cached())
@@ -1840,6 +1867,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path.startswith("/api/narrowcasting"):
             d = narrow_data()
             d["wall"] = int(calendar.timegm(_ams_now_parts(time.time()).timetuple()) * 1000)   # the Dutch wall clock, for screens with a wrong clock
+            d["effective"] = effective_meeting(d)                  # the beheer page edits d["meeting"]; the screen shows this one
             self._nocache_json(200, d)
         elif self.path.startswith("/api/weather"):
             try:

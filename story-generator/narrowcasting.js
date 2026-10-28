@@ -64,7 +64,7 @@
       if (!j) return;
       if (j.wall) wallDelta = j.wall - Date.now();
       items = j.items || []; show = j.show || show; slidesOn = j.slides || slidesOn; hidden = j.hidden || []; tick();
-      applyMeeting(j.meeting);
+      applyMeeting(j.effective || j.meeting);                                // guest mode by hand, or a planned meeting that is on now
     });
   }
   // meeting mode switched: go there at once, through the cross-fade (when a fade is still going on, right after it)
