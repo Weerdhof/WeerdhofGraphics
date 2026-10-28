@@ -94,11 +94,11 @@
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Meetings plannen</b><button class="btn small" id="mtAdd" type="button">+ Meeting plannen</button>
-      <span class="hint" style="margin:0">Op de afgesproken tijd schakelt het scherm zelf naar de gastmodus en daarna weer terug. Staat de gastmodus hierboven al aan, dan gaat die voor.</span></div>
+      <span class="hint" style="margin:0">Tien minuten vooraf laat het scherm "Binnenkort meeting" zien met een aftelling, op de starttijd gaat het over naar de Meeting-slide (of Welkom [klant] bij bezoek) en na de eindtijd terug naar de normale slides. Staat de gastmodus hierboven al aan, dan gaat die voor.</span></div>
     <div id="mtList" style="margin-top:10px"></div>
   </div>
   <div class="box">
-    <div class="row"><b style="min-width:210px">Achtergrond bij Welkom [klant]</b>
+    <div class="row"><b style="min-width:210px">Achtergrond bij gastmodus en meetings</b>
       <label class="btn small line" for="bgFile" style="margin:0">Foto kiezen</label><input type="file" id="bgFile" accept="image/*" hidden>
       <button class="btn small line" id="bgDel" type="button">Foto verwijderen</button>
       <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Donkerder <input type="range" id="bgDim" min="0" max="90" style="width:150px"> <span id="bgDimV" style="min-width:36px"></span></label>
@@ -199,7 +199,7 @@
     document.getElementById('bgDel').style.display = meeting.bg ? '' : 'none';
     if (document.activeElement !== dm) dm.value = meeting.dim == null ? 45 : meeting.dim;
     document.getElementById('bgDimV').textContent = (meeting.dim == null ? 45 : meeting.dim) + '%';
-    document.getElementById('meetHint').textContent = meeting.mode === 'off' ? (effective && effective.planned ? 'Een geplande meeting is nu actief: het scherm laat de gastmodus zien en gaat daarna vanzelf terug naar de normale slides.' : 'De normale slides draaien.') :
+    document.getElementById('meetHint').textContent = meeting.mode === 'off' ? (effective && effective.planned ? 'Een geplande meeting is nu aan de beurt: het scherm laat die zien en gaat daarna vanzelf terug naar de normale slides.' : 'De normale slides draaien.') :
       meeting.mode === 'slogan' ? 'Het scherm laat alleen "Alle sporters zijn helden" zien, met het logo. Het scherm schakelt binnen een paar seconden.' :
       'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Het scherm schakelt binnen een paar seconden.';
   }
@@ -208,9 +208,9 @@
   function mtRow(m, i) {
     var t = today(), now = hm(), on = m.date === t && m.start <= now && now < m.end, done = m.date === t && m.end <= now;
     return '<div class="mt' + (on ? ' now' : done ? ' done' : '') + '" data-m="' + i + '">' +
-      '<input type="text" data-mf="client" maxlength="40" placeholder="Naam van de klant" value="' + esc(m.client || '') + '">' +
+      '<input type="text" data-mf="client" maxlength="40" placeholder="Naam van de meeting of klant" value="' + esc(m.client || '') + '">' +
       '<input type="date" data-mf="date" value="' + esc(m.date) + '"><input type="time" data-mf="start" value="' + esc(m.start) + '"><input type="time" data-mf="end" value="' + esc(m.end) + '">' +
-      '<select data-mf="mode"><option value="welcome"' + (m.mode !== 'slogan' ? ' selected' : '') + '>Welkom [klant]</option><option value="slogan"' + (m.mode === 'slogan' ? ' selected' : '') + '>Alleen helden-slide</option></select>' +
+      '<select data-mf="mode"><option value="meeting"' + (m.mode !== 'welcome' && m.mode !== 'slogan' ? ' selected' : '') + '>Meeting</option><option value="welcome"' + (m.mode === 'welcome' ? ' selected' : '') + '>Welkom [klant]</option><option value="slogan"' + (m.mode === 'slogan' ? ' selected' : '') + '>Alleen helden-slide</option></select>' +
       '<span class="mtb">' + (on ? '\u25cf Nu actief' : done ? 'Afgelopen' : m.date === t ? 'Vandaag' : 'Gepland') + '</span>' +
       '<button class="del" type="button" data-mdel="' + i + '">Verwijderen</button></div>';
   }
@@ -223,7 +223,7 @@
   }
   document.getElementById('mtAdd').addEventListener('click', function () {
     var d = new Date(), h0 = d.getHours() + 1, st = ('0' + Math.min(h0, 22)).slice(-2) + ':00', en = ('0' + Math.min(h0 + 1, 23)).slice(-2) + ':00';
-    meetings.push({ id: 'g' + Date.now(), client: '', date: today(), start: st, end: en, mode: 'welcome' });
+    meetings.push({ id: 'g' + Date.now(), client: '', date: today(), start: st, end: en, mode: 'meeting' });
     renderMeetings(); save(true);
     var rows = document.querySelectorAll('#mtList .mt'), r = document.querySelector('#mtList .mt[data-m="' + (meetings.length - 1) + '"] [data-mf=client]'); if (r) r.focus();
   });

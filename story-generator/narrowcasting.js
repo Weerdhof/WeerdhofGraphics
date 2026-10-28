@@ -71,7 +71,7 @@
   var pendingMeeting = false;
   function applyMeeting(m) {
     m = m || { mode: 'off', client: '', bg: 0, dim: 45 };
-    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim) return;
+    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind) return;
     meeting = m;
     if (!started) return;
     if (busy) { pendingMeeting = true; return; }
@@ -580,6 +580,32 @@
     return bg + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Welkom</span><b style="display:block;margin-top:0;font-size:' + size + 'px;line-height:' + Math.round(size * 1.0) + 'px">' + esc(name) + '</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
   }
 
+  // ---- planned meetings: 10 minutes before the start "Binnenkort meeting", then the meeting itself (not the same as "Welkom") ----
+  function guestBg() { return meeting.bg ? '<div class="wbg" style="background-image:url(/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg + ')"></div><div class="wdim" style="opacity:' + (meeting.dim / 100) + '"></div>' : ''; }
+  function guestName(txt, def) { var n = txt.length; return '<b style="display:block;font-size:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px;line-height:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px">' + esc(txt || def) + '</b>'; }
+  function meetStartMs() { return meeting.date ? parseYmd(meeting.date) + (+meeting.start.slice(0, 2)) * 3600000 + (+meeting.start.slice(3, 5)) * 60000 : 0; }
+  function soonLeft() {
+    var left = Math.max(0, Math.round((meetStartMs() - wallNow()) / 1000));
+    return 'over ' + two(Math.floor(left / 60)) + ':' + two(left % 60);
+  }
+  function soonHtml() {
+    var visit = meeting.kind === 'welcome';
+    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:176px">' + (visit ? 'bezoek' : 'meeting') + '</b></div>' +
+      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '<span class="sgp">' + esc(meeting.start) + '</span><span class="sgp" id="soonc">' + soonLeft() + '</span></div>' +
+      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
+  }
+  function meetingHtml() {
+    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Meeting</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' +
+      (meeting.start ? '<div class="sgs rz" style="animation-delay:500ms"><span class="sgp">' + esc(meeting.start) + ' – ' + esc(meeting.end) + '</span></div>' : '') +
+      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
+  }
+  var soonTimer = 0;
+  function startSoon() {                                                     // the "over 07:23" ticks every second
+    clearInterval(soonTimer);
+    var el = document.getElementById('soonc'); if (!el) return;
+    soonTimer = setInterval(function () { el.innerHTML = soonLeft(); }, 1000);
+  }
+
   // ---- slide: a statement in between ----
   function sloganHtml() {
     return '<div class="sg rz" style="animation-delay:150ms">Alle sporters<br>zijn <b>helden.</b></div><div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
@@ -664,6 +690,8 @@
     var out = [], p, i;
     if (meeting.mode === 'slogan') return [{ type: 'slogan' }];
     if (meeting.mode === 'welcome') return [{ type: 'welcome' }];
+    if (meeting.mode === 'soon') return [{ type: 'soon' }];
+    if (meeting.mode === 'meeting') return [{ type: 'meeting' }];
     // which slides take part is set on the beheer page; when looking at one slide (?slide=...) they all do
     var on = function (k) { return !!only || slidesOn[k] !== false; };
     if (on('agenda')) { p = daySlides(); if (!p.length) out.push({ type: 'agenda', empty: true }); else for (i = 0; i < p.length; i++) out.push(p[i]); }
@@ -697,6 +725,8 @@
     if (s.type === 'quote') return quoteHtml();
     if (s.type === 'slogan') return sloganHtml();
     if (s.type === 'welcome') return welcomeHtml();
+    if (s.type === 'soon') return soonHtml();
+    if (s.type === 'meeting') return meetingHtml();
     if (s.type === 'logo') return logoHtml();
     return weatherHtml();
   }
@@ -729,12 +759,12 @@
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
-    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim : '');
+    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end : '');
     if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
     shownKey = key; busy = true; stopPillars();
     crossfade(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
-      var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome');
+      var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting');
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
@@ -742,6 +772,7 @@
       if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);
       if (s.type === 'instagram') setTimeout(playIgVideos, 300);
       clearInterval(cdTimer); if (s.type === 'countdown') startCountdown();
+      clearInterval(soonTimer); if (s.type === 'soon') startSoon();
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)

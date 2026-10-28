@@ -1130,7 +1130,7 @@ def _clean_narrow(raw):
             en = "%02d:%s" % (min(23, int(st[:2]) + 1), st[3:]) if int(st[:2]) < 23 else "23:59"
         meetings.append({"id": re.sub(r"[^A-Za-z0-9_-]", "", str(x.get("id") or ""))[:24] or "g%d" % int(time.time() * 1000 + len(meetings)),
                          "client": str(x.get("client") or "").strip()[:40], "date": date, "start": st, "end": en,
-                         "mode": x.get("mode") if x.get("mode") in ("welcome", "slogan") else "welcome"})
+                         "mode": x.get("mode") if x.get("mode") in ("meeting", "welcome", "slogan") else "meeting"})
     meetings.sort(key=lambda m: (m["date"], m["start"], m["client"]))
     ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
     instagram = {k: (str(ig_raw.get(k) or "").strip() if _ig_feed_ok(str(ig_raw.get(k) or "").strip()) else "") for k in IG_LABELS}          # Behold feed URL per account
@@ -1138,15 +1138,23 @@ def _clean_narrow(raw):
 
 
 def effective_meeting(data):
-    """What the screen shows now: the guest mode that was switched on by hand, else the planned meeting that is on right now, else nothing."""
+    """What the screen shows now: the guest mode that was switched on by hand, else a planned meeting (10 minutes before the start the "soon" notice,
+    from the start until the end the meeting itself), else nothing."""
     mt = data["meeting"]
     if mt["mode"] != "off":
         return mt
-    now = _ams_now_parts(time.time())
-    day, hm = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+    now = _ams_now_parts(time.time()).replace(tzinfo=None)
     for m in data.get("meetings", []):
-        if m["date"] == day and m["start"] <= hm < m["end"]:
-            return {"mode": m["mode"], "client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"]}
+        try:
+            start = datetime.strptime(m["date"] + " " + m["start"], "%Y-%m-%d %H:%M")
+            end = datetime.strptime(m["date"] + " " + m["end"], "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        base = {"client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"], "date": m["date"], "start": m["start"], "end": m["end"]}
+        if start <= now < end:
+            return dict(base, mode=m["mode"])
+        if m["mode"] in ("meeting", "welcome") and start - timedelta(minutes=10) <= now < start:
+            return dict(base, mode="soon", kind=m["mode"])
     return mt
 
 

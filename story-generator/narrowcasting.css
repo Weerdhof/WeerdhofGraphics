@@ -397,3 +397,9 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .cds .cdg .mi { font-size: 44px; line-height: 74px; }
 .cds .cdn { left: 24px; font-size: 30px; }
 .cdc.cds { width: 560px; }
+
+/* planned meetings: the notice 10 minutes before, and the meeting itself */
+.sgs { position: absolute; left: 80px; top: 620px; white-space: nowrap; }
+.slide.mm .sgs { left: 56px; }
+.sgn { display: inline-block; vertical-align: middle; margin-right: 26px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 64px; line-height: 76px; color: #ffffff; }
+.sgp { display: inline-block; vertical-align: middle; height: 64px; padding: 0 30px; margin-right: 16px; border: 3px solid rgba(255,255,255,.6); border-radius: 32px; box-sizing: border-box; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 34px; line-height: 58px; color: #ffffff; }
