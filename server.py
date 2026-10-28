@@ -1259,7 +1259,8 @@ PLATFORMS = (
 )
 PLATFORMS_MANUAL = ("hoofdklasse",)               # behind a login: no screenshot by the server, picture and logo are put by hand in story-generator/assets/platforms/<key>.jpg and <key>-logo.png
 PLATFORM_DIR = os.path.join(DATA_DIR, "platforms")
-PLATFORM_MAX_AGE = 23 * 3600
+PLATFORM_HOUR = 8                                  # the snippets are made fresh every morning around 08:00 (Dutch time)
+_plat_last_manual = [0]
 _plat_lock = threading.Lock()
 
 # click "refuse" on a cookie wall, then hide whatever consent window or dark layer is left
@@ -1331,15 +1332,24 @@ def _plat_meta():
         return {}
 
 
+def _plat_due(made):
+    """True when a snippet made at `made` is older than the last 08:00 (Dutch time) that has passed."""
+    now = _ams_now_parts(time.time())
+    last8 = now.replace(hour=PLATFORM_HOUR, minute=0, second=0, microsecond=0)
+    if now < last8:
+        last8 -= timedelta(days=1)
+    return not made or _ams_now_parts(made) < last8
+
+
 def platform_refresh(force=False):
-    """Take a screenshot of the homepage of every platform that is missing or older than 23 hours."""
+    """Take a screenshot of the homepage of every platform that is missing or older than the last 08:00 (or all of them when forced)."""
     if not _plat_lock.acquire(False):
         return
     pw = browser = None
     try:
         os.makedirs(PLATFORM_DIR, exist_ok=True)
         meta = _plat_meta()
-        todo = [p for p in PLATFORMS if p[0] not in PLATFORMS_MANUAL and (force or time.time() - meta.get(p[0], 0) > PLATFORM_MAX_AGE)]
+        todo = [p for p in PLATFORMS if p[0] not in PLATFORMS_MANUAL and (force or _plat_due(meta.get(p[0], 0)))]
         if not todo:
             return
         from playwright.sync_api import sync_playwright
@@ -1386,7 +1396,7 @@ def _platform_loop():
     time.sleep(30)
     while True:
         platform_refresh()
-        time.sleep(3600)                           # looks every hour which snippets are older than a day
+        time.sleep(600)                            # every 10 minutes: is there a snippet older than the last 08:00?
 
 
 def _plat_file(key):
@@ -1713,6 +1723,12 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_thumbnail()
         elif self.path.startswith("/api/usage"):
             self.handle_usage_post()
+        elif self.path.split("?")[0] == "/api/narrowcasting-platforms/refresh":
+            if time.time() - _plat_last_manual[0] < 300 or _plat_lock.locked():
+                return self._json(429, {"error": "net ververst of bezig, probeer het over een paar minuten opnieuw"})
+            _plat_last_manual[0] = time.time()
+            threading.Thread(target=platform_refresh, args=(True,), daemon=True).start()
+            self._json(202, {"started": True})
         else:
             self.send_error(404)
 
