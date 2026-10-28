@@ -1133,7 +1133,8 @@ def _clean_narrow(raw):
         meetings.append({"id": re.sub(r"[^A-Za-z0-9_-]", "", str(x.get("id") or ""))[:24] or "g%d" % int(time.time() * 1000 + len(meetings)),
                          "client": str(x.get("client") or "").strip()[:40], "date": date, "start": st, "end": en,
                          "mode": x.get("mode") if x.get("mode") in ("meeting", "welcome", "slogan") else "meeting",
-                         "showEnd": x.get("showEnd") is not False, "theme": x.get("theme") if x.get("theme") in NARROW_THEMES else "navy"})                  # the end time on the screen can be left out
+                         "showEnd": x.get("showEnd") is not False, "theme": x.get("theme") if x.get("theme") in NARROW_THEMES else "navy",
+                         "label": str(x.get("label") or "").strip()[:24]})              # the word on the slide instead of "Meeting"                  # the end time on the screen can be left out
     meetings.sort(key=lambda m: (m["date"], m["start"], m["client"]))
     ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
     instagram = {k: (str(ig_raw.get(k) or "").strip() if _ig_feed_ok(str(ig_raw.get(k) or "").strip()) else "") for k in IG_LABELS}          # Behold feed URL per account
@@ -1153,7 +1154,7 @@ def effective_meeting(data):
             end = datetime.strptime(m["date"] + " " + m["end"], "%Y-%m-%d %H:%M")
         except ValueError:
             continue
-        base = {"client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"], "date": m["date"], "start": m["start"], "end": m["end"], "showEnd": m.get("showEnd", True), "theme": m.get("theme", "navy")}
+        base = {"client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"], "date": m["date"], "start": m["start"], "end": m["end"], "showEnd": m.get("showEnd", True), "theme": m.get("theme", "navy"), "label": m.get("label", "")}
         if start <= now < end:
             return dict(base, mode=m["mode"])
         if m["mode"] in ("meeting", "welcome") and start - timedelta(minutes=10) <= now < start:

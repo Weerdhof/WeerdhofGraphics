@@ -71,7 +71,9 @@
   var pendingMeeting = false;
   function applyMeeting(m) {
     m = m || { mode: 'off', client: '', bg: 0, dim: 45 };
-    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind && m.showEnd === meeting.showEnd && m.theme === meeting.theme) return;
+    if (m.mode === 'soon' && meeting.planned && meeting.planned === m.planned && meeting.mode !== 'soon') return;     // the screen already went live a moment before the server did
+    if (meeting.mode === 'soon' && m.planned && m.planned === meeting.planned && m.mode !== 'soon' && m.mode !== 'off') { goLive(); return; }     // the server went live first: still do it with the animation
+    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind && m.showEnd === meeting.showEnd && m.theme === meeting.theme && m.label === meeting.label) return;
     meeting = m;
     if (!started) return;
     if (busy) { pendingMeeting = true; return; }
@@ -588,28 +590,60 @@
     if (type === 'soon') return 'blauw';
     return meeting.bg ? '' : (meeting.theme && meeting.theme !== 'navy' ? meeting.theme : '');
   }
-  function meetTimes() { return meeting.start ? '<div class="sgt rz" style="animation-delay:500ms">' + esc(meeting.start) + (meeting.end && meeting.showEnd !== false ? ' \u2013 ' + esc(meeting.end) : '') + '</div>' : ''; }
+  function meetClock() { return meeting.start ? '<div class="sgtl rz" style="animation-delay:600ms">' + esc(meeting.start) + (meeting.end && meeting.showEnd !== false ? ' – ' + esc(meeting.end) : '') + '</div>' : ''; }   // the time, in the bottom left corner
   function meetStartMs() { return meeting.date ? parseYmd(meeting.date) + (+meeting.start.slice(0, 2)) * 3600000 + (+meeting.start.slice(3, 5)) * 60000 : 0; }
   function soonProg() {                                                      // 0 to 1 over the ten minutes before the start
     var left = Math.max(0, (meetStartMs() - wallNow()) / 1000);
     return Math.max(0, Math.min(1, 1 - left / 600));
   }
+  function soonText() {                                                      // "over 7 minuten", "over 1 minuut"
+    var left = meetStartMs() - wallNow(), m = Math.ceil(left / 60000);
+    return left <= 0 ? 'nu' : m <= 1 ? 'over 1 minuut' : 'over ' + m + ' minuten';
+  }
   function soonHtml() {
-    var visit = meeting.kind === 'welcome';
-    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:176px">' + (visit ? 'bezoek' : 'meeting') + '</b></div>' +
-      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' + meetTimes() +
-      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' +
+    var visit = meeting.kind === 'welcome', word = meeting.label ? meeting.label.toLowerCase() : (visit ? 'bezoek' : 'meeting'), fs = word.length > 9 ? 120 : 176;
+    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:' + fs + 'px">' + esc(word) + '</b></div>' +
+      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' +
+      '<div class="sgt rz" id="soonleft" style="animation-delay:550ms">' + soonText() + '</div>' +
+      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' + meetClock() +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   function meetingHtml() {
-    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Meeting</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' + meetTimes() +
+    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">' + esc(meeting.label || 'Meeting') + '</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' + meetClock() +
       '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
-  var soonTimer = 0;
-  function startSoon() {                                                     // the loading bar fills up while the start comes closer
-    clearInterval(soonTimer);
-    var el = document.getElementById('soonb'); if (!el) return;
-    soonTimer = setInterval(function () { el.style.width = (soonProg() * 100).toFixed(2) + '%'; }, 1000);
+  var soonTimer = 0, soonOnce = 0, burstNext = false;
+  function startSoon() {                                                     // the bar fills up and the text counts down while the start comes closer
+    clearInterval(soonTimer); clearTimeout(soonOnce);
+    var left0 = meetStartMs() - wallNow(); if (left0 > 0 && left0 < 700000) soonOnce = setTimeout(goLive, left0);        // exactly at the start
+    var el = document.getElementById('soonb'), tx = document.getElementById('soonleft'); if (!el) return;
+    soonTimer = setInterval(function () {
+      el.style.width = (soonProg() * 100).toFixed(2) + '%'; if (tx) tx.innerHTML = soonText();
+      if (meetStartMs() <= wallNow()) goLive();
+    }, 1000);
+  }
+  // the start time has come: the bar is full, then its colour bursts out of the end of the bar and becomes the meeting slide
+  function goLive() {
+    clearInterval(soonTimer); clearTimeout(soonOnce);
+    if (meeting.mode !== 'soon') return;
+    var el = document.getElementById('soonb'); if (el) el.style.width = '100%';
+    meeting = { mode: meeting.kind === 'welcome' ? 'welcome' : 'meeting', client: meeting.client, bg: meeting.bg, dim: meeting.dim, theme: meeting.theme, label: meeting.label, start: meeting.start, end: meeting.end, date: meeting.date, showEnd: meeting.showEnd, planned: meeting.planned };
+    burstNext = true; clearTimeout(timer);
+    setTimeout(function () { if (busy) pendingMeeting = true; else next(); }, 450);
+  }
+  var THEME_BG = { blauw: '#3D5AFE', lichtblauw: '#A5B4FF', productie: '#FC06E5', jump: '#49FF9F', marketing: '#FFCC00', content: '#00FFE6', wit: '#ffffff' };
+  function burst(swap, done) {
+    var key = themeKey(meeting.mode === 'welcome' ? 'welcome' : 'meeting'), b = document.createElement('div');
+    b.className = 'burst'; b.style.background = THEME_BG[key] || '#060228';
+    stage.appendChild(b); b.offsetWidth;
+    b.style.webkitTransform = 'scale(80)'; b.style.transform = 'scale(80)';
+    setTimeout(function () {
+      swap();
+      var el = slidesEl.firstChild; if (el) el.className = el.className.replace(' pre', '');
+      slidesEl.style.webkitTransition = 'none'; slidesEl.style.transition = 'none'; slidesEl.style.opacity = 1;
+      b.style.opacity = 0;
+      setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); done(); }, 800);
+    }, 900);
   }
 
   // ---- slide: a statement in between ----
@@ -765,20 +799,21 @@
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
-    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end + '|' + meeting.showEnd + '|' + meeting.theme : '');
+    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end + '|' + meeting.showEnd + '|' + meeting.theme + '|' + meeting.label : '');
     if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
     shownKey = key; busy = true; stopPillars();
-    crossfade(function () {
+    var useBurst = burstNext; burstNext = false;
+    (useBurst ? burst : crossfade)(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
       var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting');
-      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + (s.type === 'soon' ? ' soonl' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + '">' + html + '</div>';
+      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + (s.type === 'soon' ? ' soonl' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (s.type === 'soon' || s.type === 'meeting' ? ' lowlogo' : '') + '">' + html + '</div>';
       stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
       if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);
       if (s.type === 'instagram') setTimeout(playIgVideos, 300);
       clearInterval(cdTimer); if (s.type === 'countdown') startCountdown();
-      clearInterval(soonTimer); if (s.type === 'soon') startSoon();
+      clearInterval(soonTimer); clearTimeout(soonOnce); if (s.type === 'soon') startSoon();
     }, function () { busy = false; if (pendingMeeting) { pendingMeeting = false; next(); } else timer = setTimeout(next, SLIDE_MS[s.type] || 15000); }, first === true);
   }
   // first start: under the cover, once the first data is there (or after a few seconds)

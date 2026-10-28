@@ -65,7 +65,7 @@
   details.adv { margin-top: 26px; }
   details.adv > summary { cursor: pointer; font: 700 18px "Niveau Grotesk", Arial, sans-serif; color: var(--dim); padding: 12px 4px; }
   details.adv[open] > summary { color: #fff; margin-bottom: 8px; }
-  .mt { display: grid; grid-template-columns: minmax(170px, 1.3fr) 150px 100px 100px 170px 130px 150px 110px auto; gap: 10px; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .mt { display: grid; grid-template-columns: minmax(160px, 1.3fr) 140px 150px 100px 100px 160px 120px 150px 100px auto; gap: 10px; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
   .mt.now { border-color: var(--green); }
   .mt.done { opacity: .45; }
   .mtc { display: inline-flex; align-items: center; gap: 7px; font: 600 13px "Open Sans", sans-serif; color: var(--dim); cursor: pointer; white-space: nowrap; }
@@ -214,6 +214,7 @@
     var t = today(), now = hm(), on = m.date === t && m.start <= now && now < m.end, done = m.date === t && m.end <= now;
     return '<div class="mt' + (on ? ' now' : done ? ' done' : '') + '" data-m="' + i + '">' +
       '<input type="text" data-mf="client" maxlength="40" placeholder="Naam van de meeting of klant" value="' + esc(m.client || '') + '">' +
+      '<input type="text" data-mf="label" maxlength="24" placeholder="Woord: Meeting" title="Het woord op het scherm, bijvoorbeeld Workshop of Presentatie" value="' + esc(m.label || '') + '">' +
       '<input type="date" data-mf="date" value="' + esc(m.date) + '"><input type="time" data-mf="start" value="' + esc(m.start) + '"><input type="time" data-mf="end" value="' + esc(m.end) + '">' +
       '<select data-mf="mode"><option value="meeting"' + (m.mode !== 'welcome' && m.mode !== 'slogan' ? ' selected' : '') + '>Meeting</option><option value="welcome"' + (m.mode === 'welcome' ? ' selected' : '') + '>Welkom [klant]</option><option value="slogan"' + (m.mode === 'slogan' ? ' selected' : '') + '>Alleen helden-slide</option></select>' +
       '<select data-mf="theme" title="Kleurstelling">' + themeOpts(m.theme) + '</select><label class="mtc"><input type="checkbox" data-mf="showEnd"' + (m.showEnd !== false ? ' checked' : '') + '> Eindtijd tonen</label><span class="mtb">' + (on ? '\u25cf Nu actief' : done ? 'Afgelopen' : m.date === t ? 'Vandaag' : 'Gepland') + '</span>' +
