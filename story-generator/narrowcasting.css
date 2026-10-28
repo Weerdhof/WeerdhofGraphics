@@ -458,7 +458,7 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .sgtl { position: absolute; left: 80px; top: 1006px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 40px; line-height: 48px; color: #a5b4ff; }
 .slide.mm .sgtl { left: 56px; }
 .slide.soonl .sgtl { color: #ffffff; }
-.burst { position: absolute; width: 40px; height: 40px; left: 1136px; top: 826px; border-radius: 20px; z-index: 40; -webkit-transform: scale(.3); transform: scale(.3); -webkit-transition: -webkit-transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; transition: transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; }
+.burst { position: absolute; width: 40px; height: 40px; left: 1136px; top: 986px; border-radius: 20px; z-index: 40; -webkit-transform: scale(.3); transform: scale(.3); -webkit-transition: -webkit-transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; transition: transform 900ms cubic-bezier(.6,0,.2,1), opacity 700ms ease; }
 .slide.th-blauw .sgtl { color: #060228; }
 .slide.th-lichtblauw .sgtl { color: #2D43A8; }
 .slide.th-productie .sgtl { color: #7B1FA2; }
@@ -466,3 +466,11 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .slide.th-marketing .sgtl { color: #C25100; }
 .slide.th-content .sgtl { color: #008B8B; }
 .slide.th-wit .sgtl { color: #3D5AFE; }
+
+/* "Binnenkort": the name in a pill with a calendar icon, close under the heading; the timer at the very bottom */
+.slide.soonl .sgs { top: 556px; }
+.sgpill { display: inline-block; height: 84px; padding: 0 40px 0 12px; border-radius: 42px; background: #060228; color: #ffffff; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 800; font-size: 44px; line-height: 84px; white-space: nowrap; }
+.sgcal { display: inline-block; vertical-align: middle; width: 60px; height: 60px; margin: -6px 22px 0 0; border-radius: 30px; background: #3D5AFE; text-align: center; line-height: 60px; }
+.sgcal svg { display: inline-block; vertical-align: middle; margin-top: -4px; }
+.slide.soonl .sgs + .sgt { top: 900px; }
+.slide.soonl .sgs + .sgt + .sgb { top: 990px; }

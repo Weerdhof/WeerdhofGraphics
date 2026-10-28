@@ -599,13 +599,13 @@
     var left = meetStartMs() - wallNow(), m = Math.ceil(left / 60000);
     return left <= 0 ? 'nu' : m <= 1 ? 'over 1 minuut' : 'over ' + m + ' minuten';
   }
+  var CAL_SVG = '<svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm-2 8h14v10H5V10zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2z"/></svg>';
   function soonHtml() {
     var visit = meeting.kind === 'welcome', word = meeting.label ? meeting.label.toLowerCase() : (visit ? 'bezoek' : 'meeting'), fs = word.length > 9 ? 120 : 176;
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:' + fs + 'px">' + esc(word) + '</b></div>' +
-      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' +
+      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgpill"><span class="sgcal">' + CAL_SVG + '</span>' + esc(meeting.client) + '</span>' : '') + '</div>' +
       '<div class="sgt rz" id="soonleft" style="animation-delay:550ms">' + soonText() + '</div>' +
-      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' +
-      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
+      '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' + meetingWeather();
   }
   function meetingHtml() {
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">' + esc(meeting.label || 'Meeting') + '</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' +

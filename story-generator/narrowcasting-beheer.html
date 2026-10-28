@@ -209,12 +209,17 @@
   // ---- planned meetings: a row each, the screen switches by itself ----
   var THEMES = [['navy', 'Navy'], ['blauw', 'Blauw'], ['lichtblauw', 'Lichtblauw'], ['productie', 'Productie'], ['jump', 'JUMP'], ['marketing', 'Marketing'], ['content', 'Content'], ['wit', 'Wit']];
   function themeOpts(v) { return THEMES.map(function (t) { return '<option value="' + t[0] + '"' + ((v || 'navy') === t[0] ? ' selected' : '') + '>' + t[1] + '</option>'; }).join(''); }
+  var LABELS = ['Meeting', 'Brainstorm', 'Kickoff', 'Start van de week', 'Overleg'];
+  function labelOpts(v) {
+    v = v || 'Meeting'; var l = LABELS.indexOf(v) < 0 ? LABELS.concat([v]) : LABELS;             // an older, own word stays in the list
+    return l.map(function (w) { return '<option value="' + esc(w) + '"' + (w === v ? ' selected' : '') + '>' + esc(w) + '</option>'; }).join('');
+  }
   function hm() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
   function mtRow(m, i) {
     var t = today(), now = hm(), on = m.date === t && m.start <= now && now < m.end, done = m.date === t && m.end <= now;
     return '<div class="mt' + (on ? ' now' : done ? ' done' : '') + '" data-m="' + i + '">' +
       '<input type="text" data-mf="client" maxlength="40" placeholder="Naam van de meeting of klant" value="' + esc(m.client || '') + '">' +
-      '<input type="text" data-mf="label" maxlength="24" placeholder="Woord: Meeting" title="Het woord op het scherm, bijvoorbeeld Workshop of Presentatie" value="' + esc(m.label || '') + '">' +
+      '<select data-mf="label" title="Het woord op het scherm">' + labelOpts(m.label) + '</select>' +
       '<input type="date" data-mf="date" value="' + esc(m.date) + '"><input type="time" data-mf="start" value="' + esc(m.start) + '"><input type="time" data-mf="end" value="' + esc(m.end) + '">' +
       '<select data-mf="mode"><option value="meeting"' + (m.mode !== 'welcome' && m.mode !== 'slogan' ? ' selected' : '') + '>Meeting</option><option value="welcome"' + (m.mode === 'welcome' ? ' selected' : '') + '>Welkom [klant]</option><option value="slogan"' + (m.mode === 'slogan' ? ' selected' : '') + '>Alleen helden-slide</option></select>' +
       '<select data-mf="theme" title="Kleurstelling">' + themeOpts(m.theme) + '</select><span class="mtb">' + (on ? '\u25cf Nu actief' : done ? 'Afgelopen' : m.date === t ? 'Vandaag' : 'Gepland') + '</span>' +
@@ -229,7 +234,7 @@
   }
   document.getElementById('mtAdd').addEventListener('click', function () {
     var d = new Date(), h0 = d.getHours() + 1, st = ('0' + Math.min(h0, 22)).slice(-2) + ':00', en = ('0' + Math.min(h0 + 1, 23)).slice(-2) + ':00';
-    meetings.push({ id: 'g' + Date.now(), client: '', date: today(), start: st, end: en, mode: 'meeting', theme: 'navy' });
+    meetings.push({ id: 'g' + Date.now(), client: '', date: today(), start: st, end: en, mode: 'meeting', theme: 'navy', label: 'Meeting' });
     renderMeetings(); save(true);
     var rows = document.querySelectorAll('#mtList .mt'), r = document.querySelector('#mtList .mt[data-m="' + (meetings.length - 1) + '"] [data-mf=client]'); if (r) r.focus();
   });
