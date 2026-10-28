@@ -406,3 +406,49 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .sgb { position: absolute; left: 80px; top: 716px; width: 1100px; height: 16px; border-radius: 8px; background: rgba(255,255,255,.16); overflow: hidden; }
 .slide.mm .sgb { left: 56px; }
 .sgb i { display: block; height: 16px; border-radius: 8px; background: #3D5AFE; -webkit-transition: width 1s linear; transition: width 1s linear; }
+.sgt { position: absolute; left: 80px; top: 636px; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 700; font-size: 56px; line-height: 64px; color: #a5b4ff; }
+.slide.mm .sgt { left: 56px; }
+.sgs + .sgt { top: 668px; }
+.sgs + .sgt + .sgb { top: 756px; }
+.sgs { top: 596px; }
+
+/* colour schemes of the guest and meeting slides: the colours of ByT (background, title, accent = the alternative colour) */
+.slide.th-blauw { background: #3D5AFE; }
+.slide.th-blauw .sg { color: #ffffff; } .slide.th-blauw .sg b { color: #060228; } .slide.th-blauw .sgn { color: #ffffff; } .slide.th-blauw .sgt { color: #060228; }
+.slide.th-blauw .sgl svg path { fill: #ffffff; }
+.slide.th-blauw .wmini .wm-p { background: #060228; color: #ffffff; } .slide.th-blauw .wmini .wm-i { background: #3D5AFE; }
+.stage.th-blauw .clockbox .clock { color: #ffffff; } .stage.th-blauw .clockbox .date { color: #e0e6ff; }
+.slide.th-lichtblauw { background: #A5B4FF; }
+.slide.th-lichtblauw .sg { color: #060228; } .slide.th-lichtblauw .sg b { color: #2D43A8; } .slide.th-lichtblauw .sgn { color: #060228; } .slide.th-lichtblauw .sgt { color: #2D43A8; }
+.slide.th-lichtblauw .sgl svg path { fill: #060228; }
+.slide.th-lichtblauw .wmini .wm-p { background: #060228; color: #ffffff; } .slide.th-lichtblauw .wmini .wm-i { background: #A5B4FF; }
+.stage.th-lichtblauw .clockbox .clock { color: #060228; } .stage.th-lichtblauw .clockbox .date { color: #2D43A8; }
+.slide.th-productie { background: #FC06E5; }
+.slide.th-productie .sg { color: #060228; } .slide.th-productie .sg b { color: #7B1FA2; } .slide.th-productie .sgn { color: #060228; } .slide.th-productie .sgt { color: #7B1FA2; }
+.slide.th-productie .sgl svg path { fill: #060228; }
+.slide.th-productie .wmini .wm-p { background: #7B1FA2; color: #ffffff; } .slide.th-productie .wmini .wm-i { background: #FC06E5; }
+.stage.th-productie .clockbox .clock { color: #060228; } .stage.th-productie .clockbox .date { color: #7B1FA2; }
+.slide.th-jump { background: #49FF9F; }
+.slide.th-jump .sg { color: #060228; } .slide.th-jump .sg b { color: #2F7E4D; } .slide.th-jump .sgn { color: #060228; } .slide.th-jump .sgt { color: #2F7E4D; }
+.slide.th-jump .sgl svg path { fill: #060228; }
+.slide.th-jump .wmini .wm-p { background: #2F7E4D; color: #ffffff; } .slide.th-jump .wmini .wm-i { background: #49FF9F; }
+.stage.th-jump .clockbox .clock { color: #060228; } .stage.th-jump .clockbox .date { color: #2F7E4D; }
+.slide.th-marketing { background: #FFCC00; }
+.slide.th-marketing .sg { color: #060228; } .slide.th-marketing .sg b { color: #C25100; } .slide.th-marketing .sgn { color: #060228; } .slide.th-marketing .sgt { color: #C25100; }
+.slide.th-marketing .sgl svg path { fill: #060228; }
+.slide.th-marketing .wmini .wm-p { background: #C25100; color: #ffffff; } .slide.th-marketing .wmini .wm-i { background: #FFCC00; }
+.stage.th-marketing .clockbox .clock { color: #060228; } .stage.th-marketing .clockbox .date { color: #C25100; }
+.slide.th-content { background: #00FFE6; }
+.slide.th-content .sg { color: #060228; } .slide.th-content .sg b { color: #008B8B; } .slide.th-content .sgn { color: #060228; } .slide.th-content .sgt { color: #008B8B; }
+.slide.th-content .sgl svg path { fill: #060228; }
+.slide.th-content .wmini .wm-p { background: #008B8B; color: #ffffff; } .slide.th-content .wmini .wm-i { background: #00FFE6; }
+.stage.th-content .clockbox .clock { color: #060228; } .stage.th-content .clockbox .date { color: #008B8B; }
+.slide.th-wit { background: #ffffff; }
+.slide.th-wit .sg { color: #060228; } .slide.th-wit .sg b { color: #3D5AFE; } .slide.th-wit .sgn { color: #060228; } .slide.th-wit .sgt { color: #3D5AFE; }
+.slide.th-wit .sgl svg path { fill: #060228; }
+.slide.th-wit .wmini .wm-p { background: #3D5AFE; color: #ffffff; } .slide.th-wit .wmini .wm-i { background: #ffffff; }
+.stage.th-wit .clockbox .clock { color: #060228; } .stage.th-wit .clockbox .date { color: #3D5AFE; }
+/* the "Binnenkort" slide: the bar has a light track and fills from right to left in the dark colour */
+.slide.soonl .sgb { background: rgba(165,180,255,.6); }
+.slide.soonl .sgb i { float: right; background: #060228; }
+.slide.soonl .sgt { color: #ffffff; }

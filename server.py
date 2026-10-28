@@ -1068,6 +1068,7 @@ _weather = {"at": 0, "data": None}
 
 
 NARROW_COMPS = ("shl", "shlw", "lvlm", "lvlw", "hnltv")
+NARROW_THEMES = ("navy", "blauw", "lichtblauw", "productie", "jump", "marketing", "content", "wit")      # the colour schemes of the guest and meeting slides
 NARROW_SLIDES = ("agenda", "featured", "streams_men", "stand_men", "streams_women", "stand_women", "matches", "quote", "slogan", "news1", "news2", "platforms", "instagram", "countdown", "weather", "logo")
 NARROW_SPORTS = ("basketbal", "volleybal", "handbal", "voetbal", "tennis", "padel", "hockey", "zwemmen", "hardlopen", "wielrennen", "turnen",
                  "vechtsport", "honkbal", "rugby", "golf", "schaatsen", "skien", "fitness", "roeien", "zeilen", "esports", "finish")
@@ -1114,7 +1115,8 @@ def _clean_narrow(raw):
         except (TypeError, ValueError):
             return d
     meeting = {"mode": mt.get("mode") if mt.get("mode") in ("slogan", "welcome") else "off", "client": str(mt.get("client") or "").strip()[:40],   # meeting mode: the screen shows one slide only
-               "bg": num(mt.get("bg"), 0, 10 ** 15, 0), "dim": num(mt.get("dim"), 0, 90, 45)}      # bg: version of the background photo of the welcome slide (0 = none), dim: how much darker
+               "bg": num(mt.get("bg"), 0, 10 ** 15, 0), "dim": num(mt.get("dim"), 0, 90, 45),
+               "theme": mt.get("theme") if mt.get("theme") in NARROW_THEMES else "navy"}      # bg: version of the background photo of the welcome slide (0 = none), dim: how much darker
     sl_raw = raw.get("slides") if isinstance(raw.get("slides"), dict) else {}
     slides = {k: sl_raw.get(k) is not False for k in NARROW_SLIDES}          # which slides take part in the rotation (default: all)
     hidden = [str(h)[:200] for h in (raw.get("hidden") if isinstance(raw.get("hidden"), list) else [])[:600] if isinstance(h, str)]   # fetched matches that have been deleted from the agenda
@@ -1130,7 +1132,8 @@ def _clean_narrow(raw):
             en = "%02d:%s" % (min(23, int(st[:2]) + 1), st[3:]) if int(st[:2]) < 23 else "23:59"
         meetings.append({"id": re.sub(r"[^A-Za-z0-9_-]", "", str(x.get("id") or ""))[:24] or "g%d" % int(time.time() * 1000 + len(meetings)),
                          "client": str(x.get("client") or "").strip()[:40], "date": date, "start": st, "end": en,
-                         "mode": x.get("mode") if x.get("mode") in ("meeting", "welcome", "slogan") else "meeting"})
+                         "mode": x.get("mode") if x.get("mode") in ("meeting", "welcome", "slogan") else "meeting",
+                         "showEnd": x.get("showEnd") is not False, "theme": x.get("theme") if x.get("theme") in NARROW_THEMES else "navy"})                  # the end time on the screen can be left out
     meetings.sort(key=lambda m: (m["date"], m["start"], m["client"]))
     ig_raw = raw.get("instagram") if isinstance(raw.get("instagram"), dict) else {}
     instagram = {k: (str(ig_raw.get(k) or "").strip() if _ig_feed_ok(str(ig_raw.get(k) or "").strip()) else "") for k in IG_LABELS}          # Behold feed URL per account
@@ -1150,7 +1153,7 @@ def effective_meeting(data):
             end = datetime.strptime(m["date"] + " " + m["end"], "%Y-%m-%d %H:%M")
         except ValueError:
             continue
-        base = {"client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"], "date": m["date"], "start": m["start"], "end": m["end"]}
+        base = {"client": m["client"], "bg": mt["bg"], "dim": mt["dim"], "planned": m["id"], "date": m["date"], "start": m["start"], "end": m["end"], "showEnd": m.get("showEnd", True), "theme": m.get("theme", "navy")}
         if start <= now < end:
             return dict(base, mode=m["mode"])
         if m["mode"] in ("meeting", "welcome") and start - timedelta(minutes=10) <= now < start:

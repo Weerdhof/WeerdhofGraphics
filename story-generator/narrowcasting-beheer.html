@@ -65,9 +65,10 @@
   details.adv { margin-top: 26px; }
   details.adv > summary { cursor: pointer; font: 700 18px "Niveau Grotesk", Arial, sans-serif; color: var(--dim); padding: 12px 4px; }
   details.adv[open] > summary { color: #fff; margin-bottom: 8px; }
-  .mt { display: grid; grid-template-columns: minmax(180px, 1.4fr) 150px 110px 110px 190px 120px auto; gap: 10px; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .mt { display: grid; grid-template-columns: minmax(170px, 1.3fr) 150px 100px 100px 170px 130px 150px 110px auto; gap: 10px; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
   .mt.now { border-color: var(--green); }
   .mt.done { opacity: .45; }
+  .mtc { display: inline-flex; align-items: center; gap: 7px; font: 600 13px "Open Sans", sans-serif; color: var(--dim); cursor: pointer; white-space: nowrap; }
   .mtb { font: 700 13px "Open Sans", sans-serif; color: var(--dim); white-space: nowrap; }
   .mt.now .mtb { color: var(--green); }
   @media (max-width: 900px) { .mt { grid-template-columns: 1fr 1fr; } }
@@ -89,16 +90,17 @@
       <button class="btn small line" type="button" data-meet="off">Uit: alle slides</button>
       <button class="btn small line" type="button" data-meet="welcome">Welkom [klant]</button>
       <button class="btn small line" type="button" data-meet="slogan">Alleen "Alle sporters zijn helden"</button>
-      <input type="text" id="meetClient" placeholder="Naam van de klant" maxlength="40" style="max-width:240px"></div>
+      <input type="text" id="meetClient" placeholder="Naam van de klant" maxlength="40" style="max-width:240px">
+      <select id="meetTheme" title="Kleurstelling van Welkom [klant]" style="max-width:150px"></select></div>
     <div class="hint" id="meetHint" style="margin-top:8px"></div>
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Meetings plannen</b><button class="btn small" id="mtAdd" type="button">+ Meeting plannen</button>
-      <span class="hint" style="margin:0">Tien minuten vooraf laat het scherm "Binnenkort meeting" zien met een aftelling, op de starttijd gaat het over naar de Meeting-slide (of Welkom [klant] bij bezoek) en na de eindtijd terug naar de normale slides. Staat de gastmodus hierboven al aan, dan gaat die voor.</span></div>
+      <span class="hint" style="margin:0">Kies per meeting een kleurstelling van ByT (met een achtergrondfoto blijft het scherm navy). Tien minuten vooraf laat het scherm "Binnenkort meeting" zien met een aftelling, op de starttijd gaat het over naar de Meeting-slide (of Welkom [klant] bij bezoek) en na de eindtijd terug naar de normale slides. Staat de gastmodus hierboven al aan, dan gaat die voor.</span></div>
     <div id="mtList" style="margin-top:10px"></div>
   </div>
   <div class="box">
-    <div class="row"><b style="min-width:210px">Achtergrond bij gastmodus en meetings</b>
+    <div class="row"><b style="min-width:210px">Achtergrondfoto bij gastmodus en meetings</b>
       <label class="btn small line" for="bgFile" style="margin:0">Foto kiezen</label><input type="file" id="bgFile" accept="image/*" hidden>
       <button class="btn small line" id="bgDel" type="button">Foto verwijderen</button>
       <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Donkerder <input type="range" id="bgDim" min="0" max="90" style="width:150px"> <span id="bgDimV" style="min-width:36px"></span></label>
@@ -194,6 +196,7 @@
     var b = document.querySelectorAll('[data-meet]'), k, el = document.getElementById('meetClient');
     for (k = 0; k < b.length; k++) b[k].className = 'btn small line' + (b[k].getAttribute('data-meet') === meeting.mode ? ' on' : '');
     if (document.activeElement !== el) el.value = meeting.client || '';
+    var mtSel = document.getElementById('meetTheme'); if (!mtSel.options.length) mtSel.innerHTML = themeOpts(); mtSel.value = meeting.theme || 'navy';
     var th = document.getElementById('bgThumb'), dm = document.getElementById('bgDim');
     th.style.display = meeting.bg ? '' : 'none'; if (meeting.bg) th.src = '/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg;
     document.getElementById('bgDel').style.display = meeting.bg ? '' : 'none';
@@ -204,6 +207,8 @@
       'Het scherm laat "Welkom ' + (meeting.client || '…') + '" zien, met het logo. Vul de naam van de klant in. Het scherm schakelt binnen een paar seconden.';
   }
   // ---- planned meetings: a row each, the screen switches by itself ----
+  var THEMES = [['navy', 'Navy'], ['blauw', 'Blauw'], ['lichtblauw', 'Lichtblauw'], ['productie', 'Productie'], ['jump', 'JUMP'], ['marketing', 'Marketing'], ['content', 'Content'], ['wit', 'Wit']];
+  function themeOpts(v) { return THEMES.map(function (t) { return '<option value="' + t[0] + '"' + ((v || 'navy') === t[0] ? ' selected' : '') + '>' + t[1] + '</option>'; }).join(''); }
   function hm() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
   function mtRow(m, i) {
     var t = today(), now = hm(), on = m.date === t && m.start <= now && now < m.end, done = m.date === t && m.end <= now;
@@ -211,7 +216,7 @@
       '<input type="text" data-mf="client" maxlength="40" placeholder="Naam van de meeting of klant" value="' + esc(m.client || '') + '">' +
       '<input type="date" data-mf="date" value="' + esc(m.date) + '"><input type="time" data-mf="start" value="' + esc(m.start) + '"><input type="time" data-mf="end" value="' + esc(m.end) + '">' +
       '<select data-mf="mode"><option value="meeting"' + (m.mode !== 'welcome' && m.mode !== 'slogan' ? ' selected' : '') + '>Meeting</option><option value="welcome"' + (m.mode === 'welcome' ? ' selected' : '') + '>Welkom [klant]</option><option value="slogan"' + (m.mode === 'slogan' ? ' selected' : '') + '>Alleen helden-slide</option></select>' +
-      '<span class="mtb">' + (on ? '\u25cf Nu actief' : done ? 'Afgelopen' : m.date === t ? 'Vandaag' : 'Gepland') + '</span>' +
+      '<select data-mf="theme" title="Kleurstelling">' + themeOpts(m.theme) + '</select><label class="mtc"><input type="checkbox" data-mf="showEnd"' + (m.showEnd !== false ? ' checked' : '') + '> Eindtijd tonen</label><span class="mtb">' + (on ? '\u25cf Nu actief' : done ? 'Afgelopen' : m.date === t ? 'Vandaag' : 'Gepland') + '</span>' +
       '<button class="del" type="button" data-mdel="' + i + '">Verwijderen</button></div>';
   }
   function renderMeetings() {
@@ -223,13 +228,13 @@
   }
   document.getElementById('mtAdd').addEventListener('click', function () {
     var d = new Date(), h0 = d.getHours() + 1, st = ('0' + Math.min(h0, 22)).slice(-2) + ':00', en = ('0' + Math.min(h0 + 1, 23)).slice(-2) + ':00';
-    meetings.push({ id: 'g' + Date.now(), client: '', date: today(), start: st, end: en, mode: 'meeting' });
+    meetings.push({ id: 'g' + Date.now(), client: '', date: today(), start: st, end: en, mode: 'meeting', showEnd: true, theme: 'navy' });
     renderMeetings(); save(true);
     var rows = document.querySelectorAll('#mtList .mt'), r = document.querySelector('#mtList .mt[data-m="' + (meetings.length - 1) + '"] [data-mf=client]'); if (r) r.focus();
   });
   document.getElementById('mtList').addEventListener('input', function (e) {
     var row = e.target.closest('.mt'), f = e.target.getAttribute('data-mf'); if (!row || !f) return;
-    meetings[+row.getAttribute('data-m')][f] = e.target.value; save();
+    meetings[+row.getAttribute('data-m')][f] = f === 'showEnd' ? e.target.checked : e.target.value; save();
   });
   document.getElementById('mtList').addEventListener('change', function (e) { var f = e.target.getAttribute('data-mf'); if (f === 'date' || f === 'start' || f === 'end') { renderMeetings(); } });
   document.getElementById('mtList').addEventListener('click', function (e) {
@@ -380,6 +385,7 @@
     fetch('/api/photo?key=narrowcasting%3Awelcome-bg', { method: 'DELETE' }).then(function () { meeting.bg = 0; renderMeeting(); save(true); });
   });
   document.getElementById('bgDim').addEventListener('input', function (e) { meeting.dim = +e.target.value; renderMeeting(); save(); });
+  document.getElementById('meetTheme').addEventListener('change', function (e) { meeting.theme = e.target.value; save(true); });
   document.getElementById('meetClient').addEventListener('input', function (e) { meeting.client = e.target.value; renderMeeting(); save(); });
   document.getElementById('add').addEventListener('click', function () {
     items.push(newItem({})); render(); save();

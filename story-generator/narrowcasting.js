@@ -71,7 +71,7 @@
   var pendingMeeting = false;
   function applyMeeting(m) {
     m = m || { mode: 'off', client: '', bg: 0, dim: 45 };
-    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind) return;
+    if (m.mode === meeting.mode && m.client === meeting.client && m.bg === meeting.bg && m.dim === meeting.dim && m.start === meeting.start && m.end === meeting.end && m.kind === meeting.kind && m.showEnd === meeting.showEnd && m.theme === meeting.theme) return;
     meeting = m;
     if (!started) return;
     if (busy) { pendingMeeting = true; return; }
@@ -583,6 +583,12 @@
   // ---- planned meetings: 10 minutes before the start "Binnenkort meeting", then the meeting itself (not the same as "Welkom") ----
   function guestBg() { return meeting.bg ? '<div class="wbg" style="background-image:url(/api/photo?key=narrowcasting%3Awelcome-bg&v=' + meeting.bg + ')"></div><div class="wdim" style="opacity:' + (meeting.dim / 100) + '"></div>' : ''; }
   function guestName(txt, def) { var n = txt.length; return '<b style="display:block;font-size:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px;line-height:' + (n <= 10 ? 190 : n <= 16 ? 150 : n <= 24 ? 112 : 84) + 'px">' + esc(txt || def) + '</b>'; }
+  function themeKey(type) {                                                  // the colour scheme of the guest and meeting slides (a background photo keeps the navy look)
+    if (type !== 'welcome' && type !== 'meeting' && type !== 'soon') return '';
+    if (type === 'soon') return 'blauw';
+    return meeting.bg ? '' : (meeting.theme && meeting.theme !== 'navy' ? meeting.theme : '');
+  }
+  function meetTimes() { return meeting.start ? '<div class="sgt rz" style="animation-delay:500ms">' + esc(meeting.start) + (meeting.end && meeting.showEnd !== false ? ' \u2013 ' + esc(meeting.end) : '') + '</div>' : ''; }
   function meetStartMs() { return meeting.date ? parseYmd(meeting.date) + (+meeting.start.slice(0, 2)) * 3600000 + (+meeting.start.slice(3, 5)) * 60000 : 0; }
   function soonProg() {                                                      // 0 to 1 over the ten minutes before the start
     var left = Math.max(0, (meetStartMs() - wallNow()) / 1000);
@@ -591,13 +597,13 @@
   function soonHtml() {
     var visit = meeting.kind === 'welcome';
     return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:176px;font-size:176px">Binnenkort</span><b style="display:block;line-height:176px;font-size:176px">' + (visit ? 'bezoek' : 'meeting') + '</b></div>' +
-      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' +
+      '<div class="sgs rz" style="animation-delay:500ms">' + (meeting.client ? '<span class="sgn">' + esc(meeting.client) + '</span>' : '') + '</div>' + meetTimes() +
       '<div class="sgb rz" style="animation-delay:600ms"><i id="soonb" style="width:' + Math.round(soonProg() * 100) + '%"></i></div>' +
-      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
+      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   function meetingHtml() {
-    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Meeting</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' +
-      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather() + pillarBar();
+    return guestBg() + '<div class="sg rz" style="animation-delay:150ms"><span style="font-weight:500;display:block;line-height:186px">Meeting</span>' + (meeting.client ? guestName(meeting.client, '') : '') + '</div>' + meetTimes() +
+      '<div class="sgl rz" style="animation-delay:700ms">' + document.getElementById('logoTpl').innerHTML + '</div>' + meetingWeather();
   }
   var soonTimer = 0;
   function startSoon() {                                                     // the loading bar fills up while the start comes closer
@@ -759,14 +765,14 @@
     idx = (idx + 1) % slides.length;
     var s = slides[idx], html = renderSlide(s);
     if (!html) { timer = setTimeout(next, 200); return; }
-    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end : '');
+    var key = s.type + '|' + (s.comp || '') + '|' + (s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' ? meeting.client + '|' + meeting.bg + '|' + meeting.dim + '|' + meeting.start + '|' + meeting.end + '|' + meeting.showEnd + '|' + meeting.theme : '');
     if (slides.length === 1 && key === shownKey) { timer = setTimeout(next, 5000); return; }          // meeting mode: the one slide just stays
     shownKey = key; busy = true; stopPillars();
     crossfade(function () {
       var shlSlide = s.type === 'streams' || s.type === 'stand';
       var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting');
-      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
+      slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + (s.type === 'soon' ? ' soonl' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + '">' + html + '</div>';
+      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
       if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);
