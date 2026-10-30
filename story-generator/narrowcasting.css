@@ -510,3 +510,13 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 #ctl.show:hover { opacity: .9; }
 #ctl button { margin-left: 10px; width: 48px; height: 48px; padding: 0; border: 0; border-radius: 24px; background: rgba(6,2,40,.4); cursor: pointer; line-height: 0; }
 #ctl button:hover { background: rgba(6,2,40,.85); }
+
+/* the next planned meeting, as a pop-up bottom left */
+#pop { position: absolute; left: 56px; bottom: 44px; z-index: 30; opacity: 0; -webkit-transform: translateX(-60px); transform: translateX(-60px); -webkit-transition: opacity .7s ease, -webkit-transform .7s cubic-bezier(.2,.7,.2,1); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); pointer-events: none; }
+#pop.show { opacity: 1; -webkit-transform: translateX(0); transform: translateX(0); }
+#pop { height: 84px; padding: 0 40px 0 12px; border-radius: 42px; background: #3D5AFE; color: #ffffff; white-space: nowrap; box-shadow: 0 10px 30px rgba(6,2,40,.35); }
+.popi { display: inline-block; vertical-align: middle; width: 60px; height: 60px; margin: 12px 20px 0 0; border-radius: 30px; background: #060228; text-align: center; line-height: 60px; }
+.popi svg { display: inline-block; vertical-align: middle; margin-top: -4px; }
+.popt { display: inline-block; vertical-align: top; margin-top: 11px; line-height: 1.1; }
+.popt b { display: block; font-family: "Niveau Grotesk", Arial, sans-serif; font-weight: 800; font-size: 30px; line-height: 36px; }
+.popt span { display: block; font-family: "Open Sans", Arial, sans-serif; font-weight: 700; font-size: 20px; line-height: 26px; color: #e0e6ff; }

@@ -1146,6 +1146,25 @@ def _clean_narrow(raw):
     return {"items": items, "show": show, "meeting": meeting, "slides": slides, "hidden": hidden, "instagram": instagram, "meetings": meetings, "vrijmibo": vrijmibo}
 
 
+def next_meeting(data):
+    """The next planned meeting that starts within an hour and a half (the screen shows it as a pop-up, bottom left), or None."""
+    now = _ams_now_parts(time.time()).replace(tzinfo=None)
+    best = None
+    for m in data.get("meetings", []):
+        if m["mode"] not in ("meeting", "welcome"):
+            continue
+        try:
+            start = datetime.strptime(m["date"] + " " + m["start"], "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        if now < start <= now + timedelta(minutes=90) and (best is None or start < best[0]):
+            best = (start, m)
+    if not best:
+        return None
+    m = best[1]
+    return {"client": m["client"], "label": m.get("label", ""), "date": m["date"], "start": m["start"], "mode": m["mode"]}
+
+
 def vrijmibo_on(data, now):
     """Friday afternoon drinks: on Fridays from the start time (16:00) until the end time, unless something is planned around the start (a planned
     meeting that overlaps the half hour before and after it, or an appointment of the agenda in that time): then there is no vrijmibo that day."""
@@ -1909,7 +1928,8 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception:
                 self.send_error(502)
         elif self.path.startswith("/api/narrowcasting-meeting"):          # tiny and polled every 2 seconds: the screen switches to meeting mode at once
-            self._nocache_json(200, {"meeting": effective_meeting(narrow_data()), "nextAt": _next_at[0]})
+            nd = narrow_data()
+            self._nocache_json(200, {"meeting": effective_meeting(nd), "nextAt": _next_at[0], "upcoming": next_meeting(nd)})
         elif self.path.startswith("/api/narrowcasting-matches"):
             try:
                 self._nocache_json(200, narrow_matches_cached())
@@ -1925,6 +1945,7 @@ class Handler(SimpleHTTPRequestHandler):
             d = narrow_data()
             d["wall"] = int(calendar.timegm(_ams_now_parts(time.time()).timetuple()) * 1000)   # the Dutch wall clock, for screens with a wrong clock
             d["effective"] = effective_meeting(d)                  # the beheer page edits d["meeting"]; the screen shows this one
+            d["upcoming"] = next_meeting(d)
             self._nocache_json(200, d)
         elif self.path.startswith("/api/weather"):
             try:

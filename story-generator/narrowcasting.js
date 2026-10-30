@@ -64,6 +64,7 @@
       if (!j) return;
       if (j.wall) wallDelta = j.wall - Date.now();
       items = j.items || []; show = j.show || show; slidesOn = j.slides || slidesOn; hidden = j.hidden || []; tick();
+      nextMeet = j.upcoming || null;
       applyMeeting(j.effective || j.meeting);                                // guest mode by hand, or a planned meeting that is on now
     });
   }
@@ -79,6 +80,20 @@
     if (busy) { pendingMeeting = true; return; }
     clearTimeout(timer); next();
   }
+  // the next planned meeting as a pop-up bottom left, from an hour and a half before the start (and not while a guest mode or the meeting itself is on)
+  var nextMeet = null, popEl = document.getElementById('pop'), popKey = '';
+  function popLeft(u) { return parseYmd(u.date) + (+u.start.slice(0, 2)) * 3600000 + (+u.start.slice(3, 5)) * 60000 - wallNow(); }
+  function renderPop() {
+    if (!popEl || PREVIEW) return;
+    var left = nextMeet ? popLeft(nextMeet) : 0, m = Math.ceil(left / 60000), show = nextMeet && meeting.mode === 'off' && left > 0 && m <= 90, key;
+    if (!show) { if (popKey) { popKey = ''; popEl.className = ''; } return; }
+    key = nextMeet.date + nextMeet.start + nextMeet.client + nextMeet.label;
+    var when = m >= 60 ? 'over 1 u' + (m % 60 ? ' ' + (m - 60) + ' min' : '') : 'over ' + m + ' min';
+    popEl.innerHTML = '<span class="popi">' + CAL_SVG + '</span><span class="popt"><b>' + esc((nextMeet.label || (nextMeet.mode === 'welcome' ? 'Bezoek' : 'Meeting')) + (nextMeet.client ? ' ' + nextMeet.client : '')) + '</b><span>' + esc(nextMeet.start) + ' \u00b7 ' + when + '</span></span>';
+    if (key !== popKey) { popKey = key; popEl.className = ''; popEl.offsetWidth; }
+    popEl.className = 'show';
+  }
+  setInterval(renderPop, 15000);
   // buttons on the screen itself: they show when the mouse (the pointer of the magic remote) moves and hide again after a few seconds
   var ctl = document.getElementById('ctl'), ctlT = 0, ctlClose = document.getElementById('ctlClose');
   function skipSlide() { if (started && !busy) { clearTimeout(timer); next(); } }
@@ -103,7 +118,7 @@
     if (lastNext === null) { lastNext = n || 0; return; }                    // the first look only notes the value
     if (n && n !== lastNext) { lastNext = n; if (started && !busy && !PREVIEW) { clearTimeout(timer); next(); } }
   }
-  function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) { applyMeeting(j.meeting); checkNext(j.nextAt); } }); }
+  function loadMeeting() { get('/api/narrowcasting-meeting', function (j) { if (j) { applyMeeting(j.meeting); checkNext(j.nextAt); nextMeet = j.upcoming || null; renderPop(); } }); }
   function loadMatches() { get('/api/narrowcasting-matches', function (j) { if (j && j.matches) matches = j.matches; }); }
   function loadWeather() { get('/api/weather', function (w) { if (w && w.now) { weather = w; var el = document.getElementById('wmini'); if (el) el.innerHTML = miniWeather(); } }); }
   function loadNews() { get('/api/narrowcasting-news', function (j) { if (j && j.items && j.items.length) news = j.items; }); }
