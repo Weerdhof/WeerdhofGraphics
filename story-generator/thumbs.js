@@ -22,6 +22,8 @@
     ['MeticulaR', 'fonts/hnl/Meticula-Regular.ttf', '400'],
     ['MeticulaXB', 'fonts/hnl/Meticula-ExtraBold.ttf', '800'],
     ['Monologue', 'fonts/lvl/Monologue-Regular.woff2', '400'],   // Lotto Volley League
+    ['Archivo', 'fonts/lvl/Archivo-Regular.woff2', '400'],       // Lotto Volley League body font (as on lottovolleyleague.be)
+    ['Archivo', 'fonts/lvl/Archivo-Bold.woff2', '700'],
   ];
   const fontsReady = Promise.all(FONT_FILES.map(([fam, url, w]) => new FontFace(fam, `url(${url})`, { weight: w }).load().then(f => document.fonts.add(f)).catch(() => {})))
     .then(() => Promise.all([document.fonts.load('700 40px ClashDisplay'), document.fonts.load('600 40px ClashDisplay')]).catch(() => {}));
@@ -153,8 +155,12 @@
   // ---------- Lotto Volley League: mail header + "Watch live" list ----------
   // Mail header: 1200x400 (a 600 px wide header at 2x), the title is editable and fits itself (one or two lines).
   // Watch live: the matches of one day as two crests with the date between them (900 px wide design, drawn at 2x).
-  const VIS_LVL_BLUE = '#00a0ec', VIS_LVL_NAVY = '#071930', WATCH_BLUE = '#1166cb', WATCH_PANEL = '#e8f0fa';
-  const WATCH_PITCH = 176, WATCH_TOP = 228;
+  // brand colours and fonts as on lottovolleyleague.be: navy #07192F, yellow #FFDD00, red #EE3124, blue #028AED, Monologue + Archivo
+  const VIS_LVL_NAVY = '#07192f', LVL_YELLOW = '#ffdd00', LVL_BLUE = '#028aed', WATCH_PANEL = '#eef5fd';
+  // the thumbnails' own backgrounds: blue for the men (and mixed), purple for the women, running from bottom left to top right
+  const lvlThumbGrad = (ctx, w, h, women) => { const g = ctx.createLinearGradient(0, h, w, 0); g.addColorStop(0, women ? '#a900be' : '#007ac8'); g.addColorStop(1, women ? '#c158ff' : '#1096d6'); return g; };
+  const LVL_WAVE = '#012243';
+  const WATCH_PITCH = 176, WATCH_TOP = 250;   // WATCH_TOP: height of the header with the wave
   const lvlClubName = (code) => { const c = LVL.lvlm.clubs.concat(LVL.lvlw.clubs).find(x => x[0] === code); return c ? c[1] : code; };
   const lvlAllClubs = () => { const seen = {}; return LVL.lvlm.clubs.concat(LVL.lvlw.clubs).filter(c => (seen[c[0]] ? false : (seen[c[0]] = true))); };
   const dtParts = (dt) => { const m = /(\d{1,2})\/(\d{1,2})(?:\s*-\s*(\d{1,2}:\d{2}))?/.exec(dt || ''); return m ? { d: +m[1], m: +m[2], time: m[3] || '' } : null; };
@@ -172,7 +178,7 @@
   function visSize(kind, d) {
     if (KINDS[kind].vis === 'mail') return [1200, 400];
     const n = Math.max(3, watchMatches(d).length);
-    return [1800, 2 * (WATCH_TOP + 106 + n * WATCH_PITCH + 96)];
+    return [1800, 2 * (WATCH_TOP + 20 + n * WATCH_PITCH + 50)];
   }
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
@@ -190,14 +196,14 @@
   async function renderMail(d, ctx) {
     const W2 = 1200, H2 = 400;
     ctx.clearRect(0, 0, W2, H2);
-    ctx.fillStyle = VIS_LVL_BLUE; ctx.fillRect(0, 0, W2, H2);
+    ctx.fillStyle = lvlThumbGrad(ctx, W2, H2, false); ctx.fillRect(0, 0, W2, H2);
     // yellow-to-blue circle, top left (cropped by the edge)
     const cx = 130, cy = -30, r = 200;
     let g = ctx.createLinearGradient(cx - r * 0.75, cy - r * 0.75, cx + r * 0.35, cy + r);
-    g.addColorStop(0, '#fefd42'); g.addColorStop(0.55, '#c3e86a'); g.addColorStop(1, '#27aed2');
+    g.addColorStop(0, LVL_YELLOW); g.addColorStop(0.55, '#9fcf86'); g.addColorStop(1, '#3aa8e8');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
     // light-blue circle with the logo, bottom right
-    ctx.fillStyle = '#00caf5'; ctx.beginPath(); ctx.arc(1215, 465, 262, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0ac1f9'; ctx.beginPath(); ctx.arc(1215, 465, 262, 0, Math.PI * 2); ctx.fill();
     const logo = await loadImg('assets/lvl/logo.svg');
     if (logo) { const lh = 96, lw = lh * 72 / 49; ctx.drawImage(logo, 1200 - 38 - lw, 400 - 26 - lh, lw, lh); }
     // title (+ optional subtitle), centred in the free area left of the logo circle
@@ -208,45 +214,42 @@
     const lh2 = f.size * 0.98, capH = f.size * 0.74;
     const block = capH + (f.lines.length - 1) * lh2 + (hasSub ? 62 : 0);
     let y0 = 206 - block / 2 + capH + (f.lines.length > 1 ? 0 : 6);
-    f.lines.forEach((ln, i) => text(ctx, ln, 0, y0 + i * lh2, `400 ${f.size}px "Monologue"`, VIS_LVL_NAVY, { center: area.x }));
-    if (hasSub) { const sf = fitLines(ctx, sub, (sz) => `600 ${sz}px "ClashDisplay"`, area.w, 34, 18); text(ctx, sub, 0, y0 + (f.lines.length - 1) * lh2 + 56, `600 ${sf.size}px "ClashDisplay"`, VIS_LVL_NAVY, { center: area.x, alpha: 0.85 }); }
+    f.lines.forEach((ln, i) => text(ctx, ln, 0, y0 + i * lh2, `400 ${f.size}px "Monologue"`, '#fff', { center: area.x }));
+    if (hasSub) { const sf = fitLines(ctx, sub, (sz) => `700 ${sz}px "Archivo"`, area.w, 34, 18); text(ctx, sub, 0, y0 + (f.lines.length - 1) * lh2 + 56, `700 ${sf.size}px "Archivo"`, '#fff', { center: area.x, alpha: 0.9 }); }
   }
   async function renderWatch(d, ctx) {
-    const [CW, CH] = visSize('lvlwatch', d), S = 2, H1 = CH / S;
+    const [CW, CH] = visSize('lvlwatch', d), S = 2, H1 = CH / S, women = d.comp === 'women';
     ctx.clearRect(0, 0, CW, CH); ctx.save(); ctx.scale(S, S);
-    ctx.fillStyle = WATCH_BLUE; ctx.fillRect(0, 0, 900, H1);
+    ctx.fillStyle = lvlThumbGrad(ctx, 900, H1, women); ctx.fillRect(0, 0, 900, H1);
     await document.fonts.load('400 120px "Monologue"').catch(() => {});
-    // title: white at the top fading into the blue at the bottom of the letters
+    // the dark wave top left with the logo (as in the thumbnails), the title to the right of it
+    ctx.fillStyle = LVL_WAVE; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(500, 0); ctx.bezierCurveTo(400, 120, 220, 215, 0, 232); ctx.closePath(); ctx.fill();
+    const logo = await loadImg('assets/lvl/logo.svg');
+    if (logo) { const lh = 104, lw = lh * 72 / 49; ctx.drawImage(logo, 44, 34, lw, lh); }
     const title = (d.title || '').toUpperCase().trim();
     if (title) {
-      const f = fitLines(ctx, title, (sz) => `400 ${sz}px "Monologue"`, 600, 230, 120), cap = f.size * 0.74, base = WATCH_TOP - 12;
-      const g = ctx.createLinearGradient(0, base - cap, 0, base + 4); g.addColorStop(0, '#ffffff'); g.addColorStop(0.55, '#f4f8ff'); g.addColorStop(1, WATCH_BLUE);
-      const lines = f.lines.length, lhh = f.size * 0.98, top0 = base - cap - (lines - 1) * lhh;
-      f.lines.forEach((ln, i) => text(ctx, ln, 0, top0 + cap + i * lhh, `400 ${f.size}px "Monologue"`, i === lines - 1 ? g : '#fff', { center: 450 }));
+      const f = fitLines(ctx, title, (sz) => `400 ${sz}px "Monologue"`, 330, 130, 70), cap = f.size * 0.74, lhh = f.size * 0.98, n = f.lines.length;
+      const top = 120 - (cap + (n - 1) * lhh) / 2;
+      f.lines.forEach((ln, i) => text(ctx, ln, 0, top + cap + i * lhh, `400 ${f.size}px "Monologue"`, '#fff', { inkRight: 860 }));
     }
-    const ms = watchMatches(d), n = Math.max(3, ms.length), panelH = 106 + n * WATCH_PITCH;
-    ctx.fillStyle = WATCH_PANEL; ctx.fillRect(75, WATCH_TOP, 750, panelH);
-    const off = (n - ms.length) * WATCH_PITCH / 2;
+    const ms = watchMatches(d), n = Math.max(3, ms.length), off = (n - ms.length) * WATCH_PITCH / 2;
     for (let i = 0; i < ms.length; i++) {
-      const r = ms[i], cy = WATCH_TOP + 70 + 71 + off + i * WATCH_PITCH;
-      for (const [code, cxx] of [[r.left, 196], [r.right, 704]]) {
+      const r = ms[i], cy = WATCH_TOP + 20 + 71 + off + i * WATCH_PITCH;
+      for (const [code, cxx] of [[r.left, 150], [r.right, 750]]) {
         const im = await loadImg(`assets/lvl/teams/${code}.png`);
-        ctx.save(); ctx.shadowColor = 'rgba(17,40,90,0.18)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6;
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, 71, 0, Math.PI * 2); ctx.fill(); ctx.restore();
         if (im) ctx.drawImage(im, cxx - 71, cy - 71, 142, 142);
       }
       const names = !!d.showNames, dtext = watchDateText(r.dt, !!d.showTime);
-      const pf = names ? '400 27px "Monologue"' : '400 38px "Monologue"';
-      ctx.font = pf; const pw = Math.min(300, ctx.measureText(dtext).width + (names ? 28 : 44)), ph = names ? 31 : 50;
-      const py = names ? cy - 68 : cy - 40;
-      ctx.fillStyle = '#fff'; ctx.fillRect(450 - pw / 2, py, pw, ph);
-      text(ctx, dtext, 0, py + ph / 2 + (names ? 9.5 : 13), pf, WATCH_BLUE, { center: 450, maxWidth: pw - 12 });
       if (names) {
-        text(ctx, lvlClubName(r.left).toUpperCase(), 0, cy - 12, '700 15px "ClashDisplay"', '#0a0a0a', { center: 450, maxWidth: 280 });
-        text(ctx, 'VS', 0, cy + 30, '400 30px "Monologue"', WATCH_BLUE, { center: 450 });
-        text(ctx, lvlClubName(r.right).toUpperCase(), 0, cy + 48, '700 15px "ClashDisplay"', '#0a0a0a', { center: 450, maxWidth: 280 });
+        text(ctx, dtext, 0, cy - 38, '400 34px "Monologue"', '#fff', { center: 450, maxWidth: 400 });
+        text(ctx, lvlClubName(r.left).toUpperCase(), 0, cy - 14, '700 15px "Archivo"', '#fff', { center: 450, maxWidth: 400 });
+        text(ctx, 'VS', 0, cy + 34, '400 46px "Monologue"', '#fff', { center: 450 });
+        text(ctx, lvlClubName(r.right).toUpperCase(), 0, cy + 64, '700 15px "Archivo"', '#fff', { center: 450, maxWidth: 400 });
       } else {
-        text(ctx, 'VS', 0, cy + 52, '400 38px "Monologue"', WATCH_BLUE, { center: 450 });
+        text(ctx, 'VS', 0, cy + 4, '400 72px "Monologue"', '#fff', { center: 450 });
+        text(ctx, dtext, 0, cy + 50, '400 38px "Monologue"', '#fff', { center: 450, maxWidth: 400 });
       }
     }
     ctx.restore();
@@ -254,7 +257,7 @@
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: false, showNames: false };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false };
   }
 
   // ---------- Per-kind rendering ----------
@@ -421,7 +424,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
-        <p class="hint">Standaard alleen de datum tussen de logo's: de tijd en de ploegen kennen mensen wel.</p></div>`;
+        <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor dames.</p></div>`;
   }
 
   function buildControls() {
