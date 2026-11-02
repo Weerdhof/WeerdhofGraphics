@@ -99,7 +99,7 @@
     if (more && !more.dataset.built) {
       more.dataset.built = '1';
       more.innerHTML = `<div class="dash-more-col dm-hnl"><h3>HandbalNL</h3><div class="dash-chips">${chips([['announce', '', 'Aankondiging'], ['nextmen', '', 'Next heren'], ['nextwomen', '', 'Next dames']], 'hnl')}</div></div>
-        <div class="dash-more-col dm-th"><h3>Thumbnails</h3><div class="dash-chips">${chips([['shl', '', 'SHL'], ['shlw', '', 'SHLW'], ['nextmen', '', 'Next heren'], ['nextwomen', '', 'Next dames'], ['lvlm', '', 'LVL heren'], ['lvlw', '', 'LVL dames']], 'th')}</div></div>`;
+        <div class="dash-more-col dm-th"><h3>Thumbnails</h3><div class="dash-chips">${chips([['shl', '', 'SHL'], ['shlw', '', 'SHLW'], ['nextmen', '', 'Next heren'], ['nextwomen', '', 'Next dames'], ['lvlm', '', 'LVL heren'], ['lvlw', '', 'LVL dames'], ['lvlmail', '', 'LVL mailheader'], ['lvlwatch', '', 'LVL watch live']], 'th')}</div></div>`;
     }
   }
 

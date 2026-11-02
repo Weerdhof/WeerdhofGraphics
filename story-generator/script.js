@@ -5548,7 +5548,7 @@
   const SHL_ASSETS = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'ranking', 'movers', 'announcement'];
   const ASSET_ALIAS = { matchschedule: 'schedule', programma: 'schedule', matchresults: 'results', uitslagen: 'results', h2h: 'headtohead', 'head-to-head': 'headtohead', 'now-live': 'nowlive',
     topscore: 'topscorer', 'top-scorer': 'topscorer', 'player-of-the-week': 'playerweek', spelervandeweek: 'playerweek', stand: 'ranking', standings: 'ranking', 'stand-movers': 'movers', 'match-result': 'matchresult' };
-  const TH_PATH = { shl: '/shl/thumbnails', shlw: '/shlw/thumbnails', nextmen: '/handbalnl/thumbnails-men', nextwomen: '/handbalnl/thumbnails-women', lvlm: '/lvl/thumbnails-men', lvlw: '/lvl/thumbnails-women' };
+  const TH_PATH = { shl: '/shl/thumbnails', shlw: '/shlw/thumbnails', nextmen: '/handbalnl/thumbnails-men', nextwomen: '/handbalnl/thumbnails-women', lvlm: '/lvl/thumbnails-men', lvlw: '/lvl/thumbnails-women', lvlmail: '/lvl/mailheader', lvlwatch: '/lvl/watch-live' };
   const HNL_PATH = { announce: '/handbalnl/announcement', nextmen: '/handbalnl/next-men', nextwomen: '/handbalnl/next-women' };
   const landingPath = (comp) => (comp === 'dash' || !COMP_PATH[comp] ? '/' : '/' + COMP_PATH[comp]);
   const assetPath = (comp, id) => '/' + COMP_PATH[comp] + '/' + id;
@@ -5569,7 +5569,7 @@
       const t = { 'thumbnails-men': 'nextmen', 'thumbnails-women': 'nextwomen' }[sub];
       if (t) return { kind: 'th', comp, id: t };
     } else if (comp === 'lvl') {
-      const t = { 'thumbnails-men': 'lvlm', 'thumbnails-women': 'lvlw' }[sub];
+      const t = { 'thumbnails-men': 'lvlm', 'thumbnails-women': 'lvlw', mailheader: 'lvlmail', 'watch-live': 'lvlwatch' }[sub];
       if (t) return { kind: 'th', comp, id: t };
     } else if (comp === 'byt') {
       if (window.BYT_ASSETS && window.BYT_ASSETS[sub]) return { kind: 'byt', comp, id: sub };
@@ -5852,7 +5852,7 @@
   homeMenu.querySelectorAll('.menu-card[data-go-hnl]').forEach(card => {
     card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')); });
   });
-  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#EE3124', lvlw: '#EE3124' };
+  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#EE3124', lvlw: '#EE3124', lvlmail: '#EE3124', lvlwatch: '#EE3124' };
   // shortcuts on the dashboard
   document.addEventListener('dash-go', (e) => {
     const [group, id, fmt] = String(e.detail).split(':');

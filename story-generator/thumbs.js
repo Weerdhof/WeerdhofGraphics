@@ -11,8 +11,10 @@
     nextwomen: { title: 'Next dames', sub: 'HandbalNL', next: true, men: false },
     lvlm:      { title: 'LVL Heren',  sub: 'Lotto Volley League Men', lvl: true },
     lvlw:      { title: 'LVL Dames',  sub: 'Lotto Volley League Women', lvl: true },
+    lvlmail:   { title: 'LVL Mailheader', sub: 'Lotto Volley League · 1200×400', vis: 'mail' },
+    lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · speeldag', vis: 'watch' },
   };
-  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames' };
+  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live' };
 
   // ---------- Fonts (Clash is registered by script.js; the HandbalNL ones are loaded here) ----------
   const FONT_FILES = [
@@ -147,9 +149,118 @@
     cur.lvlAll = rows;
   }
 
+
+  // ---------- Lotto Volley League: mail header + "Watch live" list ----------
+  // Mail header: 1200x400 (a 600 px wide header at 2x), the title is editable and fits itself (one or two lines).
+  // Watch live: the matches of one day as two crests with the date between them (900 px wide design, drawn at 2x).
+  const VIS_LVL_BLUE = '#00a0ec', VIS_LVL_NAVY = '#071930', WATCH_BLUE = '#1166cb', WATCH_PANEL = '#e8f0fa';
+  const WATCH_PITCH = 176, WATCH_TOP = 228;
+  const lvlClubName = (code) => { const c = LVL.lvlm.clubs.concat(LVL.lvlw.clubs).find(x => x[0] === code); return c ? c[1] : code; };
+  const lvlAllClubs = () => { const seen = {}; return LVL.lvlm.clubs.concat(LVL.lvlw.clubs).filter(c => (seen[c[0]] ? false : (seen[c[0]] = true))); };
+  const dtParts = (dt) => { const m = /(\d{1,2})\/(\d{1,2})(?:\s*-\s*(\d{1,2}:\d{2}))?/.exec(dt || ''); return m ? { d: +m[1], m: +m[2], time: m[3] || '' } : null; };
+  const watchDateText = (dt, withTime) => { const q = dtParts(dt); if (!q) return dt || ''; const y = seasonDate(q.d, q.m).getFullYear(); return `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}/${y}${withTime && q.time ? ' - ' + q.time : ''}`; };
+  const watchKey = (r) => `${r.left}-${r.right}|${r.dt}`;
+  // the matches shown on the image: the programme rows of the chosen day (and competition) minus the ones switched off, plus the added ones
+  const dayKeyOf = (dt) => { const q = dtParts(dt); return q ? `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}` : ''; };
+  const watchDayRows = (d) => (cur.lvlAll || []).map(lvlRowFor).filter(r => r.left && r.right && dayKeyOf(r.dt) === d.day && (d.comp === 'both' || (d.comp === 'women') === r.women));
+  const watchDays = (d) => { const set = {}; (cur.lvlAll || []).map(lvlRowFor).concat(d.extra || []).forEach(r => { const k = dayKeyOf(r.dt); if (k) set[k] = 1; }); return Object.keys(set).sort((a, b) => lvlSeasonOrder(a) - lvlSeasonOrder(b)); };
+  function watchMatches(d) {
+    const fromProg = watchDayRows(d).filter(r => !(d.off || []).includes(watchKey(r)));
+    const extra = (d.extra || []).filter(r => { const q = dtParts(r.dt); return q && `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}` === d.day; });
+    return fromProg.concat(extra).sort((a, b) => ((dtParts(a.dt) || {}).time || '').localeCompare((dtParts(b.dt) || {}).time || '') || (a.women - b.women));
+  }
+  function visSize(kind, d) {
+    if (KINDS[kind].vis === 'mail') return [1200, 400];
+    const n = Math.max(3, watchMatches(d).length);
+    return [1800, 2 * (WATCH_TOP + 106 + n * WATCH_PITCH + 96)];
+  }
+  // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
+  function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
+    const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
+    const one = Math.min(maxSize, maxSize * maxW / Math.max(1, widthAt(str, maxSize)));
+    if (one >= minSize || str.indexOf(' ') < 0) return { size: Math.max(one, 20), lines: [str] };
+    const words = str.split(' '); let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      const w = Math.max(widthAt(a, 100), widthAt(b, 100));
+      if (!best || w < best.w) best = { w, lines: [a, b] };
+    }
+    return { size: Math.min(maxSize, 100 * maxW / best.w), lines: best.lines };
+  }
+  async function renderMail(d, ctx) {
+    const W2 = 1200, H2 = 400;
+    ctx.clearRect(0, 0, W2, H2);
+    ctx.fillStyle = VIS_LVL_BLUE; ctx.fillRect(0, 0, W2, H2);
+    // yellow-to-blue circle, top left (cropped by the edge)
+    const cx = 130, cy = -30, r = 200;
+    let g = ctx.createLinearGradient(cx - r * 0.75, cy - r * 0.75, cx + r * 0.35, cy + r);
+    g.addColorStop(0, '#fefd42'); g.addColorStop(0.55, '#c3e86a'); g.addColorStop(1, '#27aed2');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    // light-blue circle with the logo, bottom right
+    ctx.fillStyle = '#00caf5'; ctx.beginPath(); ctx.arc(1215, 465, 262, 0, Math.PI * 2); ctx.fill();
+    const logo = await loadImg('assets/lvl/logo.svg');
+    if (logo) { const lh = 96, lw = lh * 72 / 49; ctx.drawImage(logo, 1200 - 38 - lw, 400 - 26 - lh, lw, lh); }
+    // title (+ optional subtitle), centred in the free area left of the logo circle
+    await document.fonts.load('400 120px "Monologue"').catch(() => {});
+    const title = (d.title || '').toUpperCase().trim(), sub = (d.sub || '').trim();
+    const area = { x: 600, w: 940 }, hasSub = !!sub;
+    const f = fitLines(ctx, title, (sz) => `400 ${sz}px "Monologue"`, area.w, 118, 64);
+    const lh2 = f.size * 0.98, capH = f.size * 0.74;
+    const block = capH + (f.lines.length - 1) * lh2 + (hasSub ? 62 : 0);
+    let y0 = 206 - block / 2 + capH + (f.lines.length > 1 ? 0 : 6);
+    f.lines.forEach((ln, i) => text(ctx, ln, 0, y0 + i * lh2, `400 ${f.size}px "Monologue"`, VIS_LVL_NAVY, { center: area.x }));
+    if (hasSub) { const sf = fitLines(ctx, sub, (sz) => `600 ${sz}px "ClashDisplay"`, area.w, 34, 18); text(ctx, sub, 0, y0 + (f.lines.length - 1) * lh2 + 56, `600 ${sf.size}px "ClashDisplay"`, VIS_LVL_NAVY, { center: area.x, alpha: 0.85 }); }
+  }
+  async function renderWatch(d, ctx) {
+    const [CW, CH] = visSize('lvlwatch', d), S = 2, H1 = CH / S;
+    ctx.clearRect(0, 0, CW, CH); ctx.save(); ctx.scale(S, S);
+    ctx.fillStyle = WATCH_BLUE; ctx.fillRect(0, 0, 900, H1);
+    await document.fonts.load('400 120px "Monologue"').catch(() => {});
+    // title: white at the top fading into the blue at the bottom of the letters
+    const title = (d.title || '').toUpperCase().trim();
+    if (title) {
+      const f = fitLines(ctx, title, (sz) => `400 ${sz}px "Monologue"`, 600, 230, 120), cap = f.size * 0.74, base = WATCH_TOP - 12;
+      const g = ctx.createLinearGradient(0, base - cap, 0, base + 4); g.addColorStop(0, '#ffffff'); g.addColorStop(0.55, '#f4f8ff'); g.addColorStop(1, WATCH_BLUE);
+      const lines = f.lines.length, lhh = f.size * 0.98, top0 = base - cap - (lines - 1) * lhh;
+      f.lines.forEach((ln, i) => text(ctx, ln, 0, top0 + cap + i * lhh, `400 ${f.size}px "Monologue"`, i === lines - 1 ? g : '#fff', { center: 450 }));
+    }
+    const ms = watchMatches(d), n = Math.max(3, ms.length), panelH = 106 + n * WATCH_PITCH;
+    ctx.fillStyle = WATCH_PANEL; ctx.fillRect(75, WATCH_TOP, 750, panelH);
+    const off = (n - ms.length) * WATCH_PITCH / 2;
+    for (let i = 0; i < ms.length; i++) {
+      const r = ms[i], cy = WATCH_TOP + 70 + 71 + off + i * WATCH_PITCH;
+      for (const [code, cxx] of [[r.left, 196], [r.right, 704]]) {
+        const im = await loadImg(`assets/lvl/teams/${code}.png`);
+        ctx.save(); ctx.shadowColor = 'rgba(17,40,90,0.18)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, 71, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        if (im) ctx.drawImage(im, cxx - 71, cy - 71, 142, 142);
+      }
+      const names = !!d.showNames, dtext = watchDateText(r.dt, !!d.showTime);
+      const pf = names ? '400 27px "Monologue"' : '400 38px "Monologue"';
+      ctx.font = pf; const pw = Math.min(300, ctx.measureText(dtext).width + (names ? 28 : 44)), ph = names ? 31 : 50;
+      const py = names ? cy - 68 : cy - 40;
+      ctx.fillStyle = '#fff'; ctx.fillRect(450 - pw / 2, py, pw, ph);
+      text(ctx, dtext, 0, py + ph / 2 + (names ? 9.5 : 13), pf, WATCH_BLUE, { center: 450, maxWidth: pw - 12 });
+      if (names) {
+        text(ctx, lvlClubName(r.left).toUpperCase(), 0, cy - 12, '700 15px "ClashDisplay"', '#0a0a0a', { center: 450, maxWidth: 280 });
+        text(ctx, 'VS', 0, cy + 30, '400 30px "Monologue"', WATCH_BLUE, { center: 450 });
+        text(ctx, lvlClubName(r.right).toUpperCase(), 0, cy + 48, '700 15px "ClashDisplay"', '#0a0a0a', { center: 450, maxWidth: 280 });
+      } else {
+        text(ctx, 'VS', 0, cy + 52, '400 38px "Monologue"', WATCH_BLUE, { center: 450 });
+      }
+    }
+    ctx.restore();
+  }
+  async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
+  function visDefaults(kind) {
+    if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: false, showNames: false };
+  }
+
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
+    if (KINDS[kind].vis) { await renderVis(kind, d, ctx); return; }
     if (KINDS[kind].lvl) { await renderLvl(kind, d, ctx); return; }
     const scene = await loadScene(kind);
     ctx.clearRect(0, 0, W, H);
@@ -212,10 +323,11 @@
     renderQueued = false;
     if (!cur.kind || !cur.d) return;
     const seq = ++rendering;
-    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    const [cw, ch] = KINDS[cur.kind].vis ? visSize(cur.kind, cur.d) : [W, H];
+    const off = document.createElement('canvas'); off.width = cw; off.height = ch;
     await renderThumb(cur.kind, cur.d, off.getContext('2d'), cur.photo);
     if (seq !== rendering) return;
-    const cv = canvas(); cv.width = W; cv.height = H; cv.getContext('2d').drawImage(off, 0, 0);
+    const cv = canvas(); cv.width = cw; cv.height = ch; cv.getContext('2d').drawImage(off, 0, 0);
   }
   const scheduleRender = () => { if (!renderQueued) { renderQueued = true; requestAnimationFrame(render); } };
 
@@ -282,11 +394,43 @@
   const clubSelect = (id, cfg, v) => `<select id="${id}">${cfg.clubs.map(([c]) => `<option value="${esc(c)}"${c === v ? ' selected' : ''}>${esc(labelOf(cfg, c))}</option>`).join('')}</select>`;
   const nextSelect = (id, v) => `<select id="${id}">${nextClubs.map(c => `<option value="${esc(c.id)}"${c.id === v ? ' selected' : ''}>${esc(SETTINGS.label('hnl:' + c.id, c.label))}</option>`).join('')}</select>`;
 
+  function visControls() {
+    const d = cur.d, K = KINDS[cur.kind];
+    if (K.vis === 'mail') {
+      return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Tekst</div>
+        <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
+        <div class="field"><label for="visSub">Ondertitel (optioneel)</label><input type="text" id="visSub" value="${esc(d.sub)}" placeholder="bijv. Speelronde 5"></div>
+        <p class="hint">De titel past zichzelf aan: een korte titel staat groot op één regel, een lange wordt automatisch verkleind of over twee regels verdeeld. Export is 1200×400 px, voor een mail van 600 px breed (scherp op retina).</p></div>`;
+    }
+    const days = watchDays(d), rows = watchDayRows(d), off = d.off || [];
+    const clubOpts = (sel) => lvlAllClubs().map(([c, n]) => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+    const comps = [['both', 'Heren en dames'], ['men', 'Heren'], ['women', 'Dames']];
+    return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijden</div>
+      <div class="field"><label>Competitie</label><div class="mode-tabs mode-tabs-compact" id="visComp">${comps.map(([v, l]) => `<button type="button" class="mode-tab${d.comp === v ? ' active' : ''}" data-c="${v}">${l}</button>`).join('')}</div></div>
+      ${days.length ? `<div class="field"><label for="visDay">Speeldag</label><select id="visDay">${days.map(k => `<option value="${k}"${k === d.day ? ' selected' : ''}>${k}</option>`).join('')}</select></div>` : '<p class="hint">Geen programma geladen: lees hieronder een CSV in of voeg zelf wedstrijden toe.</p>'}
+      ${rows.length ? `<div class="field"><label>Op de afbeelding</label>${rows.map(r => `<label class="hnl-check"><input type="checkbox" class="vis-pick" data-k="${esc(watchKey(r))}"${off.includes(watchKey(r)) ? '' : ' checked'}> ${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} <small>${esc((dtParts(r.dt) || {}).time || '')}</small></label>`).join('')}</div>` : ''}
+      ${(d.extra || []).filter(r => dayKeyOf(r.dt) === d.day).map((r) => `<div class="field"><label>Zelf toegevoegd</label><div class="hnl-pair"><span>${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} · ${esc(r.dt)}</span><button type="button" class="btn btn-link vis-xdel" data-i="${d.extra.indexOf(r)}">✕</button></div></div>`).join('')}
+      <details class="field"><summary>Wedstrijd zelf toevoegen</summary>
+        <div class="field"><label for="visXHome">Thuis</label><select id="visXHome">${clubOpts('')}</select></div>
+        <div class="field"><label for="visXAway">Uit</label><select id="visXAway">${clubOpts(lvlAllClubs()[1][0])}</select></div>
+        <div class="field"><label for="visXDt">Datum en tijd</label><input type="text" id="visXDt" value="${esc(d.day ? d.day + ' - 20:30' : '')}" placeholder="22/10 - 20:30"></div>
+        <button class="btn btn-link" id="visAdd" type="button">+ Toevoegen</button></details>
+      <label class="photo-btn" for="visCsv"><span class="photo-btn-text">Nieuw programma inlezen (CSV)</span><span class="photo-btn-sub">${(cur.lvlAll || []).length} wedstrijden geladen · kolommen: Naam, bg, LogoLinks, LogoRechts, TijdText</span></label>
+      <input type="file" id="visCsv" accept=".csv,text/csv" hidden></div>
+      <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Opmaak</div>
+        <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
+        <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
+        <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
+        <p class="hint">Standaard alleen de datum tussen de logo's: de tijd en de ploegen kennen mensen wel.</p></div>`;
+  }
+
   function buildControls() {
     const box = $('thControls'); if (!box || !cur.d) return;
     const d = cur.d, K = KINDS[cur.kind];
     let html = '';
-    if (K.lvl) {
+    if (K.vis) {
+      html += visControls();
+    } else if (K.lvl) {
       const clubs = LVL[cur.kind].clubs, rows = cur.lvlRows || [];
       const sel = (id, v) => `<select id="${id}">${clubs.map(([c, n]) => `<option value="${esc(c)}"${c === v ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
       const mOpts = rows.map((r, i) => `<option value="${i}"${d.fixture === `${r.left}-${r.right}|${r.dt}` ? ' selected' : ''}>${esc(r.dt)} · ${esc(lvlName(cur.kind, r.left))} – ${esc(lvlName(cur.kind, r.right))}</option>`).join('');
@@ -334,10 +478,10 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.next ? 2 : K.lvl ? 3 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
-      ${K.next ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
+      ${K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     box.innerHTML = html;
     bind();
@@ -394,6 +538,33 @@
         status(`✓ Programma ingelezen: ${rows.length} wedstrijden (${cur.lvlRows.length} voor deze competitie)`);
       } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
+    // Lotto Volley League visuals (mail header, watch live)
+    on('visTitle', 'input', (e) => set({ title: e.target.value }));
+    on('visSub', 'input', (e) => set({ sub: e.target.value }));
+    document.querySelectorAll('#visComp [data-c]').forEach(b => b.addEventListener('click', () => set({ comp: b.dataset.c, off: [] }, true)));
+    on('visDay', 'change', (e) => set({ day: e.target.value, off: [] }, true));
+    document.querySelectorAll('.vis-pick').forEach(cb => cb.addEventListener('change', () => { const o = new Set(d.off || []); if (cb.checked) o.delete(cb.dataset.k); else o.add(cb.dataset.k); set({ off: Array.from(o) }); }));
+    on('visTime', 'change', (e) => set({ showTime: e.target.checked }));
+    on('visNames', 'change', (e) => set({ showNames: e.target.checked }));
+    on('visAdd', 'click', () => {
+      const dt = ($('visXDt').value || '').trim(), home = $('visXHome').value, away = $('visXAway').value;
+      if (!dtParts(dt) || home === away) { status('Vul een datum (22/10 - 20:30) in en kies twee verschillende clubs'); return; }
+      d.extra = (d.extra || []).concat([{ left: home, right: away, dt, women: false }]); d.day = dayKeyOf(dt); scheduleSave(); buildControls(); scheduleRender();
+    });
+    document.querySelectorAll('.vis-xdel').forEach(b => b.addEventListener('click', () => { d.extra.splice(parseInt(b.dataset.i, 10), 1); scheduleSave(); buildControls(); scheduleRender(); }));
+    on('visCsv', 'change', async (e) => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      try {
+        const rows = parseCsv(decodeCsv(await f.arrayBuffer())).filter(r => r.LogoLinks && r.LogoRechts && r.TijdText);
+        if (!rows.length) { status('Geen wedstrijden gevonden: controleer de kolommen (Naam, bg, LogoLinks, LogoRechts, TijdText)'); return; }
+        const r = await fetch('/api/item?key=' + enc('lvl:schedule'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'lvl-schedule', v: 1, data: { rows, at: Date.now() } }) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        await loadLvlRows('lvlm');
+        const days = watchDays(d); d.day = days[0] || ''; d.off = [];
+        buildControls(); scheduleRender(); scheduleSave();
+        status(`✓ Programma ingelezen: ${rows.length} wedstrijden`);
+      } catch (err) { status('Inlezen mislukt: ' + err.message); }
+    });
     on('thExport', 'click', exportOne);
     on('thExportDay', 'click', KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
   }
@@ -403,7 +574,8 @@
   const EXT = { jpeg: 'jpg', webp: 'webp', png: 'png' };
   const toBlob = (cv, fmt) => new Promise(res => cv.toBlob(res, MIME[fmt], 0.93));
   async function blobFor(kind, d, fmt, withPhoto = true) {
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const [cw, ch] = KINDS[kind].vis ? visSize(kind, d) : [W, H];
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
     await renderThumb(kind, d, c.getContext('2d'), withPhoto ? cur.photo : null);
     return toBlob(c, fmt);
   }
@@ -418,6 +590,8 @@
   }
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    if (KINDS[kind].vis === 'mail') return 'LVL_mailheader';
+    if (KINDS[kind].vis === 'watch') return `LVL_watchlive_${String(d.day || 'dag').replace('/', '-')}`;
     if (KINDS[kind].lvl) {
       const m = /(\d{1,2})\/(\d{1,2})/.exec(d.dt || ''), stamp = m ? `${seasonDate(+m[1], +m[2]).getFullYear()}${String(+m[2]).padStart(2, '0')}${String(+m[1]).padStart(2, '0')}` : 'datum';
       return `${LVL[kind].prefix}_${stamp}_${d.home}-${d.away}`;
@@ -518,12 +692,18 @@
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }
     if (k !== itemKey()) return;
-    cur.d = Object.assign(K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
+    cur.d = Object.assign(K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
-    if (cur.d.hasPhoto && !K.lvl) {
+    if (cur.d.hasPhoto && !K.lvl && !K.vis) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
-    if (K.lvl) {
+    if (K.vis) {
+      if (K.vis === 'watch') {
+        await loadLvlRows('lvlm');
+        const days = watchDays(cur.d), today = new Date(), tOrder = ((today.getMonth() + 5) % 12) * 100 + today.getDate();
+        if (!days.includes(cur.d.day)) cur.d.day = days.find(k => lvlSeasonOrder(k) >= tOrder) || days[days.length - 1] || '';
+      }
+    } else if (K.lvl) {
       await loadLvlRows(kind);
       // always start on the first match that has not been played yet; when the whole programme is over, keep what was saved
       // (or the last match of the programme when nothing was saved)
