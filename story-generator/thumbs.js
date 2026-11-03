@@ -267,7 +267,7 @@
     if (two && !d.markComp) ctx.fillRect(959, startY + 12, 2, perCol * pitch - 24);
     for (let i = 0; i < total; i++) {
       const r = ms[i], col = two ? (i < perCol ? 0 : 1) : 0, row = two ? (i < perCol ? i : i - perCol) : i;
-      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = d.markComp ? R + (two ? 140 : 170) * (dia / 150) : Math.min(colW / 2 - R - (two ? 24 : 120), R + (two ? 190 : 235) * (dia / 150)), zone = 112 * k;
+      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = d.markComp ? R + (two ? 118 : 170) * (dia / 150) : Math.min(colW / 2 - R - (two ? 24 : 120), R + (two ? 190 : 235) * (dia / 150)), padS = 0.3 * (pitch - 10), zone = padS + 96 * k;
       if (d.markComp) sexPlate(ctx, cx - half - R - 24 - zone, cy - pitch / 2 + 5, 2 * (half + R + 24 + zone), pitch - 10, r.women);
       for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
         const im = await loadImg(`assets/lvl/teams/${code}.png`);
@@ -289,10 +289,10 @@
       } else {
         if (d.markComp) {   // MEN/WOMEN left, VS and the date in the middle, the time right
           const tmx = timeOf(r);
-          text(ctx, r.women ? 'WOMEN' : 'MEN', 0, cy + 0.37 * 34 * k, `400 ${34 * k}px "Monologue"`, '#fff', { inkLeft: cx - half - R - 24 - zone + 20, alpha: 0.9, maxWidth: zone - 8 });
+          text(ctx, r.women ? 'WOMEN' : 'MEN', 0, cy + 0.37 * 34 * k, `400 ${34 * k}px "Monologue"`, '#fff', { inkLeft: cx - half - R - 24 - zone + padS, alpha: 0.9, maxWidth: zone - padS - 8 });
           text(ctx, 'VS', 0, cy + 6 * k, `400 ${70 * k}px "Monologue"`, '#fff', { center: cx });
           text(ctx, watchDateText(r.dt, false), 0, cy + 52 * k, `400 ${two ? 36 * k : 42 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
-          if (d.showTime && tmx) text(ctx, tmx, 0, cy + 0.37 * 50 * k, `400 ${50 * k}px "Monologue"`, '#fff', { inkRight: cx + half + R + 24 + zone - 20, maxWidth: zone - 8 });
+          if (d.showTime && tmx) text(ctx, tmx, 0, cy + 0.37 * 50 * k, `400 ${50 * k}px "Monologue"`, '#fff', { inkRight: cx + half + R + 24 + zone - padS, maxWidth: zone - padS - 8 });
         } else {
           text(ctx, 'VS', 0, cy + 6 * k, `400 ${76 * k}px "Monologue"`, '#fff', { center: cx });
           text(ctx, dtext, 0, cy + 54 * k, `400 ${two ? 38 * k : 44 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
@@ -303,7 +303,7 @@
   // Watch live over several days (a week overview): one column per day with the date on top, the matches below it.
   // With the "MEN/WOMEN" option (d.markComp) every match gets a coloured plate behind it (men dark blue, women purple) with its title.
   const SEX_COL = { MEN: '#012243', WOMEN: '#a900be' };
-  const sexPlate = (ctx, x, y, w, h, women) => { ctx.save(); ctx.fillStyle = SEX_COL[women ? 'WOMEN' : 'MEN']; ctx.globalAlpha = 0.94; roundRect(ctx, x, y, w, h, Math.min(18, h / 3)); ctx.fill(); ctx.restore(); };
+  const sexPlate = (ctx, x, y, w, h, women) => { ctx.save(); ctx.fillStyle = SEX_COL[women ? 'WOMEN' : 'MEN']; ctx.globalAlpha = 0.94; roundRect(ctx, x, y, w, h, h / 2); ctx.fill(); ctx.restore(); };   // fully rounded, like the pills on watch.lottovolleyleague.be
   async function renderWatchWeek(ctx, groups, d) {
     const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050;
     const maxRows = Math.max.apply(null, groups.map(g => g.items.length));
@@ -313,9 +313,10 @@
     for (let c = 0; c < nCol; c++) {
       const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56;
       // with the MEN/WOMEN plates: [MEN|WOMEN] (crest) VS (crest) [time]; the crests shrink when the column is narrow
-      const Rc = d.markComp ? Math.min(R, Math.max(30, (inner / 2 - 22 - 114 * 0.7) / 2)) : R, diaC = Rc * 2;
-      const u = d.markComp ? Math.max(0.5, Math.min(Math.max(k, 0.75), (inner / 2 - 2 * Rc - 22) / 114)) : k;
-      const half = d.markComp ? Rc + 40 * u : Math.min(inner / 2 - R, R + 66 * k + 8), rowHalf = d.markComp ? 2 * Rc + 22 + 114 * u : half + R + 26;
+      const hp = pitch - 8, pad = hp * 0.3;   // plate height and the inner padding that keeps the text clear of the round ends
+      const Rc = d.markComp ? Math.min(R, Math.max(30, (inner / 2 - 10 - pad - 106 * 0.7) / 2)) : R, diaC = Rc * 2;
+      const u = d.markComp ? Math.max(0.5, Math.min(Math.max(k, 0.75), (inner / 2 - 2 * Rc - 10 - pad) / 106)) : k;
+      const half = d.markComp ? Rc + 40 * u : Math.min(inner / 2 - R, R + 66 * k + 8), rowHalf = d.markComp ? 2 * Rc + 106 * u + 10 + pad : half + R + 26;
       const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
       text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
       ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
@@ -336,9 +337,9 @@
         }
         const tm = timeOf(r), tag = r.women ? 'WOMEN' : 'MEN', hasT = d.showTime && tm;
         if (d.markComp) {   // MEN/WOMEN on the left of the match, only VS in the middle, the time on the right
-          text(ctx, tag, 0, cy + 0.37 * 27 * u, `400 ${27 * u}px "Monologue"`, '#fff', { inkLeft: cx - rowHalf + 18, alpha: 0.9 });
+          text(ctx, tag, 0, cy + 0.37 * 27 * u, `400 ${27 * u}px "Monologue"`, '#fff', { inkLeft: cx - rowHalf + pad, alpha: 0.9 });
           text(ctx, 'VS', 0, cy + 0.37 * 56 * u, `400 ${56 * u}px "Monologue"`, '#fff', { center: cx });
-          if (hasT) text(ctx, tm, 0, cy + 0.37 * 40 * u, `400 ${40 * u}px "Monologue"`, '#fff', { inkRight: cx + rowHalf - 18 });
+          if (hasT) text(ctx, tm, 0, cy + 0.37 * 40 * u, `400 ${40 * u}px "Monologue"`, '#fff', { inkRight: cx + rowHalf - pad });
         } else if (hasT) {
           text(ctx, 'VS', 0, cy - 2 * k, `400 ${40 * k}px "Monologue"`, '#fff', { center: cx });
           text(ctx, tm, 0, cy + 38 * k, `400 ${44 * k}px "Monologue"`, '#fff', { center: cx });
