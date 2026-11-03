@@ -123,8 +123,9 @@
     if (d.season) text(ctx, d.season, 0, 226, '400 247px "Monologue"', '#012243', { inkRight: 1870, alpha: 0.16 });
     // the player (cut-out, background already removed): head near the top, centred in the right half, bleeding off the bottom
     if (photo && d.hasPhoto) {
-      const pp = d.photoPos || { z: 1, x: 0, y: 0 }, ph = 1010 * pp.z, pw = ph * photo.naturalWidth / photo.naturalHeight;
-      ctx.drawImage(photo, 1410 + pp.x - pw / 2, 75 + pp.y, pw, ph);
+      const pp = d.photoPos || { z: 1, x: 0, y: 0 }, ph = 1150 * pp.z, pw = ph * photo.naturalWidth / photo.naturalHeight;
+      ctx.save(); ctx.shadowColor = 'rgba(0,20,50,0.30)'; ctx.shadowBlur = 34; ctx.shadowOffsetX = -6; ctx.shadowOffsetY = 10;
+      ctx.drawImage(photo, 1400 + pp.x - pw / 2, 55 + pp.y, pw, ph); ctx.restore();
     }
     for (const [code, x] of [[d.home, 53], [d.away, 634]]) {
       const im = code ? await loadImg(`assets/lvl/teams/${code}.png`) : null;
@@ -284,6 +285,48 @@
     const processor = await t.AutoProcessor.from_pretrained('Xenova/modnet');
     bgEngine = { t, model, processor }; return bgEngine;
   }
+  // mean filter (radius r) over a w x h float plane, via running sums
+  function boxMean(src, w, h, r) {
+    const tmp = new Float32Array(w * h), out = new Float32Array(w * h), cs = new Float64Array(Math.max(w, h) + 1);
+    for (let y = 0; y < h; y++) {
+      const o = y * w; cs[0] = 0; for (let x = 0; x < w; x++) cs[x + 1] = cs[x] + src[o + x];
+      for (let x = 0; x < w; x++) { const lo = Math.max(0, x - r), hi = Math.min(w - 1, x + r); tmp[o + x] = (cs[hi + 1] - cs[lo]) / (hi - lo + 1); }
+    }
+    for (let x = 0; x < w; x++) {
+      cs[0] = 0; for (let y = 0; y < h; y++) cs[y + 1] = cs[y] + tmp[y * w + x];
+      for (let y = 0; y < h; y++) { const lo = Math.max(0, y - r), hi = Math.min(h - 1, y + r); out[y * w + x] = (cs[hi + 1] - cs[lo]) / (hi - lo + 1); }
+    }
+    return out;
+  }
+  // guided filter: snaps the soft mask p to the edges of the photo (guide I), so hair and outlines follow the picture
+  function guidedFilter(I, p, w, h, r, eps) {
+    const n = w * h, mI = boxMean(I, w, h, r), mp = boxMean(p, w, h, r), Ip = new Float32Array(n), II = new Float32Array(n);
+    for (let i = 0; i < n; i++) { Ip[i] = I[i] * p[i]; II[i] = I[i] * I[i]; }
+    const cIp = boxMean(Ip, w, h, r), cII = boxMean(II, w, h, r), A = new Float32Array(n), B = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const v = cII[i] - mI[i] * mI[i], c = cIp[i] - mI[i] * mp[i]; A[i] = c / (v + eps); B[i] = mp[i] - A[i] * mI[i]; }
+    const mA = boxMean(A, w, h, r), mB = boxMean(B, w, h, r), q = new Float32Array(n);
+    for (let i = 0; i < n; i++) q[i] = mA[i] * I[i] + mB[i];
+    return q;
+  }
+  // keeps the person: every connected piece of the mask that is not tiny compared to the largest one
+  function keepMain(alpha, w, h) {
+    const lab = new Int32Array(w * h), sizes = [0], stack = new Int32Array(w * h);
+    let next = 0;
+    for (let i0 = 0; i0 < w * h; i0++) {
+      if (alpha[i0] < 0.1 || lab[i0]) continue;
+      next++; let sp = 0, cnt = 0; stack[sp++] = i0; lab[i0] = next;
+      while (sp) {
+        const i = stack[--sp]; cnt++; const x = i % w, y = (i / w) | 0;
+        if (x > 0 && !lab[i - 1] && alpha[i - 1] >= 0.1) { lab[i - 1] = next; stack[sp++] = i - 1; }
+        if (x < w - 1 && !lab[i + 1] && alpha[i + 1] >= 0.1) { lab[i + 1] = next; stack[sp++] = i + 1; }
+        if (y > 0 && !lab[i - w] && alpha[i - w] >= 0.1) { lab[i - w] = next; stack[sp++] = i - w; }
+        if (y < h - 1 && !lab[i + w] && alpha[i + w] >= 0.1) { lab[i + w] = next; stack[sp++] = i + w; }
+      }
+      sizes.push(cnt);
+    }
+    const big = Math.max.apply(null, sizes);
+    for (let i = 0; i < w * h; i++) if (!lab[i] || sizes[lab[i]] < big * 0.04) alpha[i] = 0;
+  }
   // image -> canvas with transparent background, trimmed to the person; keep = the photo already has a transparent background
   async function cutOut(img, keep, msg) {
     const sc = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
@@ -298,8 +341,28 @@
       const { pixel_values } = await processor(image);
       const out = await model({ input: pixel_values });
       const mask = await t.RawImage.fromTensor(out.output[0].mul(255).to('uint8')).resize(cv.width, cv.height);
-      // slightly steeper matte: removes the faint halo of the old background around hair and ball
-      for (let i = 0; i < cv.width * cv.height; i++) { const m = mask.data[i] / 255, v = Math.min(1, Math.max(0, (m - 0.12) / 0.76)); a[i * 4 + 3] = Math.round(v * v * (3 - 2 * v) * 255); }
+      const w = cv.width, h = cv.height, n = w * h, raw = new Float32Array(n), guide = new Float32Array(n);
+      for (let i = 0; i < n; i++) { raw[i] = mask.data[i] / 255; guide[i] = (0.299 * a[i * 4] + 0.587 * a[i * 4 + 1] + 0.114 * a[i * 4 + 2]) / 255; }
+      msg('Randen verfijnen…');
+      // background colour = average of what the model calls background (used to take the yellow fringe out of the edge pixels)
+      let br = 0, bgc = 0, bb = 0, bn = 0;
+      for (let i = 0; i < n; i += 7) if (raw[i] < 0.02) { br += a[i * 4]; bgc += a[i * 4 + 1]; bb += a[i * 4 + 2]; bn++; }
+      const q = guidedFilter(guide, raw, w, h, Math.max(4, Math.round(Math.max(w, h) / 220)), 2e-4);
+      const al = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const v = Math.min(1, Math.max(0, (q[i] - 0.2) / 0.6)); al[i] = v * v * (3 - 2 * v); }
+      keepMain(al, w, h);
+      // pull the edge in by about two pixels: that is where the old background still shines through
+      const er = boxMean(al, w, h, Math.max(2, Math.round(Math.max(w, h) / 700)));
+      for (let i = 0; i < n; i++) { const e = Math.min(1, Math.max(0, (er[i] - 0.72) / 0.26)); if (e < al[i]) al[i] = e * e * (3 - 2 * e); }
+      for (let i = 0; i < n; i++) {
+        const v = al[i]; a[i * 4 + 3] = Math.round(v * 255);
+        if (bn > 50 && v > 0 && v < 0.98) {   // edge pixel: remove the share of the old background colour
+          const d = Math.max(v, 0.3);
+          a[i * 4] = Math.min(255, Math.max(0, (a[i * 4] - (1 - v) * br / bn) / d));
+          a[i * 4 + 1] = Math.min(255, Math.max(0, (a[i * 4 + 1] - (1 - v) * bgc / bn) / d));
+          a[i * 4 + 2] = Math.min(255, Math.max(0, (a[i * 4 + 2] - (1 - v) * bb / bn) / d));
+        }
+      }
     }
     let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
     for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (a[(y * cv.width + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
@@ -539,8 +602,8 @@
         <input type="file" id="thLvlPhoto" accept="image/*" hidden>
         <label class="hnl-check"><input type="checkbox" id="thLvlKeep"> De foto heeft al een transparante achtergrond (PNG): niet verwijderen</label>
         <p class="hint" id="thLvlBgMsg"></p>
-        ${d.hasPhoto ? `<div class="field"><label for="thLvlZoom">Grootte</label><input type="range" id="thLvlZoom" min="50" max="220" value="${Math.round(d.photoPos.z * 100)}"></div>
-        <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de speler te verschuiven.</p>` : ''}</div>`;
+        ${d.hasPhoto ? `<div class="field"><label for="thLvlZoom">Grootte</label><input type="range" id="thLvlZoom" min="50" max="400" value="${Math.round(d.photoPos.z * 100)}"></div>
+        <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de speler te verschuiven, scroll op de preview om in of uit te zoomen.</p>` : ''}</div>`;
     } else if (K.next) {
       html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijd</div>
         <div class="field"><label for="thSlot">Opslagplek</label><select id="thSlot">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}"${i + 1 === cur.slot ? ' selected' : ''}>Slot ${i + 1}</option>`).join('')}</select></div>
@@ -898,6 +961,18 @@
       const r = photoRect(cur.photo, p); p.x = r.x; p.y = r.y;   // keep the stored offset inside the limits so dragging doesn't feel sticky
       scheduleRender();
     });
+    // LVL: scroll to zoom around the pointer
+    cv.addEventListener('wheel', (e) => {
+      if (!cur.d || !cur.d.hasPhoto || !cur.photo || !KINDS[cur.kind].lvl) return;
+      e.preventDefault();
+      const r = cv.getBoundingClientRect(), k = cv.width / r.width, mx = (e.clientX - r.left) * k, my = (e.clientY - r.top) * k;
+      const p = cur.d.photoPos, z0 = p.z, z1 = Math.min(4, Math.max(0.5, z0 * Math.exp(-e.deltaY * 0.0015))), f = z1 / z0;
+      const ar = cur.photo.naturalWidth / cur.photo.naturalHeight, pw0 = 1150 * z0 * ar, left0 = 1400 + p.x - pw0 / 2, top0 = 55 + p.y;
+      const left1 = mx - (mx - left0) * f, top1 = my - (my - top0) * f, pw1 = pw0 * f;
+      p.z = z1; p.x = left1 + pw1 / 2 - 1400; p.y = top1 - 55;
+      const zs = $('thLvlZoom'); if (zs) zs.value = Math.round(z1 * 100);
+      scheduleRender(); scheduleSave();
+    }, { passive: false });
     const end = () => { if (!drag) return; drag = null; cv.style.cursor = ''; scheduleSave(); };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   }
