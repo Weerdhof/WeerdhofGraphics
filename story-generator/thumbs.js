@@ -121,17 +121,17 @@
     const bg = await loadImg(LVL[kind].bg); if (bg) ctx.drawImage(bg, 0, 0, W, H);
     const vorm = await loadImg('assets/lvl/vorm.png'); if (vorm) ctx.drawImage(vorm, 0, 0, W, H);   // the dark wave in the bottom right (layer "Vorm 1" of the PSD)
     if (d.season) text(ctx, d.season, 0, 226, '400 247px "Monologue"', '#012243', { inkRight: 1870, alpha: 0.16 });
-    // the player (cut-out, background already removed): head near the top, centred in the right half, bleeding off the bottom
-    if (photo && d.hasPhoto) {
-      const pp = d.photoPos || { z: 1, x: 0, y: 0 }, ph = 1150 * pp.z, pw = ph * photo.naturalWidth / photo.naturalHeight;
-      ctx.save(); ctx.shadowColor = 'rgba(0,20,50,0.30)'; ctx.shadowBlur = 34; ctx.shadowOffsetX = -6; ctx.shadowOffsetY = 10;
-      ctx.drawImage(photo, 1400 + pp.x - pw / 2, 55 + pp.y, pw, ph); ctx.restore();
-    }
     for (const [code, x] of [[d.home, 53], [d.away, 634]]) {
       const im = code ? await loadImg(`assets/lvl/teams/${code}.png`) : null;
       if (im) ctx.drawImage(im, x, 309, 401, 401);   // the crest files include their white circle
     }
     if (d.dt) text(ctx, d.dt, 0, 960, '400 160px "Monologue"', '#fff', { center: 542 });
+    // the player (cut-out, background already removed) goes on top of everything: head near the top, centred in the right half, bleeding off the bottom
+    if (photo && d.hasPhoto) {
+      const pp = d.photoPos || { z: 1, x: 0, y: 0 }, ph = 1150 * pp.z, pw = ph * photo.naturalWidth / photo.naturalHeight;
+      ctx.save(); ctx.shadowColor = 'rgba(0,15,45,0.5)'; ctx.shadowBlur = 48; ctx.shadowOffsetX = -10; ctx.shadowOffsetY = 14;
+      ctx.drawImage(photo, 1400 + pp.x - pw / 2, 55 + pp.y, pw, ph); ctx.restore();
+    }
   }
   // the weekly programme: a CSV with Naam,bg,LogoLinks,LogoRechts,TijdText (as made for the Photoshop data merge)
   const lvlSeasonOrder = (dt) => { const m = /(\d{1,2})\/(\d{1,2})/.exec(dt || ''); return m ? ((+m[2] + 4) % 12) * 100 + +m[1] : 9999; };
