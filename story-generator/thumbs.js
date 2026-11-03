@@ -276,14 +276,16 @@
 
 
   // ---------- Background removal (runs in the browser; MODNet portrait matting via transformers.js, Apache-2.0) ----------
-  let bgEngine = null;
-  async function bgLoad(msg) {
-    if (bgEngine) return bgEngine;
-    msg('Model laden (de eerste keer ± 25 MB, daarna uit de cache)…');
-    const t = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6');
-    const model = await t.AutoModel.from_pretrained('Xenova/modnet', { dtype: 'fp32' });
-    const processor = await t.AutoProcessor.from_pretrained('Xenova/modnet');
-    bgEngine = { t, model, processor }; return bgEngine;
+  const bgEngines = {};
+  let bgLib = null;
+  async function bgLoad(kind, msg) {
+    if (bgEngines[kind]) return bgEngines[kind];
+    msg(kind === 'obj' ? 'Model laden (de eerste keer ± 45 MB, daarna uit de cache)…' : 'Model laden (de eerste keer ± 25 MB, daarna uit de cache)…');
+    if (!bgLib) bgLib = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6');
+    const t = bgLib;
+    if (kind === 'obj') bgEngines.obj = { t, seg: await t.pipeline('background-removal', 'onnx-community/ormbg-ONNX', { dtype: 'q8' }) };   // Apache-2.0: the person and what they hold (ball)
+    else bgEngines.person = { t, model: await t.AutoModel.from_pretrained('Xenova/modnet', { dtype: 'fp32' }), processor: await t.AutoProcessor.from_pretrained('Xenova/modnet') };   // Apache-2.0: portrait matting
+    return bgEngines[kind];
   }
   // mean filter (radius r) over a w x h float plane, via running sums
   function boxMean(src, w, h, r) {
@@ -328,21 +330,29 @@
     for (let i = 0; i < w * h; i++) if (!lab[i] || sizes[lab[i]] < big * 0.04) alpha[i] = 0;
   }
   // image -> canvas with transparent background, trimmed to the person; keep = the photo already has a transparent background
-  async function cutOut(img, keep, msg) {
+  async function cutOut(img, keep, msg, kind) {
     const sc = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
     const cv = document.createElement('canvas'); cv.width = Math.round(img.naturalWidth * sc); cv.height = Math.round(img.naturalHeight * sc);
     const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, cv.width, cv.height);
     const px = cx.getImageData(0, 0, cv.width, cv.height), a = px.data;
     if (!keep) {
-      const { t, model, processor } = await bgLoad(msg);
+      const eng = await bgLoad(kind, msg), t = eng.t;
       msg('Achtergrond verwijderen…');
       const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
-      const image = await t.RawImage.fromBlob(blob);
-      const { pixel_values } = await processor(image);
-      const out = await model({ input: pixel_values });
-      const mask = await t.RawImage.fromTensor(out.output[0].mul(255).to('uint8')).resize(cv.width, cv.height);
       const w = cv.width, h = cv.height, n = w * h, raw = new Float32Array(n), guide = new Float32Array(n);
-      for (let i = 0; i < n; i++) { raw[i] = mask.data[i] / 255; guide[i] = (0.299 * a[i * 4] + 0.587 * a[i * 4 + 1] + 0.114 * a[i * 4 + 2]) / 255; }
+      if (kind === 'obj') {
+        const url = URL.createObjectURL(blob);
+        let r = (await eng.seg([url]))[0]; URL.revokeObjectURL(url);
+        if (r.width !== w || r.height !== h) r = await r.resize(w, h);
+        for (let i = 0; i < n; i++) raw[i] = r.data[i * 4 + 3] / 255;
+      } else {
+        const image = await t.RawImage.fromBlob(blob);
+        const { pixel_values } = await eng.processor(image);
+        const out = await eng.model({ input: pixel_values });
+        const mask = await t.RawImage.fromTensor(out.output[0].mul(255).to('uint8')).resize(w, h);
+        for (let i = 0; i < n; i++) raw[i] = mask.data[i] / 255;
+      }
+      for (let i = 0; i < n; i++) guide[i] = (0.299 * a[i * 4] + 0.587 * a[i * 4 + 1] + 0.114 * a[i * 4 + 2]) / 255;
       msg('Randen verfijnen…');
       // background colour = average of what the model calls background (used to take the yellow fringe out of the edge pixels)
       let br = 0, bgc = 0, bb = 0, bn = 0;
@@ -372,12 +382,12 @@
     out.getContext('2d').drawImage(cv, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
     return out;
   }
-  async function uploadPlayer(file, keep) {
+  async function uploadPlayer(file, keep, kind) {
     const msgEl = () => $('thLvlBgMsg'), msg = (t) => { const el = msgEl(); if (el) el.textContent = t; };
     try {
       const url = URL.createObjectURL(file);
       const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('afbeelding niet te lezen')); i.src = url; });
-      const out = await cutOut(img, keep, msg); URL.revokeObjectURL(url);
+      const out = await cutOut(img, keep, msg, kind || 'obj'); URL.revokeObjectURL(url);
       const blob = await new Promise(res => out.toBlob(res, 'image/png'));
       const k = itemKey(); setSave('saving');
       const r = await fetch('/api/photo?key=' + enc(k), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
@@ -600,6 +610,7 @@
         <div class="panel-step"><div class="panel-step-title"><span class="step-num">3</span> Speler (optioneel)</div>
         <label class="photo-btn" id="thLvlPhotoDrop" for="thLvlPhoto"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">de achtergrond wordt automatisch verwijderd · klik, of sleep hier een foto in</span></label>
         <input type="file" id="thLvlPhoto" accept="image/*" hidden>
+        <div class="field"><label for="thLvlModel">Uitsnijden</label><select id="thLvlModel"><option value="obj">Speler en wat die vasthoudt (bal)</option><option value="person">Alleen de persoon (sneller)</option></select></div>
         <label class="hnl-check"><input type="checkbox" id="thLvlKeep"> De foto heeft al een transparante achtergrond (PNG): niet verwijderen</label>
         <p class="hint" id="thLvlBgMsg"></p>
         ${d.hasPhoto ? `<div class="field"><label for="thLvlZoom">Grootte</label><input type="range" id="thLvlZoom" min="50" max="400" value="${Math.round(d.photoPos.z * 100)}"></div>
@@ -749,12 +760,12 @@
         status(`✓ Programma ingelezen: ${rows.length} wedstrijden`);
       } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
-    on('thLvlPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked)); });
+    on('thLvlPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked), ($('thLvlModel') || {}).value); });
     const lvlDrop = $('thLvlPhotoDrop');
     if (lvlDrop) {
       ['dragenter', 'dragover'].forEach(ev => lvlDrop.addEventListener(ev, (e) => { e.preventDefault(); lvlDrop.classList.add('drag-over'); }));
       ['dragleave', 'drop'].forEach(ev => lvlDrop.addEventListener(ev, (e) => { e.preventDefault(); lvlDrop.classList.remove('drag-over'); }));
-      lvlDrop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f && /^image\//.test(f.type)) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked)); });
+      lvlDrop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f && /^image\//.test(f.type)) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked), ($('thLvlModel') || {}).value); });
     }
     on('thLvlZoom', 'input', (e) => { d.photoPos.z = parseInt(e.target.value, 10) / 100; scheduleRender(); scheduleSave(); });
     on('thExport', 'click', exportOne);
