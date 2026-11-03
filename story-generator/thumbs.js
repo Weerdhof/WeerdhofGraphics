@@ -12,7 +12,7 @@
     lvlm:      { title: 'LVL Heren',  sub: 'Lotto Volley League Men', lvl: true },
     lvlw:      { title: 'LVL Dames',  sub: 'Lotto Volley League Women', lvl: true },
     lvlmail:   { title: 'LVL Mailheader', sub: 'Lotto Volley League · 1200×400', vis: 'mail' },
-    lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · speeldag', vis: 'watch' },
+    lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · 1920×1080', vis: 'watch' },
   };
   const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live' };
 
@@ -159,9 +159,10 @@
   const VIS_LVL_NAVY = '#07192f', LVL_YELLOW = '#ffdd00', LVL_BLUE = '#028aed', WATCH_PANEL = '#eef5fd';
   // the thumbnails' own backgrounds: blue for the men (and mixed), purple for the women, running from bottom left to top right
   const lvlThumbGrad = (ctx, w, h, women) => { const g = ctx.createLinearGradient(0, h, w, 0); g.addColorStop(0, women ? '#a900be' : '#007ac8'); g.addColorStop(1, women ? '#c158ff' : '#1096d6'); return g; };
+  // neutral light blue for a watch-live image with both men's and women's matches
+  const lvlMixGrad = (ctx, w, h) => { const g = ctx.createLinearGradient(0, h, w, 0); g.addColorStop(0, '#2c9fdc'); g.addColorStop(1, '#6cc6f2'); return g; };
   const LVL_WAVE = '#012243';
-  const WATCH_PITCH = 176, WATCH_TOP = 250;   // WATCH_TOP: height of the header with the wave
-  const lvlClubName = (code) => { const c = LVL.lvlm.clubs.concat(LVL.lvlw.clubs).find(x => x[0] === code); return c ? c[1] : code; };
+    const lvlClubName = (code) => { const c = LVL.lvlm.clubs.concat(LVL.lvlw.clubs).find(x => x[0] === code); return c ? c[1] : code; };
   const lvlAllClubs = () => { const seen = {}; return LVL.lvlm.clubs.concat(LVL.lvlw.clubs).filter(c => (seen[c[0]] ? false : (seen[c[0]] = true))); };
   const dtParts = (dt) => { const m = /(\d{1,2})\/(\d{1,2})(?:\s*-\s*(\d{1,2}:\d{2}))?/.exec(dt || ''); return m ? { d: +m[1], m: +m[2], time: m[3] || '' } : null; };
   const watchDateText = (dt, withTime) => { const q = dtParts(dt); if (!q) return dt || ''; const y = seasonDate(q.d, q.m).getFullYear(); return `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}/${y}${withTime && q.time ? ' - ' + q.time : ''}`; };
@@ -171,15 +172,12 @@
   const watchDayRows = (d) => (cur.lvlAll || []).map(lvlRowFor).filter(r => r.left && r.right && dayKeyOf(r.dt) === d.day && (d.comp === 'both' || (d.comp === 'women') === r.women));
   const watchDays = (d) => { const set = {}; (cur.lvlAll || []).map(lvlRowFor).concat(d.extra || []).forEach(r => { const k = dayKeyOf(r.dt); if (k) set[k] = 1; }); return Object.keys(set).sort((a, b) => lvlSeasonOrder(a) - lvlSeasonOrder(b)); };
   function watchMatches(d) {
+    if (d.manual) return (d.list || []).filter(r => r.left && r.right);   // filled in by hand: exactly this list, in this order
     const fromProg = watchDayRows(d).filter(r => !(d.off || []).includes(watchKey(r)));
     const extra = (d.extra || []).filter(r => { const q = dtParts(r.dt); return q && `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}` === d.day; });
     return fromProg.concat(extra).sort((a, b) => ((dtParts(a.dt) || {}).time || '').localeCompare((dtParts(b.dt) || {}).time || '') || (a.women - b.women));
   }
-  function visSize(kind, d) {
-    if (KINDS[kind].vis === 'mail') return [1200, 400];
-    const n = Math.max(3, watchMatches(d).length);
-    return [1800, 2 * (WATCH_TOP + 20 + n * WATCH_PITCH + 50)];
-  }
+  function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -217,47 +215,52 @@
     f.lines.forEach((ln, i) => text(ctx, ln, 0, y0 + i * lh2, `400 ${f.size}px "Monologue"`, '#fff', { center: area.x }));
     if (hasSub) { const sf = fitLines(ctx, sub, (sz) => `700 ${sz}px "Archivo"`, area.w, 34, 18); text(ctx, sub, 0, y0 + (f.lines.length - 1) * lh2 + 56, `700 ${sf.size}px "Archivo"`, '#fff', { center: area.x, alpha: 0.9 }); }
   }
+  // Watch live, landscape 1920x1080 like the thumbnails: up to four matches in one column, more in two columns (filled column by column)
   async function renderWatch(d, ctx) {
-    const [CW, CH] = visSize('lvlwatch', d), S = 2, H1 = CH / S, women = d.comp === 'women';
-    ctx.clearRect(0, 0, CW, CH); ctx.save(); ctx.scale(S, S);
-    ctx.fillStyle = lvlThumbGrad(ctx, 900, H1, women); ctx.fillRect(0, 0, 900, H1);
+    const W3 = 1920, H3 = 1080, women = d.comp === 'women';
+    ctx.clearRect(0, 0, W3, H3);
+    ctx.fillStyle = lvlThumbGrad(ctx, W3, H3, women); ctx.fillRect(0, 0, W3, H3);
     await document.fonts.load('400 120px "Monologue"').catch(() => {});
-    // the dark wave top left with the logo (as in the thumbnails), the title to the right of it
-    ctx.fillStyle = LVL_WAVE; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(500, 0); ctx.bezierCurveTo(400, 120, 220, 215, 0, 232); ctx.closePath(); ctx.fill();
+    // the dark wave top left with the logo (as in the thumbnails), the title to the right
+    ctx.fillStyle = LVL_WAVE; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(930, 0); ctx.bezierCurveTo(780, 130, 440, 240, 0, 262); ctx.closePath(); ctx.fill();
     const logo = await loadImg('assets/lvl/logo.svg');
-    if (logo) { const lh = 104, lw = lh * 72 / 49; ctx.drawImage(logo, 44, 34, lw, lh); }
+    if (logo) { const lh = 150, lw = lh * 72 / 49; ctx.drawImage(logo, 100, 38, lw, lh); }
     const title = (d.title || '').toUpperCase().trim();
     if (title) {
-      const f = fitLines(ctx, title, (sz) => `400 ${sz}px "Monologue"`, 330, 130, 70), cap = f.size * 0.74, lhh = f.size * 0.98, n = f.lines.length;
-      const top = 120 - (cap + (n - 1) * lhh) / 2;
-      f.lines.forEach((ln, i) => text(ctx, ln, 0, top + cap + i * lhh, `400 ${f.size}px "Monologue"`, '#fff', { inkRight: 860 }));
+      const f = fitLines(ctx, title, (sz) => `400 ${sz}px "Monologue"`, 760, 190, 100), cap = f.size * 0.74, lhh = f.size * 0.98, n = f.lines.length;
+      const top = 112 - (cap + (n - 1) * lhh) / 2;
+      f.lines.forEach((ln, i) => text(ctx, ln, 0, top + cap + i * lhh, `400 ${f.size}px "Monologue"`, '#fff', { inkRight: 1840 }));
     }
-    const ms = watchMatches(d), n = Math.max(3, ms.length), off = (n - ms.length) * WATCH_PITCH / 2;
-    for (let i = 0; i < ms.length; i++) {
-      const r = ms[i], cy = WATCH_TOP + 20 + 71 + off + i * WATCH_PITCH;
-      for (const [code, cxx] of [[r.left, 150], [r.right, 750]]) {
+    const ms = watchMatches(d), total = ms.length, two = total > 4, perCol = two ? Math.ceil(total / 2) : total;
+    const areaTop = 280, areaH = 770, pitch = Math.min(190, areaH / Math.max(perCol, 1)), dia = Math.min(150, pitch - 30), R = dia / 2;
+    const startY = areaTop + (areaH - perCol * pitch) / 2;
+    const colW = two ? 900 : 1100, centers = two ? [480, 1440] : [960];
+    const k = dia / 150;   // text scales with the crest size
+    for (let i = 0; i < total; i++) {
+      const r = ms[i], col = two ? (i < perCol ? 0 : 1) : 0, row = two ? (i < perCol ? i : i - perCol) : i;
+      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = colW / 2 - R - (two ? 24 : 120);
+      for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
         const im = await loadImg(`assets/lvl/teams/${code}.png`);
-        ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6;
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, 71, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-        if (im) ctx.drawImage(im, cxx - 71, cy - 71, 142, 142);
+        ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 7;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
       }
-      const names = !!d.showNames, dtext = watchDateText(r.dt, !!d.showTime);
+      const names = !!d.showNames, dtext = watchDateText(r.dt, !!d.showTime), mw = half * 2 - dia - 30;
       if (names) {
-        text(ctx, dtext, 0, cy - 38, '400 34px "Monologue"', '#fff', { center: 450, maxWidth: 400 });
-        text(ctx, lvlClubName(r.left).toUpperCase(), 0, cy - 14, '700 15px "Archivo"', '#fff', { center: 450, maxWidth: 400 });
-        text(ctx, 'VS', 0, cy + 34, '400 46px "Monologue"', '#fff', { center: 450 });
-        text(ctx, lvlClubName(r.right).toUpperCase(), 0, cy + 64, '700 15px "Archivo"', '#fff', { center: 450, maxWidth: 400 });
+        text(ctx, dtext, 0, cy - 40 * k, `400 ${36 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
+        text(ctx, lvlClubName(r.left).toUpperCase(), 0, cy - 14 * k, `700 ${17 * k}px "Archivo"`, '#fff', { center: cx, maxWidth: mw });
+        text(ctx, 'VS', 0, cy + 36 * k, `400 ${48 * k}px "Monologue"`, '#fff', { center: cx });
+        text(ctx, lvlClubName(r.right).toUpperCase(), 0, cy + 66 * k, `700 ${17 * k}px "Archivo"`, '#fff', { center: cx, maxWidth: mw });
       } else {
-        text(ctx, 'VS', 0, cy + 4, '400 72px "Monologue"', '#fff', { center: 450 });
-        text(ctx, dtext, 0, cy + 50, '400 38px "Monologue"', '#fff', { center: 450, maxWidth: 400 });
+        text(ctx, 'VS', 0, cy + 6 * k, `400 ${76 * k}px "Monologue"`, '#fff', { center: cx });
+        text(ctx, dtext, 0, cy + 54 * k, `400 ${two ? 38 * k : 44 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
       }
     }
-    ctx.restore();
   }
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [] };
   }
 
   // ---------- Per-kind rendering ----------
@@ -326,11 +329,12 @@
     renderQueued = false;
     if (!cur.kind || !cur.d) return;
     const seq = ++rendering;
-    const [cw, ch] = KINDS[cur.kind].vis ? visSize(cur.kind, cur.d) : [W, H];
+    const [cw, ch] = KINDS[cur.kind].vis ? visSize(cur.kind) : [W, H];
     const off = document.createElement('canvas'); off.width = cw; off.height = ch;
     await renderThumb(cur.kind, cur.d, off.getContext('2d'), cur.photo);
     if (seq !== rendering) return;
     const cv = canvas(); cv.width = cw; cv.height = ch; cv.getContext('2d').drawImage(off, 0, 0);
+    cv.classList.toggle('tall', ch > cw * 1.3);   // long watch-live lists: show the full image and scroll instead of shrinking it
   }
   const scheduleRender = () => { if (!renderQueued) { renderQueued = true; requestAnimationFrame(render); } };
 
@@ -408,7 +412,31 @@
     const days = watchDays(d), rows = watchDayRows(d), off = d.off || [];
     const clubOpts = (sel) => lvlAllClubs().map(([c, n]) => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
     const comps = [['both', 'Heren en dames'], ['men', 'Heren'], ['women', 'Dames']];
-    return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijden</div>
+    const modeTabs = `<div class="field"><label>Bron</label><div class="mode-tabs mode-tabs-compact" id="visMode"><button type="button" class="mode-tab${d.manual ? '' : ' active'}" data-m="prog">Uit het programma</button><button type="button" class="mode-tab${d.manual ? ' active' : ''}" data-m="manual">Zelf invullen</button></div></div>`;
+    const opmaak = `<div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Opmaak</div>
+        <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
+        <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
+        <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
+        <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de wedstrijden: blauw als het alleen heren zijn, paars als het alleen dames zijn, neutraal lichtblauw als het een mix is. De afbeelding wordt zo lang als nodig voor alle wedstrijden.</p></div>`;
+    if (d.manual) {
+      const list = d.list || [];
+      const sexSel = (i, w) => `<select class="vis-m" data-i="${i}" data-f="women"><option value="0"${w ? '' : ' selected'}>Heren</option><option value="1"${w ? ' selected' : ''}>Dames</option></select>`;
+      return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijden</div>${modeTabs}
+        ${list.length ? '' : '<p class="hint">Nog geen wedstrijden. Voeg ze hieronder toe, of neem de wedstrijden van een speeldag uit het programma over en pas ze daarna aan.</p>'}
+        ${list.map((r, i) => `<div class="field vis-mrow" style="border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><label style="margin:0">Wedstrijd ${i + 1}</label><span style="display:flex;gap:4px;align-items:center">
+            <button type="button" class="btn btn-link vis-mmove" data-i="${i}" data-dir="-1"${i ? '' : ' disabled'} title="Omhoog">↑</button>
+            <button type="button" class="btn btn-link vis-mmove" data-i="${i}" data-dir="1"${i < list.length - 1 ? '' : ' disabled'} title="Omlaag">↓</button>
+            <button type="button" class="btn btn-link vis-mdel" data-i="${i}" title="Verwijderen">✕</button></span></div>
+          <select class="vis-m" data-i="${i}" data-f="left">${clubOpts(r.left)}</select>
+          <select class="vis-m" data-i="${i}" data-f="right">${clubOpts(r.right)}</select>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:6px"><input type="text" class="vis-m" data-i="${i}" data-f="dt" value="${esc(r.dt || '')}" placeholder="22/10 - 20:30">${sexSel(i, r.women)}</div>
+        </div>`).join('')}
+        <button class="btn btn-link" id="visMAdd" type="button">+ Wedstrijd toevoegen</button>
+        ${rows.length ? `<button class="btn btn-link" id="visMCopy" type="button">Wedstrijden van speeldag ${esc(d.day)} overnemen</button>` : ''}
+        <p class="hint">Datum en tijd vul je vrij in, bijv. "22/10 - 20:30". Alles wat je hier invult komt precies zo, in deze volgorde, op de afbeelding.</p></div>` + opmaak;
+    }
+    return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijden</div>${modeTabs}
       <div class="field"><label>Competitie</label><div class="mode-tabs mode-tabs-compact" id="visComp">${comps.map(([v, l]) => `<button type="button" class="mode-tab${d.comp === v ? ' active' : ''}" data-c="${v}">${l}</button>`).join('')}</div></div>
       ${days.length ? `<div class="field"><label for="visDay">Speeldag</label><select id="visDay">${days.map(k => `<option value="${k}"${k === d.day ? ' selected' : ''}>${k}</option>`).join('')}</select></div>` : '<p class="hint">Geen programma geladen: lees hieronder een CSV in of voeg zelf wedstrijden toe.</p>'}
       ${rows.length ? `<div class="field"><label>Op de afbeelding</label>${rows.map(r => `<label class="hnl-check"><input type="checkbox" class="vis-pick" data-k="${esc(watchKey(r))}"${off.includes(watchKey(r)) ? '' : ' checked'}> ${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} <small>${esc((dtParts(r.dt) || {}).time || '')}</small></label>`).join('')}</div>` : ''}
@@ -420,11 +448,7 @@
         <button class="btn btn-link" id="visAdd" type="button">+ Toevoegen</button></details>
       <label class="photo-btn" for="visCsv"><span class="photo-btn-text">Nieuw programma inlezen (CSV)</span><span class="photo-btn-sub">${(cur.lvlAll || []).length} wedstrijden geladen · kolommen: Naam, bg, LogoLinks, LogoRechts, TijdText</span></label>
       <input type="file" id="visCsv" accept=".csv,text/csv" hidden></div>
-      <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Opmaak</div>
-        <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
-        <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
-        <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
-        <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor dames.</p></div>`;
+      ` + opmaak;
   }
 
   function buildControls() {
@@ -548,11 +572,36 @@
     on('visDay', 'change', (e) => set({ day: e.target.value, off: [] }, true));
     document.querySelectorAll('.vis-pick').forEach(cb => cb.addEventListener('change', () => { const o = new Set(d.off || []); if (cb.checked) o.delete(cb.dataset.k); else o.add(cb.dataset.k); set({ off: Array.from(o) }); }));
     on('visTime', 'change', (e) => set({ showTime: e.target.checked }));
+    // filling the watch-live list in by hand
+    document.querySelectorAll('#visMode [data-m]').forEach(b => b.addEventListener('click', () => {
+      const manual = b.dataset.m === 'manual';
+      if (manual && !(d.list || []).length) d.list = watchMatches(Object.assign({}, d, { manual: false })).map(r => ({ left: r.left, right: r.right, dt: r.dt, women: !!r.women }));
+      set({ manual }, true);
+    }));
+    document.querySelectorAll('.vis-m').forEach(el => el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', () => {
+      const r = d.list[parseInt(el.dataset.i, 10)]; if (!r) return;
+      r[el.dataset.f] = el.dataset.f === 'women' ? el.value === '1' : el.value;
+      scheduleRender(); scheduleSave();
+    }));
+    document.querySelectorAll('.vis-mdel').forEach(b => b.addEventListener('click', () => { d.list.splice(parseInt(b.dataset.i, 10), 1); scheduleSave(); buildControls(); scheduleRender(); }));
+    document.querySelectorAll('.vis-mmove').forEach(b => b.addEventListener('click', () => {
+      const i = parseInt(b.dataset.i, 10), j = i + parseInt(b.dataset.dir, 10); if (j < 0 || j >= d.list.length) return;
+      const t = d.list[i]; d.list[i] = d.list[j]; d.list[j] = t; scheduleSave(); buildControls(); scheduleRender();
+    }));
+    on('visMAdd', 'click', () => {
+      const last = (d.list || [])[d.list.length - 1], clubs = lvlAllClubs();
+      d.list = (d.list || []).concat([{ left: clubs[0][0], right: clubs[1][0], dt: last ? last.dt : (d.day ? d.day + ' - 20:30' : ''), women: last ? !!last.women : d.comp === 'women' }]);
+      scheduleSave(); buildControls(); scheduleRender();
+    });
+    on('visMCopy', 'click', () => {
+      d.list = watchMatches(Object.assign({}, d, { manual: false })).map(r => ({ left: r.left, right: r.right, dt: r.dt, women: !!r.women }));
+      scheduleSave(); buildControls(); scheduleRender();
+    });
     on('visNames', 'change', (e) => set({ showNames: e.target.checked }));
     on('visAdd', 'click', () => {
       const dt = ($('visXDt').value || '').trim(), home = $('visXHome').value, away = $('visXAway').value;
       if (!dtParts(dt) || home === away) { status('Vul een datum (22/10 - 20:30) in en kies twee verschillende clubs'); return; }
-      d.extra = (d.extra || []).concat([{ left: home, right: away, dt, women: false }]); d.day = dayKeyOf(dt); scheduleSave(); buildControls(); scheduleRender();
+      d.extra = (d.extra || []).concat([{ left: home, right: away, dt, women: d.comp === 'women' }]); d.day = dayKeyOf(dt); scheduleSave(); buildControls(); scheduleRender();
     });
     document.querySelectorAll('.vis-xdel').forEach(b => b.addEventListener('click', () => { d.extra.splice(parseInt(b.dataset.i, 10), 1); scheduleSave(); buildControls(); scheduleRender(); }));
     on('visCsv', 'change', async (e) => {
@@ -577,7 +626,7 @@
   const EXT = { jpeg: 'jpg', webp: 'webp', png: 'png' };
   const toBlob = (cv, fmt) => new Promise(res => cv.toBlob(res, MIME[fmt], 0.93));
   async function blobFor(kind, d, fmt, withPhoto = true) {
-    const [cw, ch] = KINDS[kind].vis ? visSize(kind, d) : [W, H];
+    const [cw, ch] = KINDS[kind].vis ? visSize(kind) : [W, H];
     const c = document.createElement('canvas'); c.width = cw; c.height = ch;
     await renderThumb(kind, d, c.getContext('2d'), withPhoto ? cur.photo : null);
     return toBlob(c, fmt);
@@ -594,7 +643,7 @@
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
     if (KINDS[kind].vis === 'mail') return 'LVL_mailheader';
-    if (KINDS[kind].vis === 'watch') return `LVL_watchlive_${String(d.day || 'dag').replace('/', '-')}`;
+    if (KINDS[kind].vis === 'watch') { const day = d.manual ? dayKeyOf(((d.list || [])[0] || {}).dt) || 'eigen' : d.day || 'dag'; return `LVL_watchlive_${String(day).replace('/', '-')}`; }
     if (KINDS[kind].lvl) {
       const m = /(\d{1,2})\/(\d{1,2})/.exec(d.dt || ''), stamp = m ? `${seasonDate(+m[1], +m[2]).getFullYear()}${String(+m[2]).padStart(2, '0')}${String(+m[1]).padStart(2, '0')}` : 'datum';
       return `${LVL[kind].prefix}_${stamp}_${d.home}-${d.away}`;

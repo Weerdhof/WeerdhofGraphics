@@ -1165,5 +1165,9 @@ body:not(.set-open) .settings-view { display: none; }
 .th-app[data-kind="lvlw"] { --accent: #EE3124; }
 .th-app[data-kind="lvlmail"], .th-app[data-kind="lvlwatch"] { --accent: #EE3124; }
 .home-menu.theme-lvl .menu-card[data-go-th="lvlmail"], .home-menu.theme-lvl .menu-card[data-go-th="lvlwatch"] { border-left-color: #EE3124; }
-.th-app[data-kind="lvlwatch"] #thCanvas { width: auto; max-width: 100%; max-height: 88vh; }
 .th-app[data-kind="lvlmail"] #thCanvas { width: min(62vw, 960px); box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+
+/* long watch-live images: full width preview, scroll instead of shrinking */
+.th-app #thCanvas.tall { width: min(46vw, 620px); max-height: none; }
+.th-app .canvas-holder:has(#thCanvas.tall) { max-height: none; }
+.th-app .preview-wrap:has(#thCanvas.tall) { align-items: flex-start; }
