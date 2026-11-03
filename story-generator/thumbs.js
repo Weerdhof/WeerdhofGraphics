@@ -262,12 +262,12 @@
     const k = dia / 150;   // text scales with the crest size
     // thin dividers between the matches (and between the two columns)
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    const lineHalf = colW / 2 - (two ? 24 : 120) + 10, rowsIn = (c) => two ? (c === 0 ? perCol : total - perCol) : total;
+    const lineHalf = Math.min(colW / 2 - (two ? 24 : 120) + 10, 2 * R + (two ? 190 : 235) * (dia / 150) + 36), rowsIn = (c) => two ? (c === 0 ? perCol : total - perCol) : total;
     centers.forEach((cxx, c) => { for (let r = 1; r < rowsIn(c); r++) ctx.fillRect(cxx - lineHalf, startY + r * pitch - 1, lineHalf * 2, 2); });
     if (two) ctx.fillRect(959, startY + 12, 2, perCol * pitch - 24);
     for (let i = 0; i < total; i++) {
       const r = ms[i], col = two ? (i < perCol ? 0 : 1) : 0, row = two ? (i < perCol ? i : i - perCol) : i;
-      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = colW / 2 - R - (two ? 24 : 120);
+      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = Math.min(colW / 2 - R - (two ? 24 : 120), R + (two ? 190 : 235) * (dia / 150));
       for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
         const im = await loadImg(`assets/lvl/teams/${code}.png`);
         ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 7;
@@ -275,7 +275,7 @@
         if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
       }
       const names = !!d.showNames, dtext = watchDateText(r.dt, !!d.showTime), mw = half * 2 - dia - 30;
-      if (d.showAbbr !== false && !names) {   // the club abbreviation next to each crest
+      if (d.showAbbr && !names) {   // the club abbreviation next to each crest
         const af = `400 ${46 * k}px "Monologue"`, aw = Math.max(60, half - R - 24 - 150 * k);
         text(ctx, r.left, 0, cy + 17 * k, af, '#fff', { inkLeft: cx - half + R + 16, maxWidth: aw });
         text(ctx, r.right, 0, cy + 17 * k, af, '#fff', { inkRight: cx + half - R - 16, maxWidth: aw });
@@ -295,24 +295,24 @@
   async function renderWatchWeek(ctx, groups, d) {
     const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050;
     const maxRows = Math.max.apply(null, groups.map(g => g.items.length));
-    const pitch = Math.min(150, (rowsBottom - rowsTop) / maxRows), dia = Math.min(124, pitch - 18), R = dia / 2, k = dia / 110;
+    const pitch = Math.min(142, (rowsBottom - rowsTop) / maxRows), dia = pitch - 20, R = dia / 2, k = dia / 110;
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the days
     for (let c = 0; c < nCol; c++) {
-      const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56, half = inner / 2 - R;
+      const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56, half = Math.min(inner / 2 - R, R + 66 * k + 8), rowHalf = half + R + 26;
       const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
       text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
       ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
       for (let i = 0; i < g.items.length; i++) {
         const r = g.items[i], cy = rowsTop + i * pitch + pitch / 2;
-        if (i > 0) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - inner / 2, rowsTop + i * pitch - 1, inner, 2); }
+        if (i > 0) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - rowHalf, rowsTop + i * pitch - 1, rowHalf * 2, 2); }
         for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
           const im = await loadImg(`assets/lvl/teams/${code}.png`);
           ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
           ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
           if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
         }
-        if (d.showAbbr !== false) {
+        if (d.showAbbr) {
           const af = `400 ${36 * k}px "Monologue"`, aw = Math.max(40, half - R - 10 - 52 * k);
           text(ctx, r.left, 0, cy + 13 * k, af, '#fff', { inkLeft: cx - half + R + 10, maxWidth: aw });
           text(ctx, r.right, 0, cy + 13 * k, af, '#fff', { inkRight: cx + half - R - 10, maxWidth: aw });
@@ -328,7 +328,7 @@
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: true };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: false };
   }
 
 
@@ -609,7 +609,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
-        <label class="hnl-check"><input type="checkbox" id="visAbbr"${d.showAbbr !== false ? ' checked' : ''}> Afkorting van de club naast het logo (bijv. ROE, WAR)</label>
+        <label class="hnl-check"><input type="checkbox" id="visAbbr"${d.showAbbr ? ' checked' : ''}> Afkorting van de club naast het logo (bijv. ROE, WAR)</label>
         <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor alleen dames. Eén speeldag: een of twee kolommen met datum en tijd bij elke wedstrijd. Meer speeldagen (een weekoverzicht): één kolom per dag met de datum erboven, tot vier dagen; de clubnamen blijven dan weg.</p></div>`;
     if (d.manual) {
       const list = d.list || [];
