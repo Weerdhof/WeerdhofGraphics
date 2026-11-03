@@ -114,13 +114,18 @@
     lvlw: { bg: 'assets/lvl/bg_women.png', prefix: 'LVLW', tag: '[LVLW]', clubs: [['NOO', 'Volley Noorderkempen'], ['DROE', 'Darta Bevo Roeselare'], ['ZOE', 'KwadrO Amigos Sint-Antonius Zoersel'], ['MIC', 'Vlavo Saturnus Michelbeke'], ['CHA', 'ES Charleroi Volley'], ['TCH', 'CapitalAtWork Tchalou Volley'], ['GEND', 'Damesvolley Dok Noord Gent'], ['BEV', 'Asterix AVO Beveren'], ['HEL', 'HVC Helchteren Oben ramen & deuren'], ['OUD', 'VC Oudegem'], ['SGW', 'Vamos Stekene - Sint-Gillis-Waas'], ['ANT', 'SAB Diving Brabo Antwerp VT']] },
   };
   const lvlName = (kind, code) => (LVL[kind].clubs.find(c => c[0] === code) || [0, code])[1];
-  async function renderLvl(kind, d, ctx) {
+  async function renderLvl(kind, d, ctx, photo) {
     await fontsReady;
     try { await document.fonts.load('400 160px Monologue'); } catch (e) { /* ignore */ }
     ctx.clearRect(0, 0, W, H);
     const bg = await loadImg(LVL[kind].bg); if (bg) ctx.drawImage(bg, 0, 0, W, H);
     const vorm = await loadImg('assets/lvl/vorm.png'); if (vorm) ctx.drawImage(vorm, 0, 0, W, H);   // the dark wave in the bottom right (layer "Vorm 1" of the PSD)
     if (d.season) text(ctx, d.season, 0, 226, '400 247px "Monologue"', '#012243', { inkRight: 1870, alpha: 0.16 });
+    // the player (cut-out, background already removed): head near the top, centred in the right half, bleeding off the bottom
+    if (photo && d.hasPhoto) {
+      const pp = d.photoPos || { z: 1, x: 0, y: 0 }, ph = 1010 * pp.z, pw = ph * photo.naturalWidth / photo.naturalHeight;
+      ctx.drawImage(photo, 1410 + pp.x - pw / 2, 75 + pp.y, pw, ph);
+    }
     for (const [code, x] of [[d.home, 53], [d.away, 634]]) {
       const im = code ? await loadImg(`assets/lvl/teams/${code}.png`) : null;
       if (im) ctx.drawImage(im, x, 309, 401, 401);   // the crest files include their white circle
@@ -268,11 +273,63 @@
     return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [] };
   }
 
+
+  // ---------- Background removal (runs in the browser; MODNet portrait matting via transformers.js, Apache-2.0) ----------
+  let bgEngine = null;
+  async function bgLoad(msg) {
+    if (bgEngine) return bgEngine;
+    msg('Model laden (de eerste keer ± 25 MB, daarna uit de cache)…');
+    const t = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6');
+    const model = await t.AutoModel.from_pretrained('Xenova/modnet', { dtype: 'fp32' });
+    const processor = await t.AutoProcessor.from_pretrained('Xenova/modnet');
+    bgEngine = { t, model, processor }; return bgEngine;
+  }
+  // image -> canvas with transparent background, trimmed to the person; keep = the photo already has a transparent background
+  async function cutOut(img, keep, msg) {
+    const sc = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+    const cv = document.createElement('canvas'); cv.width = Math.round(img.naturalWidth * sc); cv.height = Math.round(img.naturalHeight * sc);
+    const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, cv.width, cv.height);
+    const px = cx.getImageData(0, 0, cv.width, cv.height), a = px.data;
+    if (!keep) {
+      const { t, model, processor } = await bgLoad(msg);
+      msg('Achtergrond verwijderen…');
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      const image = await t.RawImage.fromBlob(blob);
+      const { pixel_values } = await processor(image);
+      const out = await model({ input: pixel_values });
+      const mask = await t.RawImage.fromTensor(out.output[0].mul(255).to('uint8')).resize(cv.width, cv.height);
+      // slightly steeper matte: removes the faint halo of the old background around hair and ball
+      for (let i = 0; i < cv.width * cv.height; i++) { const m = mask.data[i] / 255, v = Math.min(1, Math.max(0, (m - 0.12) / 0.76)); a[i * 4 + 3] = Math.round(v * v * (3 - 2 * v) * 255); }
+    }
+    let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (a[(y * cv.width + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 <= x0 || y1 <= y0) throw new Error('geen persoon gevonden in de foto');
+    cx.putImageData(px, 0, 0);
+    const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+    out.getContext('2d').drawImage(cv, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  }
+  async function uploadPlayer(file, keep) {
+    const msgEl = () => $('thLvlBgMsg'), msg = (t) => { const el = msgEl(); if (el) el.textContent = t; };
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('afbeelding niet te lezen')); i.src = url; });
+      const out = await cutOut(img, keep, msg); URL.revokeObjectURL(url);
+      const blob = await new Promise(res => out.toBlob(res, 'image/png'));
+      const k = itemKey(); setSave('saving');
+      const r = await fetch('/api/photo?key=' + enc(k), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
+      if (!r.ok) throw new Error('opslaan mislukt (HTTP ' + r.status + ')');
+      cur.photo = await blobToImg(blob); cur.d.hasPhoto = true; cur.d.photoPos = { z: 1, x: 0, y: 0 };
+      lastSaved = ''; flushSave(); buildControls(); scheduleRender();
+      msg('✓ Achtergrond verwijderd. Sleep op de preview om de speler te verplaatsen.');
+    } catch (err) { msg('Mislukt: ' + err.message); setSave('error'); }
+  }
+
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
     if (KINDS[kind].vis) { await renderVis(kind, d, ctx); return; }
-    if (KINDS[kind].lvl) { await renderLvl(kind, d, ctx); return; }
+    if (KINDS[kind].lvl) { await renderLvl(kind, d, ctx, photo); return; }
     const scene = await loadScene(kind);
     ctx.clearRect(0, 0, W, H);
     ThumbScene.base = SCENES[kind];
@@ -476,7 +533,14 @@
         <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Programma</div>
         <label class="photo-btn" id="thLvlDrop" for="thLvlCsv"><span class="photo-btn-text">Nieuw programma inlezen (CSV)</span><span class="photo-btn-sub">${rows.length} wedstrijden geladen · kolommen: Naam, bg, LogoLinks, LogoRechts, TijdText</span></label>
         <input type="file" id="thLvlCsv" accept=".csv,text/csv" hidden>
-        <p class="hint">Een nieuwe CSV vervangt het programma voor heren én dames; de wedstrijden van deze competitie verschijnen in de lijst hierboven.</p></div>`;
+        <p class="hint">Een nieuwe CSV vervangt het programma voor heren én dames; de wedstrijden van deze competitie verschijnen in de lijst hierboven.</p></div>
+        <div class="panel-step"><div class="panel-step-title"><span class="step-num">3</span> Speler (optioneel)</div>
+        <label class="photo-btn" id="thLvlPhotoDrop" for="thLvlPhoto"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">de achtergrond wordt automatisch verwijderd · klik, of sleep hier een foto in</span></label>
+        <input type="file" id="thLvlPhoto" accept="image/*" hidden>
+        <label class="hnl-check"><input type="checkbox" id="thLvlKeep"> De foto heeft al een transparante achtergrond (PNG): niet verwijderen</label>
+        <p class="hint" id="thLvlBgMsg"></p>
+        ${d.hasPhoto ? `<div class="field"><label for="thLvlZoom">Grootte</label><input type="range" id="thLvlZoom" min="50" max="220" value="${Math.round(d.photoPos.z * 100)}"></div>
+        <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de speler te verschuiven.</p>` : ''}</div>`;
     } else if (K.next) {
       html += `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijd</div>
         <div class="field"><label for="thSlot">Opslagplek</label><select id="thSlot">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}"${i + 1 === cur.slot ? ' selected' : ''}>Slot ${i + 1}</option>`).join('')}</select></div>
@@ -510,7 +574,7 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
       ${K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
@@ -622,6 +686,14 @@
         status(`✓ Programma ingelezen: ${rows.length} wedstrijden`);
       } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
+    on('thLvlPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked)); });
+    const lvlDrop = $('thLvlPhotoDrop');
+    if (lvlDrop) {
+      ['dragenter', 'dragover'].forEach(ev => lvlDrop.addEventListener(ev, (e) => { e.preventDefault(); lvlDrop.classList.add('drag-over'); }));
+      ['dragleave', 'drop'].forEach(ev => lvlDrop.addEventListener(ev, (e) => { e.preventDefault(); lvlDrop.classList.remove('drag-over'); }));
+      lvlDrop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f && /^image\//.test(f.type)) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked)); });
+    }
+    on('thLvlZoom', 'input', (e) => { d.photoPos.z = parseInt(e.target.value, 10) / 100; scheduleRender(); scheduleSave(); });
     on('thExport', 'click', exportOne);
     on('thExportDay', 'click', KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
   }
@@ -751,7 +823,7 @@
     if (k !== itemKey()) return;
     cur.d = Object.assign(K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
-    if (cur.d.hasPhoto && !K.lvl && !K.vis) {
+    if (cur.d.hasPhoto && !K.vis) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
     if (K.vis) {
@@ -822,6 +894,7 @@
     cv.addEventListener('pointermove', (e) => {
       if (!drag || !cur.photo) return;
       const p = cur.d.photoPos; p.x = drag.ox + (e.clientX - drag.x) * drag.k; p.y = drag.oy + (e.clientY - drag.y) * drag.k;
+      if (KINDS[cur.kind].lvl) { scheduleRender(); return; }   // LVL: the cut-out moves freely
       const r = photoRect(cur.photo, p); p.x = r.x; p.y = r.y;   // keep the stored offset inside the limits so dragging doesn't feel sticky
       scheduleRender();
     });
