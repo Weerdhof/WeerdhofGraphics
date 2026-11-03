@@ -241,7 +241,12 @@
   async function renderWatch(d, ctx) {
     const W3 = 1920, H3 = 1080, women = d.comp === 'women';
     ctx.clearRect(0, 0, W3, H3);
-    ctx.fillStyle = lvlThumbGrad(ctx, W3, H3, women); ctx.fillRect(0, 0, W3, H3);
+    if (d.bgStyle === 'thumb') { ctx.fillStyle = lvlThumbGrad(ctx, W3, H3, women); ctx.fillRect(0, 0, W3, H3); }
+    else {   // as the hero of lottovolleyleague.be: navy-blue at the top to light blue at the bottom, with its yellow circle bleeding off the bottom right
+      const g = ctx.createLinearGradient(0, 0, 0, H3); g.addColorStop(0, '#05518c'); g.addColorStop(0.5, '#0f92ef'); g.addColorStop(1, '#59bdf8');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W3, H3);
+      ctx.fillStyle = '#ffdd00'; ctx.beginPath(); ctx.arc(1830, 1090, 360, 0, Math.PI * 2); ctx.fill();
+    }
     await document.fonts.load('400 120px "Monologue"').catch(() => {});
     // the dark wave top left with the logo (as in the thumbnails), the title to the right
     ctx.fillStyle = LVL_WAVE; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(930, 0); ctx.bezierCurveTo(780, 130, 440, 240, 0, 262); ctx.closePath(); ctx.fill();
@@ -351,7 +356,7 @@
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: false, markComp: false };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: false, markComp: false, bgStyle: 'site' };
   }
 
 
@@ -630,6 +635,7 @@
     const modeTabs = `<div class="field"><label>Bron</label><div class="mode-tabs mode-tabs-compact" id="visMode"><button type="button" class="mode-tab${d.manual ? '' : ' active'}" data-m="prog">Uit het programma</button><button type="button" class="mode-tab${d.manual ? ' active' : ''}" data-m="manual">Zelf invullen</button></div></div>`;
     const opmaak = `<div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Opmaak</div>
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
+        <div class="field"><label for="visBg">Achtergrond</label><select id="visBg"><option value="site"${d.bgStyle !== 'thumb' ? ' selected' : ''}>Website (blauwverloop met gele cirkel)</option><option value="thumb"${d.bgStyle === 'thumb' ? ' selected' : ''}>Thumbnail (diagonaal verloop, paars bij alleen dames)</option></select></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visMark"${d.markComp ? ' checked' : ''}> Balkje per wedstrijd met MEN of WOMEN (kleuren van de LVL-site: heren donkerblauw, dames paars)</label>
@@ -828,6 +834,7 @@
     on('visNames', 'change', (e) => set({ showNames: e.target.checked }));
     on('visAbbr', 'change', (e) => set({ showAbbr: e.target.checked }));
     on('visMark', 'change', (e) => set({ markComp: e.target.checked }));
+    on('visBg', 'change', (e) => set({ bgStyle: e.target.value }));
     on('visAdd', 'click', () => {
       const dt = ($('visXDt').value || '').trim(), home = $('visXHome').value, away = $('visXAway').value;
       if (!dtParts(dt) || home === away) { status('Vul een datum (22/10 - 20:30) in en kies twee verschillende clubs'); return; }
