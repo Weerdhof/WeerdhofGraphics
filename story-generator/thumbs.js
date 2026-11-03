@@ -175,13 +175,28 @@
   const watchKey = (r) => `${r.left}-${r.right}|${r.dt}`;
   // the matches shown on the image: the programme rows of the chosen day (and competition) minus the ones switched off, plus the added ones
   const dayKeyOf = (dt) => { const q = dtParts(dt); return q ? `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}` : ''; };
-  const watchDayRows = (d) => (cur.lvlAll || []).map(lvlRowFor).filter(r => r.left && r.right && dayKeyOf(r.dt) === d.day && (d.comp === 'both' || (d.comp === 'women') === r.women));
-  const watchDays = (d) => { const set = {}; (cur.lvlAll || []).map(lvlRowFor).concat(d.extra || []).forEach(r => { const k = dayKeyOf(r.dt); if (k) set[k] = 1; }); return Object.keys(set).sort((a, b) => lvlSeasonOrder(a) - lvlSeasonOrder(b)); };
+  const dayDate = (k) => { const q = /(\d+)\/(\d+)/.exec(k || ''); return q ? seasonDate(+q[1], +q[2]) : null; };
+  const compOk = (d, r) => d.comp === 'both' || (d.comp === 'women') === !!r.women;
+  const progRows = () => (cur.lvlAll || []).map(lvlRowFor).filter(r => r.left && r.right);
+  // every day that has matches (for the chosen competition), in calendar order
+  const watchDays = (d) => { const set = {}; progRows().filter(r => compOk(d, r)).concat(d.extra || []).forEach(r => { const k = dayKeyOf(r.dt); if (k) set[k] = 1; }); return Object.keys(set).sort((x, y) => dayDate(x) - dayDate(y)); };
+  // the days on the image: from the chosen first day, span days long (a week by default)
+  const watchWindow = (d) => { const st = dayDate(d.day); if (!st) return []; const en = new Date(st.getTime() + ((d.span || 7) - 1) * 86400000 + 3600000); return watchDays(d).filter(k => { const t = dayDate(k); return t >= st && t <= en; }); };
+  const watchDayRows = (d) => { const win = watchWindow(d); return progRows().filter(r => compOk(d, r) && win.includes(dayKeyOf(r.dt))); };
+  const timeOf = (r) => (dtParts(r.dt) || {}).time || '';
   function watchMatches(d) {
     if (d.manual) return (d.list || []).filter(r => r.left && r.right);   // filled in by hand: exactly this list, in this order
+    const win = watchWindow(d);
     const fromProg = watchDayRows(d).filter(r => !(d.off || []).includes(watchKey(r)));
-    const extra = (d.extra || []).filter(r => { const q = dtParts(r.dt); return q && `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}` === d.day; });
-    return fromProg.concat(extra).sort((a, b) => ((dtParts(a.dt) || {}).time || '').localeCompare((dtParts(b.dt) || {}).time || '') || (a.women - b.women));
+    const extra = (d.extra || []).filter(r => win.includes(dayKeyOf(r.dt)));
+    return fromProg.concat(extra).sort((x, y) => (dayDate(dayKeyOf(x.dt)) - dayDate(dayKeyOf(y.dt))) || timeOf(x).localeCompare(timeOf(y)) || (x.women - y.women));
+  }
+  // matches grouped per day (calendar order, the order inside a day is kept)
+  function watchGroups(ms) {
+    const g = {}, order = [];
+    ms.forEach(r => { const k = dayKeyOf(r.dt) || ''; if (!g[k]) { g[k] = []; order.push(k); } g[k].push(r); });
+    order.sort((x, y) => ((dayDate(x) || 0) - (dayDate(y) || 0)));
+    return order.map(k => ({ key: k, items: g[k] }));
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
@@ -237,7 +252,9 @@
       const top = 112 - (cap + (n - 1) * lhh) / 2;
       f.lines.forEach((ln, i) => text(ctx, ln, 0, top + cap + i * lhh, `400 ${f.size}px "Monologue"`, '#fff', { inkRight: 1840 }));
     }
-    const ms = watchMatches(d), total = ms.length, two = total > 4, perCol = two ? Math.ceil(total / 2) : total;
+    const ms = watchMatches(d), groups = watchGroups(ms);
+    if (groups.length > 1) { await renderWatchWeek(ctx, groups.slice(0, 4), d); return; }
+    const total = ms.length, two = total > 4, perCol = two ? Math.ceil(total / 2) : total;
     const areaTop = 280, areaH = 770, pitch = Math.min(190, areaH / Math.max(perCol, 1)), dia = Math.min(150, pitch - 30), R = dia / 2;
     const startY = areaTop + (areaH - perCol * pitch) / 2;
     const colW = two ? 900 : 1100, centers = two ? [480, 1440] : [960];
@@ -268,10 +285,39 @@
       }
     }
   }
+  // Watch live over several days (a week overview): one column per day with the date on top, the matches below it
+  async function renderWatchWeek(ctx, groups, d) {
+    const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050;
+    const maxRows = Math.max.apply(null, groups.map(g => g.items.length));
+    const pitch = Math.min(150, (rowsBottom - rowsTop) / maxRows), dia = Math.min(124, pitch - 18), R = dia / 2, k = dia / 110;
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the days
+    for (let c = 0; c < nCol; c++) {
+      const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56, half = inner / 2 - R;
+      const dt = dayDate(g.key), label = dt ? `${DAYS.nl[dt.getDay()]} ${dt.getDate()} ${MONTHS.nl[dt.getMonth()]}` : '';
+      text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
+      for (let i = 0; i < g.items.length; i++) {
+        const r = g.items[i], cy = rowsTop + i * pitch + pitch / 2;
+        if (i > 0) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - inner / 2, rowsTop + i * pitch - 1, inner, 2); }
+        for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
+          const im = await loadImg(`assets/lvl/teams/${code}.png`);
+          ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+          if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
+        }
+        const tm = timeOf(r);
+        if (d.showTime && tm) {
+          text(ctx, 'VS', 0, cy - 2 * k, `400 ${40 * k}px "Monologue"`, '#fff', { center: cx });
+          text(ctx, tm, 0, cy + 38 * k, `400 ${44 * k}px "Monologue"`, '#fff', { center: cx });
+        } else text(ctx, 'VS', 0, cy + 16 * k, `400 ${60 * k}px "Monologue"`, '#fff', { center: cx });
+      }
+    }
+  }
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [] };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7 };
   }
 
 
@@ -544,7 +590,7 @@
         <div class="field"><label for="visSub">Ondertitel (optioneel)</label><input type="text" id="visSub" value="${esc(d.sub)}" placeholder="bijv. Speelronde 5"></div>
         <p class="hint">De titel past zichzelf aan: een korte titel staat groot op één regel, een lange wordt automatisch verkleind of over twee regels verdeeld. Export is 1200×400 px, voor een mail van 600 px breed (scherp op retina).</p></div>`;
     }
-    const days = watchDays(d), rows = watchDayRows(d), off = d.off || [];
+    const days = watchDays(d), rows = watchDayRows(d), off = d.off || [], winDays = d.manual ? [] : watchWindow(d);
     const clubOpts = (sel) => lvlAllClubs().map(([c, n]) => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
     const comps = [['both', 'Heren en dames'], ['men', 'Heren'], ['women', 'Dames']];
     const modeTabs = `<div class="field"><label>Bron</label><div class="mode-tabs mode-tabs-compact" id="visMode"><button type="button" class="mode-tab${d.manual ? '' : ' active'}" data-m="prog">Uit het programma</button><button type="button" class="mode-tab${d.manual ? ' active' : ''}" data-m="manual">Zelf invullen</button></div></div>`;
@@ -552,7 +598,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
-        <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de wedstrijden: blauw als het alleen heren zijn, paars als het alleen dames zijn, neutraal lichtblauw als het een mix is. De afbeelding wordt zo lang als nodig voor alle wedstrijden.</p></div>`;
+        <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor alleen dames. Eén speeldag: een of twee kolommen met datum en tijd bij elke wedstrijd. Meer speeldagen (een weekoverzicht): één kolom per dag met de datum erboven, tot vier dagen; de clubnamen blijven dan weg.</p></div>`;
     if (d.manual) {
       const list = d.list || [];
       const sexSel = (i, w) => `<select class="vis-m" data-i="${i}" data-f="women"><option value="0"${w ? '' : ' selected'}>Heren</option><option value="1"${w ? ' selected' : ''}>Dames</option></select>`;
@@ -573,9 +619,11 @@
     }
     return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijden</div>${modeTabs}
       <div class="field"><label>Competitie</label><div class="mode-tabs mode-tabs-compact" id="visComp">${comps.map(([v, l]) => `<button type="button" class="mode-tab${d.comp === v ? ' active' : ''}" data-c="${v}">${l}</button>`).join('')}</div></div>
-      ${days.length ? `<div class="field"><label for="visDay">Speeldag</label><select id="visDay">${days.map(k => `<option value="${k}"${k === d.day ? ' selected' : ''}>${k}</option>`).join('')}</select></div>` : '<p class="hint">Geen programma geladen: lees hieronder een CSV in of voeg zelf wedstrijden toe.</p>'}
-      ${rows.length ? `<div class="field"><label>Op de afbeelding</label>${rows.map(r => `<label class="hnl-check"><input type="checkbox" class="vis-pick" data-k="${esc(watchKey(r))}"${off.includes(watchKey(r)) ? '' : ' checked'}> ${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} <small>${esc((dtParts(r.dt) || {}).time || '')}</small></label>`).join('')}</div>` : ''}
-      ${(d.extra || []).filter(r => dayKeyOf(r.dt) === d.day).map((r) => `<div class="field"><label>Zelf toegevoegd</label><div class="hnl-pair"><span>${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} · ${esc(r.dt)}</span><button type="button" class="btn btn-link vis-xdel" data-i="${d.extra.indexOf(r)}">✕</button></div></div>`).join('')}
+      ${days.length ? `<div class="field"><label for="visDay">Eerste speeldag</label><select id="visDay">${days.map(k => `<option value="${k}"${k === d.day ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
+      <div class="field"><label for="visSpan">Aantal dagen (7 = de hele week)</label><select id="visSpan">${[1, 2, 3, 4, 5, 6, 7, 10, 14].map(n => `<option value="${n}"${(d.span || 7) === n ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+      ${winDays.length > 4 ? `<p class="hint" style="color:#ffb4a8">Dit zijn ${winDays.length} speeldagen: er passen er vier op de afbeelding. Kies minder dagen.</p>` : ''}` : '<p class="hint">Geen programma geladen: lees hieronder een CSV in of voeg zelf wedstrijden toe.</p>'}
+      ${rows.length ? `<div class="field"><label>Op de afbeelding</label>${watchGroups(rows).map(g => `<div style="margin:8px 0 2px;font-weight:700;opacity:.8">${esc(g.key)}</div>` + g.items.map(r => `<label class="hnl-check"><input type="checkbox" class="vis-pick" data-k="${esc(watchKey(r))}"${off.includes(watchKey(r)) ? '' : ' checked'}> ${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} <small>${esc(timeOf(r))}</small></label>`).join('')).join('')}</div>` : ''}
+      ${(d.extra || []).filter(r => winDays.includes(dayKeyOf(r.dt))).map((r) => `<div class="field"><label>Zelf toegevoegd</label><div class="hnl-pair"><span>${esc(lvlClubName(r.left))} – ${esc(lvlClubName(r.right))} · ${esc(r.dt)}</span><button type="button" class="btn btn-link vis-xdel" data-i="${d.extra.indexOf(r)}">✕</button></div></div>`).join('')}
       <details class="field"><summary>Wedstrijd zelf toevoegen</summary>
         <div class="field"><label for="visXHome">Thuis</label><select id="visXHome">${clubOpts('')}</select></div>
         <div class="field"><label for="visXAway">Uit</label><select id="visXAway">${clubOpts(lvlAllClubs()[1][0])}</select></div>
@@ -713,6 +761,7 @@
     on('visSub', 'input', (e) => set({ sub: e.target.value }));
     document.querySelectorAll('#visComp [data-c]').forEach(b => b.addEventListener('click', () => set({ comp: b.dataset.c, off: [] }, true)));
     on('visDay', 'change', (e) => set({ day: e.target.value, off: [] }, true));
+    on('visSpan', 'change', (e) => set({ span: parseInt(e.target.value, 10), off: [] }, true));
     document.querySelectorAll('.vis-pick').forEach(cb => cb.addEventListener('change', () => { const o = new Set(d.off || []); if (cb.checked) o.delete(cb.dataset.k); else o.add(cb.dataset.k); set({ off: Array.from(o) }); }));
     on('visTime', 'change', (e) => set({ showTime: e.target.checked }));
     // filling the watch-live list in by hand
@@ -744,7 +793,7 @@
     on('visAdd', 'click', () => {
       const dt = ($('visXDt').value || '').trim(), home = $('visXHome').value, away = $('visXAway').value;
       if (!dtParts(dt) || home === away) { status('Vul een datum (22/10 - 20:30) in en kies twee verschillende clubs'); return; }
-      d.extra = (d.extra || []).concat([{ left: home, right: away, dt, women: d.comp === 'women' }]); d.day = dayKeyOf(dt); scheduleSave(); buildControls(); scheduleRender();
+      d.extra = (d.extra || []).concat([{ left: home, right: away, dt, women: d.comp === 'women' }]); if (!watchWindow(d).includes(dayKeyOf(dt))) d.day = dayKeyOf(dt); scheduleSave(); buildControls(); scheduleRender();
     });
     document.querySelectorAll('.vis-xdel').forEach(b => b.addEventListener('click', () => { d.extra.splice(parseInt(b.dataset.i, 10), 1); scheduleSave(); buildControls(); scheduleRender(); }));
     on('visCsv', 'change', async (e) => {
