@@ -236,6 +236,11 @@
     const startY = areaTop + (areaH - perCol * pitch) / 2;
     const colW = two ? 900 : 1100, centers = two ? [480, 1440] : [960];
     const k = dia / 150;   // text scales with the crest size
+    // thin dividers between the matches (and between the two columns)
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    const lineHalf = colW / 2 - (two ? 24 : 120) + 10, rowsIn = (c) => two ? (c === 0 ? perCol : total - perCol) : total;
+    centers.forEach((cxx, c) => { for (let r = 1; r < rowsIn(c); r++) ctx.fillRect(cxx - lineHalf, startY + r * pitch - 1, lineHalf * 2, 2); });
+    if (two) ctx.fillRect(959, startY + 12, 2, perCol * pitch - 24);
     for (let i = 0; i < total; i++) {
       const r = ms[i], col = two ? (i < perCol ? 0 : 1) : 0, row = two ? (i < perCol ? i : i - perCol) : i;
       const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = colW / 2 - R - (two ? 24 : 120);
