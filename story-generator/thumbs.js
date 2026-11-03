@@ -255,6 +255,9 @@
     }
     const ms = watchMatches(d), groups = watchGroups(ms);
     if (groups.length > 1) { await renderWatchWeek(ctx, groups.slice(0, 4), d); return; }
+    if (d.markComp && groups.length === 1 && ms.some(r => r.women) && ms.some(r => !r.women)) {   // one day, both competitions: a MEN and a WOMEN column
+      await renderWatchWeek(ctx, [{ key: groups[0].key, sex: 'MEN', items: ms.filter(r => !r.women) }, { key: groups[0].key, sex: 'WOMEN', items: ms.filter(r => r.women) }], d); return;
+    }
     const total = ms.length, two = total > 4, perCol = two ? Math.ceil(total / 2) : total;
     const areaTop = 280, areaH = 770, pitch = Math.min(190, areaH / Math.max(perCol, 1)), dia = Math.min(150, pitch - 30), R = dia / 2;
     const startY = areaTop + (areaH - perCol * pitch) / 2;
@@ -291,21 +294,41 @@
       }
     }
   }
-  // Watch live over several days (a week overview): one column per day with the date on top, the matches below it
+  // Watch live over several days (a week overview): one column per day with the date on top, the matches below it.
+  // With "MEN/WOMEN bars" (d.markComp) every day gets a coloured MEN and WOMEN bar above its matches; one day with both
+  // competitions becomes two columns, MEN and WOMEN (groups with .sex).
+  const SEX_COL = { MEN: '#012243', WOMEN: '#a900be' };
   async function renderWatchWeek(ctx, groups, d) {
-    const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050;
-    const maxRows = Math.max.apply(null, groups.map(g => g.items.length));
-    const pitch = Math.min(142, (rowsBottom - rowsTop) / maxRows), dia = pitch - 20, R = dia / 2, k = dia / 110;
+    const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050, barH = 44;
+    const sexCols = groups.some(g => g.sex);
+    const entriesOf = (g) => {
+      if (!d.markComp || g.sex) return g.items.map(r => ({ r }));
+      const men = g.items.filter(r => !r.women), women = g.items.filter(r => r.women), out = [];
+      if (men.length) out.push({ bar: 'MEN' }), men.forEach(r => out.push({ r }));
+      if (women.length) out.push({ bar: 'WOMEN' }), women.forEach(r => out.push({ r }));
+      return out;
+    };
+    const cols = groups.map(entriesOf);
+    const maxRows = Math.max.apply(null, cols.map(e => e.filter(x => x.r).length)), maxBars = Math.max.apply(null, cols.map(e => e.filter(x => x.bar).length));
+    const pitch = Math.min(142, (rowsBottom - rowsTop - maxBars * barH) / maxRows), dia = pitch - 20, R = dia / 2, k = dia / 110;
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the days
+    for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the columns
+    const bar = (cx, y, w, h, label, size) => { ctx.fillStyle = SEX_COL[label]; roundRect(ctx, cx - w / 2, y, w, h, h / 2.6); ctx.fill(); text(ctx, label, 0, y + h * 0.5 + size * 0.37, `400 ${size}px "Monologue"`, '#fff', { center: cx }); };
     for (let c = 0; c < nCol; c++) {
-      const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56, half = Math.min(inner / 2 - R, R + 66 * k + 8), rowHalf = half + R + 26;
-      const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
-      text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
-      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
-      for (let i = 0; i < g.items.length; i++) {
-        const r = g.items[i], cy = rowsTop + i * pitch + pitch / 2;
-        if (i > 0) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - rowHalf, rowsTop + i * pitch - 1, rowHalf * 2, 2); }
+      const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56;
+      const half = Math.min(inner / 2 - R, R + (sexCols ? 150 : 66) * k + 8), rowHalf = half + R + 26;
+      if (g.sex) bar(cx, 306, Math.min(inner, 2 * rowHalf + 40), 62, g.sex, 44);
+      else {
+        const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
+        text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
+      }
+      let y = rowsTop, first = true;
+      for (const e of cols[c]) {
+        if (e.bar) { bar(cx, y + 2, rowHalf * 2, barH - 8, e.bar, 28); y += barH; first = false; continue; }
+        const r = e.r, cy = y + pitch / 2;
+        if (!first && !(cols[c][cols[c].indexOf(e) - 1] || {}).bar) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - rowHalf, y - 1, rowHalf * 2, 2); }
+        first = false;
         for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
           const im = await loadImg(`assets/lvl/teams/${code}.png`);
           ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
@@ -318,17 +341,21 @@
           text(ctx, r.right, 0, cy + 13 * k, af, '#fff', { inkRight: cx + half - R - 10, maxWidth: aw });
         }
         const tm = timeOf(r);
-        if (d.showTime && tm) {
+        if (sexCols) {   // one day split in MEN and WOMEN: the date and time stay on every match
+          text(ctx, 'VS', 0, cy - 2 * k, `400 ${40 * k}px "Monologue"`, '#fff', { center: cx });
+          text(ctx, watchDateText(r.dt, !!d.showTime), 0, cy + 36 * k, `400 ${34 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: half * 2 - dia - 24 });
+        } else if (d.showTime && tm) {
           text(ctx, 'VS', 0, cy - 2 * k, `400 ${40 * k}px "Monologue"`, '#fff', { center: cx });
           text(ctx, tm, 0, cy + 38 * k, `400 ${44 * k}px "Monologue"`, '#fff', { center: cx });
         } else text(ctx, 'VS', 0, cy + 16 * k, `400 ${60 * k}px "Monologue"`, '#fff', { center: cx });
+        y += pitch;
       }
     }
   }
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: false };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: false, markComp: false };
   }
 
 
@@ -609,6 +636,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
+        <label class="hnl-check"><input type="checkbox" id="visMark"${d.markComp ? ' checked' : ''}> MEN- en WOMEN-balken met kleur (heren donkerblauw, dames paars)</label>
         <label class="hnl-check"><input type="checkbox" id="visAbbr"${d.showAbbr ? ' checked' : ''}> Afkorting van de club naast het logo (bijv. ROE, WAR)</label>
         <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor alleen dames. Eén speeldag: een of twee kolommen met datum en tijd bij elke wedstrijd. Meer speeldagen (een weekoverzicht): één kolom per dag met de datum erboven, tot vier dagen; de clubnamen blijven dan weg.</p></div>`;
     if (d.manual) {
@@ -803,6 +831,7 @@
     });
     on('visNames', 'change', (e) => set({ showNames: e.target.checked }));
     on('visAbbr', 'change', (e) => set({ showAbbr: e.target.checked }));
+    on('visMark', 'change', (e) => set({ markComp: e.target.checked }));
     on('visAdd', 'click', () => {
       const dt = ($('visXDt').value || '').trim(), home = $('visXHome').value, away = $('visXAway').value;
       if (!dtParts(dt) || home === away) { status('Vul een datum (22/10 - 20:30) in en kies twee verschillende clubs'); return; }
