@@ -255,22 +255,20 @@
     }
     const ms = watchMatches(d), groups = watchGroups(ms);
     if (groups.length > 1) { await renderWatchWeek(ctx, groups.slice(0, 4), d); return; }
-    if (d.markComp && groups.length === 1 && ms.some(r => r.women) && ms.some(r => !r.women)) {   // one day, both competitions: a MEN and a WOMEN column
-      await renderWatchWeek(ctx, [{ key: groups[0].key, sex: 'MEN', items: ms.filter(r => !r.women) }, { key: groups[0].key, sex: 'WOMEN', items: ms.filter(r => r.women) }], d); return;
-    }
     const total = ms.length, two = total > 4, perCol = two ? Math.ceil(total / 2) : total;
     const areaTop = 280, areaH = 770, pitch = Math.min(190, areaH / Math.max(perCol, 1)), dia = Math.min(150, pitch - 30), R = dia / 2;
     const startY = areaTop + (areaH - perCol * pitch) / 2;
     const colW = two ? 900 : 1100, centers = two ? [480, 1440] : [960];
     const k = dia / 150;   // text scales with the crest size
     // thin dividers between the matches (and between the two columns)
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillStyle = d.markComp ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0.3)';
     const lineHalf = Math.min(colW / 2 - (two ? 24 : 120) + 10, 2 * R + (two ? 190 : 235) * (dia / 150) + 36), rowsIn = (c) => two ? (c === 0 ? perCol : total - perCol) : total;
     centers.forEach((cxx, c) => { for (let r = 1; r < rowsIn(c); r++) ctx.fillRect(cxx - lineHalf, startY + r * pitch - 1, lineHalf * 2, 2); });
-    if (two) ctx.fillRect(959, startY + 12, 2, perCol * pitch - 24);
+    if (two && !d.markComp) ctx.fillRect(959, startY + 12, 2, perCol * pitch - 24);
     for (let i = 0; i < total; i++) {
       const r = ms[i], col = two ? (i < perCol ? 0 : 1) : 0, row = two ? (i < perCol ? i : i - perCol) : i;
-      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = Math.min(colW / 2 - R - (two ? 24 : 120), R + (two ? 190 : 235) * (dia / 150));
+      const cx = centers[col], cy = startY + row * pitch + pitch / 2, half = d.markComp ? R + (two ? 140 : 170) * (dia / 150) : Math.min(colW / 2 - R - (two ? 24 : 120), R + (two ? 190 : 235) * (dia / 150)), zone = 112 * k;
+      if (d.markComp) sexPlate(ctx, cx - half - R - 24 - zone, cy - pitch / 2 + 5, 2 * (half + R + 24 + zone), pitch - 10, r.women);
       for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
         const im = await loadImg(`assets/lvl/teams/${code}.png`);
         ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 7;
@@ -289,66 +287,62 @@
         text(ctx, 'VS', 0, cy + 36 * k, `400 ${48 * k}px "Monologue"`, '#fff', { center: cx });
         text(ctx, lvlClubName(r.right).toUpperCase(), 0, cy + 66 * k, `700 ${17 * k}px "Archivo"`, '#fff', { center: cx, maxWidth: mw });
       } else {
-        text(ctx, 'VS', 0, cy + 6 * k, `400 ${76 * k}px "Monologue"`, '#fff', { center: cx });
-        text(ctx, dtext, 0, cy + 54 * k, `400 ${two ? 38 * k : 44 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
+        if (d.markComp) {   // MEN/WOMEN left, VS and the date in the middle, the time right
+          const tmx = timeOf(r);
+          text(ctx, r.women ? 'WOMEN' : 'MEN', 0, cy + 0.37 * 34 * k, `400 ${34 * k}px "Monologue"`, '#fff', { inkLeft: cx - half - R - 24 - zone + 20, alpha: 0.9, maxWidth: zone - 8 });
+          text(ctx, 'VS', 0, cy + 6 * k, `400 ${70 * k}px "Monologue"`, '#fff', { center: cx });
+          text(ctx, watchDateText(r.dt, false), 0, cy + 52 * k, `400 ${two ? 36 * k : 42 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
+          if (d.showTime && tmx) text(ctx, tmx, 0, cy + 0.37 * 50 * k, `400 ${50 * k}px "Monologue"`, '#fff', { inkRight: cx + half + R + 24 + zone - 20, maxWidth: zone - 8 });
+        } else {
+          text(ctx, 'VS', 0, cy + 6 * k, `400 ${76 * k}px "Monologue"`, '#fff', { center: cx });
+          text(ctx, dtext, 0, cy + 54 * k, `400 ${two ? 38 * k : 44 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
+        }
       }
     }
   }
   // Watch live over several days (a week overview): one column per day with the date on top, the matches below it.
-  // With "MEN/WOMEN bars" (d.markComp) every day gets a coloured MEN and WOMEN bar above its matches; one day with both
-  // competitions becomes two columns, MEN and WOMEN (groups with .sex).
+  // With the "MEN/WOMEN" option (d.markComp) every match gets a coloured plate behind it (men dark blue, women purple) with its title.
   const SEX_COL = { MEN: '#012243', WOMEN: '#a900be' };
+  const sexPlate = (ctx, x, y, w, h, women) => { ctx.save(); ctx.fillStyle = SEX_COL[women ? 'WOMEN' : 'MEN']; ctx.globalAlpha = 0.94; roundRect(ctx, x, y, w, h, Math.min(18, h / 3)); ctx.fill(); ctx.restore(); };
   async function renderWatchWeek(ctx, groups, d) {
-    const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050, barH = 44;
-    const sexCols = groups.some(g => g.sex);
-    const entriesOf = (g) => {
-      if (!d.markComp || g.sex) return g.items.map(r => ({ r }));
-      const men = g.items.filter(r => !r.women), women = g.items.filter(r => r.women), out = [];
-      if (men.length) out.push({ bar: 'MEN' }), men.forEach(r => out.push({ r }));
-      if (women.length) out.push({ bar: 'WOMEN' }), women.forEach(r => out.push({ r }));
-      return out;
-    };
-    const cols = groups.map(entriesOf);
-    const maxRows = Math.max.apply(null, cols.map(e => e.filter(x => x.r).length)), maxBars = Math.max.apply(null, cols.map(e => e.filter(x => x.bar).length));
-    const pitch = Math.min(142, (rowsBottom - rowsTop - maxBars * barH) / maxRows), dia = pitch - 20, R = dia / 2, k = dia / 110;
+    const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050;
+    const maxRows = Math.max.apply(null, groups.map(g => g.items.length));
+    const pitch = Math.min(142, (rowsBottom - rowsTop) / maxRows), dia = pitch - 20, R = dia / 2, k = dia / 110;
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the columns
-    const bar = (cx, y, w, h, label, size) => { ctx.fillStyle = SEX_COL[label]; roundRect(ctx, cx - w / 2, y, w, h, h / 2.6); ctx.fill(); text(ctx, label, 0, y + h * 0.5 + size * 0.37, `400 ${size}px "Monologue"`, '#fff', { center: cx }); };
+    for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the days
     for (let c = 0; c < nCol; c++) {
       const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56;
-      const half = Math.min(inner / 2 - R, R + (sexCols ? 150 : 66) * k + 8), rowHalf = half + R + 26;
-      if (g.sex) bar(cx, 306, Math.min(inner, 2 * rowHalf + 40), 62, g.sex, 44);
-      else {
-        const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
-        text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
-        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
-      }
-      let y = rowsTop, first = true;
-      for (const e of cols[c]) {
-        if (e.bar) { bar(cx, y + 2, rowHalf * 2, barH - 8, e.bar, 28); y += barH; first = false; continue; }
-        const r = e.r, cy = y + pitch / 2;
-        if (!first && !(cols[c][cols[c].indexOf(e) - 1] || {}).bar) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - rowHalf, y - 1, rowHalf * 2, 2); }
-        first = false;
+      // with the MEN/WOMEN plates: [MEN|WOMEN] (crest) VS (crest) [time]; the crests shrink when the column is narrow
+      const Rc = d.markComp ? Math.min(R, Math.max(30, (inner / 2 - 22 - 114 * 0.7) / 2)) : R, diaC = Rc * 2;
+      const u = d.markComp ? Math.max(0.5, Math.min(Math.max(k, 0.75), (inner / 2 - 2 * Rc - 22) / 114)) : k;
+      const half = d.markComp ? Rc + 40 * u : Math.min(inner / 2 - R, R + 66 * k + 8), rowHalf = d.markComp ? 2 * Rc + 22 + 114 * u : half + R + 26;
+      const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
+      text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
+      for (let i = 0; i < g.items.length; i++) {
+        const r = g.items[i], cy = rowsTop + i * pitch + pitch / 2;
+        if (d.markComp) sexPlate(ctx, cx - rowHalf, cy - pitch / 2 + 4, rowHalf * 2, pitch - 8, r.women);
+        else if (i > 0) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(cx - rowHalf, rowsTop + i * pitch - 1, rowHalf * 2, 2); }
         for (const [code, cxx] of [[r.left, cx - half], [r.right, cx + half]]) {
           const im = await loadImg(`assets/lvl/teams/${code}.png`);
           ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
-          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-          if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, Rc, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+          if (im) ctx.drawImage(im, cxx - Rc, cy - Rc, diaC, diaC);
         }
-        if (d.showAbbr) {
+        if (d.showAbbr && !d.markComp) {
           const af = `400 ${36 * k}px "Monologue"`, aw = Math.max(40, half - R - 10 - 52 * k);
           text(ctx, r.left, 0, cy + 13 * k, af, '#fff', { inkLeft: cx - half + R + 10, maxWidth: aw });
           text(ctx, r.right, 0, cy + 13 * k, af, '#fff', { inkRight: cx + half - R - 10, maxWidth: aw });
         }
-        const tm = timeOf(r);
-        if (sexCols) {   // one day split in MEN and WOMEN: the date and time stay on every match
-          text(ctx, 'VS', 0, cy - 2 * k, `400 ${40 * k}px "Monologue"`, '#fff', { center: cx });
-          text(ctx, watchDateText(r.dt, !!d.showTime), 0, cy + 36 * k, `400 ${34 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: half * 2 - dia - 24 });
-        } else if (d.showTime && tm) {
+        const tm = timeOf(r), tag = r.women ? 'WOMEN' : 'MEN', hasT = d.showTime && tm;
+        if (d.markComp) {   // MEN/WOMEN on the left of the match, only VS in the middle, the time on the right
+          text(ctx, tag, 0, cy + 0.37 * 27 * u, `400 ${27 * u}px "Monologue"`, '#fff', { inkLeft: cx - rowHalf + 18, alpha: 0.9 });
+          text(ctx, 'VS', 0, cy + 0.37 * 56 * u, `400 ${56 * u}px "Monologue"`, '#fff', { center: cx });
+          if (hasT) text(ctx, tm, 0, cy + 0.37 * 40 * u, `400 ${40 * u}px "Monologue"`, '#fff', { inkRight: cx + rowHalf - 18 });
+        } else if (hasT) {
           text(ctx, 'VS', 0, cy - 2 * k, `400 ${40 * k}px "Monologue"`, '#fff', { center: cx });
           text(ctx, tm, 0, cy + 38 * k, `400 ${44 * k}px "Monologue"`, '#fff', { center: cx });
         } else text(ctx, 'VS', 0, cy + 16 * k, `400 ${60 * k}px "Monologue"`, '#fff', { center: cx });
-        y += pitch;
       }
     }
   }
@@ -636,7 +630,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
-        <label class="hnl-check"><input type="checkbox" id="visMark"${d.markComp ? ' checked' : ''}> MEN- en WOMEN-balken met kleur (heren donkerblauw, dames paars)</label>
+        <label class="hnl-check"><input type="checkbox" id="visMark"${d.markComp ? ' checked' : ''}> Balkje per wedstrijd met MEN of WOMEN (heren donkerblauw, dames paars)</label>
         <label class="hnl-check"><input type="checkbox" id="visAbbr"${d.showAbbr ? ' checked' : ''}> Afkorting van de club naast het logo (bijv. ROE, WAR)</label>
         <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor alleen dames. Eén speeldag: een of twee kolommen met datum en tijd bij elke wedstrijd. Meer speeldagen (een weekoverzicht): één kolom per dag met de datum erboven, tot vier dagen; de clubnamen blijven dan weg.</p></div>`;
     if (d.manual) {
