@@ -171,7 +171,8 @@
     const lvlClubName = (code) => { const c = LVL.lvlm.clubs.concat(LVL.lvlw.clubs).find(x => x[0] === code); return c ? c[1] : code; };
   const lvlAllClubs = () => { const seen = {}; return LVL.lvlm.clubs.concat(LVL.lvlw.clubs).filter(c => (seen[c[0]] ? false : (seen[c[0]] = true))); };
   const dtParts = (dt) => { const m = /(\d{1,2})\/(\d{1,2})(?:\s*-\s*(\d{1,2}:\d{2}))?/.exec(dt || ''); return m ? { d: +m[1], m: +m[2], time: m[3] || '' } : null; };
-  const watchDateText = (dt, withTime) => { const q = dtParts(dt); if (!q) return dt || ''; const y = seasonDate(q.d, q.m).getFullYear(); return `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}/${y}${withTime && q.time ? ' - ' + q.time : ''}`; };
+  // English, as the visuals are for the English-speaking LVL audience: "SAT 24 OCT" (+ " - 20:30")
+  const watchDateText = (dt, withTime) => { const q = dtParts(dt); if (!q) return dt || ''; const t = seasonDate(q.d, q.m); return `${DAYS.en[t.getDay()].slice(0, 3)} ${q.d} ${MONTHS.en[q.m - 1].slice(0, 3)}${withTime && q.time ? ' - ' + q.time : ''}`; };
   const watchKey = (r) => `${r.left}-${r.right}|${r.dt}`;
   // the matches shown on the image: the programme rows of the chosen day (and competition) minus the ones switched off, plus the added ones
   const dayKeyOf = (dt) => { const q = dtParts(dt); return q ? `${String(q.d).padStart(2, '0')}/${String(q.m).padStart(2, '0')}` : ''; };
@@ -274,6 +275,11 @@
         if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
       }
       const names = !!d.showNames, dtext = watchDateText(r.dt, !!d.showTime), mw = half * 2 - dia - 30;
+      if (d.showAbbr !== false && !names) {   // the club abbreviation next to each crest
+        const af = `400 ${46 * k}px "Monologue"`, aw = Math.max(60, half - R - 24 - 150 * k);
+        text(ctx, r.left, 0, cy + 17 * k, af, '#fff', { inkLeft: cx - half + R + 16, maxWidth: aw });
+        text(ctx, r.right, 0, cy + 17 * k, af, '#fff', { inkRight: cx + half - R - 16, maxWidth: aw });
+      }
       if (names) {
         text(ctx, dtext, 0, cy - 40 * k, `400 ${36 * k}px "Monologue"`, '#fff', { center: cx, maxWidth: mw });
         text(ctx, lvlClubName(r.left).toUpperCase(), 0, cy - 14 * k, `700 ${17 * k}px "Archivo"`, '#fff', { center: cx, maxWidth: mw });
@@ -294,7 +300,7 @@
     for (let c = 1; c < nCol; c++) ctx.fillRect(margin + colW * c - 1, 300, 2, rowsBottom - 300);   // between the days
     for (let c = 0; c < nCol; c++) {
       const g = groups[c], cx = margin + colW * c + colW / 2, inner = colW - 56, half = inner / 2 - R;
-      const dt = dayDate(g.key), label = dt ? `${DAYS.nl[dt.getDay()]} ${dt.getDate()} ${MONTHS.nl[dt.getMonth()]}` : '';
+      const dt = dayDate(g.key), label = dt ? `${DAYS.en[dt.getDay()]} ${dt.getDate()} ${MONTHS.en[dt.getMonth()]}` : '';
       text(ctx, label, 0, headBase, '400 54px "Monologue"', '#fff', { center: cx, maxWidth: inner });
       ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(cx - inner / 2, headBase + 18, inner, 3);
       for (let i = 0; i < g.items.length; i++) {
@@ -305,6 +311,11 @@
           ctx.save(); ctx.shadowColor = 'rgba(0,30,70,0.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
           ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxx, cy, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
           if (im) ctx.drawImage(im, cxx - R, cy - R, dia, dia);
+        }
+        if (d.showAbbr !== false) {
+          const af = `400 ${36 * k}px "Monologue"`, aw = Math.max(40, half - R - 10 - 52 * k);
+          text(ctx, r.left, 0, cy + 13 * k, af, '#fff', { inkLeft: cx - half + R + 10, maxWidth: aw });
+          text(ctx, r.right, 0, cy + 13 * k, af, '#fff', { inkRight: cx + half - R - 10, maxWidth: aw });
         }
         const tm = timeOf(r);
         if (d.showTime && tm) {
@@ -317,7 +328,7 @@
   async function renderVis(kind, d, ctx) { await fontsReady; return KINDS[kind].vis === 'mail' ? renderMail(d, ctx) : renderWatch(d, ctx); }
   function visDefaults(kind) {
     if (KINDS[kind].vis === 'mail') return { title: 'Lotto Volley League update', sub: '' };
-    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7 };
+    return { title: 'Watch live', comp: 'both', day: '', off: [], extra: [], showTime: true, showNames: false, manual: false, list: [], span: 7, showAbbr: true };
   }
 
 
@@ -598,6 +609,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
+        <label class="hnl-check"><input type="checkbox" id="visAbbr"${d.showAbbr !== false ? ' checked' : ''}> Afkorting van de club naast het logo (bijv. ROE, WAR)</label>
         <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor alleen dames. Eén speeldag: een of twee kolommen met datum en tijd bij elke wedstrijd. Meer speeldagen (een weekoverzicht): één kolom per dag met de datum erboven, tot vier dagen; de clubnamen blijven dan weg.</p></div>`;
     if (d.manual) {
       const list = d.list || [];
@@ -790,6 +802,7 @@
       scheduleSave(); buildControls(); scheduleRender();
     });
     on('visNames', 'change', (e) => set({ showNames: e.target.checked }));
+    on('visAbbr', 'change', (e) => set({ showAbbr: e.target.checked }));
     on('visAdd', 'click', () => {
       const dt = ($('visXDt').value || '').trim(), home = $('visXHome').value, away = $('visXAway').value;
       if (!dtParts(dt) || home === away) { status('Vul een datum (22/10 - 20:30) in en kies twee verschillende clubs'); return; }
