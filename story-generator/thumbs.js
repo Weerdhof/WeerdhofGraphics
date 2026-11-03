@@ -301,9 +301,10 @@
     }
   }
   // Watch live over several days (a week overview): one column per day with the date on top, the matches below it.
-  // With the "MEN/WOMEN" option (d.markComp) every match gets a coloured plate behind it (men dark blue, women purple) with its title.
-  const SEX_COL = { MEN: '#012243', WOMEN: '#a900be' };
-  const sexPlate = (ctx, x, y, w, h, women) => { ctx.save(); ctx.fillStyle = SEX_COL[women ? 'WOMEN' : 'MEN']; ctx.globalAlpha = 0.94; roundRect(ctx, x, y, w, h, h / 2); ctx.fill(); ctx.restore(); };   // fully rounded, like the pills on watch.lottovolleyleague.be
+  // With the "MEN/WOMEN" option (d.markComp) every match gets a pill behind it in the site's own men and women gradients.
+  // the two gradients the Lotto Volley League site itself defines for men and women (bg-gradient_men_blue, bg-gradient_women_red), top to bottom
+  const SEX_GRAD = { MEN: [[0, '#0ac1f9'], [0.5104, '#1a9acb'], [1, '#0d324d']], WOMEN: [[0, '#f95310'], [0.5417, '#d32e59'], [1, '#b00c9a']] };
+  const sexPlate = (ctx, x, y, w, h, women) => { ctx.save(); const g = ctx.createLinearGradient(0, y, 0, y + h); SEX_GRAD[women ? 'WOMEN' : 'MEN'].forEach(([o, c]) => g.addColorStop(o, c)); ctx.fillStyle = g; roundRect(ctx, x, y, w, h, h / 2); ctx.fill(); ctx.restore(); };   // fully rounded, like the pills on watch.lottovolleyleague.be
   async function renderWatchWeek(ctx, groups, d) {
     const nCol = groups.length, margin = 60, colW = (1920 - 2 * margin) / nCol, headBase = 352, rowsTop = 392, rowsBottom = 1050;
     const maxRows = Math.max.apply(null, groups.map(g => g.items.length));
@@ -631,7 +632,7 @@
         <div class="field"><label for="visTitle">Titel</label><input type="text" id="visTitle" value="${esc(d.title)}"></div>
         <label class="hnl-check"><input type="checkbox" id="visTime"${d.showTime ? ' checked' : ''}> Aanvangstijd bij de datum tonen</label>
         <label class="hnl-check"><input type="checkbox" id="visNames"${d.showNames ? ' checked' : ''}> Clubnamen tonen</label>
-        <label class="hnl-check"><input type="checkbox" id="visMark"${d.markComp ? ' checked' : ''}> Balkje per wedstrijd met MEN of WOMEN (heren donkerblauw, dames paars)</label>
+        <label class="hnl-check"><input type="checkbox" id="visMark"${d.markComp ? ' checked' : ''}> Balkje per wedstrijd met MEN of WOMEN (kleuren van de LVL-site: heren blauw, dames oranje-roze-paars)</label>
         <label class="hnl-check"><input type="checkbox" id="visAbbr"${d.showAbbr ? ' checked' : ''}> Afkorting van de club naast het logo (bijv. ROE, WAR)</label>
         <p class="hint">Standaard staan de datum en tijd tussen de logo's, zonder clubnamen: de clubs kennen mensen wel. De kleur volgt de thumbnails: blauw voor heren (en gemengd), paars voor alleen dames. Eén speeldag: een of twee kolommen met datum en tijd bij elke wedstrijd. Meer speeldagen (een weekoverzicht): één kolom per dag met de datum erboven, tot vier dagen; de clubnamen blijven dan weg.</p></div>`;
     if (d.manual) {
