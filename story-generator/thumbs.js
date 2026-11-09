@@ -13,8 +13,9 @@
     lvlw:      { title: 'LVL Dames',  sub: 'Lotto Volley League Women', lvl: true },
     lvlmail:   { title: 'LVL Mailheader', sub: 'Lotto Volley League · 1200×400', vis: 'mail' },
     lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · 1920×1080', vis: 'watch' },
+    potm:      { title: 'Player of the Month', sub: 'Super Handball League · overzicht, nominees en vote-story', potm: true, comp: 'men' },
   };
-  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live' };
+  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month' };
 
   // ---------- Fonts (Clash is registered by script.js; the HandbalNL ones are loaded here) ----------
   const FONT_FILES = [
@@ -22,6 +23,8 @@
     ['MeticulaR', 'fonts/hnl/Meticula-Regular.ttf', '400'],
     ['MeticulaXB', 'fonts/hnl/Meticula-ExtraBold.ttf', '800'],
     ['Monologue', 'fonts/lvl/Monologue-Regular.woff2', '400'],   // Lotto Volley League
+    ['Unbounded', 'fonts/Unbounded-Bold.ttf', '700'], ['Unbounded', 'fonts/Unbounded-ExtraBold.ttf', '800'], ['Unbounded', 'fonts/Unbounded-Black.ttf', '900'],   // Player of the Month
+    ['ClashLight', 'fonts/ClashDisplay-Light.otf', '300'], ['ClashMed', 'fonts/ClashDisplay-Medium.otf', '500'],
     ['Archivo', 'fonts/lvl/Archivo-Regular.woff2', '400'],       // Lotto Volley League body font (as on lottovolleyleague.be)
     ['Archivo', 'fonts/lvl/Archivo-Bold.woff2', '700'],
   ];
@@ -200,6 +203,8 @@
     return order.map(k => ({ key: k, items: g[k] }));
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
+  // canvas size of a kind (Player of the Month: the story is 1080x1920, the rest 1080x1350)
+  const kindSize = (kind, d) => KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -483,9 +488,135 @@
     } catch (err) { msg('Mislukt: ' + err.message); setSave('error'); }
   }
 
+
+  // ---------- Player of the Month (SHL men): overview of four nominees, one post per nominee, a "vote now" story ----------
+  const POTM_NAVY = '#1b1b38', POTM_PINK = '#e93b68', POTM_PANEL = '#232244';
+  const POTM_FMTS = [['overview', 'Overzicht'], ['p0', 'Nominee 1'], ['p1', 'Nominee 2'], ['p2', 'Nominee 3'], ['p3', 'Nominee 4'], ['story', 'Vote-story']];
+  function potmDefaults() {
+    return { month: 'OCTOBER', fmt: 'overview', players: [0, 1, 2, 3].map(() => ({ first: '', last: '', club: '', hasPhoto: false, z: 1, x: 0, y: 0 })) };
+  }
+  const potmName = (pl) => `${(pl.first || '').trim()} ${(pl.last || '').trim()}`.trim().toUpperCase();
+  // font size at which `str` is exactly `w` wide (capped at `max`)
+  const fitSize = (ctx, str, fam, w, max) => { ctx.font = `${fam.replace('{s}', '100')}`; const m = ctx.measureText(str).width; return Math.min(max || 999, 100 * w / Math.max(1, m)); };
+  function potmPhoto(ctx, img, x, y, w, h, pos) {   // cover, centred and top-aligned, clipped to the box
+    ctx.save(); ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h);
+    if (img) {
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      const sc = Math.max(w / img.naturalWidth, h / img.naturalHeight) * (pos.z || 1), dw = img.naturalWidth * sc, dh = img.naturalHeight * sc;
+      ctx.drawImage(img, x + (w - dw) / 2 + (pos.x || 0), y + (pos.y || 0), dw, dh);
+    }
+    ctx.restore();
+  }
+  async function renderPotm(d, ctx) {
+    await fontsReady;
+    await Promise.all(['900 40px Unbounded', '800 40px Unbounded', '700 40px Unbounded', '300 40px ClashLight', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
+    const fmt = d.fmt || 'overview', story = fmt === 'story', [CW, CH] = kindSize('potm', d), month = (d.month || '').toUpperCase().trim();
+    const lines = await loadImg('assets/potm/lines.png'), banner = await loadImg('assets/potm/banner.png'), block = await loadImg('assets/potm/title-block.png'), foot = await loadImg('assets/footer-logo.png');
+    ctx.clearRect(0, 0, CW, CH); ctx.fillStyle = POTM_NAVY; ctx.fillRect(0, 0, CW, CH);
+    if (lines) ctx.drawImage(lines, 0, CH - 1350);
+    const footer = (x, y, w) => { if (foot) ctx.drawImage(foot, x, y, w, w * foot.naturalHeight / foot.naturalWidth); };
+    if (fmt === 'overview') {
+      if (block) ctx.drawImage(block, 0, 80);
+      let sz = fitSize(ctx, 'PLAYER OF', '300 {s}px "ClashLight"', 443);
+      text(ctx, 'PLAYER OF', 240, 148, `300 ${sz}px "ClashLight"`, '#fff');
+      sz = fitSize(ctx, 'THE MONTH', '900 {s}px "Unbounded"', 512);
+      text(ctx, 'THE MONTH', 240, 219, `900 ${sz}px "Unbounded"`, '#fff');
+      ctx.font = '800 38px "Unbounded"'; const nw = ctx.measureText('NOMINEES ').width;
+      text(ctx, 'NOMINEES', 67, 336, '800 38px "Unbounded"', '#fff');
+      text(ctx, month, 67 + nw, 336, '800 38px "Unbounded"', POTM_NAVY, { maxWidth: 1000 - nw });
+      for (let i = 0; i < 4; i++) {
+        const pl = d.players[i], x = 60 + 244 * i;
+        potmPhoto(ctx, cur.potmPhotos && cur.potmPhotos[i], x, 400, 228, 500, pl);
+        ctx.fillStyle = POTM_PINK; ctx.fillRect(x, 900, 228, 5);
+        ctx.fillStyle = POTM_PANEL; ctx.fillRect(x, 905, 228, 90);
+        text(ctx, (pl.first || '').toUpperCase(), x + 14, 934, '500 18px "ClashMed"', '#fff', { maxWidth: 200 });
+        text(ctx, (pl.last || '').toUpperCase(), x + 14, 957, '900 22px "Unbounded"', '#fff', { maxWidth: 200 });
+        text(ctx, (pl.club || '').toUpperCase(), x + 14, 978, '800 12.5px "Unbounded"', POTM_PINK, { maxWidth: 200 });
+      }
+      footer(60, 1161, 485);
+    } else if (story) {
+      if (banner) ctx.drawImage(banner, 0, 190);
+      let sz = fitSize(ctx, 'VOTE NOW', '900 {s}px "Unbounded"', 650);
+      text(ctx, 'VOTE NOW', 0, 413, `900 ${sz}px "Unbounded"`, '#fff', { center: 540 });
+      const sub = `WHO IS YOUR PLAYER OF ${month}?`;
+      sz = fitSize(ctx, sub, '800 {s}px "Unbounded"', 650, 30);
+      text(ctx, sub, 0, 461, `800 ${sz}px "Unbounded"`, '#fff', { center: 540 });
+      footer(357, 1683, 365);
+    } else {   // one nominee
+      const i = parseInt(fmt.slice(1), 10) || 0, pl = d.players[i];
+      if (banner) ctx.drawImage(banner, 0, 0);
+      ctx.font = '800 22px "Unbounded"';
+      text(ctx, `NOMINEE · ${month}`, 0, 66, '800 22px "Unbounded"', POTM_NAVY, { inkRight: 1020, maxWidth: 330 });
+      potmPhoto(ctx, cur.potmPhotos && cur.potmPhotos[i], 249, 160, 582, 748, pl);
+      ctx.fillStyle = POTM_PINK; ctx.fillRect(249, 908, 582, 7);
+      const nm = potmName(pl);
+      if (nm) { const sz = fitSize(ctx, nm, '900 {s}px "Unbounded"', 800, 66); text(ctx, nm, 0, 1004, `900 ${sz}px "Unbounded"`, '#fff', { center: 540 }); }
+      if (pl.club) { const sz = fitSize(ctx, pl.club.toUpperCase(), '800 {s}px "Unbounded"', 560, 30); text(ctx, pl.club.toUpperCase(), 0, 1053, `800 ${sz}px "Unbounded"`, POTM_PINK, { center: 540 }); }
+      footer(298, 1163, 485);
+    }
+  }
+  async function loadPotmPhotos() {
+    cur.potmPhotos = [null, null, null, null];
+    await Promise.all(cur.d.players.map(async (pl, i) => {
+      if (!pl.hasPhoto) return;
+      try { const r = await fetch('/api/photo?key=' + enc(`th:potm:s${cur.slot}:p${i}`), { cache: 'no-store' }); if (r.ok) cur.potmPhotos[i] = await blobToImg(await r.blob()); else pl.hasPhoto = false; } catch (e) { pl.hasPhoto = false; }
+    }));
+  }
+  function uploadPotmPhoto(i, file) {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const sc = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+        c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc);
+        const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height);
+        c.toBlob((blob) => {
+          setSave('saving');
+          fetch('/api/photo?key=' + enc(`th:potm:s${cur.slot}:p${i}`), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return blobToImg(blob); })
+            .then(img => { cur.potmPhotos[i] = img; Object.assign(cur.d.players[i], { hasPhoto: true, z: 1, x: 0, y: 0 }); lastSaved = ''; flushSave(); buildControls(); scheduleRender(); })
+            .catch(() => setSave('error'));
+        }, 'image/jpeg', 0.92);
+      };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  }
+  function potmControls() {
+    const d = cur.d, clubs = MEN.clubs.map(([c]) => labelOf(MEN, c));
+    const tabs = POTM_FMTS.map(([v, l]) => `<button type="button" class="mode-tab${d.fmt === v ? ' active' : ''}" data-f="${v}">${l}</button>`).join('');
+    const pl = d.players.map((p, i) => `<details class="field"${d.fmt === 'p' + i || !p.last ? ' open' : ''}><summary><b>Nominee ${i + 1}</b> ${esc(potmName(p))}</summary>
+      <div class="hnl-pair"><input type="text" class="potm-in" data-i="${i}" data-k="first" placeholder="Voornaam" value="${esc(p.first)}"><input type="text" class="potm-in" data-i="${i}" data-k="last" placeholder="Achternaam" value="${esc(p.last)}"></div>
+      <input type="text" class="potm-in" data-i="${i}" data-k="club" list="potmClubs" placeholder="Club" value="${esc(p.club)}">
+      <label class="photo-btn" for="potmPhoto${i}"><span class="photo-btn-text">${p.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">een portretfoto, liefst met witte achtergrond</span></label>
+      <input type="file" id="potmPhoto${i}" class="potm-file" data-i="${i}" accept="image/*" hidden>
+      ${p.hasPhoto ? `<div class="field"><label>Zoom</label><input type="range" class="potm-pos" data-i="${i}" data-k="z" min="100" max="300" value="${Math.round(p.z * 100)}"></div>
+      <div class="field"><label>Links - rechts</label><input type="range" class="potm-pos" data-i="${i}" data-k="x" min="-300" max="300" value="${Math.round(p.x)}"></div>
+      <div class="field"><label>Omhoog - omlaag</label><input type="range" class="potm-pos" data-i="${i}" data-k="y" min="-400" max="200" value="${Math.round(p.y)}"></div>
+      <button class="btn btn-link potm-del" data-i="${i}" type="button">✕ Verwijder foto</button>` : ''}</details>`).join('');
+    return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Maand en weergave</div>
+      <div class="field"><label for="potmMonth">Maand</label><input type="text" id="potmMonth" value="${esc(d.month)}"></div>
+      <div class="field"><label>Afbeelding</label><div class="mode-tabs mode-tabs-compact potm-tabs" id="potmFmt">${tabs}</div></div></div>
+      <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Nominees</div>${pl}
+      <datalist id="potmClubs">${clubs.map(c => `<option value="${esc(c.toUpperCase())}"></option>`).join('')}</datalist>
+      <p class="hint">De vote-story laat het midden leeg voor een poll-sticker.</p></div>`;
+  }
+  async function exportPotmAll() {
+    const d = cur.d, files = [], slug = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const items = [['overview', 'overview']].concat([0, 1, 2, 3].filter(i => potmName(d.players[i])).map(i => ['p' + i, 'nominee-' + slug(d.players[i].last || d.players[i].first)])).concat([['story', 'vote-story']]);
+    for (let n = 0; n < items.length; n++) {
+      status(`Afbeelding ${n + 1} van ${items.length} maken…`);
+      const blob = await blobFor(cur.kind, Object.assign({}, d, { fmt: items[n][0] }), exportFmt, false);
+      files.push({ name: `SHL_POTM_${slug(d.month)}_${items[n][1]}.${EXT[exportFmt]}`, data: new Uint8Array(await blob.arrayBuffer()) });
+    }
+    download(new Blob([makeZip(files)], { type: 'application/zip' }), `SHL_POTM_${slug(d.month)}.zip`);
+    let saved = 0; for (const f of files) { if (await saveOnServer(new Blob([f.data], { type: MIME[exportFmt] }), f.name)) saved++; }
+    status(`✓ ${files.length} afbeeldingen in de zip${saved ? ` · ${saved} ook op de server (/exports/)` : ''}`);
+  }
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
+    if (KINDS[kind].potm) { await renderPotm(d, ctx); return; }
     if (KINDS[kind].vis) { await renderVis(kind, d, ctx); return; }
     if (KINDS[kind].lvl) { await renderLvl(kind, d, ctx, photo); return; }
     const scene = await loadScene(kind);
@@ -549,7 +680,7 @@
     renderQueued = false;
     if (!cur.kind || !cur.d) return;
     const seq = ++rendering;
-    const [cw, ch] = KINDS[cur.kind].vis ? visSize(cur.kind) : [W, H];
+    const [cw, ch] = kindSize(cur.kind, cur.d);
     const off = document.createElement('canvas'); off.width = cw; off.height = ch;
     await renderThumb(cur.kind, cur.d, off.getContext('2d'), cur.photo);
     if (seq !== rendering) return;
@@ -680,7 +811,9 @@
     const box = $('thControls'); if (!box || !cur.d) return;
     const d = cur.d, K = KINDS[cur.kind];
     let html = '';
-    if (K.vis) {
+    if (K.potm) {
+      html += potmControls();
+    } else if (K.vis) {
       html += visControls();
     } else if (K.lvl) {
       const clubs = LVL[cur.kind].clubs, rows = cur.lvlRows || [];
@@ -738,10 +871,10 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
-      ${K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
+      ${K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     box.innerHTML = html;
     bind();
@@ -798,6 +931,13 @@
         status(`✓ Programma ingelezen: ${rows.length} wedstrijden (${cur.lvlRows.length} voor deze competitie)`);
       } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
+    // Player of the Month
+    on('potmMonth', 'input', (e) => set({ month: e.target.value }));
+    document.querySelectorAll('#potmFmt [data-f]').forEach(b => b.addEventListener('click', () => set({ fmt: b.dataset.f }, true)));
+    document.querySelectorAll('.potm-in').forEach(el => el.addEventListener('input', () => { d.players[+el.dataset.i][el.dataset.k] = el.value; scheduleRender(); scheduleSave(); }));
+    document.querySelectorAll('.potm-file').forEach(el => el.addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadPotmPhoto(+el.dataset.i, f); }));
+    document.querySelectorAll('.potm-pos').forEach(el => el.addEventListener('input', () => { const p = d.players[+el.dataset.i], v = parseInt(el.value, 10); p[el.dataset.k] = el.dataset.k === 'z' ? v / 100 : v; scheduleRender(); scheduleSave(); }));
+    document.querySelectorAll('.potm-del').forEach(el => el.addEventListener('click', () => { const i = +el.dataset.i; fetch('/api/photo?key=' + enc(`th:potm:s${cur.slot}:p${i}`), { method: 'DELETE' }).catch(() => {}); cur.potmPhotos[i] = null; Object.assign(d.players[i], { hasPhoto: false, z: 1, x: 0, y: 0 }); scheduleSave(); buildControls(); scheduleRender(); }));
     // Lotto Volley League visuals (mail header, watch live)
     on('visTitle', 'input', (e) => set({ title: e.target.value }));
     on('visSub', 'input', (e) => set({ sub: e.target.value }));
@@ -863,7 +1003,7 @@
     }
     on('thLvlZoom', 'input', (e) => { d.photoPos.z = parseInt(e.target.value, 10) / 100; scheduleRender(); scheduleSave(); });
     on('thExport', 'click', exportOne);
-    on('thExportDay', 'click', KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
+    on('thExportDay', 'click', KINDS[cur.kind].potm ? exportPotmAll : KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
   }
 
   // ---------- Export ----------
@@ -871,7 +1011,7 @@
   const EXT = { jpeg: 'jpg', webp: 'webp', png: 'png' };
   const toBlob = (cv, fmt) => new Promise(res => cv.toBlob(res, MIME[fmt], 0.93));
   async function blobFor(kind, d, fmt, withPhoto = true) {
-    const [cw, ch] = KINDS[kind].vis ? visSize(kind) : [W, H];
+    const [cw, ch] = kindSize(kind, d);
     const c = document.createElement('canvas'); c.width = cw; c.height = ch;
     await renderThumb(kind, d, c.getContext('2d'), withPhoto ? cur.photo : null);
     return toBlob(c, fmt);
@@ -887,6 +1027,7 @@
   }
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    if (KINDS[kind].potm) { const sl = (t) => String(t || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); const f = d.fmt === 'story' ? 'vote-story' : d.fmt === 'overview' ? 'overview' : 'nominee-' + sl(((d.players[+String(d.fmt).slice(1)] || {}).last) || d.fmt); return `SHL_POTM_${sl(d.month)}_${f}`; }
     if (KINDS[kind].vis === 'mail') return 'LVL_mailheader';
     if (KINDS[kind].vis === 'watch') { const day = d.manual ? dayKeyOf(((d.list || [])[0] || {}).dt) || 'eigen' : d.day || 'dag'; return `LVL_watchlive_${String(day).replace('/', '-')}`; }
     if (KINDS[kind].lvl) {
@@ -989,12 +1130,15 @@
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }
     if (k !== itemKey()) return;
-    cur.d = Object.assign(K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
+    cur.d = Object.assign(K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
     if (cur.d.hasPhoto && !K.vis) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
-    if (K.vis) {
+    if (K.potm) {
+      if (!Array.isArray(cur.d.players) || cur.d.players.length !== 4) cur.d.players = potmDefaults().players;
+      await loadPotmPhotos();
+    } else if (K.vis) {
       if (K.vis === 'watch') {
         await loadLvlRows('lvlm');
         const days = watchDays(cur.d), today = new Date(), tOrder = ((today.getMonth() + 5) % 12) * 100 + today.getDate();

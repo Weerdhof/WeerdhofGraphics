@@ -1164,6 +1164,10 @@ body:not(.set-open) .settings-view { display: none; }
 .th-app[data-kind="lvlm"] { --accent: #EE3124; }
 .th-app[data-kind="lvlw"] { --accent: #EE3124; }
 .th-app[data-kind="lvlmail"], .th-app[data-kind="lvlwatch"] { --accent: #EE3124; }
+.th-app[data-kind="potm"] { --accent: #f47987; }
+.potm-tabs { flex-wrap: wrap; }
+.potm-tabs .mode-tab { flex: 1 1 30%; }
+.th-app .potm-in { width: 100%; margin-top: 6px; }
 .home-menu.theme-lvl .menu-card[data-go-th="lvlmail"], .home-menu.theme-lvl .menu-card[data-go-th="lvlwatch"] { border-left-color: #EE3124; }
 .th-app[data-kind="lvlmail"] #thCanvas { width: min(62vw, 960px); box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
 

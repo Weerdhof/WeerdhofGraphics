@@ -46,6 +46,10 @@ Locally the renderer needs Playwright; use the installed Chrome with `THUMB_BROW
 
 Option "cycle" (stream-config): the title stays on screen from `start` to `end` minutes before the start and every `every` minutes cycles through `scenes` (`seconds` per slide); after `end` the normal steps apply.
 
+## Player of the Month (SHL men)
+
+Home tab SHL, card `Player of the Month` (`/shl/player-of-the-month`, kind `potm` in `thumbs.js`). Month text, four nominees (first name, last name, club, portrait photo with zoom and position) and six outputs: the overview of the four nominees (1080x1350), one post per nominee (1080x1350) and the `VOTE NOW` story (1080x1920, empty middle for a poll sticker). `Alles exporteren` gives a zip with the overview, the nominee posts and the story. Photos are stored on the server per slot (`/api/photo`, key `th:potm:s1:p<n>`). Assets from the design in `assets/potm/` (banner, lines, title block), fonts Unbounded (Bold, ExtraBold, Black) in `fonts/` plus Clash Display Light and Medium, footer logo `assets/footer-logo.png`.
+
 ## Lotto Volley League thumbnails
 
 Home tab "Volley": `LVL Heren` and `LVL Dames` (1920x1080, Monologue font). The assets come from `Lotto Volley/thumbnail2026` (background, crests, the dark wave from the PSD) in `story-generator/assets/lvl/`. The programme is a CSV (`Naam,bg,LogoLinks,LogoRechts,TijdText`) that can be read in again in the editor; it is stored on the server. Via the API: `/api/thumbnail?kind=lvlm&home=MEN&away=ROE&dt=16/10 - 20:30` (or `date=` and `time=`); club codes are the file names of the crests (MEN, ROE, CGENT, ANT, ...).
@@ -83,6 +87,7 @@ The address follows you through the app, and the browser's back and forward butt
 | `/handbalnl/thumbnails-men`, `/handbalnl/thumbnails-women` | Next Handball League thumbnails |
 | `/lvl/thumbnails-men`, `/lvl/thumbnails-women` | Lotto Volley League thumbnails |
 | `/lvl/mailheader`, `/lvl/watch-live` | Lotto Volley League mail header and Watch live list |
+| `/shl/player-of-the-month` | Player of the Month (SHL men) |
 | `/socials/<template>` | ByTomorrow Socials: `wedstrijd`, `artikel`, `story`, `video-thumbnail` |
 | `/settings` | settings |
 
