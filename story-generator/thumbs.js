@@ -14,9 +14,10 @@
     lvlmail:   { title: 'LVL Mailheader', sub: 'Lotto Volley League · 1200×400', vis: 'mail' },
     lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · 1920×1080', vis: 'watch' },
     shlmail:   { title: 'SHL Schedule e-mailbanner', sub: 'Super Handball League · 1200 px breed', shlmail: true, comp: 'men' },
+    shlrank:   { title: 'SHL Ranglijst e-mailbanner', sub: 'Super Handball League · 1200 px breed', shlrank: true, comp: 'men' },
     potm:      { title: 'Player of the Month', sub: 'Super Handball League · overzicht, nominees en vote-story', potm: true, comp: 'men' },
   };
-  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month', shlmail: 'SHL schedule e-mail' };
+  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month', shlmail: 'SHL schedule e-mail', shlrank: 'SHL ranking e-mail' };
 
   // ---------- Fonts (Clash is registered by script.js; the HandbalNL ones are loaded here) ----------
   const FONT_FILES = [
@@ -205,7 +206,7 @@
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // canvas size of a kind (Player of the Month: the story is 1080x1920, the rest 1080x1350)
-  const kindSize = (kind, d) => KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
+  const kindSize = (kind, d) => KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -699,7 +700,7 @@
   async function loadShlMailPhoto() {
     cur.smPhoto = null;
     if (!cur.d.hasPhoto) return;
-    try { const r = await fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { cache: 'no-store' }); if (r.ok) cur.smPhoto = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
+    try { const r = await fetch('/api/photo?key=' + enc(itemKey()), { cache: 'no-store' }); if (r.ok) cur.smPhoto = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
   }
   function uploadShlMailPhoto(file, remove) {
     const msg = (t) => { const el = $('smBgMsg'); if (el) el.textContent = t; };
@@ -717,7 +718,7 @@
             blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.92)); type = 'image/jpeg';
           }
           setSave('saving');
-          const r = await fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { method: 'PUT', headers: { 'Content-Type': type }, body: blob });
+          const r = await fetch('/api/photo?key=' + enc(itemKey()), { method: 'PUT', headers: { 'Content-Type': type }, body: blob });
           if (!r.ok) throw new Error('HTTP ' + r.status);
           cur.smPhoto = await blobToImg(blob); Object.assign(cur.d, { hasPhoto: true, cutout: !!remove, bg: 'photo', z: 1, x: 0, y: 0 });
           lastSaved = ''; flushSave(); buildControls(); scheduleRender();
@@ -727,13 +728,7 @@
     };
     fr.readAsDataURL(file);
   }
-  function shlMailControls() {
-    const d = cur.d, days = cur.days || [], L = shlMailLayout(d);
-    const dayOpts = days.map(x => `<option value="${x.key}"${String(d.dayKey) === String(x.key) ? ' selected' : ''}>${esc(dayLabel(x))}</option>`).join('');
-    return `<div class="panel-step"><div class="panel-step-title">Opmaak</div>
-      <div class="mode-tabs mode-tabs-compact potm-tabs" id="smLay"><button type="button" class="mode-tab${d.lay !== 'stack' && d.lay !== 'side' ? ' active' : ''}" data-l="wide">Breed</button><button type="button" class="mode-tab${d.lay === 'side' ? ' active' : ''}" data-l="side">Als de post</button><button type="button" class="mode-tab${d.lay === 'stack' ? ' active' : ''}" data-l="stack">Langer</button></div>
-      <p class="hint" style="margin-top:8px">Breed is een echte mailbanner (speler links, de wedstrijden in twee kolommen). Als de post is het ontwerp van de schedule-post. Langer zet de foto bovenaan en de lijst eronder.</p>
-      <div class="panel-step-title" style="margin-top:14px">Achtergrond</div>
+  const smPhotoHtml = (d) => `      <div class="panel-step-title" style="margin-top:14px">Achtergrond</div>
       <div class="mode-tabs mode-tabs-compact" id="smBg"><button type="button" class="mode-tab${d.bg !== 'plain' ? ' active' : ''}" data-b="photo">Met foto</button><button type="button" class="mode-tab${d.bg === 'plain' ? ' active' : ''}" data-b="plain">Effen navy</button></div>
       <label class="hnl-check" style="margin-top:10px"><input type="checkbox" id="smCut" ${window.SM_CUT === true ? 'checked' : ''}> Achtergrond van de foto verwijderen (alleen de speler blijft over, zonder fade; handig bij een portret met witte achtergrond)</label>
       <label class="photo-btn" for="smPhoto"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">${d.cutout ? 'nu: alleen de speler' : 'een speler- of sfeerfoto'} · het uitsnijden duurt een paar seconden</span></label>
@@ -742,7 +737,14 @@
       ${d.hasPhoto ? `<div class="field"><label>Zoom</label><input type="range" id="smZ" min="100" max="300" value="${Math.round((d.z || 1) * 100)}"></div>
       <div class="field"><label>Links - rechts</label><input type="range" id="smX" min="-600" max="600" value="${Math.round(d.x || 0)}"></div>
       <div class="field"><label>Omhoog - omlaag</label><input type="range" id="smY" min="-500" max="500" value="${Math.round(d.y || 0)}"></div>
-      <button class="btn btn-link" id="smPhotoDel" type="button">✕ Verwijder foto</button>` : ''}</div>
+      <button class="btn btn-link" id="smPhotoDel" type="button">✕ Verwijder foto</button>` : ''}`;
+  function shlMailControls() {
+    const d = cur.d, days = cur.days || [], L = shlMailLayout(d);
+    const dayOpts = days.map(x => `<option value="${x.key}"${String(d.dayKey) === String(x.key) ? ' selected' : ''}>${esc(dayLabel(x))}</option>`).join('');
+    return `<div class="panel-step"><div class="panel-step-title">Opmaak</div>
+      <div class="mode-tabs mode-tabs-compact potm-tabs" id="smLay"><button type="button" class="mode-tab${d.lay !== 'stack' && d.lay !== 'side' ? ' active' : ''}" data-l="wide">Breed</button><button type="button" class="mode-tab${d.lay === 'side' ? ' active' : ''}" data-l="side">Als de post</button><button type="button" class="mode-tab${d.lay === 'stack' ? ' active' : ''}" data-l="stack">Langer</button></div>
+      <p class="hint" style="margin-top:8px">Breed is een echte mailbanner (speler links, de wedstrijden in twee kolommen). Als de post is het ontwerp van de schedule-post. Langer zet de foto bovenaan en de lijst eronder.</p>
+      ${smPhotoHtml(d)}</div>
       <div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Speeldagen</div>
       ${days.length ? `<div class="field"><label for="smDay">Eerste speeldag</label><select id="smDay">${dayOpts}</select></div>
       <div class="field"><label for="smSpan">Aantal dagen (alle speeldagen daarbinnen)</label><select id="smSpan">${[1, 2, 3, 4, 5, 7].map(n => `<option value="${n}"${(d.span || 3) === n ? ' selected' : ''}>${n}</option>`).join('')}</select></div>` : '<p class="hint">Het programma is niet beschikbaar.</p>'}
@@ -753,9 +755,71 @@
       <label class="hnl-check"><input type="checkbox" id="smTime"${d.showTime ? ' checked' : ''}> Aanvangstijd tonen (anders VS)</label>
       <p class="hint">Export is 1200 px breed, voor een mail van 600 px (scherp op retina). De hoogte volgt het aantal wedstrijden.</p></div>`;
   }
+
+  // ---------- SHL Ranking as an e-mail banner: the same look as the schedule banner, mirrored: the table on the left, the photo on the right ----------
+  const shlRankDefaults = () => ({ title: 'RANKING', sub: '', bg: 'photo', hasPhoto: false, cutout: false, z: 1, x: 0, y: 0 });
+  const RK = { x0: 50, colW: 360, gap: 20, row: 50, pitch: 56, bar: 34, top: 128 };
+  function shlRankLayout(d) {
+    const n = (cur.rank || []).length, rows = Math.max(1, Math.ceil(n / 2)), y = RK.top + RK.bar + 12 + (rows - 1) * RK.pitch + RK.row;
+    return { n, rows, H: Math.max(380, Math.round(y + 34)) };
+  }
+  async function renderShlRank(d, ctx) {
+    await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
+    const L = shlRankLayout(d), W2 = 1200, H2 = L.H, foot = await loadImg('assets/footer-logo.png'), photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null, rank = cur.rank || [];
+    ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
+    const blockR = RK.x0 + 2 * RK.colW + RK.gap;   // right edge of the table (790)
+    if (photo && d.cutout) {   // the player alone, bottom aligned on the right
+      const ph = H2 * 1.02 * (d.z || 1), pw = ph * photo.naturalWidth / photo.naturalHeight, cxp = 1010 + (d.x || 0), by = H2 + 8 + (d.y || 0);
+      ctx.save(); ctx.beginPath(); ctx.rect(820, 0, 380, H2); ctx.clip();
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 40; ctx.shadowOffsetX = 8; ctx.shadowOffsetY = 12; ctx.drawImage(photo, cxp - pw / 2, by - ph, pw, ph); ctx.restore();
+    } else if (photo) {   // the photo fills the right half and fades into the navy towards the table
+      ctx.save();
+      const sc = Math.max(W2 * 0.5 / photo.naturalWidth, H2 / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - W2);
+      ctx.drawImage(photo, W2 - dw + Math.min(maxShift, Math.max(0, d.x || 0)), Math.min(0, Math.max(H2 - dh, (H2 - dh) / 2 + (d.y || 0))), dw, dh);
+      const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.94)'); g.addColorStop(0.5, 'rgba(26,27,56,0.9)'); g.addColorStop(0.64, 'rgba(26,27,56,0.62)'); g.addColorStop(0.8, 'rgba(26,27,56,0.1)'); g.addColorStop(1, 'rgba(26,27,56,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); ctx.restore();
+    }
+    const title = (d.title || '').toUpperCase().trim(), maxP = Math.max.apply(null, rank.map(r => parseInt(r.p, 10) || 0).concat([0])), sub = (d.sub || '').trim() || (maxP ? `AFTER ROUND ${maxP}` : '');
+    if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 420, 66); text(ctx, title, RK.x0, 80, `700 ${sz}px "ClashDisplay"`, '#fff', { maxWidth: 420 }); }
+    if (sub) text(ctx, sub.toUpperCase(), RK.x0 + 2, 112, '700 24px "ClashDisplay"', SM_LIME, { maxWidth: 420 });
+    if (foot) ctx.drawImage(foot, blockR - 230, 30, 230, 230 * 174 / 707);
+    const half = Math.ceil(rank.length / 2);
+    for (let c = 0; c < 2; c++) {
+      const x = RK.x0 + c * (RK.colW + RK.gap), bar = ctx.createLinearGradient(x, 0, x + RK.colW, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c');
+      ctx.fillStyle = bar; ctx.fillRect(x, RK.top, RK.colW, RK.bar);
+      const hf = '700 17px "ClashDisplay"'; ctx.font = hf; const cap = ctx.measureText('H').actualBoundingBoxAscent, by = RK.top + RK.bar / 2 + cap / 2;
+      text(ctx, 'CLUB', x + 12, by, hf, '#14142b', { ws: 2 }); text(ctx, 'P', 0, by, hf, '#14142b', { center: x + 262 }); text(ctx, 'PTS', 0, by, hf, '#14142b', { inkRight: x + RK.colW - 14 });
+      const list = rank.slice(c * half, c * half + half);
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i], y = RK.top + RK.bar + 12 + i * RK.pitch, code = (MEN.exportCode && MEN.exportCode[r.code]) || r.code;
+        ctx.fillStyle = '#f9faff'; ctx.fillRect(x, y, RK.colW, RK.row);
+        text(ctx, String(r.pos), 0, y + 33, '500 22px "ClashMed"', SM_INK, { center: x + 20 });
+        await crest(ctx, MEN, r.code, x + 40, y + 5, 40, 40);
+        text(ctx, code, x + 92, y + 34, '700 27px "ClashDisplay"', SM_INK, { maxWidth: 120 });
+        text(ctx, String(r.p), 0, y + 33, '500 23px "ClashMed"', SM_INK, { center: x + 262 });
+        text(ctx, String(r.pts), 0, y + 34, '700 27px "ClashDisplay"', SM_INK, { inkRight: x + RK.colW - 14 });
+        ctx.fillStyle = r.pos <= 1 ? '#c4f23c' : 'rgba(243,85,122,0.0)'; if (r.pos <= 1) ctx.fillRect(x, y, 5, RK.row);
+      }
+    }
+  }
+  async function loadShlRank() {
+    try {
+      const r = await fetch('/api/standings?comp=men'); const j = await r.json();
+      cur.rank = (j.standings || []).map((x, i) => ({ pos: i + 1, club: x.club, code: codeOf(MEN, x.club), p: x.played, pts: x.points })).filter(x => x.code);
+    } catch (e) { cur.rank = []; }
+  }
+  function shlRankControls() {
+    const d = cur.d;
+    return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Tekst</div>
+      <div class="field"><label for="smTitle">Titel</label><input type="text" id="smTitle" value="${esc(d.title)}"></div>
+      <div class="field"><label for="smSub">Regel eronder (leeg = na welke ronde de stand is)</label><input type="text" id="smSub" value="${esc(d.sub)}" placeholder="bijv. AFTER ROUND 9"></div>
+      <p class="hint">${(cur.rank || []).length} clubs, de stand van de site (ververst bij elke keer openen). De tabel staat links, de foto rechts met een fade.</p></div>
+      <div class="panel-step"><div class="panel-step-title">Foto</div>${smPhotoHtml(d)}</div>`;
+  }
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
+    if (KINDS[kind].shlrank) { await renderShlRank(d, ctx); return; }
     if (KINDS[kind].shlmail) { await renderShlMail(d, ctx); return; }
     if (KINDS[kind].potm) { await renderPotm(d, ctx); return; }
     if (KINDS[kind].vis) { await renderVis(kind, d, ctx); return; }
@@ -953,7 +1017,9 @@
     const box = $('thControls'); if (!box || !cur.d) return;
     const d = cur.d, K = KINDS[cur.kind];
     let html = '';
-    if (K.shlmail) {
+    if (K.shlrank) {
+      html += shlRankControls();
+    } else if (K.shlmail) {
       html += shlMailControls();
     } else if (K.potm) {
       html += potmControls();
@@ -1015,10 +1081,10 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.shlmail ? 3 : K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.shlrank ? 3 : K.shlmail ? 3 : K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
-      ${K.shlmail ? '' : K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
+      ${K.shlrank || K.shlmail ? '' : K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     html += apiPanelHtml();
     box.innerHTML = html;
@@ -1084,7 +1150,7 @@
     on('smZ', 'input', (e) => set({ z: parseInt(e.target.value, 10) / 100 }));
     on('smX', 'input', (e) => set({ x: parseInt(e.target.value, 10) }));
     on('smY', 'input', (e) => set({ y: parseInt(e.target.value, 10) }));
-    on('smPhotoDel', 'click', () => { fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { method: 'DELETE' }).catch(() => {}); cur.smPhoto = null; Object.assign(cur.d, { hasPhoto: false, z: 1, x: 0, y: 0 }); scheduleSave(); buildControls(); scheduleRender(); });
+    on('smPhotoDel', 'click', () => { fetch('/api/photo?key=' + enc(itemKey()), { method: 'DELETE' }).catch(() => {}); cur.smPhoto = null; Object.assign(cur.d, { hasPhoto: false, z: 1, x: 0, y: 0 }); scheduleSave(); buildControls(); scheduleRender(); });
     on('smDay', 'change', (e) => set({ dayKey: e.target.value }, true));
     on('smSpan', 'change', (e) => set({ span: parseInt(e.target.value, 10) }, true));
     on('smTitle', 'input', (e) => set({ title: e.target.value }));
@@ -1187,6 +1253,7 @@
   }
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    if (KINDS[kind].shlrank) return 'SHL_ranking-mail_' + new Date().toISOString().slice(0, 10).replace(/-/g, '');
     if (KINDS[kind].shlmail) { const dd = (cur.days || []).find(x => String(x.key) === String(d.dayKey)); return `SHL_schedule-mail_${dd ? seasonDate(dd.day, dd.month).getFullYear() + String(dd.month).padStart(2, '0') + String(dd.day).padStart(2, '0') : 'datum'}`; }
     if (KINDS[kind].potm) { const sl = (t) => String(t || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); const f = d.fmt === 'story' ? 'vote-story' : d.fmt === 'overview' ? 'overview' : 'nominee-' + sl(((d.players[+String(d.fmt).slice(1)] || {}).last) || d.fmt); return `SHL_POTM_${sl(d.month)}_${f}`; }
     if (KINDS[kind].vis === 'mail') return 'LVL_mailheader';
@@ -1291,12 +1358,14 @@
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }
     if (k !== itemKey()) return;
-    cur.d = Object.assign(K.shlmail ? shlMailDefaults() : K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
+    cur.d = Object.assign(K.shlrank ? shlRankDefaults() : K.shlmail ? shlMailDefaults() : K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
-    if (cur.d.hasPhoto && !K.vis && !K.shlmail) {
+    if (cur.d.hasPhoto && !K.vis && !K.shlmail && !K.shlrank) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
-    if (K.shlmail) {
+    if (K.shlrank) {
+      await loadShlRank(); await loadShlMailPhoto();
+    } else if (K.shlmail) {
       await loadFixtures('shl');
       await loadShlMailPhoto();
       if (!cur.days.some(x => String(x.key) === String(cur.d.dayKey))) cur.d.dayKey = cur.days.length ? cur.days[0].key : '';
