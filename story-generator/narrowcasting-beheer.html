@@ -96,6 +96,11 @@
       <select id="meetTheme" title="Kleurstelling van Welkom [klant]" style="max-width:150px"></select></div>
     <div class="hint" id="meetHint" style="margin-top:8px"></div>
   </div>
+  <div class="box">
+    <div class="row"><b style="min-width:210px">Meetings plannen</b><button class="btn small" id="mtAdd" type="button">+ Meeting plannen</button>
+      <span class="hint" style="margin:0">Kies per meeting een kleurstelling van ByT (met een achtergrondfoto blijft het scherm navy). Tien minuten vooraf laat het scherm "Binnenkort meeting" zien met een aftelling, op de starttijd gaat het over naar de Meeting-slide (of Welkom [klant] bij bezoek) en na de eindtijd terug naar de normale slides. Staat de gastmodus hierboven al aan, dan gaat die voor.</span></div>
+    <div id="mtList" style="margin-top:10px"></div>
+  </div>
   <div class="box" id="weekBox" style="border-color:#FC06E5">
     <div class="row"><b style="min-width:210px">Wedstrijden en producties</b>
       <span class="hint" style="margin:0">Typ of plak per regel één livestream of productie. Datum en tijd herkent hij zelf; je ziet hieronder meteen wat er op het scherm komt.</span></div>
@@ -126,11 +131,6 @@
       <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">tot <input type="time" id="vmEnd" style="width:120px"></label>
       <button class="btn small line" id="vmClose" type="button" hidden>Vrijmibo afsluiten</button></div>
     <div class="hint" style="margin-top:8px">Dan laat het scherm alleen de vrijmibo-slide zien (marketing-kleuren en een biertje). Staat er rond die tijd (een half uur eromheen) een meeting gepland of een afspraak in de agenda, dan slaat het scherm de vrijmibo die dag over. Een geplande meeting gaat altijd voor.</div>
-  </div>
-  <div class="box">
-    <div class="row"><b style="min-width:210px">Meetings plannen</b><button class="btn small" id="mtAdd" type="button">+ Meeting plannen</button>
-      <span class="hint" style="margin:0">Kies per meeting een kleurstelling van ByT (met een achtergrondfoto blijft het scherm navy). Tien minuten vooraf laat het scherm "Binnenkort meeting" zien met een aftelling, op de starttijd gaat het over naar de Meeting-slide (of Welkom [klant] bij bezoek) en na de eindtijd terug naar de normale slides. Staat de gastmodus hierboven al aan, dan gaat die voor.</span></div>
-    <div id="mtList" style="margin-top:10px"></div>
   </div>
   <div class="box">
     <div class="row"><b style="min-width:210px">Achtergrondfoto bij gastmodus en meetings</b>
