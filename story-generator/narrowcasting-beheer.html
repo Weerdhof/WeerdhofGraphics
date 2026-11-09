@@ -85,6 +85,22 @@
   </div>
   <p class="sub">Zet het scherm in gastmodus als er bezoek is, of plan een meeting vooruit: het scherm schakelt dan zelf aan en uit. Alles wat bij de normale slides hoort staat onderaan bij "Overige instellingen".</p>
 
+
+  <div class="box" id="weekBox" style="border-color:#FC06E5">
+    <div class="row"><b style="min-width:210px">Deze week: livestreams en producties</b>
+      <span class="hint" style="margin:0">Typ of plak per regel één livestream of productie. Datum en tijd herkent hij zelf; je ziet hieronder meteen wat er op het scherm komt.</span></div>
+    <textarea id="wkText" rows="6" spellcheck="false" placeholder="wo 4/11 20:30  Knack Roeselare - Waremme Volley&#10;za 7/11 17:00  SAB Diving Brabo Antwerp VT - HVC Helchteren&#10;zo 8/11 12:45-14:25  Hurley D1 - Kampong D1&#10;&#10;Ook een lijst uit JUMP (met tabs) kun je plakken." style="width:100%;margin-top:10px;font:14px/1.5 ui-monospace,Menlo,monospace"></textarea>
+    <div class="row" style="margin-top:10px">
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Soort <select id="wkType" style="max-width:210px"><option value="live">Livestream (JUMP, staat als LIVE)</option><option value="prod">Alleen productie (staat als BEZIG)</option></select></label>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Klant <select id="wkClient" style="max-width:230px"></select></label>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Duur <select id="wkDur" style="max-width:120px"><option value="60">1 uur</option><option value="90">1,5 uur</option><option value="120" selected>2 uur</option><option value="150">2,5 uur</option><option value="180">3 uur</option></select></label>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Competitie / plaats <input type="text" id="wkPlace" maxlength="60" placeholder="automatisch" style="max-width:220px"></label>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim)">Datum bij regels zonder datum <input type="date" id="wkDate" style="max-width:160px"></label>
+    </div>
+    <div id="wkPrev" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="wkAdd" type="button" disabled>Toevoegen aan de agenda</button><span class="hint" id="wkMsg" style="margin:0"></span></div>
+  </div>
+
   <div class="box" id="meetingBox" style="border-color:#49FF9F">
     <div class="row"><b style="min-width:210px">Gastmodus nu</b>
       <button class="btn small line" type="button" data-meet="off">Uit: alle slides</button>
@@ -428,6 +444,86 @@
     items.push(newItem({})); render(); save();
     var t = document.querySelectorAll('#list .it[data-i="' + (items.length - 1) + '"] [data-f=title]'); if (t[0]) t[0].focus();
   });
+
+  // ---- Deze week: livestreams en producties (one line each, typed or pasted) ----
+  var WK_SPORT = { lvl: 'volleybal', shl: 'handbal', shlw: 'handbal', hnl: 'handbal', hnltv: 'handbal', hhd: 'hockey', hhh: 'hockey', tvv: 'volleybal', zwem: 'zwemmen', futsal: 'voetbal' };
+  var WK_PLACE = { lvl: 'Lotto Volley League', shl: 'SHL', shlw: 'SHLW', hnl: 'HandbalNL', hhd: 'Hoofdklasse Hockey · Dames', hhh: 'Hoofdklasse Hockey · Heren', tvv: 'Tijd voor Volleyball', zwem: 'Zwemsport TV', kwpn: 'KWPN TV', futsal: 'Eredivisie Futsal' };
+  var WK_MONTH = { jan: 1, feb: 2, mrt: 3, mar: 3, apr: 4, mei: 5, jun: 6, jul: 7, aug: 8, sep: 9, okt: 10, nov: 11, dec: 12 };
+  (function () {
+    var sel = document.getElementById('wkClient');
+    sel.innerHTML = '<option value="">Automatisch herkennen</option>' + ['lvl', 'shl', 'shlw', 'hnl', 'hhd', 'hhh', 'tvv', 'zwem', 'kwpn', 'futsal', 'sibv', 'standaard'].map(function (k) { return '<option value="' + k + '">' + COLORS[k][0] + '</option>'; }).join('');
+  })();
+  function wkPad(n) { return ('0' + n).slice(-2); }
+  function wkDate(d, m, y) {
+    var t = new Date(), yy = y ? (y < 100 ? 2000 + y : y) : t.getFullYear(), dt = new Date(yy, m - 1, d);
+    if (!y && dt < new Date(t.getFullYear(), t.getMonth(), t.getDate() - 45)) dt = new Date(yy + 1, m - 1, d);
+    return dt.getFullYear() + '-' + wkPad(dt.getMonth() + 1) + '-' + wkPad(dt.getDate());
+  }
+  function wkAddMin(hhmm, min) { var p = hhmm.split(':'), n = +p[0] * 60 + +p[1] + min; n = n % 1440; return wkPad(Math.floor(n / 60)) + ':' + wkPad(n % 60); }
+  // one line -> { title, date, time, end, client, place, bad }
+  function wkParseLine(raw) {
+    var line = raw.replace(/^\s+|\s+$/g, ''); if (!line) return null;
+    var fields = line.indexOf('\t') >= 0 ? line.split('\t').map(function (x) { return x.replace(/^\s+|\s+$/g, ''); }).filter(Boolean) : [line];
+    if (/^#?\s*wedstrijd\b/i.test(fields[0]) || (fields.length > 1 && /^#$/.test(fields[0]) && /wedstrijd/i.test(fields[1]))) return null;   // header of a JUMP list
+    if (fields.length > 1 && /^\d{3,}$/.test(fields[0])) fields.shift();                                                                       // JUMP match number
+    var plan = '', rest = [];
+    fields.forEach(function (f) { if (/^LVL[mw]\s*\|/i.test(f)) plan = f; else rest.push(f); });
+    var text = rest.join('  ');
+    var time = '', end = '', date = '', m;
+    if ((m = /(\d{1,2}):(\d{2})(?:\s*[-–]\s*(\d{1,2}):(\d{2}))?/.exec(text))) { time = wkPad(+m[1]) + ':' + m[2]; if (m[3]) end = wkPad(+m[3]) + ':' + m[4]; text = text.replace(m[0], '  '); }
+    if ((m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(text))) { date = wkDate(+m[3], +m[2], +m[1]); text = text.replace(m[0], '  '); }
+    else if ((m = /(\d{1,2})\s*(?:\/|-|\.)\s*(\d{1,2})(?:\s*(?:\/|-|\.)\s*(\d{2,4}))?(?!\d)/.exec(text)) && +m[1] <= 31 && +m[2] <= 12) { date = wkDate(+m[1], +m[2], m[3] ? +m[3] : 0); text = text.replace(m[0], '  '); }
+    else if ((m = /(\d{1,2})\s+(jan|feb|mrt|mar|apr|mei|jun|jul|aug|sep|okt|nov|dec)[a-z]*\.?/i.exec(text))) { date = wkDate(+m[1], WK_MONTH[m[2].toLowerCase()], 0); text = text.replace(m[0], '  '); }
+    text = text.replace(/(^|\s)(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag|ma|di|wo|do|vr|za|zo)\.?(?=\s|,|$)/ig, ' ');
+    var title = text.replace(/\s{2,}/g, '  ').split('  ').map(function (x) { return x.replace(/^[\s,;:|\-–·]+|[\s,;:|\-–·]+$/g, ''); }).filter(Boolean).join(' ');
+    if (!date && plan && (m = /(\d{1,2})\s*-\s*(\d{1,2})\s*$/.exec(plan))) date = wkDate(+m[1], +m[2], 0);
+    var client = '', place = '';
+    if (/^LVLm/i.test(plan) || /\[LVLM\]/i.test(title)) { client = 'lvl'; place = 'Lotto Volley League · Heren'; }
+    else if (/^LVLw/i.test(plan) || /\[LVLW\]/i.test(title)) { client = 'lvl'; place = 'Lotto Volley League · Dames'; }
+    else if (/\[CUP\]/i.test(title)) client = 'lvl';
+    else if (/\b(H1|D1)\b/.test(title) || /hoofdklasse/i.test(title)) client = /\bD1\b/.test(title) ? 'hhd' : 'hhh';
+    title = title.replace(/^\[(LVLM|LVLW)\]\s*/i, '');
+    return { raw: raw, title: title.slice(0, 80), date: date, time: time, end: end, client: client, place: place, bad: !title ? 'geen titel' : '' };
+  }
+  function wkBuild() {
+    var type = document.getElementById('wkType').value, forced = document.getElementById('wkClient').value, dur = +document.getElementById('wkDur').value, place = document.getElementById('wkPlace').value.replace(/^\s+|\s+$/g, ''), dflt = document.getElementById('wkDate').value;
+    var have = {}; items.forEach(function (it) { have[it.date + '|' + (it.title || '').toLowerCase()] = 1; });
+    var out = [];
+    document.getElementById('wkText').value.split(/\r?\n/).forEach(function (ln) {
+      var r = wkParseLine(ln); if (!r) return;
+      if (!r.date && dflt) r.date = dflt;
+      if (!r.date && !r.bad) r.bad = 'geen datum herkend';
+      var c = forced || r.client || 'standaard';
+      r.pillars = [type === 'live' ? 'jump' : 'productie'].concat(c === 'standaard' ? [] : [c]);
+      r.sport = WK_SPORT[c] || '';
+      r.placeFinal = place || r.place || WK_PLACE[c] || '';
+      r.endFinal = r.end || (r.time ? wkAddMin(r.time, dur) : '');
+      r.type = type; r.clientFinal = c;
+      r.dup = !r.bad && !!have[r.date + '|' + r.title.toLowerCase()];
+      out.push(r);
+    });
+    return out;
+  }
+  function wkRender() {
+    var rows = wkBuild(), box = document.getElementById('wkPrev'), add = document.getElementById('wkAdd');
+    var ok = rows.filter(function (r) { return !r.bad && !r.dup; });
+    if (!rows.length) { box.innerHTML = ''; add.disabled = true; add.textContent = 'Toevoegen aan de agenda'; return; }
+    box.innerHTML = '<div class="tblwrap"><table class="t"><tr><th>Datum</th><th>Tijd</th><th>Wedstrijd of productie</th><th>Klant</th><th>Soort</th><th></th></tr>' + rows.map(function (r) {
+      var d = r.date ? new Date(r.date + 'T12:00:00') : null, nice = d ? WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] : '';
+      var col = COLORS[r.clientFinal] ? COLORS[r.clientFinal][1] : '#748FFF', lab = COLORS[r.clientFinal] ? COLORS[r.clientFinal][0] : 'Algemeen';
+      var state = r.bad ? '<span style="color:#ff7a7a">' + esc(r.bad) + '</span>' : r.dup ? '<span style="color:var(--dim)">staat er al</span>' : '<span style="color:#49FF9F">nieuw</span>';
+      return '<tr' + (r.bad ? ' style="opacity:.6"' : '') + '><td>' + esc(nice) + '</td><td>' + esc(r.time ? r.time + (r.endFinal ? ' – ' + r.endFinal : '') : '') + '</td><td>' + esc(r.title || r.raw) + '</td><td style="color:' + col + '">' + esc(lab) + '</td><td>' + (r.type === 'live' ? 'Livestream' : 'Productie') + '</td><td>' + state + '</td></tr>';
+    }).join('') + '</table></div>';
+    add.disabled = !ok.length; add.textContent = ok.length ? 'Toevoegen aan de agenda (' + ok.length + ')' : 'Toevoegen aan de agenda';
+  }
+  ['wkText', 'wkType', 'wkClient', 'wkDur', 'wkPlace', 'wkDate'].forEach(function (id) { var el = document.getElementById(id); el.addEventListener('input', wkRender); el.addEventListener('change', wkRender); });
+  document.getElementById('wkAdd').addEventListener('click', function () {
+    var rows = wkBuild().filter(function (r) { return !r.bad && !r.dup; }), dups = wkBuild().filter(function (r) { return r.dup; }).length;
+    rows.forEach(function (r) { items.push(newItem({ date: r.date, time: r.time, end: r.endFinal, title: r.title, place: r.placeFinal, pillars: r.pillars, sport: r.sport, jump: true, featured: false, allDay: !r.time })); });
+    document.getElementById('wkText').value = ''; wkRender(); render(); save(true);
+    document.getElementById('wkMsg').textContent = '✓ ' + rows.length + ' toegevoegd aan de agenda' + (dups ? ' (' + dups + ' stond er al)' : '') + '. Ze staan binnen een minuut op het scherm.';
+  });
+  wkRender();
   document.getElementById('pickAdd').addEventListener('click', function () {
     var v = document.getElementById('pick').value; if (v === '') return;
     var m = matches[+v];

@@ -1175,3 +1175,7 @@ body:not(.set-open) .settings-view { display: none; }
 .th-app #thCanvas.tall { width: min(46vw, 620px); max-height: none; }
 .th-app .canvas-holder:has(#thCanvas.tall) { max-height: none; }
 .th-app .preview-wrap:has(#thCanvas.tall) { align-items: flex-start; }
+
+/* links to the narrowcasting screen and its management page, next to Instellingen in the top bar */
+#homeMenu a.home-settings-btn { display: inline-block; align-self: center; text-decoration: none; white-space: nowrap; }
+#homeMenu .home-settings-btn + .home-settings-btn { margin-left: 8px; }
