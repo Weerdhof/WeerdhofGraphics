@@ -52,7 +52,11 @@ Home tab SHL, group `E-mail`, card `Schedule e-mailbanner` (`/shl/schedule-mail`
 
 ## SHL Ranking e-mail banner
 
-Home tab SHL, group `E-mail`, card `Ranglijst e-mailbanner` (`/shl/ranking-mail`, kind `shlrank` in `thumbs.js`). The same look as the schedule banner, mirrored: 1200 px wide, the title, the round and the logo and the table left-aligned (all clubs in two columns of white rows: position, crest, code, played, points, with the lime header bars), the photo on the right fading into the navy. The standing comes from `/api/standings?comp=men` each time the page is opened; the line under the title is `AFTER ROUND n` unless something else is typed. The photo works as in the schedule banner (zoom and position, an optional background removal) and is stored per item (`th:shlrank:s1`). No API.
+Home tab SHL, group `E-mail`, card `Ranglijst e-mailbanner` (`/shl/ranking-mail`, kind `shlrank` in `thumbs.js`). The same look as the schedule banner, mirrored: 1200 px wide, the title, the round and the logo and the table left-aligned (all clubs in two columns of white rows: position, crest, code, played, points, under one lime info bar), the photo on the right fading into the navy. The standing comes from `/api/standings?comp=men` each time the page is opened; there is no line under the title unless one is typed. The photo works as in the schedule banner (zoom and position, an optional background removal) and is stored per item (`th:shlrank:s1`). No API.
+
+## SHL Head to head e-mail banner
+
+Home tab SHL, group `E-mail`, card `Head to head e-mailbanner` (`/shl/head-to-head-mail`, kind `shlh2h` in `thumbs.js`), 1200 x 512 px. Choose the matchday and the match from the programme. Two white cards (crest, code, club name, position, points, W-D-L, the form as the last five results with lime W, grey D and red L) with VS between them and, under it, the last meeting of the two this season or `FIRST MEETING OF THE SEASON`, under one lime info bar with the date and time. The data is the one of the Head to head story: `/api/standings` and `/api/results` (newest result first). No photo, no API.
 
 ## Narrowcasting: week input and home buttons
 

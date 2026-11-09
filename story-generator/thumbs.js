@@ -15,9 +15,10 @@
     lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · 1920×1080', vis: 'watch' },
     shlmail:   { title: 'SHL Schedule e-mailbanner', sub: 'Super Handball League · 1200 px breed', shlmail: true, comp: 'men' },
     shlrank:   { title: 'SHL Ranglijst e-mailbanner', sub: 'Super Handball League · 1200 px breed', shlrank: true, comp: 'men' },
+    shlh2h:    { title: 'SHL Head to head e-mailbanner', sub: 'Super Handball League · 1200 px breed', shlh2h: true, comp: 'men' },
     potm:      { title: 'Player of the Month', sub: 'Super Handball League · overzicht, nominees en vote-story', potm: true, comp: 'men' },
   };
-  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month', shlmail: 'SHL schedule e-mail', shlrank: 'SHL ranking e-mail' };
+  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month', shlmail: 'SHL schedule e-mail', shlrank: 'SHL ranking e-mail', shlh2h: 'SHL head to head e-mail' };
 
   // ---------- Fonts (Clash is registered by script.js; the HandbalNL ones are loaded here) ----------
   const FONT_FILES = [
@@ -206,7 +207,7 @@
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // canvas size of a kind (Player of the Month: the story is 1080x1920, the rest 1080x1350)
-  const kindSize = (kind, d) => KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
+  const kindSize = (kind, d) => KINDS[kind].shlh2h ? [1200, 512] : KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -758,7 +759,7 @@
 
   // ---------- SHL Ranking as an e-mail banner: the same look as the schedule banner, mirrored: the table on the left, the photo on the right ----------
   const shlRankDefaults = () => ({ title: 'RANKING', sub: '', bg: 'photo', hasPhoto: false, cutout: false, z: 1, x: 0, y: 0 });
-  const RK = { x0: 50, colW: 360, gap: 20, row: 50, pitch: 56, bar: 34, top: 128 };
+  const RK = { x0: 50, colW: 360, gap: 20, row: 50, pitch: 56, bar: 36, top: 116 };
   function shlRankLayout(d) {
     const n = (cur.rank || []).length, rows = Math.max(1, Math.ceil(n / 2)), y = RK.top + RK.bar + 12 + (rows - 1) * RK.pitch + RK.row;
     return { n, rows, H: Math.max(380, Math.round(y + 34)) };
@@ -779,16 +780,21 @@
       const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.94)'); g.addColorStop(0.5, 'rgba(26,27,56,0.9)'); g.addColorStop(0.64, 'rgba(26,27,56,0.62)'); g.addColorStop(0.8, 'rgba(26,27,56,0.1)'); g.addColorStop(1, 'rgba(26,27,56,0)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); ctx.restore();
     }
-    const title = (d.title || '').toUpperCase().trim(), maxP = Math.max.apply(null, rank.map(r => parseInt(r.p, 10) || 0).concat([0])), sub = (d.sub || '').trim() || (maxP ? `AFTER ROUND ${maxP}` : '');
+    const title = (d.title || '').toUpperCase().trim(), sub = (d.sub || '').trim();
     if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 420, 66); text(ctx, title, RK.x0, 80, `700 ${sz}px "ClashDisplay"`, '#fff', { maxWidth: 420 }); }
     if (sub) text(ctx, sub.toUpperCase(), RK.x0 + 2, 112, '700 24px "ClashDisplay"', SM_LIME, { maxWidth: 420 });
     if (foot) ctx.drawImage(foot, blockR - 230, 30, 230, 230 * 174 / 707);
-    const half = Math.ceil(rank.length / 2);
+    const half = Math.ceil(rank.length / 2), fullW = 2 * RK.colW + RK.gap;
+    // one info bar over the whole table, with the column names above both columns
+    const bar = ctx.createLinearGradient(RK.x0, 0, RK.x0 + fullW, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c');
+    ctx.fillStyle = bar; ctx.fillRect(RK.x0, RK.top, fullW, RK.bar);
+    const hf = '700 17px "ClashDisplay"'; ctx.font = hf; const cap = ctx.measureText('H').actualBoundingBoxAscent, by = RK.top + RK.bar / 2 + cap / 2;
     for (let c = 0; c < 2; c++) {
-      const x = RK.x0 + c * (RK.colW + RK.gap), bar = ctx.createLinearGradient(x, 0, x + RK.colW, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c');
-      ctx.fillStyle = bar; ctx.fillRect(x, RK.top, RK.colW, RK.bar);
-      const hf = '700 17px "ClashDisplay"'; ctx.font = hf; const cap = ctx.measureText('H').actualBoundingBoxAscent, by = RK.top + RK.bar / 2 + cap / 2;
+      const x = RK.x0 + c * (RK.colW + RK.gap);
       text(ctx, 'CLUB', x + 12, by, hf, '#14142b', { ws: 2 }); text(ctx, 'P', 0, by, hf, '#14142b', { center: x + 262 }); text(ctx, 'PTS', 0, by, hf, '#14142b', { inkRight: x + RK.colW - 14 });
+    }
+    for (let c = 0; c < 2; c++) {
+      const x = RK.x0 + c * (RK.colW + RK.gap);
       const list = rank.slice(c * half, c * half + half);
       for (let i = 0; i < list.length; i++) {
         const r = list[i], y = RK.top + RK.bar + 12 + i * RK.pitch, code = (MEN.exportCode && MEN.exportCode[r.code]) || r.code;
@@ -812,13 +818,87 @@
     const d = cur.d;
     return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Tekst</div>
       <div class="field"><label for="smTitle">Titel</label><input type="text" id="smTitle" value="${esc(d.title)}"></div>
-      <div class="field"><label for="smSub">Regel eronder (leeg = na welke ronde de stand is)</label><input type="text" id="smSub" value="${esc(d.sub)}" placeholder="bijv. AFTER ROUND 9"></div>
+      <div class="field"><label for="smSub">Regel onder de titel (optioneel)</label><input type="text" id="smSub" value="${esc(d.sub)}" placeholder="leeg laten"></div>
       <p class="hint">${(cur.rank || []).length} clubs, de stand van de site (ververst bij elke keer openen). De tabel staat links, de foto rechts met een fade.</p></div>
       <div class="panel-step"><div class="panel-step-title">Foto</div>${smPhotoHtml(d)}</div>`;
+  }
+
+  // ---------- SHL Head to head as an e-mail banner: two clubs side by side with their standing and form, and what happened last time ----------
+  // The same data as the Head to head story: the standings and the results of the site (newest result first).
+  const shlH2hDefaults = () => ({ title: 'HEAD TO HEAD', dayKey: '', fixture: '' });
+  async function loadShlH2h() {
+    await loadFixtures('shl');
+    try {
+      const [r, st] = await Promise.all([fetch('/api/results?comp=men').then(x => x.json()), fetch('/api/standings?comp=men').then(x => x.json())]);
+      cur.h2hResults = (r.results || []).map(x => ({ a: codeOf(MEN, x.teamA), b: codeOf(MEN, x.teamB), sa: x.scoreA, sb: x.scoreB, date: x.date || '' })).filter(x => x.a && x.b);
+      cur.h2hStand = (st.standings || []).map((x, i) => ({ pos: i + 1, code: codeOf(MEN, x.club), p: x.played, pts: x.points, w: x.w, d: x.d, l: x.l }));
+    } catch (e) { cur.h2hResults = []; cur.h2hStand = []; }
+    const days = cur.days || [];
+    if (!days.some(x => String(x.key) === String(cur.d.dayKey))) cur.d.dayKey = days.length ? days[0].key : '';
+    const day = days.find(x => String(x.key) === String(cur.d.dayKey));
+    if (day && !day.items.some(f => `${f.hc}-${f.ac}` === cur.d.fixture)) cur.d.fixture = day.items.length ? `${day.items[0].hc}-${day.items[0].ac}` : '';
+  }
+  const h2hFixture = (d) => { const day = (cur.days || []).find(x => String(x.key) === String(d.dayKey)); return day ? { day, f: day.items.find(f => `${f.hc}-${f.ac}` === d.fixture) || day.items[0] } : null; };
+  function h2hTeamInfo(code) {
+    const games = (cur.h2hResults || []).filter(x => x.a === code || x.b === code).map(x => { const mine = x.a === code, f = mine ? x.sa : x.sb, g = mine ? x.sb : x.sa; return { opp: mine ? x.b : x.a, f, g, res: f > g ? 'W' : f < g ? 'L' : 'D', a: x.a, b: x.b, sa: x.sa, sb: x.sb, date: x.date }; });
+    return { games, row: (cur.h2hStand || []).find(x => x.code === code) || null };
+  }
+  async function renderShlH2h(d, ctx) {
+    await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
+    const W2 = 1200, H2 = 512, foot = await loadImg('assets/footer-logo.png'), fx = h2hFixture(d), code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c;
+    ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
+    const title = (d.title || '').toUpperCase().trim();
+    if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 560, 66); text(ctx, title, 50, 82, `700 ${sz}px "ClashDisplay"`, '#fff', { maxWidth: 560 }); }
+    if (foot) ctx.drawImage(foot, 920, 30, 230, 230 * 174 / 707);
+    if (!fx || !fx.f) { text(ctx, 'GEEN WEDSTRIJD GEVONDEN', 0, 280, '700 34px "ClashDisplay"', '#fff', { center: 600 }); return; }
+    const f = fx.f, A = h2hTeamInfo(f.hc), B = h2hTeamInfo(f.ac);
+    // the one info bar: date, time
+    const bar = ctx.createLinearGradient(50, 0, 1150, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c'); ctx.fillStyle = bar; ctx.fillRect(50, 110, 1100, 42);
+    const bf = '700 22px "ClashDisplay"'; ctx.font = bf; const cap = ctx.measureText('H').actualBoundingBoxAscent;
+    text(ctx, `${fmtDate(MEN, f.day, f.month)}${f.time ? '  ·  ' + f.time : ''}`, 0, 110 + 21 + cap / 2, bf, '#14142b', { center: 600, ws: 5 });
+    const card = async (x, t, c) => {
+      const y = 172, w = 420, h = 308, ink = SM_INK, grey = '#6b6e8f';
+      ctx.fillStyle = '#f9faff'; ctx.fillRect(x, y, w, h);
+      await crest(ctx, MEN, c, x + 22, y + 20, 100, 100);
+      text(ctx, code(c), x + 140, y + 84, '700 62px "ClashDisplay"', ink, { maxWidth: 250 });
+      text(ctx, labelOf(MEN, c).toUpperCase(), x + 142, y + 112, '500 19px "ClashMed"', grey, { maxWidth: 260, ws: 2 });
+      ctx.fillStyle = '#e4e6f3'; ctx.fillRect(x + 22, y + 136, w - 44, 2);
+      const r = t.row, cells = [[r ? String(r.pos) : '-', 'POSITION'], [r ? String(r.pts) : '-', 'POINTS'], [r ? `${r.w}-${r.d}-${r.l}` : '-', 'W-D-L']];
+      cells.forEach((cc, i) => { const cx = x + 22 + (w - 44) * (i + 0.5) / 3; text(ctx, cc[0], 0, y + 192, `700 ${i === 2 ? 38 : 46}px "ClashDisplay"`, ink, { center: cx }); text(ctx, cc[1], 0, y + 218, '500 15px "ClashMed"', grey, { center: cx, ws: 2 }); });
+      // form: the last five results, oldest left, newest right
+      const last = t.games.slice(0, 5).reverse(), colour = { W: '#c4f23c', D: '#d6d9ea', L: '#f47987' };
+      text(ctx, 'FORM', x + 22, y + 276, '500 15px "ClashMed"', grey, { ws: 2 });
+      last.forEach((g, i) => { const bx = x + 96 + i * 46; ctx.fillStyle = colour[g.res]; ctx.fillRect(bx, y + 252, 38, 38); text(ctx, g.res, 0, y + 279, '700 22px "ClashDisplay"', '#14142b', { center: bx + 19 }); });
+      if (!last.length) text(ctx, 'NO RESULTS YET', x + 96, y + 276, '500 15px "ClashMed"', grey, { ws: 2 });
+    };
+    await card(50, A, f.hc); await card(730, B, f.ac);
+    // the middle: VS and the last meeting of these two
+    text(ctx, 'VS', 0, 292, '700 84px "ClashDisplay"', '#fff', { center: 600 });
+    const meet = A.games.find(g => g.opp === f.ac);
+    if (meet) {
+      text(ctx, 'LAST MEETING', 0, 352, '700 17px "ClashDisplay"', SM_LIME, { center: 600, ws: 3 });
+      text(ctx, `${meet.sa} - ${meet.sb}`, 0, 398, '700 44px "ClashDisplay"', '#fff', { center: 600 });
+      text(ctx, `${code(meet.a)} - ${code(meet.b)}${meet.date ? '  ·  ' + meet.date.toUpperCase() : ''}`, 0, 428, '500 17px "ClashMed"', '#cfd2e6', { center: 600, maxWidth: 250, ws: 2 });
+    } else {
+      text(ctx, 'FIRST MEETING', 0, 372, '700 21px "ClashDisplay"', SM_LIME, { center: 600, ws: 3 });
+      text(ctx, 'OF THE SEASON', 0, 400, '700 21px "ClashDisplay"', SM_LIME, { center: 600, ws: 3 });
+    }
+  }
+  function shlH2hControls() {
+    const d = cur.d, days = cur.days || [], day = days.find(x => String(x.key) === String(d.dayKey));
+    const dayOpts = days.map(x => `<option value="${x.key}"${String(d.dayKey) === String(x.key) ? ' selected' : ''}>${esc(dayLabel(x))}</option>`).join('');
+    const mOpts = day ? day.items.map(f => `<option value="${esc(f.hc + '-' + f.ac)}"${d.fixture === `${f.hc}-${f.ac}` ? ' selected' : ''}>${esc(labelOf(MEN, f.hc))} – ${esc(labelOf(MEN, f.ac))}${f.time ? ' · ' + esc(f.time) : ''}</option>`).join('') : '';
+    return `<div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Wedstrijd</div>
+      ${days.length ? `<div class="field"><label for="smDay">Speeldag</label><select id="smDay">${dayOpts}</select></div>
+      <div class="field"><label for="hhMatch">Wedstrijd</label><select id="hhMatch">${mOpts}</select></div>` : '<p class="hint">Het programma is niet beschikbaar.</p>'}
+      <p class="hint">De stand, de vorm (laatste vijf uitslagen) en de vorige ontmoeting komen van de site, net als bij de Head to head story.</p></div>
+      <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Tekst</div>
+      <div class="field"><label for="smTitle">Titel</label><input type="text" id="smTitle" value="${esc(d.title)}"></div></div>`;
   }
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
+    if (KINDS[kind].shlh2h) { await renderShlH2h(d, ctx); return; }
     if (KINDS[kind].shlrank) { await renderShlRank(d, ctx); return; }
     if (KINDS[kind].shlmail) { await renderShlMail(d, ctx); return; }
     if (KINDS[kind].potm) { await renderPotm(d, ctx); return; }
@@ -1017,7 +1097,9 @@
     const box = $('thControls'); if (!box || !cur.d) return;
     const d = cur.d, K = KINDS[cur.kind];
     let html = '';
-    if (K.shlrank) {
+    if (K.shlh2h) {
+      html += shlH2hControls();
+    } else if (K.shlrank) {
       html += shlRankControls();
     } else if (K.shlmail) {
       html += shlMailControls();
@@ -1081,10 +1163,10 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.shlrank ? 3 : K.shlmail ? 3 : K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.shlh2h ? 3 : K.shlrank ? 3 : K.shlmail ? 3 : K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
-      ${K.shlrank || K.shlmail ? '' : K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
+      ${K.shlh2h || K.shlrank || K.shlmail ? '' : K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     html += apiPanelHtml();
     box.innerHTML = html;
@@ -1151,7 +1233,8 @@
     on('smX', 'input', (e) => set({ x: parseInt(e.target.value, 10) }));
     on('smY', 'input', (e) => set({ y: parseInt(e.target.value, 10) }));
     on('smPhotoDel', 'click', () => { fetch('/api/photo?key=' + enc(itemKey()), { method: 'DELETE' }).catch(() => {}); cur.smPhoto = null; Object.assign(cur.d, { hasPhoto: false, z: 1, x: 0, y: 0 }); scheduleSave(); buildControls(); scheduleRender(); });
-    on('smDay', 'change', (e) => set({ dayKey: e.target.value }, true));
+    on('smDay', 'change', (e) => { const dd = (cur.days || []).find(x => String(x.key) === e.target.value); set(KINDS[cur.kind].shlh2h ? { dayKey: e.target.value, fixture: dd && dd.items[0] ? `${dd.items[0].hc}-${dd.items[0].ac}` : '' } : { dayKey: e.target.value }, true); });
+    on('hhMatch', 'change', (e) => set({ fixture: e.target.value }));
     on('smSpan', 'change', (e) => set({ span: parseInt(e.target.value, 10) }, true));
     on('smTitle', 'input', (e) => set({ title: e.target.value }));
     on('smSub', 'input', (e) => set({ sub: e.target.value }));
@@ -1253,6 +1336,7 @@
   }
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    if (KINDS[kind].shlh2h) return `SHL_head-to-head-mail_${String(d.fixture || 'match').replace(/[^A-Za-z0-9]+/g, '-')}`;
     if (KINDS[kind].shlrank) return 'SHL_ranking-mail_' + new Date().toISOString().slice(0, 10).replace(/-/g, '');
     if (KINDS[kind].shlmail) { const dd = (cur.days || []).find(x => String(x.key) === String(d.dayKey)); return `SHL_schedule-mail_${dd ? seasonDate(dd.day, dd.month).getFullYear() + String(dd.month).padStart(2, '0') + String(dd.day).padStart(2, '0') : 'datum'}`; }
     if (KINDS[kind].potm) { const sl = (t) => String(t || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); const f = d.fmt === 'story' ? 'vote-story' : d.fmt === 'overview' ? 'overview' : 'nominee-' + sl(((d.players[+String(d.fmt).slice(1)] || {}).last) || d.fmt); return `SHL_POTM_${sl(d.month)}_${f}`; }
@@ -1358,12 +1442,14 @@
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }
     if (k !== itemKey()) return;
-    cur.d = Object.assign(K.shlrank ? shlRankDefaults() : K.shlmail ? shlMailDefaults() : K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
+    cur.d = Object.assign(K.shlh2h ? shlH2hDefaults() : K.shlrank ? shlRankDefaults() : K.shlmail ? shlMailDefaults() : K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
     if (cur.d.hasPhoto && !K.vis && !K.shlmail && !K.shlrank) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
-    if (K.shlrank) {
+    if (K.shlh2h) {
+      await loadShlH2h();
+    } else if (K.shlrank) {
       await loadShlRank(); await loadShlMailPhoto();
     } else if (K.shlmail) {
       await loadFixtures('shl');

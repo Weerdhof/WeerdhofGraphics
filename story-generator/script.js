@@ -5548,7 +5548,7 @@
   const SHL_ASSETS = ['results', 'schedule', 'match', 'prediction', 'headtohead', 'nowlive', 'matchresult', 'topscorer', 'playerweek', 'ranking', 'movers', 'announcement'];
   const ASSET_ALIAS = { matchschedule: 'schedule', programma: 'schedule', matchresults: 'results', uitslagen: 'results', h2h: 'headtohead', 'head-to-head': 'headtohead', 'now-live': 'nowlive',
     topscore: 'topscorer', 'top-scorer': 'topscorer', 'player-of-the-week': 'playerweek', spelervandeweek: 'playerweek', stand: 'ranking', standings: 'ranking', 'stand-movers': 'movers', 'match-result': 'matchresult' };
-  const TH_PATH = { shl: '/shl/thumbnails', shlw: '/shlw/thumbnails', nextmen: '/handbalnl/thumbnails-men', nextwomen: '/handbalnl/thumbnails-women', lvlm: '/lvl/thumbnails-men', lvlw: '/lvl/thumbnails-women', lvlmail: '/lvl/mailheader', lvlwatch: '/lvl/watch-live', potm: '/shl/player-of-the-month', shlmail: '/shl/schedule-mail', shlrank: '/shl/ranking-mail' };
+  const TH_PATH = { shl: '/shl/thumbnails', shlw: '/shlw/thumbnails', nextmen: '/handbalnl/thumbnails-men', nextwomen: '/handbalnl/thumbnails-women', lvlm: '/lvl/thumbnails-men', lvlw: '/lvl/thumbnails-women', lvlmail: '/lvl/mailheader', lvlwatch: '/lvl/watch-live', potm: '/shl/player-of-the-month', shlmail: '/shl/schedule-mail', shlrank: '/shl/ranking-mail', shlh2h: '/shl/head-to-head-mail' };
   const HNL_PATH = { announce: '/handbalnl/announcement', nextmen: '/handbalnl/next-men', nextwomen: '/handbalnl/next-women' };
   const landingPath = (comp) => (comp === 'dash' || !COMP_PATH[comp] ? '/' : '/' + COMP_PATH[comp]);
   const assetPath = (comp, id) => '/' + COMP_PATH[comp] + '/' + id;
@@ -5564,6 +5564,7 @@
       if (sub === 'player-of-the-month' && comp === 'men') return { kind: 'th', comp, id: 'potm' };
       if (sub === 'schedule-mail' && comp === 'men') return { kind: 'th', comp, id: 'shlmail' };
       if (sub === 'ranking-mail' && comp === 'men') return { kind: 'th', comp, id: 'shlrank' };
+      if (sub === 'head-to-head-mail' && comp === 'men') return { kind: 'th', comp, id: 'shlh2h' };
       const a = ASSET_ALIAS[sub] || sub;
       if (SHL_ASSETS.includes(a) && !(comp === 'women' && (a === 'nowlive' || a === 'announcement'))) return { kind: 'asset', comp, id: a };
     } else if (comp === 'hnl') {
@@ -5855,7 +5856,7 @@
   homeMenu.querySelectorAll('.menu-card[data-go-hnl]').forEach(card => {
     card.addEventListener('click', () => { lastHome = menuComp; navSweep('forward', () => openHnlNow(card.dataset.goHnl), accentFor('hnl')); });
   });
-  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#EE3124', lvlw: '#EE3124', lvlmail: '#EE3124', lvlwatch: '#EE3124', potm: '#f47987', shlmail: '#ccff33', shlrank: '#ccff33' };
+  const TH_ACCENT = { shl: '#caff1c', shlw: '#e353fc', nextmen: '#ff7429', nextwomen: '#b87cff', lvlm: '#EE3124', lvlw: '#EE3124', lvlmail: '#EE3124', lvlwatch: '#EE3124', potm: '#f47987', shlmail: '#ccff33', shlrank: '#ccff33', shlh2h: '#ccff33' };
   // shortcuts on the dashboard
   document.addEventListener('dash-go', (e) => {
     const [group, id, fmt] = String(e.detail).split(':');
