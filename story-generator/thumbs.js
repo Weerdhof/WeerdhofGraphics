@@ -686,7 +686,9 @@
       const g = L.groups[gi], top = L.geo[gi].top + (sub && !L.stack && !L.wide ? 6 : 0), barW = (L.stack || L.wide) ? L.blockW : Math.round(L.rw * 522 / 600);
       const bx = (L.stack || L.wide) ? L.x0 : cx - barW / 2, pal = gi % 2 ? ['#f47987', '#f1913d'] : ['#c7f23a', '#5fe39a'], bar = ctx.createLinearGradient(bx, 0, bx + barW, 0);
       bar.addColorStop(0, pal[0]); bar.addColorStop(1, pal[1]); ctx.fillStyle = bar; ctx.fillRect(bx, top, barW, L.BAR);
-      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + L.BAR / 2 + 10, `700 ${L.wide ? 22 : L.stack ? 25 : 28}px "ClashDisplay"`, '#14142b', { center: bx + barW / 2, maxWidth: barW - 24 });
+      const dfont = `700 ${L.wide ? 22 : L.stack ? 25 : 28}px "ClashDisplay"`; ctx.font = dfont;
+      const capH = ctx.measureText('H').actualBoundingBoxAscent;   // centre the capitals exactly in the bar, also vertically
+      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + L.BAR / 2 + capH / 2, dfont, '#14142b', { center: bx + barW / 2, maxWidth: barW - 24, ws: 5 });
       for (let i = 0; i < g.items.length; i++) {
         const col = L.cols === 2 ? i % 2 : 0, row = L.cols === 2 ? Math.floor(i / 2) : i;
         await drawShlRow(ctx, g.items[i], L.x0 + col * (L.rw + L.gap), top + L.BAR + 14 + row * L.pitch, L.rw, d.showTime);
