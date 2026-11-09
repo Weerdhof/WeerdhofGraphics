@@ -13,9 +13,10 @@
     lvlw:      { title: 'LVL Dames',  sub: 'Lotto Volley League Women', lvl: true },
     lvlmail:   { title: 'LVL Mailheader', sub: 'Lotto Volley League · 1200×400', vis: 'mail' },
     lvlwatch:  { title: 'LVL Watch live', sub: 'Lotto Volley League · 1920×1080', vis: 'watch' },
+    shlmail:   { title: 'SHL Schedule e-mailbanner', sub: 'Super Handball League · 1200 px breed', shlmail: true, comp: 'men' },
     potm:      { title: 'Player of the Month', sub: 'Super Handball League · overzicht, nominees en vote-story', potm: true, comp: 'men' },
   };
-  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month' };
+  const NAMES = { shl: 'SHL', shlw: 'SHLW', nextmen: 'Next heren', nextwomen: 'Next dames', lvlm: 'LVL heren', lvlw: 'LVL dames', lvlmail: 'LVL mailheader', lvlwatch: 'LVL watch live', potm: 'Player of the Month', shlmail: 'SHL schedule e-mail' };
 
   // ---------- Fonts (Clash is registered by script.js; the HandbalNL ones are loaded here) ----------
   const FONT_FILES = [
@@ -23,7 +24,6 @@
     ['MeticulaR', 'fonts/hnl/Meticula-Regular.ttf', '400'],
     ['MeticulaXB', 'fonts/hnl/Meticula-ExtraBold.ttf', '800'],
     ['Monologue', 'fonts/lvl/Monologue-Regular.woff2', '400'],   // Lotto Volley League
-    ['Unbounded', 'fonts/Unbounded-Bold.ttf', '700'], ['Unbounded', 'fonts/Unbounded-ExtraBold.ttf', '800'], ['Unbounded', 'fonts/Unbounded-Black.ttf', '900'],   // Player of the Month
     ['ClashLight', 'fonts/ClashDisplay-Light.otf', '300'], ['ClashMed', 'fonts/ClashDisplay-Medium.otf', '500'],
     ['Archivo', 'fonts/lvl/Archivo-Regular.woff2', '400'],       // Lotto Volley League body font (as on lottovolleyleague.be)
     ['Archivo', 'fonts/lvl/Archivo-Bold.woff2', '700'],
@@ -72,6 +72,7 @@
   function text(ctx, str, x, baseline, font, color, opt = {}) {
     ctx.save();
     ctx.font = font; ctx.fillStyle = color; ctx.textBaseline = 'alphabetic';
+    if (opt.ws != null) ctx.wordSpacing = opt.ws + 'px';   // extra space between words (Clash sets them tight)
     ctx.globalAlpha = opt.alpha == null ? 1 : opt.alpha;
     let tx = x;
     ctx.textAlign = 'left';
@@ -204,7 +205,7 @@
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // canvas size of a kind (Player of the Month: the story is 1080x1920, the rest 1080x1350)
-  const kindSize = (kind, d) => KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
+  const kindSize = (kind, d) => KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -493,7 +494,7 @@
   const POTM_NAVY = '#1b1b38', POTM_PINK = '#e93b68', POTM_PANEL = '#232244';
   const POTM_FMTS = [['overview', 'Overzicht'], ['p0', 'Nominee 1'], ['p1', 'Nominee 2'], ['p2', 'Nominee 3'], ['p3', 'Nominee 4'], ['story', 'Vote-story']];
   function potmDefaults() {
-    return { month: 'OCTOBER', fmt: 'overview', players: [0, 1, 2, 3].map(() => ({ first: '', last: '', club: '', hasPhoto: false, z: 1, x: 0, y: 0 })) };
+    return { month: MONTHS.en[(new Date().getMonth() + 11) % 12], fmt: 'overview', players: [0, 1, 2, 3].map(() => ({ first: '', last: '', club: '', hasPhoto: false, z: 1, x: 0, y: 0 })) };
   }
   const potmName = (pl) => `${(pl.first || '').trim()} ${(pl.last || '').trim()}`.trim().toUpperCase();
   // font size at which `str` is exactly `w` wide (capped at `max`)
@@ -507,9 +508,16 @@
     }
     ctx.restore();
   }
+  // an empty slot in the editor preview: a grey portrait silhouette instead of a bare white box (never in an export)
+  function potmEmptyPhoto(ctx, x, y, w, h) {
+    ctx.save(); ctx.fillStyle = '#eceef6'; ctx.fillRect(x, y, w, h); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = '#d3d6e6'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.36, w * 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + w / 2, y + h * 0.82, w * 0.46, h * 0.28, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    text(ctx, 'FOTO', 0, y + h * 0.1, '800 ' + Math.max(16, w * 0.07) + 'px "Unbounded"', '#b4b8cf', { center: x + w / 2 });
+  }
   async function renderPotm(d, ctx) {
     await fontsReady;
-    await Promise.all(['900 40px Unbounded', '800 40px Unbounded', '700 40px Unbounded', '300 40px ClashLight', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
+    await Promise.all(['700 40px ClashDisplay', '300 40px ClashLight', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
     const fmt = d.fmt || 'overview', story = fmt === 'story', [CW, CH] = kindSize('potm', d), month = (d.month || '').toUpperCase().trim();
     const lines = await loadImg('assets/potm/lines.png'), banner = await loadImg('assets/potm/banner.png'), block = await loadImg('assets/potm/title-block.png'), foot = await loadImg('assets/footer-logo.png');
     ctx.clearRect(0, 0, CW, CH); ctx.fillStyle = POTM_NAVY; ctx.fillRect(0, 0, CW, CH);
@@ -517,41 +525,40 @@
     const footer = (x, y, w) => { if (foot) ctx.drawImage(foot, x, y, w, w * foot.naturalHeight / foot.naturalWidth); };
     if (fmt === 'overview') {
       if (block) ctx.drawImage(block, 0, 80);
-      let sz = fitSize(ctx, 'PLAYER OF', '300 {s}px "ClashLight"', 443);
-      text(ctx, 'PLAYER OF', 240, 148, `300 ${sz}px "ClashLight"`, '#fff');
-      sz = fitSize(ctx, 'THE MONTH', '900 {s}px "Unbounded"', 512);
-      text(ctx, 'THE MONTH', 240, 219, `900 ${sz}px "Unbounded"`, '#fff');
-      ctx.font = '800 38px "Unbounded"'; const nw = ctx.measureText('NOMINEES ').width;
-      text(ctx, 'NOMINEES', 67, 336, '800 38px "Unbounded"', '#fff');
-      text(ctx, month, 67 + nw, 336, '800 38px "Unbounded"', POTM_NAVY, { maxWidth: 1000 - nw });
+      ctx.font = '700 42px "ClashDisplay"'; const nw = ctx.measureText('NOMINEES ').width;
+      text(ctx, 'NOMINEES', 67, 336, '700 42px "ClashDisplay"', '#fff');
+      text(ctx, month || (d._preview ? 'MAAND' : ''), 67 + nw + 16, 336, '700 42px "ClashDisplay"', POTM_NAVY, { maxWidth: 1000 - nw, alpha: month || !d._preview ? 1 : 0.35 });
       for (let i = 0; i < 4; i++) {
         const pl = d.players[i], x = 60 + 244 * i;
-        potmPhoto(ctx, cur.potmPhotos && cur.potmPhotos[i], x, 400, 228, 500, pl);
+        const ph = cur.potmPhotos && cur.potmPhotos[i], pre = d._preview;
+        if (!ph && pre) potmEmptyPhoto(ctx, x, 400, 228, 500); else potmPhoto(ctx, ph, x, 400, 228, 500, pl);
         ctx.fillStyle = POTM_PINK; ctx.fillRect(x, 900, 228, 5);
         ctx.fillStyle = POTM_PANEL; ctx.fillRect(x, 905, 228, 90);
-        text(ctx, (pl.first || '').toUpperCase(), x + 14, 934, '500 18px "ClashMed"', '#fff', { maxWidth: 200 });
-        text(ctx, (pl.last || '').toUpperCase(), x + 14, 957, '900 22px "Unbounded"', '#fff', { maxWidth: 200 });
-        text(ctx, (pl.club || '').toUpperCase(), x + 14, 978, '800 12.5px "Unbounded"', POTM_PINK, { maxWidth: 200 });
+        const hint = (v, t) => v ? [v.toUpperCase(), 1] : pre ? [t, 0.3] : ['', 1];
+        const f1 = hint(pl.first, 'VOORNAAM'), f2 = hint(pl.last, 'ACHTERNAAM'), f3 = hint(pl.club, 'CLUB');
+        text(ctx, f1[0], x + 14, 934, '500 18px "ClashMed"', '#fff', { maxWidth: 200, alpha: f1[1] });
+        text(ctx, f2[0], x + 14, 957, '700 25px "ClashDisplay"', '#fff', { maxWidth: 200, alpha: f2[1], ws: 4 });
+        text(ctx, f3[0], x + 14, 978, '700 14px "ClashDisplay"', POTM_PINK, { maxWidth: 200, alpha: f3[1], ws: 4 });
       }
       footer(60, 1161, 485);
     } else if (story) {
       if (banner) ctx.drawImage(banner, 0, 190);
-      let sz = fitSize(ctx, 'VOTE NOW', '900 {s}px "Unbounded"', 650);
-      text(ctx, 'VOTE NOW', 0, 413, `900 ${sz}px "Unbounded"`, '#fff', { center: 540 });
+      let sz = fitSize(ctx, 'VOTE NOW', '700 {s}px "ClashDisplay"', 650, 128);
+      text(ctx, 'VOTE NOW', 0, 413, `700 ${sz}px "ClashDisplay"`, '#fff', { center: 540, ws: 18 });
       const sub = `WHO IS YOUR PLAYER OF ${month}?`;
-      sz = fitSize(ctx, sub, '800 {s}px "Unbounded"', 650, 30);
-      text(ctx, sub, 0, 461, `800 ${sz}px "Unbounded"`, '#fff', { center: 540 });
+      sz = fitSize(ctx, sub, '700 {s}px "ClashDisplay"', 650, 38);
+      text(ctx, sub, 0, 461, `700 ${sz}px "ClashDisplay"`, '#fff', { center: 540, ws: 9 });
       footer(357, 1683, 365);
     } else {   // one nominee
       const i = parseInt(fmt.slice(1), 10) || 0, pl = d.players[i];
       if (banner) ctx.drawImage(banner, 0, 0);
-      ctx.font = '800 22px "Unbounded"';
-      text(ctx, `NOMINEE · ${month}`, 0, 66, '800 22px "Unbounded"', POTM_NAVY, { inkRight: 1020, maxWidth: 330 });
-      potmPhoto(ctx, cur.potmPhotos && cur.potmPhotos[i], 249, 160, 582, 748, pl);
+      ctx.font = '700 26px "ClashDisplay"';
+      text(ctx, `NOMINEE · ${month}`, 0, 66, '700 26px "ClashDisplay"', POTM_NAVY, { inkRight: 1020, maxWidth: 330, ws: 4 });
+      if (!(cur.potmPhotos && cur.potmPhotos[i]) && d._preview) potmEmptyPhoto(ctx, 249, 160, 582, 748); else potmPhoto(ctx, cur.potmPhotos && cur.potmPhotos[i], 249, 160, 582, 748, pl);
       ctx.fillStyle = POTM_PINK; ctx.fillRect(249, 908, 582, 7);
-      const nm = potmName(pl);
-      if (nm) { const sz = fitSize(ctx, nm, '900 {s}px "Unbounded"', 800, 66); text(ctx, nm, 0, 1004, `900 ${sz}px "Unbounded"`, '#fff', { center: 540 }); }
-      if (pl.club) { const sz = fitSize(ctx, pl.club.toUpperCase(), '800 {s}px "Unbounded"', 560, 30); text(ctx, pl.club.toUpperCase(), 0, 1053, `800 ${sz}px "Unbounded"`, POTM_PINK, { center: 540 }); }
+      const nm = potmName(pl) || (d._preview ? 'NAAM NOMINEE' : '');
+      if (nm) { ctx.save(); ctx.globalAlpha = potmName(pl) ? 1 : 0.3; const sz = fitSize(ctx, nm, '700 {s}px "ClashDisplay"', 800, 88); text(ctx, nm, 0, 1004, `700 ${sz}px "ClashDisplay"`, '#fff', { center: 540, ws: 8 }); ctx.restore(); }
+      if (pl.club) { const sz = fitSize(ctx, pl.club.toUpperCase(), '700 {s}px "ClashDisplay"', 560, 36); text(ctx, pl.club.toUpperCase(), 0, 1053, `700 ${sz}px "ClashDisplay"`, POTM_PINK, { center: 540, ws: 6 }); }
       footer(298, 1163, 485);
     }
   }
@@ -613,9 +620,103 @@
     let saved = 0; for (const f of files) { if (await saveOnServer(new Blob([f.data], { type: MIME[exportFmt] }), f.name)) saved++; }
     status(`✓ ${files.length} afbeeldingen in de zip${saved ? ` · ${saved} ook op de server (/exports/)` : ''}`);
   }
+
+  // ---------- SHL Schedule as an e-mail banner (1200 px wide = a 600 px mail at 2x, as high as the matches need) ----------
+  // The look of the SHL schedule post: a player photo with the schedule on the right (SCHEDULE, a lime date bar, white match rows,
+  // the logo). Without a photo it is the plain navy version. The matches come from the same programme as the SHL thumbnails.
+  const SM_NAVY = '#1a1b38', SM_LIME = '#ccff33', SM_INK = '#1b2450';
+  const shlMailDefaults = () => ({ dayKey: '', span: 3, title: 'SCHEDULE', sub: '', showTime: true, bg: 'photo', hasPhoto: false, z: 1, x: 0, y: 0 });
+  const SM_ROW = 70, SM_GAP = 9, SM_BAR = 46;
+  function shlMailLayout(d) {
+    const days = cur.days || [], i0 = Math.max(0, days.findIndex(x => String(x.key) === String(d.dayKey)));
+    const st = days[i0] ? seasonDate(days[i0].day, days[i0].month) : null, en = st ? new Date(st.getTime() + ((d.span || 3) - 1) * 86400000 + 3600000) : null;
+    const groups = days.filter(x => { if (!st) return false; const t = seasonDate(x.day, x.month); return t >= st && t <= en; }).map(x => ({ day: x, items: x.items.slice().sort((a, b) => (a.time || '').localeCompare(b.time || '')) }));
+    let y = 150; const geo = groups.map((g, i) => { const top = y; y += SM_BAR + 14 + g.items.length * (SM_ROW + SM_GAP) + (i < groups.length - 1 ? 10 : 0); return { top }; });
+    return { groups, geo, logoY: y + 22, H: Math.max(560, y + 22 + 70 + 44) };
+  }
+  async function renderShlMail(d, ctx) {
+    await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
+    const lay = shlMailLayout(d), W2 = 1200, H2 = lay.H, foot = await loadImg('assets/footer-logo.png'), photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
+    ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
+    if (photo) {
+      // the photo fills the height and at least the left 60% (a portrait photo stays whole, a landscape one fills the banner); aligned left
+      const sc = Math.max(W2 * 0.6 / photo.naturalWidth, H2 / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - W2);
+      ctx.drawImage(photo, Math.max(-maxShift, Math.min(0, d.x || 0)), Math.min(0, Math.max(H2 - dh, (H2 - dh) / 2 + (d.y || 0))), dw, dh);
+      const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.08)'); g.addColorStop(0.42, 'rgba(26,27,56,0.25)'); g.addColorStop(0.62, 'rgba(26,27,56,0.82)'); g.addColorStop(1, 'rgba(26,27,56,0.92)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2);
+    }
+    const cx = 880, colX = 610, colW = 540;
+    const title = (d.title || '').toUpperCase().trim();
+    if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 470, 78); text(ctx, title, 0, 100, `700 ${sz}px "ClashDisplay"`, '#fff', { center: cx }); }
+    const first = lay.groups[0] && lay.groups[0].items[0], sub = (d.sub || '').trim() || (first && first.round ? `ROUND ${first.round}` : '');
+    if (sub) text(ctx, sub.toUpperCase(), 0, 138, '700 26px "ClashDisplay"', SM_LIME, { center: cx, maxWidth: colW });
+    for (let gi = 0; gi < lay.groups.length; gi++) {
+      const g = lay.groups[gi], top = lay.geo[gi].top + (sub ? 10 : 0) - (gi ? 0 : 0);
+      const bar = ctx.createLinearGradient(colX, 0, colX + colW, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c');
+      ctx.fillStyle = bar; ctx.fillRect(colX, top, colW, SM_BAR);
+      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + 31, '700 21px "ClashDisplay"', SM_NAVY, { center: cx, maxWidth: colW - 24 });
+      for (let i = 0; i < g.items.length; i++) {
+        const f = g.items[i], y = top + SM_BAR + 14 + i * (SM_ROW + SM_GAP), w = colW, h = SM_ROW, x = colX;
+        ctx.fillStyle = '#fbfcff'; ctx.fillRect(x, y, w, h);
+        await crest(ctx, MEN, f.hc, x + 9, y + 9, 52, 52);
+        await crest(ctx, MEN, f.ac, x + w - 61, y + 9, 52, 52);
+        const code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c;
+        text(ctx, code(f.hc), x + 76, y + 46, '700 31px "ClashDisplay"', SM_INK, { maxWidth: 120 });
+        text(ctx, code(f.ac), 0, y + 46, '700 31px "ClashDisplay"', SM_INK, { inkRight: x + w - 76, maxWidth: 120 });
+        text(ctx, d.showTime ? (f.time || '') : 'VS', 0, y + 44, '700 27px "ClashDisplay"', SM_INK, { center: x + w / 2 });
+      }
+    }
+    if (foot) { const lw = 300; ctx.drawImage(foot, cx - lw / 2, lay.logoY + (sub ? 10 : 0), lw, lw * foot.naturalHeight / foot.naturalWidth); }
+  }
+  async function loadShlMailPhoto() {
+    cur.smPhoto = null;
+    if (!cur.d.hasPhoto) return;
+    try { const r = await fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { cache: 'no-store' }); if (r.ok) cur.smPhoto = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
+  }
+  function uploadShlMailPhoto(file) {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const sc = Math.min(1, 2200 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+        c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        c.toBlob((blob) => {
+          setSave('saving');
+          fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return blobToImg(blob); })
+            .then(img => { cur.smPhoto = img; Object.assign(cur.d, { hasPhoto: true, bg: 'photo', z: 1, x: 0, y: 0 }); lastSaved = ''; flushSave(); buildControls(); scheduleRender(); })
+            .catch(() => setSave('error'));
+        }, 'image/jpeg', 0.92);
+      };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  }
+  function shlMailControls() {
+    const d = cur.d, days = cur.days || [], L = shlMailLayout(d);
+    const dayOpts = days.map(x => `<option value="${x.key}"${String(d.dayKey) === String(x.key) ? ' selected' : ''}>${esc(dayLabel(x))}</option>`).join('');
+    return `<div class="panel-step"><div class="panel-step-title">Achtergrond</div>
+      <div class="mode-tabs mode-tabs-compact" id="smBg"><button type="button" class="mode-tab${d.bg !== 'plain' ? ' active' : ''}" data-b="photo">Met foto</button><button type="button" class="mode-tab${d.bg === 'plain' ? ' active' : ''}" data-b="plain">Effen navy</button></div>
+      <label class="photo-btn" for="smPhoto" style="margin-top:10px"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">een speler- of sfeerfoto, links in beeld</span></label>
+      <input type="file" id="smPhoto" accept="image/*" hidden>
+      ${d.hasPhoto ? `<div class="field"><label>Zoom</label><input type="range" id="smZ" min="100" max="300" value="${Math.round((d.z || 1) * 100)}"></div>
+      <div class="field"><label>Links - rechts</label><input type="range" id="smX" min="-600" max="0" value="${Math.round(d.x || 0)}"></div>
+      <div class="field"><label>Omhoog - omlaag</label><input type="range" id="smY" min="-500" max="500" value="${Math.round(d.y || 0)}"></div>
+      <button class="btn btn-link" id="smPhotoDel" type="button">✕ Verwijder foto</button>` : ''}</div>
+      <div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Speeldagen</div>
+      ${days.length ? `<div class="field"><label for="smDay">Eerste speeldag</label><select id="smDay">${dayOpts}</select></div>
+      <div class="field"><label for="smSpan">Aantal dagen (alle speeldagen daarbinnen)</label><select id="smSpan">${[1, 2, 3, 4, 5, 7].map(n => `<option value="${n}"${(d.span || 3) === n ? ' selected' : ''}>${n}</option>`).join('')}</select></div>` : '<p class="hint">Het programma is niet beschikbaar.</p>'}
+      <p class="hint">${L.groups.reduce((n, g) => n + g.items.length, 0)} wedstrijden op ${L.groups.length} speeldag(en), uit hetzelfde programma als de SHL-thumbnails.</p></div>
+      <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Tekst</div>
+      <div class="field"><label for="smTitle">Titel</label><input type="text" id="smTitle" value="${esc(d.title)}"></div>
+      <div class="field"><label for="smSub">Regel eronder (leeg = automatisch de speelronde)</label><input type="text" id="smSub" value="${esc(d.sub)}" placeholder="bijv. ROUND 13"></div>
+      <label class="hnl-check"><input type="checkbox" id="smTime"${d.showTime ? ' checked' : ''}> Aanvangstijd tonen (anders VS)</label>
+      <p class="hint">Export is 1200 px breed, voor een mail van 600 px (scherp op retina). De hoogte volgt het aantal wedstrijden.</p></div>`;
+  }
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
     await fontsReady; await nextReady; await SETTINGS.ready;
+    if (KINDS[kind].shlmail) { await renderShlMail(d, ctx); return; }
     if (KINDS[kind].potm) { await renderPotm(d, ctx); return; }
     if (KINDS[kind].vis) { await renderVis(kind, d, ctx); return; }
     if (KINDS[kind].lvl) { await renderLvl(kind, d, ctx, photo); return; }
@@ -682,7 +783,7 @@
     const seq = ++rendering;
     const [cw, ch] = kindSize(cur.kind, cur.d);
     const off = document.createElement('canvas'); off.width = cw; off.height = ch;
-    await renderThumb(cur.kind, cur.d, off.getContext('2d'), cur.photo);
+    await renderThumb(cur.kind, KINDS[cur.kind].potm ? Object.assign({}, cur.d, { _preview: true }) : cur.d, off.getContext('2d'), cur.photo);
     if (seq !== rendering) return;
     const cv = canvas(); cv.width = cw; cv.height = ch; cv.getContext('2d').drawImage(off, 0, 0);
     const apiEl = $('thApiUrl'); if (apiEl && API_KINDS.includes(cur.kind)) apiEl.textContent = apiExampleFor(cur.kind, cur.d);   // the API link follows the choices
@@ -812,7 +913,9 @@
     const box = $('thControls'); if (!box || !cur.d) return;
     const d = cur.d, K = KINDS[cur.kind];
     let html = '';
-    if (K.potm) {
+    if (K.shlmail) {
+      html += shlMailControls();
+    } else if (K.potm) {
       html += potmControls();
     } else if (K.vis) {
       html += visControls();
@@ -872,10 +975,10 @@
         <button class="btn btn-link" id="thPhotoRemove" type="button">✕ Verwijder foto</button><p class="hint">Sleep op de preview om de foto te verschuiven. Zoom in om hem ook naar links te kunnen schuiven.</p>
         <label class="hnl-check"><input type="checkbox" id="thZipPhoto"> Foto ook gebruiken in de zip van de hele speeldag</label>` : ''}</div>`;
     }
-    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
+    html += `<div class="panel-step panel-step-last"><div class="panel-step-title"><span class="step-num">${K.shlmail ? 3 : K.potm ? 3 : K.vis ? (K.vis === 'mail' ? 2 : 3) : K.next ? 2 : K.lvl ? 4 : 3}</span> Exporteren</div>
       <div class="field"><label>Formaat</label><div class="mode-tabs mode-tabs-compact" id="thFormat"><button type="button" class="mode-tab active" data-f="jpeg">JPG</button><button type="button" class="mode-tab" data-f="webp">WebP</button><button type="button" class="mode-tab" data-f="png">PNG</button></div></div>
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
-      ${K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
+      ${K.shlmail ? '' : K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
     html += apiPanelHtml();
     box.innerHTML = html;
@@ -933,6 +1036,18 @@
         status(`✓ Programma ingelezen: ${rows.length} wedstrijden (${cur.lvlRows.length} voor deze competitie)`);
       } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
+    // SHL Schedule e-mail banner
+    document.querySelectorAll('#smBg [data-b]').forEach(b => b.addEventListener('click', () => set({ bg: b.dataset.b }, true)));
+    on('smPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadShlMailPhoto(f); });
+    on('smZ', 'input', (e) => set({ z: parseInt(e.target.value, 10) / 100 }));
+    on('smX', 'input', (e) => set({ x: parseInt(e.target.value, 10) }));
+    on('smY', 'input', (e) => set({ y: parseInt(e.target.value, 10) }));
+    on('smPhotoDel', 'click', () => { fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { method: 'DELETE' }).catch(() => {}); cur.smPhoto = null; Object.assign(cur.d, { hasPhoto: false, z: 1, x: 0, y: 0 }); scheduleSave(); buildControls(); scheduleRender(); });
+    on('smDay', 'change', (e) => set({ dayKey: e.target.value }, true));
+    on('smSpan', 'change', (e) => set({ span: parseInt(e.target.value, 10) }, true));
+    on('smTitle', 'input', (e) => set({ title: e.target.value }));
+    on('smSub', 'input', (e) => set({ sub: e.target.value }));
+    on('smTime', 'change', (e) => set({ showTime: e.target.checked }));
     // Player of the Month
     on('potmMonth', 'input', (e) => set({ month: e.target.value }));
     document.querySelectorAll('#potmFmt [data-f]').forEach(b => b.addEventListener('click', () => set({ fmt: b.dataset.f }, true)));
@@ -1030,6 +1145,7 @@
   }
   // SHLW_20260905_FORE-VEL / SHL_20261114_BEV-HVA / NextMEN_20260905_ART-DWS / NextWomen_20260905_DAL-BFC
   function fileName(kind, d) {
+    if (KINDS[kind].shlmail) { const dd = (cur.days || []).find(x => String(x.key) === String(d.dayKey)); return `SHL_schedule-mail_${dd ? seasonDate(dd.day, dd.month).getFullYear() + String(dd.month).padStart(2, '0') + String(dd.day).padStart(2, '0') : 'datum'}`; }
     if (KINDS[kind].potm) { const sl = (t) => String(t || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); const f = d.fmt === 'story' ? 'vote-story' : d.fmt === 'overview' ? 'overview' : 'nominee-' + sl(((d.players[+String(d.fmt).slice(1)] || {}).last) || d.fmt); return `SHL_POTM_${sl(d.month)}_${f}`; }
     if (KINDS[kind].vis === 'mail') return 'LVL_mailheader';
     if (KINDS[kind].vis === 'watch') { const day = d.manual ? dayKeyOf(((d.list || [])[0] || {}).dt) || 'eigen' : d.day || 'dag'; return `LVL_watchlive_${String(day).replace('/', '-')}`; }
@@ -1133,12 +1249,16 @@
     let data = null; const k = itemKey();
     try { const r = await fetch('/api/item?key=' + enc(k), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.data) data = j.data; } } catch (e) { /* offline */ }
     if (k !== itemKey()) return;
-    cur.d = Object.assign(K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
+    cur.d = Object.assign(K.shlmail ? shlMailDefaults() : K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
-    if (cur.d.hasPhoto && !K.vis) {
+    if (cur.d.hasPhoto && !K.vis && !K.shlmail) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
-    if (K.potm) {
+    if (K.shlmail) {
+      await loadFixtures('shl');
+      await loadShlMailPhoto();
+      if (!cur.days.some(x => String(x.key) === String(cur.d.dayKey))) cur.d.dayKey = cur.days.length ? cur.days[0].key : '';
+    } else if (K.potm) {
       if (!Array.isArray(cur.d.players) || cur.d.players.length !== 4) cur.d.players = potmDefaults().players;
       await loadPotmPhotos();
     } else if (K.vis) {
