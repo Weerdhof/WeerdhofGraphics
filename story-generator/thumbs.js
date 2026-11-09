@@ -625,48 +625,65 @@
   // The look of the SHL schedule post: a player photo with the schedule on the right (SCHEDULE, a lime date bar, white match rows,
   // the logo). Without a photo it is the plain navy version. The matches come from the same programme as the SHL thumbnails.
   const SM_NAVY = '#1a1b38', SM_LIME = '#ccff33', SM_INK = '#1b2450';
-  const shlMailDefaults = () => ({ dayKey: '', span: 3, title: 'SCHEDULE', sub: '', showTime: true, bg: 'photo', hasPhoto: false, z: 1, x: 0, y: 0 });
-  const SM_ROW = 70, SM_GAP = 9, SM_BAR = 46;
+  const shlMailDefaults = () => ({ dayKey: '', span: 3, title: 'SCHEDULE', sub: '', showTime: true, bg: 'photo', lay: 'side', hasPhoto: false, z: 1, x: 0, y: 0 });
+  // The rows are the ones of the SHL schedule post, drawn from the same team strips (assets/teams/<code>.png: the crest, the code and the
+  // coloured lines, 600 px per side) on the same 880x148 row, scaled to the width of the banner.
+  const SM_ROW_W = 880, SM_ROW_H = 148;
+  async function drawShlRow(ctx, f, x, y, w, showTime) {
+    const sc = w / SM_ROW_W, cy = SM_ROW_H / 2, [hi, ai] = await Promise.all([loadImg(`assets/teams/${f.hc}.png`), loadImg(`assets/teams/${f.ac}.png`)]);
+    ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+    ctx.fillStyle = '#f9faff'; ctx.fillRect(0, 0, SM_ROW_W, SM_ROW_H);
+    const strip = (img, side, x0, x1) => { if (!img) return; const k = (x1 - x0) / 600, dh = 200 * k; ctx.drawImage(img, side === 'left' ? 0 : 600, 0, 600, 200, x0, cy - dh / 2, x1 - x0, dh); };
+    strip(hi, 'left', 15, 440); strip(ai, 'right', 440, 865);
+    text(ctx, showTime ? (f.time || '') : 'VS', 0, cy + 17, '700 50px "ClashDisplay"', SM_INK, { center: 440 });
+    ctx.restore();
+  }
   function shlMailLayout(d) {
     const days = cur.days || [], i0 = Math.max(0, days.findIndex(x => String(x.key) === String(d.dayKey)));
     const st = days[i0] ? seasonDate(days[i0].day, days[i0].month) : null, en = st ? new Date(st.getTime() + ((d.span || 3) - 1) * 86400000 + 3600000) : null;
     const groups = days.filter(x => { if (!st) return false; const t = seasonDate(x.day, x.month); return t >= st && t <= en; }).map(x => ({ day: x, items: x.items.slice().sort((a, b) => (a.time || '').localeCompare(b.time || '')) }));
-    let y = 150; const geo = groups.map((g, i) => { const top = y; y += SM_BAR + 14 + g.items.length * (SM_ROW + SM_GAP) + (i < groups.length - 1 ? 10 : 0); return { top }; });
-    return { groups, geo, logoY: y + 22, H: Math.max(560, y + 22 + 70 + 44) };
+    const total = groups.reduce((n, g) => n + g.items.length, 0), stack = d.lay === 'stack', two = stack && total >= 5;
+    const rw = stack ? (two ? 540 : 600) : 600, sc = rw / SM_ROW_W, rh = SM_ROW_H * sc, pitch = rh + (stack ? 11 : 12), BAR = stack ? 48 : 53;
+    const cols = two ? 2 : 1, gap = 30, blockW = cols * rw + (cols - 1) * gap;
+    const x0 = stack ? (1200 - blockW) / 2 : 1160 - rw;   // side: right-aligned like the post
+    let y = stack ? 560 : 170;                              // stack: below the photo band and the panel title
+    const geo = groups.map((g, i) => { const top = y, rows = Math.ceil(g.items.length / cols); y += BAR + 14 + (rows - 1) * pitch + rh + (i < groups.length - 1 ? 22 : 0); return { top, rows }; });
+    const logoW = stack ? 380 : 360, logoH = logoW * 174 / 707, logoY = y + (stack ? 46 : 54);
+    return { groups, geo, rw, rh, pitch, BAR, cols, gap, x0, blockW, stack, logoW, logoH, logoY, H: Math.round(logoY + logoH + (stack ? 70 : 50)) };
   }
   async function renderShlMail(d, ctx) {
     await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
-    const lay = shlMailLayout(d), W2 = 1200, H2 = lay.H, foot = await loadImg('assets/footer-logo.png'), photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
+    const L = shlMailLayout(d), W2 = 1200, H2 = L.H, foot = await loadImg('assets/footer-logo.png'), photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
     ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
     if (photo) {
-      // the photo fills the height and at least the left 60% (a portrait photo stays whole, a landscape one fills the banner); aligned left
-      const sc = Math.max(W2 * 0.6 / photo.naturalWidth, H2 / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - W2);
-      ctx.drawImage(photo, Math.max(-maxShift, Math.min(0, d.x || 0)), Math.min(0, Math.max(H2 - dh, (H2 - dh) / 2 + (d.y || 0))), dw, dh);
-      const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.08)'); g.addColorStop(0.42, 'rgba(26,27,56,0.25)'); g.addColorStop(0.62, 'rgba(26,27,56,0.82)'); g.addColorStop(1, 'rgba(26,27,56,0.92)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2);
+      ctx.save();
+      const bandH = L.stack ? 520 : H2; ctx.beginPath(); ctx.rect(0, 0, W2, bandH); ctx.clip();
+      // the photo fills the band's height and at least the left 60% (a portrait photo stays whole), aligned left
+      const sc = Math.max((L.stack ? W2 : W2 * 0.6) / photo.naturalWidth, bandH / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - W2);
+      ctx.drawImage(photo, Math.max(-maxShift, Math.min(0, d.x || 0)), Math.min(0, Math.max(bandH - dh, (L.stack ? 0 : (bandH - dh) / 2) + (d.y || 0))), dw, dh);   // stacked: aligned to the top so the head stays in view
+      if (L.stack) { const g = ctx.createLinearGradient(0, bandH * 0.55, 0, bandH); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(1, 'rgba(26,27,56,1)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, bandH); }
+      else { const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.05)'); g.addColorStop(0.42, 'rgba(26,27,56,0.2)'); g.addColorStop(0.62, 'rgba(26,27,56,0.8)'); g.addColorStop(1, 'rgba(26,27,56,0.9)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); }
+      ctx.restore();
     }
-    const cx = 880, colX = 610, colW = 540;
-    const title = (d.title || '').toUpperCase().trim();
-    if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 470, 78); text(ctx, title, 0, 100, `700 ${sz}px "ClashDisplay"`, '#fff', { center: cx }); }
-    const first = lay.groups[0] && lay.groups[0].items[0], sub = (d.sub || '').trim() || (first && first.round ? `ROUND ${first.round}` : '');
-    if (sub) text(ctx, sub.toUpperCase(), 0, 138, '700 26px "ClashDisplay"', SM_LIME, { center: cx, maxWidth: colW });
-    for (let gi = 0; gi < lay.groups.length; gi++) {
-      const g = lay.groups[gi], top = lay.geo[gi].top + (sub ? 10 : 0) - (gi ? 0 : 0);
-      const bar = ctx.createLinearGradient(colX, 0, colX + colW, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c');
-      ctx.fillStyle = bar; ctx.fillRect(colX, top, colW, SM_BAR);
-      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + 31, '700 21px "ClashDisplay"', SM_NAVY, { center: cx, maxWidth: colW - 24 });
+    if (L.stack) {   // a white, see-through block under the photo that carries the schedule: it is what makes the banner longer
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(40, 420, 1120, H2 - 460);
+      ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(40, 420, 1120, 3);
+    }
+    const cx = L.stack ? 600 : L.x0 + L.rw / 2, title = (d.title || '').toUpperCase().trim();
+    const first = L.groups[0] && L.groups[0].items[0], sub = (d.sub || '').trim() || (first && first.round ? `ROUND ${first.round}` : '');
+    if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', L.stack ? 560 : 500, 86); text(ctx, title, 0, L.stack ? 500 : 100, `700 ${sz}px "ClashDisplay"`, '#fff', { center: cx }); }
+    if (sub) text(ctx, sub.toUpperCase(), 0, L.stack ? 548 : 142, '700 28px "ClashDisplay"', SM_LIME, { center: cx, maxWidth: 520 });
+    for (let gi = 0; gi < L.groups.length; gi++) {
+      const g = L.groups[gi], top = L.geo[gi].top + (sub && !L.stack ? 6 : 0), barW = L.stack ? L.blockW : Math.round(L.rw * 522 / 600);
+      const bx = L.stack ? L.x0 : cx - barW / 2, pal = gi % 2 ? ['#f47987', '#f1913d'] : ['#c7f23a', '#5fe39a'], bar = ctx.createLinearGradient(bx, 0, bx + barW, 0);
+      bar.addColorStop(0, pal[0]); bar.addColorStop(1, pal[1]); ctx.fillStyle = bar; ctx.fillRect(bx, top, barW, L.BAR);
+      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + L.BAR / 2 + 10, `700 ${L.stack ? 25 : 28}px "ClashDisplay"`, '#14142b', { center: bx + barW / 2, maxWidth: barW - 24 });
       for (let i = 0; i < g.items.length; i++) {
-        const f = g.items[i], y = top + SM_BAR + 14 + i * (SM_ROW + SM_GAP), w = colW, h = SM_ROW, x = colX;
-        ctx.fillStyle = '#fbfcff'; ctx.fillRect(x, y, w, h);
-        await crest(ctx, MEN, f.hc, x + 9, y + 9, 52, 52);
-        await crest(ctx, MEN, f.ac, x + w - 61, y + 9, 52, 52);
-        const code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c;
-        text(ctx, code(f.hc), x + 76, y + 46, '700 31px "ClashDisplay"', SM_INK, { maxWidth: 120 });
-        text(ctx, code(f.ac), 0, y + 46, '700 31px "ClashDisplay"', SM_INK, { inkRight: x + w - 76, maxWidth: 120 });
-        text(ctx, d.showTime ? (f.time || '') : 'VS', 0, y + 44, '700 27px "ClashDisplay"', SM_INK, { center: x + w / 2 });
+        const col = L.cols === 2 ? i % 2 : 0, row = L.cols === 2 ? Math.floor(i / 2) : i;
+        await drawShlRow(ctx, g.items[i], L.x0 + col * (L.rw + L.gap), top + L.BAR + 14 + row * L.pitch, L.rw, d.showTime);
       }
     }
-    if (foot) { const lw = 300; ctx.drawImage(foot, cx - lw / 2, lay.logoY + (sub ? 10 : 0), lw, lw * foot.naturalHeight / foot.naturalWidth); }
+    if (foot) ctx.drawImage(foot, (L.stack ? 600 : cx) - L.logoW / 2, L.logoY + (sub && !L.stack ? 6 : 0), L.logoW, L.logoH);
   }
   async function loadShlMailPhoto() {
     cur.smPhoto = null;
@@ -695,7 +712,10 @@
   function shlMailControls() {
     const d = cur.d, days = cur.days || [], L = shlMailLayout(d);
     const dayOpts = days.map(x => `<option value="${x.key}"${String(d.dayKey) === String(x.key) ? ' selected' : ''}>${esc(dayLabel(x))}</option>`).join('');
-    return `<div class="panel-step"><div class="panel-step-title">Achtergrond</div>
+    return `<div class="panel-step"><div class="panel-step-title">Opmaak</div>
+      <div class="mode-tabs mode-tabs-compact" id="smLay"><button type="button" class="mode-tab${d.lay !== 'stack' ? ' active' : ''}" data-l="side">Foto naast de lijst</button><button type="button" class="mode-tab${d.lay === 'stack' ? ' active' : ''}" data-l="stack">Foto boven, lijst eronder (langer)</button></div>
+      <p class="hint" style="margin-top:8px">Naast elkaar is het ontwerp van de schedule-post. Onder elkaar maakt de banner langer: de foto bovenaan en de lijst op een wit doorzichtig vlak eronder.</p>
+      <div class="panel-step-title" style="margin-top:14px">Achtergrond</div>
       <div class="mode-tabs mode-tabs-compact" id="smBg"><button type="button" class="mode-tab${d.bg !== 'plain' ? ' active' : ''}" data-b="photo">Met foto</button><button type="button" class="mode-tab${d.bg === 'plain' ? ' active' : ''}" data-b="plain">Effen navy</button></div>
       <label class="photo-btn" for="smPhoto" style="margin-top:10px"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">een speler- of sfeerfoto, links in beeld</span></label>
       <input type="file" id="smPhoto" accept="image/*" hidden>
@@ -1037,6 +1057,7 @@
       } catch (err) { status('Inlezen mislukt: ' + err.message); }
     });
     // SHL Schedule e-mail banner
+    document.querySelectorAll('#smLay [data-l]').forEach(b => b.addEventListener('click', () => set({ lay: b.dataset.l }, true)));
     document.querySelectorAll('#smBg [data-b]').forEach(b => b.addEventListener('click', () => set({ bg: b.dataset.b }, true)));
     on('smPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadShlMailPhoto(f); });
     on('smZ', 'input', (e) => set({ z: parseInt(e.target.value, 10) / 100 }));
