@@ -664,12 +664,12 @@
       ctx.drawImage(photo, cxp - pw / 2, by - ph, pw, ph); ctx.restore();
     } else if (photo) {
       ctx.save();
-      const bandH = L.stack ? 520 : H2, bandW = L.wide ? 400 : W2; ctx.beginPath(); ctx.rect(0, 0, bandW, bandH); ctx.clip();
+      const bandH = L.stack ? 520 : H2, bandW = W2; ctx.beginPath(); ctx.rect(0, 0, bandW, bandH); ctx.clip();
       // the photo fills the band's height and at least the left 60% (a portrait photo stays whole), aligned left
-      const sc = Math.max((L.stack ? W2 : L.wide ? bandW : W2 * 0.6) / photo.naturalWidth, bandH / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - bandW);
+      const sc = Math.max((L.stack ? W2 : L.wide ? W2 * 0.5 : W2 * 0.6) / photo.naturalWidth, bandH / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - bandW);
       ctx.drawImage(photo, Math.max(-maxShift, Math.min(0, d.x || 0)), Math.min(0, Math.max(bandH - dh, (L.stack ? 0 : (bandH - dh) / 2) + (d.y || 0))), dw, dh);   // stacked: aligned to the top so the head stays in view
       if (L.stack) { const g = ctx.createLinearGradient(0, bandH * 0.55, 0, bandH); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(1, 'rgba(26,27,56,1)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, bandH); }
-      else if (L.wide) { const g = ctx.createLinearGradient(0, 0, bandW, 0); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(0.6, 'rgba(26,27,56,0.2)'); g.addColorStop(1, 'rgba(26,27,56,1)'); ctx.fillStyle = g; ctx.fillRect(0, 0, bandW, H2); }
+      else if (L.wide) { const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(0.2, 'rgba(26,27,56,0.1)'); g.addColorStop(0.36, 'rgba(26,27,56,0.62)'); g.addColorStop(0.5, 'rgba(26,27,56,0.9)'); g.addColorStop(1, 'rgba(26,27,56,0.94)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); }
       else { const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.05)'); g.addColorStop(0.42, 'rgba(26,27,56,0.2)'); g.addColorStop(0.62, 'rgba(26,27,56,0.8)'); g.addColorStop(1, 'rgba(26,27,56,0.9)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); }
       ctx.restore();
     }
@@ -733,7 +733,7 @@
       <p class="hint" style="margin-top:8px">Breed is een echte mailbanner (speler links, de wedstrijden in twee kolommen). Als de post is het ontwerp van de schedule-post. Langer zet de foto bovenaan en de lijst eronder.</p>
       <div class="panel-step-title" style="margin-top:14px">Achtergrond</div>
       <div class="mode-tabs mode-tabs-compact" id="smBg"><button type="button" class="mode-tab${d.bg !== 'plain' ? ' active' : ''}" data-b="photo">Met foto</button><button type="button" class="mode-tab${d.bg === 'plain' ? ' active' : ''}" data-b="plain">Effen navy</button></div>
-      <label class="hnl-check" style="margin-top:10px"><input type="checkbox" id="smCut" ${window.SM_CUT === false ? '' : 'checked'}> Achtergrond van de foto verwijderen (voor een portret met witte of drukke achtergrond; alleen de speler blijft over)</label>
+      <label class="hnl-check" style="margin-top:10px"><input type="checkbox" id="smCut" ${window.SM_CUT === true ? 'checked' : ''}> Achtergrond van de foto verwijderen (alleen de speler blijft over, zonder fade; handig bij een portret met witte achtergrond)</label>
       <label class="photo-btn" for="smPhoto"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">${d.cutout ? 'nu: alleen de speler' : 'een speler- of sfeerfoto'} · het uitsnijden duurt een paar seconden</span></label>
       <input type="file" id="smPhoto" accept="image/*" hidden>
       <p class="hint" id="smBgMsg"></p>
