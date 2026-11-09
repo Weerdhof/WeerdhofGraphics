@@ -207,7 +207,7 @@
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // canvas size of a kind (Player of the Month: the story is 1080x1920, the rest 1080x1350)
-  const kindSize = (kind, d) => KINDS[kind].shlh2h ? [1200, 620] : KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
+  const kindSize = (kind, d) => KINDS[kind].shlh2h ? [1200, 668] : KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -847,7 +847,7 @@
   // the last results, the first-meeting box; with a photo on the left that fades into the navy from the right (like the schedule banner).
   async function renderShlH2h(d, ctx) {
     await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
-    const W2 = 1200, H2 = 620, foot = await loadImg('assets/footer-logo.png'), fx = h2hFixture(d), code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c, photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
+    const W2 = 1200, H2 = 668, fx = h2hFixture(d), code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c, photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
     ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
     if (photo && d.cutout) {
       const ph = H2 * 1.0 * (d.z || 1), pw = ph * photo.naturalWidth / photo.naturalHeight, cxp = 235 + (d.x || 0), by = H2 + 8 + (d.y || 0);
@@ -859,14 +859,17 @@
       const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(0.2, 'rgba(26,27,56,0.1)'); g.addColorStop(0.34, 'rgba(26,27,56,0.62)'); g.addColorStop(0.46, 'rgba(26,27,56,0.9)'); g.addColorStop(1, 'rgba(26,27,56,0.94)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); ctx.restore();
     } else { const g = ctx.createRadialGradient(300, 80, 20, 300, 80, 700); g.addColorStop(0, 'rgba(70,90,150,0.35)'); g.addColorStop(1, 'rgba(26,27,56,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); }
-    if (foot) ctx.drawImage(foot, 40, H2 - 36 - 58, 236, 236 * 174 / 707);
     if (!fx || !fx.f) { text(ctx, 'GEEN WEDSTRIJD GEVONDEN', 0, 300, '700 34px "ClashDisplay"', '#fff', { center: 800 }); return; }
     const f = fx.f, A = h2hTeamInfo(f.hc), B = h2hTeamInfo(f.ac), X0 = 480, X1 = 1150, title = (d.title || '').toUpperCase().trim();
-    // header: the lime accent bar, the title and the date line
-    ctx.fillStyle = '#c4f23c'; ctx.fillRect(X0, 34, 6, 58);
-    if (title) text(ctx, title, X0 + 20, 66, '700 40px "ClashDisplay"', '#fff', { maxWidth: 600 });
-    const dt = new Date(seasonDate(f.day, f.month)), wd = DAYS.en[dt.getDay()].slice(0, 3);
-    text(ctx, `${wd} ${String(f.day).padStart(2, '0')}-${String(f.month).padStart(2, '0')}${f.round ? ' | ROUND ' + f.round : ''}${f.time ? '  ·  ' + f.time : ''}`, X0 + 20, 90, '500 22px "ClashMed"', '#fff', { maxWidth: 620, ws: 3 });
+    // header: the lime accent bar and the title, then the one info bar with the date and the time, big
+    ctx.fillStyle = '#c4f23c'; ctx.fillRect(X0, 34, 6, 40);
+    if (title) text(ctx, title, X0 + 20, 68, '700 40px "ClashDisplay"', '#fff', { maxWidth: 600 });
+    const ib = ctx.createLinearGradient(X0, 0, X1, 0); ib.addColorStop(0, '#c4f23c'); ib.addColorStop(1, '#5fe48c');
+    ctx.fillStyle = ib; ctx.fillRect(X0, 92, X1 - X0, 58);
+    const dfont = '700 28px "ClashDisplay"'; ctx.font = dfont; const dcap = ctx.measureText('H').actualBoundingBoxAscent;
+    text(ctx, fmtDate(MEN, f.day, f.month), X0 + 20, 92 + 29 + dcap / 2, dfont, '#14142b', { maxWidth: 400, ws: 5 });
+    if (f.time) { const tfont = '700 44px "ClashDisplay"'; ctx.font = tfont; const tcap = ctx.measureText('H').actualBoundingBoxAscent; text(ctx, f.time, 0, 92 + 29 + tcap / 2, tfont, '#14142b', { inkRight: X1 - 20 }); }
+    ctx.save(); ctx.translate(0, 44);
     // the clubs: white squares, VS between, the names below
     const sq = 116;
     for (const [c, x] of [[f.hc, X0], [f.ac, X1 - sq]]) { ctx.fillStyle = '#fff'; ctx.fillRect(x, 116, sq, sq); await crest(ctx, MEN, c, x + 6, 122, sq - 12, sq - 12); }
@@ -896,6 +899,7 @@
     ctx.fillStyle = '#fff'; ctx.fillRect(X0, 570 - 8, X1 - X0, 40);
     const meet = A.games.find(g => g.opp === f.ac), mf = '700 17px "ClashDisplay"';
     text(ctx, meet ? `LAST MEETING  ${code(meet.a)} ${meet.sa} – ${meet.sb} ${code(meet.b)}${meet.date ? '  ·  ' + meet.date.toUpperCase() : ''}` : 'FIRST MEETING OF THE SEASON', 0, 570 + 18, mf, '#5a5d85', { center: (X0 + X1) / 2, maxWidth: X1 - X0 - 20, ws: 3 });
+    ctx.restore();
   }
   function shlH2hControls() {
     const d = cur.d, days = cur.days || [], day = days.find(x => String(x.key) === String(d.dayKey));
