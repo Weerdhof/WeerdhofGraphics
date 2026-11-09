@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thumbnail API</title>
+<link rel="alternate" type="application/json" href="/api/thumbnail?help=1">
+<style>
+  :root { color-scheme: light dark; --bg:#fff; --fg:#1a1b38; --mut:#5b5d7a; --line:#dcdce8; --code:#f1f2f9; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14142b; --fg:#f2f2fa; --mut:#a9abc8; --line:#34345a; --code:#1f1f40; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, sans-serif; }
+  main { max-width:880px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:28px; margin:0 0 6px; } h2 { margin:32px 0 8px; font-size:20px; } h3 { margin:22px 0 4px; font-size:17px; }
+  code, pre { background:var(--code); border-radius:6px; font:13px/1.5 ui-monospace, Menlo, monospace; }
+  code { padding:1px 5px; } pre { padding:10px 12px; overflow:auto; white-space:pre-wrap; word-break:break-all; }
+  p, li { color:var(--fg); } .mut { color:var(--mut); } table { border-collapse:collapse; width:100%; font-size:14px; } td, th { border-top:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; }
+  .clubs code { display:inline-block; margin:2px 2px; }
+</style></head>
+<body><main>
+<h1>Thumbnail API</h1>
+<p class="mut">For AI assistants and scripts. This page and <code>/api/thumbnail?help=1</code> describe the same thing; the JSON is the machine-readable version and is built from the live club lists, so it is always current.</p>
+
+<h2>Instructions for AI</h2>
+<ul id="forAi"><li>Call <code>GET /api/thumbnail?kind=&lt;kind&gt;&amp;home=&lt;club&gt;&amp;away=&lt;club&gt;&amp;...</code>. A POST with a JSON body takes the same fields.</li>
+<li>kind is one of <code>shl</code>, <code>shlw</code>, <code>nextmen</code>, <code>nextwomen</code>, <code>lvlm</code>, <code>lvlw</code>.</li>
+<li>Clubs: the code or the full club name. An unknown club gives HTTP 400 and lists the valid codes.</li>
+<li>Without <code>json=1</code> the answer is the image. With <code>json=1</code> it is JSON with the image URL.</li>
+<li>Rendered images are stored and can be fetched again at <code>/exports/&lt;name&gt;</code>.</li>
+<li>HTTP 429 means busy, retry after a few seconds.</li></ul>
+
+<h2>Kinds, fields and clubs</h2>
+<div id="kinds"><p class="mut">Loading the description from <code>/api/thumbnail?help=1</code> …</p></div>
+
+<noscript><p>Without JavaScript: open <a href="/api/thumbnail?help=1">/api/thumbnail?help=1</a> for the full JSON description.</p></noscript>
+<script>
+(function () {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var rows = function (o) { return Object.keys(o).map(function (k) { return '<tr><td><code>' + esc(k) + '</code></td><td>' + esc(o[k]) + '</td></tr>'; }).join(''); };
+  fetch('/api/thumbnail?help=1').then(function (r) { return r.json(); }).then(function (d) {
+    if (d.for_ai) document.getElementById('forAi').innerHTML = d.for_ai.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+    document.getElementById('kinds').innerHTML = Object.keys(d.kinds).map(function (k) {
+      var x = d.kinds[k];
+      return '<h3><code>kind=' + k + '</code> ' + esc(x.title) + ' <span class="mut">(' + esc(x.size) + ')</span></h3>' +
+        '<table><tr><th colspan="2">Required</th></tr>' + rows(x.required) + '<tr><th colspan="2">Optional</th></tr>' + rows(x.optional) +
+        '<tr><td><code>format</code></td><td>' + esc(d.common.format) + '</td></tr><tr><td><code>json</code></td><td>' + esc(d.common.json) + '</td></tr></table>' +
+        '<p>Example:</p><pre>' + esc(location.origin + x.example) + '</pre>' +
+        '<p class="clubs"><b>Clubs (' + x.clubs.length + '):</b> ' + x.clubs.map(function (c) { return '<code>' + esc(c.code) + '</code> ' + esc(c.name); }).join(' · ') + '</p>';
+    }).join('');
+  }).catch(function (e) { document.getElementById('kinds').innerHTML = '<p>Could not load the description (' + esc(e.message) + '). Try <a href="/api/thumbnail?help=1">/api/thumbnail?help=1</a>.</p>'; });
+})();
+</script>
+</main></body></html>

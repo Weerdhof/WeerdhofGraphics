@@ -30,6 +30,8 @@ Exports (so images can be fetched with a plain download, without driving the bro
                                    kind=shl|shlw|nextmen|nextwomen, home, away, date (YYYY-MM-DD or DD-MM), time,
                                    format=webp|jpg|png (+ optional title, label, variant=highlights, homeLabel, awayLabel,
                                    homeName, awayName); answers with the image, or JSON with its URL when json=1.
+    GET /api/thumbnail?help=1      the API describes itself (kinds, fields, club codes, notes for AI) as JSON;
+                                   the same as a page: /api-docs; short pointer for AI: /llms.txt
 
 Usage:
     python3 server.py [port]
@@ -840,7 +842,9 @@ class ThumbRenderer:
                         self._close(pw, browser)
                         pw = browser = page = None
                         raise RendererUnavailable(f"browser starten mislukt: {err}")
-                if job["op"] == "asset":
+                if job["op"] == "describe":
+                    job["result"] = page.evaluate("() => window.ThumbAPI.describe()")
+                elif job["op"] == "asset":
                     # an asset preview drives the editor itself: start from a fresh page every time
                     page.goto(f"http://127.0.0.1:{PORT}/?thumbapi=1", wait_until="load", timeout=60000)
                     page.wait_for_function("window.AssetAPI !== undefined", timeout=60000)
@@ -863,6 +867,7 @@ class ThumbRenderer:
 
 
 RENDERER = ThumbRenderer()
+THUMB_DOC = None   # the API description, rendered once by the browser and kept
 
 
 # ---------------------------------------------------------------------------
@@ -1849,6 +1854,8 @@ def spa_rewrite(raw_path):
     page asked for from inside a route (/shl/script.js, /socials/socials/templates.js), the same path otherwise."""
     u = urlparse(raw_path)
     segs = [unquote(x) for x in u.path.split("/") if x]
+    if segs == ["api-docs"]:
+        return "/api-docs.html"
     if segs and segs[0] == "narrowcasting" and len(segs) <= 2 and (len(segs) == 1 or segs[1] == "beheer"):
         return ("/narrowcasting.html" if len(segs) == 1 else "/narrowcasting-beheer.html") + (("?" + u.query) if u.query else "")
     if not segs or segs[0] not in SPA_ROOTS:
@@ -2167,6 +2174,17 @@ class Handler(SimpleHTTPRequestHandler):
                     params.update({k: v for k, v in body.items() if isinstance(v, (str, int, float))})
             except ValueError:
                 return self._send_json(400, {"error": "ongeldige JSON"})
+        if self.command == "GET" and ("help" in params or not params):
+            # the self-describing API: kinds, fields, club codes and a note for AI (cached, built from the live club lists)
+            global THUMB_DOC
+            try:
+                if THUMB_DOC is None:
+                    THUMB_DOC = RENDERER.render({}, op="describe")
+                return self._send_json(200, THUMB_DOC)
+            except RendererBusy as err:
+                return self._send_json(429, {"error": str(err)})
+            except Exception as err:
+                return self._send_json(501, {"error": "uitleg niet beschikbaar: " + str(err), "see": "/api-docs"})
         want_json = str(params.pop("json", "")).lower() in ("1", "true", "yes")
         params = {k: str(v) for k, v in params.items() if len(str(v)) <= 200}
         try:

@@ -46,6 +46,10 @@ Locally the renderer needs Playwright; use the installed Chrome with `THUMB_BROW
 
 Option "cycle" (stream-config): the title stays on screen from `start` to `end` minutes before the start and every `every` minutes cycles through `scenes` (`seconds` per slide); after `end` the normal steps apply.
 
+## Thumbnail API and the explanation for AI
+
+`GET /api/thumbnail?kind=shl|shlw|nextmen|nextwomen|lvlm|lvlw&home=..&away=..&date=YYYY-MM-DD&time=HH:MM&json=1` renders the same thumbnails as the editors (SHL, SHLW, HandbalNL Next men and women, Lotto Volley League men and women). `GET /api/thumbnail?help=1` (also what a bare `GET /api/thumbnail` returns) describes the whole API as JSON: the kinds, required and optional fields, all valid club codes and notes for AI; it is built in the browser by `ThumbAPI.describe()` from the live club lists and cached by the server. The same as a page: `/api-docs`; a short pointer for AI: `/llms.txt`. Every thumbnail editor page ends with a block "API voor AI en scripts" with the exact link for what is selected on that page (it follows the choices), the fields and the club codes. Player of the Month, the LVL mail header and Watch live have no API.
+
 ## Player of the Month (SHL men)
 
 Home tab SHL, card `Player of the Month` (`/shl/player-of-the-month`, kind `potm` in `thumbs.js`). Month text, four nominees (first name, last name, club, portrait photo with zoom and position) and six outputs: the overview of the four nominees (1080x1350), one post per nominee (1080x1350) and the `VOTE NOW` story (1080x1920, empty middle for a poll sticker). `Alles exporteren` gives a zip with the overview, the nominee posts and the story. Photos are stored on the server per slot (`/api/photo`, key `th:potm:s1:p<n>`). Assets from the design in `assets/potm/` (banner, lines, title block), fonts Unbounded (Bold, ExtraBold, Black) in `fonts/` plus Clash Display Light and Medium, footer logo `assets/footer-logo.png`.

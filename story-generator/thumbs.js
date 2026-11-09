@@ -685,6 +685,7 @@
     await renderThumb(cur.kind, cur.d, off.getContext('2d'), cur.photo);
     if (seq !== rendering) return;
     const cv = canvas(); cv.width = cw; cv.height = ch; cv.getContext('2d').drawImage(off, 0, 0);
+    const apiEl = $('thApiUrl'); if (apiEl && API_KINDS.includes(cur.kind)) apiEl.textContent = apiExampleFor(cur.kind, cur.d);   // the API link follows the choices
     cv.classList.toggle('tall', ch > cw * 1.3);   // long watch-live lists: show the full image and scroll instead of shrinking it
   }
   const scheduleRender = () => { if (!renderQueued) { renderQueued = true; requestAnimationFrame(render); } };
@@ -876,6 +877,7 @@
       <button class="btn btn-primary" id="thExport" type="button">Exporteer deze thumbnail</button>
       ${K.potm ? '<button class="btn btn-link" id="thExportDay" type="button">Alles exporteren (zip met overzicht, nominees en story)</button>' : K.next || K.vis ? '' : K.lvl ? '<button class="btn btn-link" id="thExportDay" type="button">Alle wedstrijden uit het programma (zip)</button>' : '<button class="btn btn-link" id="thExportDay" type="button">Hele speeldag (zip)</button>'}
       <p class="save-status" id="thStatus" hidden></p></div>`;
+    html += apiPanelHtml();
     box.innerHTML = html;
     bind();
   }
@@ -1002,6 +1004,7 @@
       lvlDrop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f && /^image\//.test(f.type)) uploadPlayer(f, !!($('thLvlKeep') && $('thLvlKeep').checked), ($('thLvlModel') || {}).value); });
     }
     on('thLvlZoom', 'input', (e) => { d.photoPos.z = parseInt(e.target.value, 10) / 100; scheduleRender(); scheduleSave(); });
+    on('thApiCopy', 'click', () => { const el = $('thApiUrl'); if (el && navigator.clipboard) navigator.clipboard.writeText(el.textContent).then(() => { $('thApiCopy').textContent = '✓ Gekopieerd'; setTimeout(() => { const b = $('thApiCopy'); if (b) b.textContent = 'Kopieer link'; }, 1500); }).catch(() => {}); });
     on('thExport', 'click', exportOne);
     on('thExportDay', 'click', KINDS[cur.kind].potm ? exportPotmAll : KINDS[cur.kind].lvl ? exportLvlAll : exportDay);
   }
@@ -1251,8 +1254,84 @@
     const hit = nextClubs.find(c => norm(c.id) === t || norm(c.label || '') === t || norm(c.name || '') === t);
     return hit ? hit.id : null;
   };
+    // ---------- API documentation (shown on the pages, and served by GET /api/thumbnail?help=1) ----------
+  // One description of the thumbnail API, built from the live club lists, so it can never be out of date.
+  const API_KINDS = ['shl', 'shlw', 'nextmen', 'nextwomen', 'lvlm', 'lvlw'];
+  function thumbDocs() {
+    const clubs = (cfg) => cfg.clubs.map(([c]) => ({ code: c, name: labelOf(cfg, c) }));
+    const common = {
+      format: 'webp (default), jpg or png',
+      json: '1 = answer with JSON ({ url, path, name, bytes, format, data }) instead of the image itself',
+    };
+    const kinds = {
+      shl: { title: 'SHL (Super Handball League, men) livestream or highlights thumbnail', size: '1920x1080',
+        required: { home: 'home club: code or full club name (see clubs)', away: 'away club: code or full club name' },
+        optional: { date: 'YYYY-MM-DD or DD-MM. Without it the date of the match in the programme is used', time: 'HH:MM, default: the time from the programme', title: 'text at the bottom, default "Livestream"', variant: '"highlights" for the highlights version', label: 'text in the bar (highlights only)' },
+        clubs: clubs(MEN), example: '/api/thumbnail?kind=shl&home=SAB&away=VOL&date=2026-11-14&time=20:15&json=1' },
+      shlw: { title: 'SHLW (Super Handball League Women) livestream thumbnail', size: '1920x1080',
+        required: { home: 'home club: code or full club name', away: 'away club: code or full club name' },
+        optional: { date: 'YYYY-MM-DD or DD-MM. Without it the date of the match in the programme is used', time: 'HH:MM', title: 'text at the bottom, default "Livestream"', homeLabel: 'caption under the home crest, default the club name', awayLabel: 'caption under the away crest' },
+        clubs: clubs(WOMEN), example: '/api/thumbnail?kind=shlw&home=FOR&away=VEN&date=2026-11-14&time=19:00&json=1' },
+      nextmen: { title: 'HandbalNL Next men thumbnail', size: '1920x1080',
+        required: { home: 'home club: id or name (see clubs)', away: 'away club: id or name' },
+        optional: { date: 'YYYY-MM-DD or DD-MM, written as "zaterdag 14 november"', dateText: 'own date text instead of date', time: 'HH:MM, default 20:00', homeName: 'name on the image, default the club name', awayName: 'name on the image' },
+        clubs: nextClubs.map(c => ({ code: c.id, name: SETTINGS.label('hnl:' + c.id, c.label || c.name || c.id) })), example: '/api/thumbnail?kind=nextmen&home=artemis&away=dws&date=2026-11-14&time=20:00&json=1' },
+      nextwomen: { title: 'HandbalNL Next women thumbnail', size: '1920x1080',
+        required: { home: 'home club: id or name', away: 'away club: id or name' },
+        optional: { date: 'YYYY-MM-DD or DD-MM', dateText: 'own date text', time: 'HH:MM, default 20:15', homeName: 'name on the image', awayName: 'name on the image' },
+        clubs: nextClubs.map(c => ({ code: c.id, name: SETTINGS.label('hnl:' + c.id, c.label || c.name || c.id) })), example: '/api/thumbnail?kind=nextwomen&home=dalfsen&away=bfc&date=2026-11-14&time=20:15&json=1' },
+      lvlm: { title: 'Lotto Volley League men thumbnail', size: '1920x1080',
+        required: { home: 'home club: crest code or full club name', away: 'away club: crest code or full club name', 'dt  or  date + time': 'dt = "16/10 - 20:30", or date (YYYY-MM-DD or DD-MM) and time (HH:MM). Without them the match is looked up in the programme' },
+        optional: { season: 'big text top right, default 2026/2027' },
+        clubs: LVL.lvlm.clubs.map(([code, name]) => ({ code, name })), example: '/api/thumbnail?kind=lvlm&home=MEN&away=ROE&dt=16/10%20-%2020:30&json=1' },
+      lvlw: { title: 'Lotto Volley League women thumbnail', size: '1920x1080',
+        required: { home: 'home club: crest code or full club name', away: 'away club: crest code or full club name', 'dt  or  date + time': 'dt = "17/10 - 20:30", or date and time' },
+        optional: { season: 'big text top right, default 2026/2027' },
+        clubs: LVL.lvlw.clubs.map(([code, name]) => ({ code, name })), example: '/api/thumbnail?kind=lvlw&home=NOO&away=DROE&dt=17/10%20-%2020:30&json=1' },
+    };
+    return {
+      name: 'ByTomorrow Graphics thumbnail API',
+      for_ai: [
+        'Call GET /api/thumbnail?kind=<kind>&home=<club>&away=<club>&... (a POST with a JSON body takes the same fields).',
+        'kind is one of: ' + API_KINDS.join(', ') + '. Every kind has its own required and optional fields and its own club codes, listed below.',
+        'Club fields accept the code (e.g. SAB) or the full club name. An unknown club gives HTTP 400 with the list of valid codes in the error.',
+        'Without json=1 the answer is the image itself (Content-Type image/webp, image/jpeg or image/png). With json=1 you get a JSON with the image URL, which you can fetch or hand to the user.',
+        'Every rendered image is also stored and can be fetched again at /exports/<name>.',
+        'Rendering takes a few seconds. HTTP 429 means busy: wait a few seconds and retry.',
+        'The Lotto Volley League mail header, Watch live and Player of the Month visuals have no API: they are made by hand in the editor.',
+      ],
+      common, kinds,
+      page: '/api-docs',
+    };
+  }
+  const apiBase = () => (location.origin || '') + '/api/thumbnail';
+  function apiExampleFor(kind, d) {
+    const q = [`kind=${kind}`, `home=${encodeURIComponent(d.home || '')}`, `away=${encodeURIComponent(d.away || '')}`];
+    const K = KINDS[kind], dm = d.month && d.day ? `${seasonDate(d.day, d.month).getFullYear()}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}` : '';
+    if (K.lvl) { if (d.dt) q.push('dt=' + encodeURIComponent(d.dt)); }
+    else if (K.next) { const m = dm || ''; if (m) q.push('date=' + m); if (d.time) q.push('time=' + encodeURIComponent(d.time)); if (d.homeName) q.push('homeName=' + encodeURIComponent(d.homeName)); if (d.awayName) q.push('awayName=' + encodeURIComponent(d.awayName)); }
+    else { if (dm) q.push('date=' + dm); if (d.time) q.push('time=' + encodeURIComponent(d.time)); if (kind === 'shl' && d.variant === 'highlights') q.push('variant=highlights'); if (d.title && d.title !== SETTINGS.text('th.title', 'Livestream')) q.push('title=' + encodeURIComponent(d.title)); }
+    q.push('json=1');
+    return apiBase() + '?' + q.join('&');
+  }
+  function apiPanelHtml() {
+    const kind = cur.kind, K = KINDS[kind];
+    if (!API_KINDS.includes(kind)) return `<div class="panel-step panel-step-last"><div class="panel-step-title">API voor AI</div><p class="hint">Voor deze afbeelding is geen API: hij wordt met de hand in de editor gemaakt. De thumbnails van SHL, SHLW, HandbalNL en Lotto Volley League hebben die wel (zie <a href="/api-docs">/api-docs</a>).</p></div>`;
+    const doc = thumbDocs().kinds[kind], row = (o) => Object.keys(o).map(k => `<li><code>${esc(k)}</code>: ${esc(o[k])}</li>`).join('');
+    const url = apiExampleFor(kind, cur.d || {});
+    return `<div class="panel-step panel-step-last" id="thApiBox"><div class="panel-step-title">API voor AI en scripts</div>
+      <p class="hint"><b>Deze thumbnail via de API:</b> ${esc(doc.title)}, ${esc(doc.size)}. Een AI of een script kan hem zonder de editor maken met de link hieronder (die past zich aan de keuzes op deze pagina aan).</p>
+      <pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;user-select:all" id="thApiUrl">${esc(url)}</pre>
+      <p class="hint"><b>Verplicht:</b></p><ul class="hint">${row(doc.required)}</ul>
+      <p class="hint"><b>Optioneel:</b></p><ul class="hint">${row(doc.optional)}<li><code>format</code>: ${esc(thumbDocs().common.format)}</li><li><code>json=1</code>: ${esc(thumbDocs().common.json)}</li></ul>
+      <p class="hint"><b>Clubcodes (${doc.clubs.length}):</b> ${doc.clubs.map(c => `<code>${esc(c.code)}</code> ${esc(c.name)}`).join(' · ')}</p>
+      <p class="hint">Voor AI: de volledige uitleg staat als JSON op <code>/api/thumbnail?help=1</code> en als pagina op <a href="/api-docs">/api-docs</a>. Het antwoord zonder <code>json=1</code> is het plaatje zelf; met <code>json=1</code> een JSON met de link naar het plaatje.</p>
+      <button class="btn btn-link" id="thApiCopy" type="button">Kopieer link</button></div>`;
+  }
+
   window.ThumbAPI = {
     ready: apiReady,
+    async describe() { await apiReady; return thumbDocs(); },
     async render(p) {
       await apiReady;
       p = p || {};

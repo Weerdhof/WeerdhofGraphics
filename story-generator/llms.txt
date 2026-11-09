@@ -1,0 +1,19 @@
+# ByTomorrow Graphics
+
+Tool for the social graphics, thumbnails and the narrowcasting screens of ByTomorrow clients
+(Super Handball League, SHL Women, HandbalNL, Lotto Volley League).
+
+## Thumbnail API (for AI and scripts)
+
+GET /api/thumbnail?kind=<shl|shlw|nextmen|nextwomen|lvlm|lvlw>&home=<club>&away=<club>&date=YYYY-MM-DD&time=HH:MM&json=1
+
+- The full, always current description (fields per kind, valid club codes, examples):
+  GET /api/thumbnail?help=1  (JSON)  or  /api-docs  (page)
+- Without json=1 the answer is the image itself, with json=1 a JSON with the URL of the image.
+- Club fields take the club code or the full club name.
+- Each thumbnail editor page also shows the exact API link for what is selected on that page.
+
+## Pages
+
+- /shl, /shlw, /handbalnl, /lvl: the client pages with the editors
+- /narrowcasting: the screen, /narrowcasting/beheer: the management page (guest mode, planned meetings, agenda)
