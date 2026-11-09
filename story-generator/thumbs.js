@@ -625,7 +625,7 @@
   // The look of the SHL schedule post: a player photo with the schedule on the right (SCHEDULE, a lime date bar, white match rows,
   // the logo). Without a photo it is the plain navy version. The matches come from the same programme as the SHL thumbnails.
   const SM_NAVY = '#1a1b38', SM_LIME = '#ccff33', SM_INK = '#1b2450';
-  const shlMailDefaults = () => ({ dayKey: '', span: 3, title: 'SCHEDULE', sub: '', showTime: true, bg: 'photo', lay: 'side', hasPhoto: false, z: 1, x: 0, y: 0 });
+  const shlMailDefaults = () => ({ dayKey: '', span: 3, title: 'SCHEDULE', sub: '', showTime: true, bg: 'photo', lay: 'wide', hasPhoto: false, cutout: false, z: 1, x: 0, y: 0 });
   // The rows are the ones of the SHL schedule post, drawn from the same team strips (assets/teams/<code>.png: the crest, the code and the
   // coloured lines, 600 px per side) on the same 880x148 row, scaled to the width of the banner.
   const SM_ROW_W = 880, SM_ROW_H = 148;
@@ -642,68 +642,84 @@
     const days = cur.days || [], i0 = Math.max(0, days.findIndex(x => String(x.key) === String(d.dayKey)));
     const st = days[i0] ? seasonDate(days[i0].day, days[i0].month) : null, en = st ? new Date(st.getTime() + ((d.span || 3) - 1) * 86400000 + 3600000) : null;
     const groups = days.filter(x => { if (!st) return false; const t = seasonDate(x.day, x.month); return t >= st && t <= en; }).map(x => ({ day: x, items: x.items.slice().sort((a, b) => (a.time || '').localeCompare(b.time || '')) }));
-    const total = groups.reduce((n, g) => n + g.items.length, 0), stack = d.lay === 'stack', two = stack && total >= 5;
-    const rw = stack ? (two ? 540 : 600) : 600, sc = rw / SM_ROW_W, rh = SM_ROW_H * sc, pitch = rh + (stack ? 11 : 12), BAR = stack ? 48 : 53;
-    const cols = two ? 2 : 1, gap = 30, blockW = cols * rw + (cols - 1) * gap;
-    const x0 = stack ? (1200 - blockW) / 2 : 1160 - rw;   // side: right-aligned like the post
-    let y = stack ? 560 : 170;                              // stack: below the photo band and the panel title
-    const geo = groups.map((g, i) => { const top = y, rows = Math.ceil(g.items.length / cols); y += BAR + 14 + (rows - 1) * pitch + rh + (i < groups.length - 1 ? 22 : 0); return { top, rows }; });
-    const logoW = stack ? 380 : 360, logoH = logoW * 174 / 707, logoY = y + (stack ? 46 : 54);
-    return { groups, geo, rw, rh, pitch, BAR, cols, gap, x0, blockW, stack, logoW, logoH, logoY, H: Math.round(logoY + logoH + (stack ? 70 : 50)) };
+    const total = groups.reduce((n, g) => n + g.items.length, 0), stack = d.lay === 'stack', wide = d.lay !== 'stack' && d.lay !== 'side';
+    // wide (default): player on the left, the schedule right of it in two columns: a real banner shape, about 1200 x 500
+    const two = wide ? total >= 4 : stack && total >= 5, rw = wide ? (two ? 405 : 520) : stack ? (two ? 540 : 600) : 600;
+    const sc = rw / SM_ROW_W, rh = SM_ROW_H * sc, pitch = rh + (wide ? 10 : stack ? 11 : 12), BAR = wide ? 40 : stack ? 48 : 53;
+    const cols = two ? 2 : 1, gap = wide ? 20 : 30, blockW = cols * rw + (cols - 1) * gap;
+    const x0 = wide ? 1170 - 830 + (830 - blockW) / 2 : stack ? (1200 - blockW) / 2 : 1160 - rw;   // side: right-aligned like the post
+    let y = wide ? 128 : stack ? 560 : 170;
+    const geo = groups.map((g, i) => { const top = y, rows = Math.ceil(g.items.length / cols); y += BAR + (wide ? 12 : 14) + (rows - 1) * pitch + rh + (i < groups.length - 1 ? (wide ? 16 : 22) : 0); return { top, rows }; });
+    const logoW = wide ? 230 : stack ? 380 : 360, logoH = logoW * 174 / 707, logoY = wide ? 30 : y + (stack ? 46 : 54);
+    return { groups, geo, rw, rh, pitch, BAR, cols, gap, x0, blockW, stack, wide, logoW, logoH, logoY, H: wide ? Math.max(380, Math.round(y + 34)) : Math.round(logoY + logoH + (stack ? 70 : 50)) };
   }
   async function renderShlMail(d, ctx) {
     await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
     const L = shlMailLayout(d), W2 = 1200, H2 = L.H, foot = await loadImg('assets/footer-logo.png'), photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
     ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
-    if (photo) {
+    if (photo && d.cutout) {   // the player alone on the navy: stands left (side) or in the middle (stacked), bottom aligned
+      const ph = (L.stack ? 600 : L.wide ? H2 * 1.02 : H2 * 0.94) * (d.z || 1), pw = ph * photo.naturalWidth / photo.naturalHeight, cxp = (L.stack ? 600 : L.wide ? 175 : 300) + (d.x || 0), by = (L.stack ? 500 : L.wide ? H2 + 8 : H2 + 10) + (d.y || 0);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, L.wide ? 380 : W2, L.stack ? 560 : H2); ctx.clip();
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 40; ctx.shadowOffsetX = -8; ctx.shadowOffsetY = 12;
+      ctx.drawImage(photo, cxp - pw / 2, by - ph, pw, ph); ctx.restore();
+    } else if (photo) {
       ctx.save();
-      const bandH = L.stack ? 520 : H2; ctx.beginPath(); ctx.rect(0, 0, W2, bandH); ctx.clip();
+      const bandH = L.stack ? 520 : H2, bandW = L.wide ? 400 : W2; ctx.beginPath(); ctx.rect(0, 0, bandW, bandH); ctx.clip();
       // the photo fills the band's height and at least the left 60% (a portrait photo stays whole), aligned left
-      const sc = Math.max((L.stack ? W2 : W2 * 0.6) / photo.naturalWidth, bandH / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - W2);
+      const sc = Math.max((L.stack ? W2 : L.wide ? bandW : W2 * 0.6) / photo.naturalWidth, bandH / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - bandW);
       ctx.drawImage(photo, Math.max(-maxShift, Math.min(0, d.x || 0)), Math.min(0, Math.max(bandH - dh, (L.stack ? 0 : (bandH - dh) / 2) + (d.y || 0))), dw, dh);   // stacked: aligned to the top so the head stays in view
       if (L.stack) { const g = ctx.createLinearGradient(0, bandH * 0.55, 0, bandH); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(1, 'rgba(26,27,56,1)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, bandH); }
+      else if (L.wide) { const g = ctx.createLinearGradient(0, 0, bandW, 0); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(0.6, 'rgba(26,27,56,0.2)'); g.addColorStop(1, 'rgba(26,27,56,1)'); ctx.fillStyle = g; ctx.fillRect(0, 0, bandW, H2); }
       else { const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0.05)'); g.addColorStop(0.42, 'rgba(26,27,56,0.2)'); g.addColorStop(0.62, 'rgba(26,27,56,0.8)'); g.addColorStop(1, 'rgba(26,27,56,0.9)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); }
       ctx.restore();
     }
-    if (L.stack) {   // a white, see-through block under the photo that carries the schedule: it is what makes the banner longer
-      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(40, 420, 1120, H2 - 460);
-      ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(40, 420, 1120, 3);
-    }
-    const cx = L.stack ? 600 : L.x0 + L.rw / 2, title = (d.title || '').toUpperCase().trim();
+    const cx = L.stack ? 600 : L.wide ? L.x0 + L.blockW / 2 : L.x0 + L.rw / 2, title = (d.title || '').toUpperCase().trim();
     const first = L.groups[0] && L.groups[0].items[0], sub = (d.sub || '').trim() || (first && first.round ? `ROUND ${first.round}` : '');
+    if (L.wide) {   // title and round on the left of the right-hand area, the logo on its right
+      if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 420, 66); text(ctx, title, L.x0, 80, `700 ${sz}px "ClashDisplay"`, '#fff', { maxWidth: 420 }); }
+      if (sub) text(ctx, sub.toUpperCase(), L.x0 + 2, 112, '700 24px "ClashDisplay"', SM_LIME, { maxWidth: 420 });
+    } else {
     if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', L.stack ? 560 : 500, 86); text(ctx, title, 0, L.stack ? 500 : 100, `700 ${sz}px "ClashDisplay"`, '#fff', { center: cx }); }
     if (sub) text(ctx, sub.toUpperCase(), 0, L.stack ? 548 : 142, '700 28px "ClashDisplay"', SM_LIME, { center: cx, maxWidth: 520 });
+    }
     for (let gi = 0; gi < L.groups.length; gi++) {
-      const g = L.groups[gi], top = L.geo[gi].top + (sub && !L.stack ? 6 : 0), barW = L.stack ? L.blockW : Math.round(L.rw * 522 / 600);
-      const bx = L.stack ? L.x0 : cx - barW / 2, pal = gi % 2 ? ['#f47987', '#f1913d'] : ['#c7f23a', '#5fe39a'], bar = ctx.createLinearGradient(bx, 0, bx + barW, 0);
+      const g = L.groups[gi], top = L.geo[gi].top + (sub && !L.stack && !L.wide ? 6 : 0), barW = (L.stack || L.wide) ? L.blockW : Math.round(L.rw * 522 / 600);
+      const bx = (L.stack || L.wide) ? L.x0 : cx - barW / 2, pal = gi % 2 ? ['#f47987', '#f1913d'] : ['#c7f23a', '#5fe39a'], bar = ctx.createLinearGradient(bx, 0, bx + barW, 0);
       bar.addColorStop(0, pal[0]); bar.addColorStop(1, pal[1]); ctx.fillStyle = bar; ctx.fillRect(bx, top, barW, L.BAR);
-      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + L.BAR / 2 + 10, `700 ${L.stack ? 25 : 28}px "ClashDisplay"`, '#14142b', { center: bx + barW / 2, maxWidth: barW - 24 });
+      text(ctx, fmtDate(MEN, g.day.day, g.day.month), 0, top + L.BAR / 2 + 10, `700 ${L.wide ? 22 : L.stack ? 25 : 28}px "ClashDisplay"`, '#14142b', { center: bx + barW / 2, maxWidth: barW - 24 });
       for (let i = 0; i < g.items.length; i++) {
         const col = L.cols === 2 ? i % 2 : 0, row = L.cols === 2 ? Math.floor(i / 2) : i;
         await drawShlRow(ctx, g.items[i], L.x0 + col * (L.rw + L.gap), top + L.BAR + 14 + row * L.pitch, L.rw, d.showTime);
       }
     }
-    if (foot) ctx.drawImage(foot, (L.stack ? 600 : cx) - L.logoW / 2, L.logoY + (sub && !L.stack ? 6 : 0), L.logoW, L.logoH);
+    if (foot) { if (L.wide) ctx.drawImage(foot, 1170 - L.logoW, L.logoY, L.logoW, L.logoH); else ctx.drawImage(foot, (L.stack ? 600 : cx) - L.logoW / 2, L.logoY + (sub && !L.stack ? 6 : 0), L.logoW, L.logoH); }
   }
   async function loadShlMailPhoto() {
     cur.smPhoto = null;
     if (!cur.d.hasPhoto) return;
     try { const r = await fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { cache: 'no-store' }); if (r.ok) cur.smPhoto = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
   }
-  function uploadShlMailPhoto(file) {
+  function uploadShlMailPhoto(file, remove) {
+    const msg = (t) => { const el = $('smBgMsg'); if (el) el.textContent = t; };
     const fr = new FileReader();
     fr.onload = () => {
       const im = new Image();
-      im.onload = () => {
-        const sc = Math.min(1, 2200 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
-        c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        c.toBlob((blob) => {
+      im.onload = async () => {
+        try {
+          let blob, type;
+          if (remove) {   // the player alone (background removed in the browser), trimmed, as a PNG
+            const out = await cutOut(im, false, msg, 'obj'); blob = await new Promise(res => out.toBlob(res, 'image/png')); type = 'image/png';
+          } else {
+            const sc = Math.min(1, 2200 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+            c.width = Math.round(im.naturalWidth * sc); c.height = Math.round(im.naturalHeight * sc); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+            blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.92)); type = 'image/jpeg';
+          }
           setSave('saving');
-          fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
-            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return blobToImg(blob); })
-            .then(img => { cur.smPhoto = img; Object.assign(cur.d, { hasPhoto: true, bg: 'photo', z: 1, x: 0, y: 0 }); lastSaved = ''; flushSave(); buildControls(); scheduleRender(); })
-            .catch(() => setSave('error'));
-        }, 'image/jpeg', 0.92);
+          const r = await fetch('/api/photo?key=' + enc(`th:shlmail:s${cur.slot}`), { method: 'PUT', headers: { 'Content-Type': type }, body: blob });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          cur.smPhoto = await blobToImg(blob); Object.assign(cur.d, { hasPhoto: true, cutout: !!remove, bg: 'photo', z: 1, x: 0, y: 0 });
+          lastSaved = ''; flushSave(); buildControls(); scheduleRender();
+        } catch (err) { msg('Mislukt: ' + err.message); setSave('error'); }
       };
       im.src = fr.result;
     };
@@ -713,14 +729,16 @@
     const d = cur.d, days = cur.days || [], L = shlMailLayout(d);
     const dayOpts = days.map(x => `<option value="${x.key}"${String(d.dayKey) === String(x.key) ? ' selected' : ''}>${esc(dayLabel(x))}</option>`).join('');
     return `<div class="panel-step"><div class="panel-step-title">Opmaak</div>
-      <div class="mode-tabs mode-tabs-compact" id="smLay"><button type="button" class="mode-tab${d.lay !== 'stack' ? ' active' : ''}" data-l="side">Foto naast de lijst</button><button type="button" class="mode-tab${d.lay === 'stack' ? ' active' : ''}" data-l="stack">Foto boven, lijst eronder (langer)</button></div>
-      <p class="hint" style="margin-top:8px">Naast elkaar is het ontwerp van de schedule-post. Onder elkaar maakt de banner langer: de foto bovenaan en de lijst op een wit doorzichtig vlak eronder.</p>
+      <div class="mode-tabs mode-tabs-compact potm-tabs" id="smLay"><button type="button" class="mode-tab${d.lay !== 'stack' && d.lay !== 'side' ? ' active' : ''}" data-l="wide">Breed</button><button type="button" class="mode-tab${d.lay === 'side' ? ' active' : ''}" data-l="side">Als de post</button><button type="button" class="mode-tab${d.lay === 'stack' ? ' active' : ''}" data-l="stack">Langer</button></div>
+      <p class="hint" style="margin-top:8px">Breed is een echte mailbanner (speler links, de wedstrijden in twee kolommen). Als de post is het ontwerp van de schedule-post. Langer zet de foto bovenaan en de lijst eronder.</p>
       <div class="panel-step-title" style="margin-top:14px">Achtergrond</div>
       <div class="mode-tabs mode-tabs-compact" id="smBg"><button type="button" class="mode-tab${d.bg !== 'plain' ? ' active' : ''}" data-b="photo">Met foto</button><button type="button" class="mode-tab${d.bg === 'plain' ? ' active' : ''}" data-b="plain">Effen navy</button></div>
-      <label class="photo-btn" for="smPhoto" style="margin-top:10px"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">een speler- of sfeerfoto, links in beeld</span></label>
+      <label class="hnl-check" style="margin-top:10px"><input type="checkbox" id="smCut" ${window.SM_CUT === false ? '' : 'checked'}> Achtergrond van de foto verwijderen (voor een portret met witte of drukke achtergrond; alleen de speler blijft over)</label>
+      <label class="photo-btn" for="smPhoto"><span class="photo-btn-text">${d.hasPhoto ? 'Foto vervangen' : 'Foto toevoegen'}</span><span class="photo-btn-sub">${d.cutout ? 'nu: alleen de speler' : 'een speler- of sfeerfoto'} · het uitsnijden duurt een paar seconden</span></label>
       <input type="file" id="smPhoto" accept="image/*" hidden>
+      <p class="hint" id="smBgMsg"></p>
       ${d.hasPhoto ? `<div class="field"><label>Zoom</label><input type="range" id="smZ" min="100" max="300" value="${Math.round((d.z || 1) * 100)}"></div>
-      <div class="field"><label>Links - rechts</label><input type="range" id="smX" min="-600" max="0" value="${Math.round(d.x || 0)}"></div>
+      <div class="field"><label>Links - rechts</label><input type="range" id="smX" min="-600" max="600" value="${Math.round(d.x || 0)}"></div>
       <div class="field"><label>Omhoog - omlaag</label><input type="range" id="smY" min="-500" max="500" value="${Math.round(d.y || 0)}"></div>
       <button class="btn btn-link" id="smPhotoDel" type="button">✕ Verwijder foto</button>` : ''}</div>
       <div class="panel-step"><div class="panel-step-title"><span class="step-num">1</span> Speeldagen</div>
@@ -1059,7 +1077,8 @@
     // SHL Schedule e-mail banner
     document.querySelectorAll('#smLay [data-l]').forEach(b => b.addEventListener('click', () => set({ lay: b.dataset.l }, true)));
     document.querySelectorAll('#smBg [data-b]').forEach(b => b.addEventListener('click', () => set({ bg: b.dataset.b }, true)));
-    on('smPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadShlMailPhoto(f); });
+    on('smCut', 'change', (e) => { window.SM_CUT = e.target.checked; });
+    on('smPhoto', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadShlMailPhoto(f, !!($('smCut') && $('smCut').checked)); });
     on('smZ', 'input', (e) => set({ z: parseInt(e.target.value, 10) / 100 }));
     on('smX', 'input', (e) => set({ x: parseInt(e.target.value, 10) }));
     on('smY', 'input', (e) => set({ y: parseInt(e.target.value, 10) }));
