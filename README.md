@@ -56,7 +56,7 @@ Home tab SHL, group `E-mail`, card `Ranglijst e-mailbanner` (`/shl/ranking-mail`
 
 ## SHL Head to head e-mail banner
 
-Home tab SHL, group `E-mail`, card `Head to head e-mailbanner` (`/shl/head-to-head-mail`, kind `shlh2h` in `thumbs.js`), 1200 x 512 px. Choose the matchday and the match from the programme. Two white cards (crest, code, club name, position, points, W-D-L, the form as the last five results with lime W, grey D and red L) with VS between them and, under it, the last meeting of the two this season or `FIRST MEETING OF THE SEASON`, under one lime info bar with the date and time. The data is the one of the Head to head story: `/api/standings` and `/api/results` (newest result first). No photo, no API.
+Home tab SHL, group `E-mail`, card `Head to head e-mailbanner` (`/shl/head-to-head-mail`, kind `shlh2h` in `thumbs.js`), 1200 x 620 px, built after the Head to head story: the lime accent bar with `HEAD TO HEAD` and the date line, the two clubs in white squares with VS, the standing boxes (position, points, W-D-L), the last three results of each club and the first-meeting (or last-meeting) box. An optional photo sits on the left and fades into the navy from the right, like the schedule banner (zoom and position, optional background removal, stored as `th:shlh2h:s1`). Choose the matchday and the match from the programme; the data is the one of the story: `/api/standings` and `/api/results` (newest result first). No API.
 
 ## Narrowcasting: week input and home buttons
 

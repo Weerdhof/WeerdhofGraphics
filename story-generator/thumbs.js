@@ -207,7 +207,7 @@
   }
   function visSize(kind) { return KINDS[kind].vis === 'mail' ? [1200, 400] : [1920, 1080]; }
   // canvas size of a kind (Player of the Month: the story is 1080x1920, the rest 1080x1350)
-  const kindSize = (kind, d) => KINDS[kind].shlh2h ? [1200, 512] : KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
+  const kindSize = (kind, d) => KINDS[kind].shlh2h ? [1200, 620] : KINDS[kind].shlrank ? [1200, shlRankLayout(d).H] : KINDS[kind].shlmail ? [1200, shlMailLayout(d).H] : KINDS[kind].potm ? [1080, d && d.fmt === 'story' ? 1920 : 1350] : KINDS[kind].vis ? visSize(kind) : [W, H];
   // fits a title into a box: one line when it fits at a good size, else two lines at the best word break
   function fitLines(ctx, str, fontOf, maxW, maxSize, minSize) {
     const widthAt = (t, sz) => { ctx.font = fontOf(sz); return ctx.measureText(t).width; };
@@ -825,7 +825,7 @@
 
   // ---------- SHL Head to head as an e-mail banner: two clubs side by side with their standing and form, and what happened last time ----------
   // The same data as the Head to head story: the standings and the results of the site (newest result first).
-  const shlH2hDefaults = () => ({ title: 'HEAD TO HEAD', dayKey: '', fixture: '' });
+  const shlH2hDefaults = () => ({ title: 'HEAD TO HEAD', dayKey: '', fixture: '', bg: 'photo', hasPhoto: false, cutout: false, z: 1, x: 0, y: 0 });
   async function loadShlH2h() {
     await loadFixtures('shl');
     try {
@@ -843,46 +843,59 @@
     const games = (cur.h2hResults || []).filter(x => x.a === code || x.b === code).map(x => { const mine = x.a === code, f = mine ? x.sa : x.sb, g = mine ? x.sb : x.sa; return { opp: mine ? x.b : x.a, f, g, res: f > g ? 'W' : f < g ? 'L' : 'D', a: x.a, b: x.b, sa: x.sa, sb: x.sb, date: x.date }; });
     return { games, row: (cur.h2hStand || []).find(x => x.code === code) || null };
   }
+  // The look of the Head to head story as a banner: the lime header with the date, the two clubs in white squares with VS, the standing boxes,
+  // the last results, the first-meeting box; with a photo on the left that fades into the navy from the right (like the schedule banner).
   async function renderShlH2h(d, ctx) {
     await fontsReady; await Promise.all(['700 40px ClashDisplay', '500 40px ClashMed'].map(f => document.fonts.load(f).catch(() => {})));
-    const W2 = 1200, H2 = 512, foot = await loadImg('assets/footer-logo.png'), fx = h2hFixture(d), code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c;
+    const W2 = 1200, H2 = 620, foot = await loadImg('assets/footer-logo.png'), fx = h2hFixture(d), code = (c) => (MEN.exportCode && MEN.exportCode[c]) || c, photo = d.bg !== 'plain' && d.hasPhoto ? cur.smPhoto : null;
     ctx.clearRect(0, 0, W2, H2); ctx.fillStyle = SM_NAVY; ctx.fillRect(0, 0, W2, H2);
-    const title = (d.title || '').toUpperCase().trim();
-    if (title) { const sz = fitSize(ctx, title, '700 {s}px "ClashDisplay"', 560, 66); text(ctx, title, 50, 82, `700 ${sz}px "ClashDisplay"`, '#fff', { maxWidth: 560 }); }
-    if (foot) ctx.drawImage(foot, 920, 30, 230, 230 * 174 / 707);
-    if (!fx || !fx.f) { text(ctx, 'GEEN WEDSTRIJD GEVONDEN', 0, 280, '700 34px "ClashDisplay"', '#fff', { center: 600 }); return; }
-    const f = fx.f, A = h2hTeamInfo(f.hc), B = h2hTeamInfo(f.ac);
-    // the one info bar: date, time
-    const bar = ctx.createLinearGradient(50, 0, 1150, 0); bar.addColorStop(0, '#c4f23c'); bar.addColorStop(1, '#5fe48c'); ctx.fillStyle = bar; ctx.fillRect(50, 110, 1100, 42);
-    const bf = '700 22px "ClashDisplay"'; ctx.font = bf; const cap = ctx.measureText('H').actualBoundingBoxAscent;
-    text(ctx, `${fmtDate(MEN, f.day, f.month)}${f.time ? '  ·  ' + f.time : ''}`, 0, 110 + 21 + cap / 2, bf, '#14142b', { center: 600, ws: 5 });
-    const card = async (x, t, c) => {
-      const y = 172, w = 420, h = 308, ink = SM_INK, grey = '#6b6e8f';
-      ctx.fillStyle = '#f9faff'; ctx.fillRect(x, y, w, h);
-      await crest(ctx, MEN, c, x + 22, y + 20, 100, 100);
-      text(ctx, code(c), x + 140, y + 84, '700 62px "ClashDisplay"', ink, { maxWidth: 250 });
-      text(ctx, labelOf(MEN, c).toUpperCase(), x + 142, y + 112, '500 19px "ClashMed"', grey, { maxWidth: 260, ws: 2 });
-      ctx.fillStyle = '#e4e6f3'; ctx.fillRect(x + 22, y + 136, w - 44, 2);
-      const r = t.row, cells = [[r ? String(r.pos) : '-', 'POSITION'], [r ? String(r.pts) : '-', 'POINTS'], [r ? `${r.w}-${r.d}-${r.l}` : '-', 'W-D-L']];
-      cells.forEach((cc, i) => { const cx = x + 22 + (w - 44) * (i + 0.5) / 3; text(ctx, cc[0], 0, y + 192, `700 ${i === 2 ? 38 : 46}px "ClashDisplay"`, ink, { center: cx }); text(ctx, cc[1], 0, y + 218, '500 15px "ClashMed"', grey, { center: cx, ws: 2 }); });
-      // form: the last five results, oldest left, newest right
-      const last = t.games.slice(0, 5).reverse(), colour = { W: '#c4f23c', D: '#d6d9ea', L: '#f47987' };
-      text(ctx, 'FORM', x + 22, y + 276, '500 15px "ClashMed"', grey, { ws: 2 });
-      last.forEach((g, i) => { const bx = x + 96 + i * 46; ctx.fillStyle = colour[g.res]; ctx.fillRect(bx, y + 252, 38, 38); text(ctx, g.res, 0, y + 279, '700 22px "ClashDisplay"', '#14142b', { center: bx + 19 }); });
-      if (!last.length) text(ctx, 'NO RESULTS YET', x + 96, y + 276, '500 15px "ClashMed"', grey, { ws: 2 });
-    };
-    await card(50, A, f.hc); await card(730, B, f.ac);
-    // the middle: VS and the last meeting of these two
-    text(ctx, 'VS', 0, 292, '700 84px "ClashDisplay"', '#fff', { center: 600 });
-    const meet = A.games.find(g => g.opp === f.ac);
-    if (meet) {
-      text(ctx, 'LAST MEETING', 0, 352, '700 17px "ClashDisplay"', SM_LIME, { center: 600, ws: 3 });
-      text(ctx, `${meet.sa} - ${meet.sb}`, 0, 398, '700 44px "ClashDisplay"', '#fff', { center: 600 });
-      text(ctx, `${code(meet.a)} - ${code(meet.b)}${meet.date ? '  ·  ' + meet.date.toUpperCase() : ''}`, 0, 428, '500 17px "ClashMed"', '#cfd2e6', { center: 600, maxWidth: 250, ws: 2 });
-    } else {
-      text(ctx, 'FIRST MEETING', 0, 372, '700 21px "ClashDisplay"', SM_LIME, { center: 600, ws: 3 });
-      text(ctx, 'OF THE SEASON', 0, 400, '700 21px "ClashDisplay"', SM_LIME, { center: 600, ws: 3 });
+    if (photo && d.cutout) {
+      const ph = H2 * 1.0 * (d.z || 1), pw = ph * photo.naturalWidth / photo.naturalHeight, cxp = 235 + (d.x || 0), by = H2 + 8 + (d.y || 0);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 440, H2); ctx.clip(); ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 40; ctx.shadowOffsetX = -8; ctx.shadowOffsetY = 12; ctx.drawImage(photo, cxp - pw / 2, by - ph, pw, ph); ctx.restore();
+    } else if (photo) {
+      ctx.save();
+      const sc = Math.max(W2 * 0.5 / photo.naturalWidth, H2 / photo.naturalHeight) * (d.z || 1), dw = photo.naturalWidth * sc, dh = photo.naturalHeight * sc, maxShift = Math.max(0, dw - W2);
+      ctx.drawImage(photo, Math.max(-maxShift, Math.min(0, d.x || 0)), Math.min(0, Math.max(H2 - dh, (H2 - dh) / 2 + (d.y || 0))), dw, dh);
+      const g = ctx.createLinearGradient(0, 0, W2, 0); g.addColorStop(0, 'rgba(26,27,56,0)'); g.addColorStop(0.2, 'rgba(26,27,56,0.1)'); g.addColorStop(0.34, 'rgba(26,27,56,0.62)'); g.addColorStop(0.46, 'rgba(26,27,56,0.9)'); g.addColorStop(1, 'rgba(26,27,56,0.94)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); ctx.restore();
+    } else { const g = ctx.createRadialGradient(300, 80, 20, 300, 80, 700); g.addColorStop(0, 'rgba(70,90,150,0.35)'); g.addColorStop(1, 'rgba(26,27,56,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W2, H2); }
+    if (foot) ctx.drawImage(foot, 40, H2 - 36 - 58, 236, 236 * 174 / 707);
+    if (!fx || !fx.f) { text(ctx, 'GEEN WEDSTRIJD GEVONDEN', 0, 300, '700 34px "ClashDisplay"', '#fff', { center: 800 }); return; }
+    const f = fx.f, A = h2hTeamInfo(f.hc), B = h2hTeamInfo(f.ac), X0 = 480, X1 = 1150, title = (d.title || '').toUpperCase().trim();
+    // header: the lime accent bar, the title and the date line
+    ctx.fillStyle = '#c4f23c'; ctx.fillRect(X0, 34, 6, 58);
+    if (title) text(ctx, title, X0 + 20, 66, '700 40px "ClashDisplay"', '#fff', { maxWidth: 600 });
+    const dt = new Date(seasonDate(f.day, f.month)), wd = DAYS.en[dt.getDay()].slice(0, 3);
+    text(ctx, `${wd} ${String(f.day).padStart(2, '0')}-${String(f.month).padStart(2, '0')}${f.round ? ' | ROUND ' + f.round : ''}${f.time ? '  ·  ' + f.time : ''}`, X0 + 20, 90, '500 22px "ClashMed"', '#fff', { maxWidth: 620, ws: 3 });
+    // the clubs: white squares, VS between, the names below
+    const sq = 116;
+    for (const [c, x] of [[f.hc, X0], [f.ac, X1 - sq]]) { ctx.fillStyle = '#fff'; ctx.fillRect(x, 116, sq, sq); await crest(ctx, MEN, c, x + 6, 122, sq - 12, sq - 12); }
+    text(ctx, 'VS', 0, 196, '700 64px "ClashDisplay"', 'rgba(255,255,255,0.55)', { center: (X0 + X1) / 2 });
+    text(ctx, labelOf(MEN, f.hc).toUpperCase(), X0, 276, '700 28px "ClashDisplay"', '#fff', { maxWidth: 320 });
+    text(ctx, labelOf(MEN, f.ac).toUpperCase(), 0, 276, '700 28px "ClashDisplay"', '#fff', { inkRight: X1, maxWidth: 320 });
+    // the standing boxes
+    const box = (x, t, fill) => { ctx.fillStyle = fill; ctx.fillRect(x, 296, 320, 66); const r = t.row;
+      text(ctx, r ? '#' + r.pos : '-', x + 16, 346, '700 52px "ClashDisplay"', SM_INK, { maxWidth: 120 });
+      text(ctx, r ? `${r.pts} PTS` : '', 0, 330, '700 24px "ClashDisplay"', SM_INK, { inkRight: x + 306 });
+      text(ctx, r ? `${r.w}W ${r.d}D ${r.l}L` : '', 0, 352, '500 17px "ClashMed"', SM_INK, { inkRight: x + 306, ws: 2 }); };
+    box(X0, A, '#dde1f5'); box(X1 - 320, B, '#4aa8dd');
+    text(ctx, 'LAST RESULTS', 0, 392, '500 15px "ClashMed"', '#c9cce2', { center: (X0 + X1) / 2, ws: 3 });
+    // the last three results of each club (newest first)
+    const rowH = 46, y0 = 404, colour = { W: ['#c4f23c', SM_INK], D: ['#d6d9ea', SM_INK], L: [SM_INK, '#fff'] };
+    for (const [t, x, left] of [[A, X0, true], [B, X1 - 320, false]]) {
+      for (let i = 0; i < 3; i++) {
+        const g = t.games[i], y = y0 + i * (rowH + 6); ctx.fillStyle = '#fff'; ctx.fillRect(x, y, 320, rowH);
+        if (!g) continue;
+        const cx = left ? x + 8 : x + 320 - 8 - 36, chipX = left ? x + 320 - 8 - 34 : x + 8;
+        await crest(ctx, MEN, g.opp, cx, y + 5, 36, 36);
+        ctx.fillStyle = colour[g.res][0]; ctx.fillRect(chipX, y + 6, 34, 34); text(ctx, g.res, 0, y + 31, '700 21px "ClashDisplay"', colour[g.res][1], { center: chipX + 17 });
+        text(ctx, `${g.f} – ${g.g}`, 0, y + 33, '700 30px "ClashDisplay"', SM_INK, { center: x + 160 });
+      }
     }
+    // the first meeting or the last meeting
+    ctx.fillStyle = '#fff'; ctx.fillRect(X0, 570 - 8, X1 - X0, 40);
+    const meet = A.games.find(g => g.opp === f.ac), mf = '700 17px "ClashDisplay"';
+    text(ctx, meet ? `LAST MEETING  ${code(meet.a)} ${meet.sa} – ${meet.sb} ${code(meet.b)}${meet.date ? '  ·  ' + meet.date.toUpperCase() : ''}` : 'FIRST MEETING OF THE SEASON', 0, 570 + 18, mf, '#5a5d85', { center: (X0 + X1) / 2, maxWidth: X1 - X0 - 20, ws: 3 });
   }
   function shlH2hControls() {
     const d = cur.d, days = cur.days || [], day = days.find(x => String(x.key) === String(d.dayKey));
@@ -893,7 +906,8 @@
       <div class="field"><label for="hhMatch">Wedstrijd</label><select id="hhMatch">${mOpts}</select></div>` : '<p class="hint">Het programma is niet beschikbaar.</p>'}
       <p class="hint">De stand, de vorm (laatste vijf uitslagen) en de vorige ontmoeting komen van de site, net als bij de Head to head story.</p></div>
       <div class="panel-step"><div class="panel-step-title"><span class="step-num">2</span> Tekst</div>
-      <div class="field"><label for="smTitle">Titel</label><input type="text" id="smTitle" value="${esc(d.title)}"></div></div>`;
+      <div class="field"><label for="smTitle">Titel</label><input type="text" id="smTitle" value="${esc(d.title)}"></div></div>
+      <div class="panel-step"><div class="panel-step-title">Foto</div>${smPhotoHtml(d)}</div>`;
   }
   // ---------- Per-kind rendering ----------
   async function renderThumb(kind, d, ctx, photo) {
@@ -1444,11 +1458,11 @@
     if (k !== itemKey()) return;
     cur.d = Object.assign(K.shlh2h ? shlH2hDefaults() : K.shlrank ? shlRankDefaults() : K.shlmail ? shlMailDefaults() : K.potm ? potmDefaults() : K.vis ? visDefaults(kind) : K.lvl ? lvlDefaults(kind) : K.next ? nextDefaults(kind) : shlDefaults(), data || {});
     if (!cur.d.photoPos) cur.d.photoPos = { z: 1, x: 0, y: 0 };
-    if (cur.d.hasPhoto && !K.vis && !K.shlmail && !K.shlrank) {
+    if (cur.d.hasPhoto && !K.vis && !K.shlmail && !K.shlrank && !K.shlh2h) {
       try { const r = await fetch('/api/photo?key=' + enc(k), { cache: 'no-store' }); if (r.ok) cur.photo = await blobToImg(await r.blob()); else cur.d.hasPhoto = false; } catch (e) { cur.d.hasPhoto = false; }
     }
     if (K.shlh2h) {
-      await loadShlH2h();
+      await loadShlH2h(); await loadShlMailPhoto();
     } else if (K.shlrank) {
       await loadShlRank(); await loadShlMailPhoto();
     } else if (K.shlmail) {
