@@ -5534,7 +5534,7 @@
   });
   // The landing pages: ByTomorrow frame, client content in the client's own look (colours and fonts live in bytomorrow.css).
   const CLIENTS = {
-    dash:  { name: 'ByTomorrow Graphics', title: 'ByTomorrow Graphics', sub: 'Alle visuals van onze klanten, op één plek.', pill: 'Graphics' },
+    dash:  { name: 'Overzicht', title: 'Welkom terug', sub: 'Alle visuals van onze klanten, op één plek.', pill: 'Graphics' },
     men:   { name: 'Super Handball League', short: 'SHL', title: 'Super Handball League', logo: 'assets/footer-logo.png', pill: 'SHL · Heren', sub: 'Story, post, animatie en thumbnails voor de Coinmerce Super Handball League (SHL).' },
     women: { name: 'Super Handball League Women', short: 'SHLW', title: 'Super Handball League Women', logo: 'assets/women/footer-logo-women.png', pill: 'SHLW · Vrouwen', sub: 'Story, post, animatie en thumbnails voor de Super Handball League Women (SHLW).' },
     hnl:   { name: 'HandbalNL', title: 'HandbalNL', logo: 'assets/hnl/logo-next-light.png', pill: 'HandbalNL.TV', sub: 'Aankondigingen en thumbnails voor HandbalNL en de Next Handball League.' },

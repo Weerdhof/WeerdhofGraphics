@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="bytomorrow.css">
 <link rel="stylesheet" href="socials.css">
+<link rel="stylesheet" href="dashboard-ui.css">
 </head>
 <body class="menu-open">
 
@@ -22,29 +23,45 @@
 <!-- ===================== HOME MENU (ByTomorrow Graphics) ===================== -->
 <div class="home-menu theme-dash" id="homeMenu">
   <a class="skip-link" href="#homeMain">Naar de inhoud</a>
-  <div class="bt-bar">
+  <aside class="bt-bar sb" aria-label="Navigatie">
     <div class="bt-bar-in">
       <button class="bt-brand" data-home-comp="dash" type="button" aria-label="ByTomorrow Graphics, naar Home">
         <svg class="bt-logo" viewBox="0 0 993 193" aria-hidden="true"><use href="#bt-logo"/></svg>
         <span class="bt-pill">Graphics</span>
       </button>
-      <nav class="home-comp" role="tablist" aria-label="Klanten">
-        <button class="home-comp-tab active" data-home-comp="dash" type="button">Home</button>
-        <button class="home-comp-tab" data-home-comp="men" type="button">SHL</button>
-        <button class="home-comp-tab" data-home-comp="women" type="button">SHLW</button>
-        <button class="home-comp-tab" data-home-comp="hnl" type="button">HandbalNL</button>
-        <button class="home-comp-tab" data-home-comp="lvl" type="button"><span class="l-long">Lotto Volley League</span><span class="l-short">LVL</span></button>
-        <button class="home-comp-tab" data-home-comp="byt" type="button">Socials</button>
-      </nav>
-      <a class="home-settings-btn nc-top" href="/narrowcasting" target="_blank" rel="noopener" title="Het narrowcasting-scherm (opent in een nieuw tabblad)">Narrowcasting</a>
-      <a class="home-settings-btn nc-top" href="/narrowcasting/beheer" title="Gastmodus, meetings en de agenda van het scherm">Narrowcasting beheer</a>
-      <button class="home-settings-btn" id="openSettings" type="button">Instellingen</button>
+      <div class="sb-scroll">
+        <div class="sb-label">Overzicht</div>
+        <nav class="home-comp" role="tablist" aria-label="Overzicht">
+          <button class="home-comp-tab active" data-home-comp="dash" type="button"><i class="sb-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg></i><span class="sb-tx">Home</span></button>
+        </nav>
+        <div class="sb-label">Klanten</div>
+        <nav class="home-comp" role="tablist" aria-label="Klanten">
+          <button class="home-comp-tab" data-home-comp="men" type="button" style="--dot:#caff1c"><i class="sb-dot"></i><span class="sb-tx">SHL</span></button>
+          <button class="home-comp-tab" data-home-comp="women" type="button" style="--dot:#e353fc"><i class="sb-dot"></i><span class="sb-tx">SHLW</span></button>
+          <button class="home-comp-tab" data-home-comp="hnl" type="button" style="--dot:#ff7429"><i class="sb-dot"></i><span class="sb-tx">HandbalNL</span></button>
+          <button class="home-comp-tab" data-home-comp="lvl" type="button" style="--dot:#EE3124"><i class="sb-dot"></i><span class="sb-tx"><span class="l-long">Lotto Volley League</span><span class="l-short">LVL</span></span></button>
+          <button class="home-comp-tab" data-home-comp="byt" type="button" style="--dot:#3D5AFE"><i class="sb-dot"></i><span class="sb-tx">Socials</span></button>
+        </nav>
+        <div class="sb-label">Narrowcasting</div>
+        <nav class="sb-links" aria-label="Narrowcasting">
+          <a class="sb-link nc-top" href="/narrowcasting" target="_blank" rel="noopener" title="Het narrowcasting-scherm (opent in een nieuw tabblad)"><i class="sb-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></i><span class="sb-tx">Scherm</span><em class="sb-ext" aria-hidden="true">&#8599;</em></a>
+          <a class="sb-link nc-top" href="/narrowcasting/beheer" title="Gastmodus, meetings en de agenda van het scherm"><i class="sb-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></i><span class="sb-tx">Beheer</span></a>
+        </nav>
+        <div class="sb-label">Systeem</div>
+        <nav class="sb-links" aria-label="Systeem">
+          <button class="sb-link" id="openSettings" type="button"><i class="sb-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg></i><span class="sb-tx">Instellingen</span></button>
+          <a class="sb-link" href="/api-docs" target="_blank" rel="noopener" title="Uitleg over de API voor AI en scripts"><i class="sb-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M8 16.5h10"/></svg></i><span class="sb-tx">API-uitleg</span><em class="sb-ext" aria-hidden="true">&#8599;</em></a>
+        </nav>
+      </div>
     </div>
-  </div>
+  </aside>
 
   <div class="home-inner" id="homeMain" tabindex="-1">
-    <header class="home-head" id="homeHead">
+    <div class="dash-bar">
       <div class="hero-crumb" id="heroCrumb"><button type="button" data-home-comp="dash">ByTomorrow Graphics</button><span>/</span><b id="heroCrumbName"></b></div>
+      <span class="dash-date" id="dashDate"></span>
+    </div>
+    <header class="home-head" id="homeHead">
       <img class="home-logo" id="homeLogo" src="assets/footer-logo.png" alt="">
       <span class="hero-pill" id="heroPill">Graphics</span>
       <h1 id="heroTitle">ByTomorrow Graphics</h1>
@@ -53,6 +70,12 @@
     </header>
 
     <div class="home-dash">
+      <div class="kpi-grid" id="kpiGrid" aria-label="Overzicht van vandaag">
+        <div class="kpi"><span class="kpi-l">Wedstrijden vandaag</span><b class="kpi-v" id="kpiToday">&ndash;</b><span class="kpi-s" id="kpiTodayS">alle klanten</span></div>
+        <div class="kpi"><span class="kpi-l">Komende 7 dagen</span><b class="kpi-v" id="kpiWeek">&ndash;</b><span class="kpi-s" id="kpiWeekS">wedstrijden in de programma's</span></div>
+        <div class="kpi"><span class="kpi-l">Op het scherm</span><b class="kpi-v" id="kpiScreen">&ndash;</b><span class="kpi-s" id="kpiScreenS">afspraken, komende 7 dagen</span></div>
+        <div class="kpi"><span class="kpi-l">Opgeslagen exports</span><b class="kpi-v" id="kpiExports">&ndash;</b><span class="kpi-s" id="kpiExportsS">op de server</span></div>
+      </div>
       <h2 class="home-group">Klanten</h2>
       <div class="client-grid">
         <button class="client-card cc-men" data-home-comp="men" type="button">
@@ -741,6 +764,7 @@
 
 <script src="settings.js"></script>
 <script src="dashboard.js"></script>
+<script src="dashboard-ui.js"></script>
 <script src="music.js"></script>
 <script src="script.js"></script>
 <script src="settings-ui.js"></script>
