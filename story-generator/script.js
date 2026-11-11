@@ -2843,10 +2843,10 @@
   // ---------- Main render ----------
   // Today as 2026-11-11: the file name of a Player of the Week (it is not tied to a match)
   function todayStamp() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-  // Player of the Week has no round or match to pick: hide step 1 and number the remaining steps again
+  // Player of the Week/Month and Announcement have no round or match to pick: hide step 1 and number the remaining steps again
   function syncDataStep() {
     const step = roundSelectField.closest('.panel-step'); if (!step) return;
-    step.style.display = isPW() ? 'none' : '';
+    step.style.display = (isPW() || mode === 'announcement') ? 'none' : '';
     let n = 0;
     step.parentNode.querySelectorAll('.panel-step').forEach(sec => {
       if (sec.style.display === 'none') return;
