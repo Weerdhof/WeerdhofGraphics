@@ -819,7 +819,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${compKey}-${mode}-animatie${tiktokOn() ? '-tiktok' : ''}.${ext}`;
+    a.download = `${compKey}-${mode}${mode === 'playerweek' ? '-' + todayStamp() : ''}-animatie${tiktokOn() ? '-tiktok' : ''}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -2837,8 +2837,22 @@
   }
 
   // ---------- Main render ----------
+  // Today as 2026-11-11: the file name of a Player of the Week (it is not tied to a match)
+  function todayStamp() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  // Player of the Week has no round or match to pick: hide step 1 and number the remaining steps again
+  function syncDataStep() {
+    const step = roundSelectField.closest('.panel-step'); if (!step) return;
+    step.style.display = mode === 'playerweek' ? 'none' : '';
+    let n = 0;
+    step.parentNode.querySelectorAll('.panel-step').forEach(sec => {
+      if (sec.style.display === 'none') return;
+      const num = sec.querySelector('.step-num'); if (num) num.textContent = String(++n);
+    });
+  }
+
   function render() {
     syncItemKey();
+    syncDataStep();
     // Transparent output is shown on a checkerboard in the preview only (CSS behind
     // the canvas) — the canvas pixels, and so the PNG/MP4 export, stay transparent.
     // (A photo, when present, is drawn into the canvas and covers it.)
@@ -5170,7 +5184,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const nameBit = (mode === 'announcement') ? (smState.annTitle || 'announcement').slice(0, 40) : (isSingleMode()) ? (smState.id || 'match')
+      const nameBit = (mode === 'announcement') ? (smState.annTitle || 'announcement').slice(0, 40) : (mode === 'playerweek') ? todayStamp() : (isSingleMode()) ? (smState.id || 'match')
         : isMovers() ? 'movers'
         : mode === 'ranking' ? 'ranking'
         : (state.date || 'story');
