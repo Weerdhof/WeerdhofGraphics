@@ -4389,17 +4389,30 @@
 
   // Player of the Month chevrons: the artwork from the design (assets/potm/chevrons.png), apex on the right
   const PM_CHEV_SCALE = 0.78, PM_CHEV_APEX_Y = 460;
+  const pmFadeCache = new Map();
+  const pmSlide = (scale) => scale === 1 ? 0 : scale < 1 ? (scale - 1) * 700 : (scale - 1) * 308;   // the SHL chevron scale curve as a horizontal offset (px)
   function pmChevrons(alpha, scale, color) {   // color: one flat colour (Speler van de week), none = the pink-orange of the artwork
     const src = loadImg('assets/potm/chevrons.png');
-    const img = src && src.complete && src.naturalWidth ? (color ? tintImage(src, 'pwchev', color) : src) : null;
+    let img = src && src.complete && src.naturalWidth ? (color ? tintImage(src, 'pwchev', color) : src) : null;
     if (!img) return;
+    // Animation: the SHL chevron curve (assets/singlematch: 90% -> 100% -> 113%, fade out at the end) drives a horizontal slide
+    // instead of a scale: from the left (-70 px) to its place, then a little further to the right while it fades
+    const dx = pmSlide(scale);
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, w = iw * PM_CHEV_SCALE, h = ih * PM_CHEV_SCALE;
-    const top = PM_CHEV_APEX_Y - 458 * PM_CHEV_SCALE, ax = 668 * PM_CHEV_SCALE;
+    if (dx !== 0) {   // the artwork ends in a straight edge on the left: while it slides, that edge fades out
+      const key = (color || 'art');
+      if (!pmFadeCache.has(key)) {
+        const oc = document.createElement('canvas'); oc.width = iw; oc.height = ih;
+        const o = oc.getContext('2d'); o.drawImage(img, 0, 0); o.globalCompositeOperation = 'destination-in';
+        const fg = o.createLinearGradient(0, 0, 120, 0); fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,1)');
+        o.fillStyle = fg; o.fillRect(0, 0, iw, ih); pmFadeCache.set(key, oc);
+      }
+      img = pmFadeCache.get(key);
+    }
     ctx.save();
     ctx.beginPath(); ctx.rect(0, 0, TS_W, PW_PHOTO_H); ctx.clip();
     ctx.globalAlpha = alpha;
-    ctx.translate(ax, PM_CHEV_APEX_Y); ctx.scale(scale, scale); ctx.translate(-ax, -PM_CHEV_APEX_Y);
-    ctx.drawImage(img, 0, top, w, h);
+    ctx.drawImage(img, dx, PM_CHEV_APEX_Y - 458 * PM_CHEV_SCALE, w, h);
     ctx.restore();
   }
 
@@ -4449,10 +4462,11 @@
         const o = oc.getContext('2d'); o.drawImage(tint, 0, 0); o.globalCompositeOperation = 'destination-in';
         const fg = o.createLinearGradient(0, 0, 300, 0); fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,1)');
         o.fillStyle = fg; o.fillRect(0, 0, oc.width, oc.height);
-        ctx.globalAlpha = mode === 'playermonth' ? 0.2 : (compKey === 'women' ? 0.09 : 0.12); ctx.drawImage(oc, 1040 - 668 * sc, ay - 458 * sc, tint.width * sc, tint.height * sc);
+        ctx.globalAlpha = (mode === 'playermonth' ? 0.2 : (compKey === 'women' ? 0.09 : 0.12)) * chev.opacity;   // slides and fades with the chevrons over the photo
+        ctx.drawImage(oc, 1040 - 668 * sc + pmSlide(chev.scale), ay - 458 * sc, tint.width * sc, tint.height * sc);
         ctx.restore();
       }
-    }   // always there, never animated
+    }
 
     // banner
     ctx.save();
@@ -4486,7 +4500,7 @@
     const logo = loadImg(T.logo);
     if (logo && logo.complete && logo.naturalWidth) {
       const lh = 118, lw = lh * logo.naturalWidth / logo.naturalHeight;
-      ctx.save(); ctx.globalAlpha = ramp(1100);
+      ctx.save();   // the logo is there from the first frame, like on the other SHL assets
       ctx.drawImage(logo, L, 1110, lw, lh);
       ctx.restore();
     }
