@@ -10,7 +10,10 @@ GET /api/thumbnail?kind=<shl|shlw|nextmen|nextwomen|lvlm|lvlw>&home=<club>&away=
 - The full, always current description (fields per kind, valid club codes, examples):
   GET /api/thumbnail?help=1  (JSON)  or  /api-docs  (page)
 - Without json=1 the answer is the image itself, with json=1 a JSON with the URL of the image.
-- Club fields take the club code or the full club name.
+- Club fields take the club code or the full club name. GET /api/schedule?comp=men|women gives every fixture with homeCode and awayCode.
+- Default image format: jpg for shl and shlw, webp for the other kinds (format=jpg|webp|png overrides).
+- A whole round at once: GET|POST /api/thumbnails?kind=shl&round=12 (or date=YYYY-MM-DD; zip=1 for one zip). The SHLW programme has no round numbers: use date.
+- Browser calls (CORS) are allowed from admin.bytomorrow.nl.
 - Each thumbnail editor page also shows the exact API link for what is selected on that page.
 
 ## Pages

@@ -717,11 +717,40 @@ def legacy_results(d):
             for m in d.get("results", []) if m.get("homeScore") is not None]
 
 
-def legacy_schedule(d):
+# The club codes of the thumbnail API (the same as the tag codes in admin); a team name that contains one of the
+# fragments gets that code. Keep in sync with MEN / WOMEN in story-generator/thumbs.js.
+CLUB_ALIASES = {
+    "men": {"SAB": ["bocholt"], "IZE": ["izegem"], "EUP": ["eupen"], "HCS": ["sprimont"], "BEV": ["bevo"], "PEL": ["pelt"],
+            "BWH": ["hercules", "whc"], "DFS": ["arnhem"], "HUP": ["hurry"], "HCV": ["vise", "visé"], "HVA": ["aalsmeer", "royalfloraholland"],
+            "HUB": ["hubo"], "VOL": ["volendam"], "TAC": ["tachos", "mossel", "witte ster"]},
+    "women": {"DSVD": ["dsvd", "aqqo"], "E&O": ["misker", "oosting"], "FOR": ["foreholte"], "KWI": ["kwiek"], "MHV": ["m.h.v"],
+              "PSV": ["hypotheekvisie", "eindhoven"], "QUI": ["quintus"], "SEW": ["westfriesland"], "V&L": ["geonius"],
+              "VEN": ["venlo", "cabooter"], "VOC": ["ruitenheer"], "VOL": ["volendam"], "VZV": ["juro"], "WPK": ["westlandia"]},
+}
+
+
+def club_code(comp, name):
+    n = unicodedata.normalize("NFD", name or "")
+    n = "".join(c for c in n if not unicodedata.combining(c)).lower()
+    for code, frags in CLUB_ALIASES.get(comp, {}).items():
+        if any(unicodedata.normalize("NFD", fr).encode("ascii", "ignore").decode() in n for fr in frags):
+            return code
+    return None
+
+
+def _season_year(month):
+    now = datetime.now()
+    start = now.year if now.month >= 8 else now.year - 1
+    return start if month >= 8 else start + 1
+
+
+def legacy_schedule(d, comp=None):
     out = []
     for played, items in ((True, d.get("results", [])), (False, d.get("upcoming", []))):
         for m in items:
             f = {"home": m["home"], "away": m["away"], "day": m["day"], "month": m["month"], "time": m["time"], "played": played}
+            if comp:
+                f["homeCode"], f["awayCode"] = club_code(comp, m["home"]), club_code(comp, m["away"])
             if m.get("round") is not None:
                 f["round"] = m["round"]
             out.append(f)
@@ -772,6 +801,16 @@ class RendererUnavailable(Exception):
 
 class ThumbError(Exception):
     """A problem with the request (unknown club, bad date, ...): shown to the caller as a 400."""
+
+
+# Sites that may call /api/thumbnail from the browser (CORS). Comma separated, * wildcards allowed; add more with the
+# THUMB_CORS_ORIGINS environment variable (e.g. the LiveDirector address).
+CORS_ORIGINS = [o.strip() for o in ("https://admin.bytomorrow.nl," + os.environ.get("THUMB_CORS_ORIGINS", "")).split(",") if o.strip()]
+
+
+def cors_allowed(origin):
+    import fnmatch
+    return any(fnmatch.fnmatchcase(origin.lower(), o.lower()) for o in CORS_ORIGINS)
 
 
 class ThumbRenderer:
@@ -1979,6 +2018,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json(200, effective_plan())
         elif self.path.startswith("/api/usage"):
             self._send_json(200, usage_summary(int((parse_qs(urlparse(self.path).query).get("limit", ["40"])[0] or 40))))
+        elif self.path.startswith("/api/thumbnails"):
+            self.handle_thumbnails()
         elif self.path.startswith("/api/thumbnail"):
             self.handle_thumbnail()
         elif self.path.startswith("/exports/"):
@@ -2003,6 +2044,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_photo_put()
         elif self.path.startswith("/api/item"):
             self.handle_item_put()
+        elif self.path.startswith("/api/thumbnails"):
+            self.handle_thumbnails()
         elif self.path.startswith("/api/thumbnail"):
             self.handle_thumbnail()
         elif self.path.startswith("/api/usage"):
@@ -2187,6 +2230,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._send_json(501, {"error": "uitleg niet beschikbaar: " + str(err), "see": "/api-docs"})
         want_json = str(params.pop("json", "")).lower() in ("1", "true", "yes")
         params = {k: str(v) for k, v in params.items() if len(str(v)) <= 200}
+        if params.get("kind") in ("shl", "shlw") and not params.get("format"):
+            params["format"] = "jpg"        # admin uses .jpg for these; the other kinds stay webp
         try:
             result = RENDERER.render(params)
         except ThumbError as err:
@@ -2204,7 +2249,7 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception as err:
             return self._send_json(500, {"error": "opslaan mislukt: " + str(err)})
         if want_json:
-            return self._send_json(200, {**saved, "format": result.get("format"), "data": result.get("data")})
+            return self._send_json(200, {**saved, "format": "jpg" if result.get("format") == "jpeg" else result.get("format"), "data": result.get("data")})
         self.send_response(200)
         self.send_header("Content-Type", EXPORT_TYPES.get(name.rsplit(".", 1)[-1].lower(), "application/octet-stream"))
         self.send_header("Content-Length", str(len(data)))
@@ -2212,6 +2257,89 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("X-Export-Url", saved["url"])
         self.end_headers()
         self.wfile.write(data)
+
+
+    def handle_thumbnails(self):
+        """A whole round (or one day) of livestream thumbnails in one call: POST/GET /api/thumbnails
+        { kind: shl|shlw, round: 12 | date: 2026-11-14, format, zip=1, title, variant, label }.
+        The matches, dates and times come from the programme (/api/schedule), so nothing has to be typed in."""
+        params = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+        if self.command == "POST":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if 0 < length < 100_000 else {}
+                if isinstance(body, dict):
+                    params.update({k: v for k, v in body.items() if isinstance(v, (str, int, float, bool))})
+            except ValueError:
+                return self._send_json(400, {"error": "ongeldige JSON"})
+        kind = str(params.get("kind", "shl"))
+        if kind not in ("shl", "shlw"):
+            return self._send_json(400, {"error": "kind moet shl of shlw zijn (een hele ronde kan alleen voor de livestream-thumbnails van de SHL)"})
+        comp = "men" if kind == "shl" else "women"
+        try:
+            d = get_comp_data(comp)
+        except Exception as err:
+            return self._send_json(502, {"error": "programma niet beschikbaar: " + str(err)})
+        fixtures = [dict(m, played=played) for played, items in ((True, d.get("results", [])), (False, d.get("upcoming", []))) for m in items]
+        rounds = sorted({m["round"] for m in fixtures if m.get("round") is not None})
+        dates = sorted({"%04d-%02d-%02d" % (_season_year(m["month"]), m["month"], m["day"]) for m in fixtures if not m["played"]})
+        hint = {"rounds": rounds} if rounds else {"rounds": [], "note": "dit programma heeft geen rondenummers: gebruik date", "upcomingDates": dates}
+        want_round, want_date = str(params.get("round", "")).strip(), str(params.get("date", "")).strip()
+        if not want_round and not want_date:
+            return self._send_json(400, {"error": "geef round (bv. 12) of date (YYYY-MM-DD of DD-MM) mee", **hint})
+        picked = fixtures
+        if want_round:
+            if not want_round.isdigit():
+                return self._send_json(400, {"error": "round moet een getal zijn", **hint})
+            picked = [m for m in picked if m.get("round") == int(want_round)]
+        if want_date:
+            mt = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})", want_date) or re.match(r"^(\d{1,2})[-/.](\d{1,2})$", want_date)
+            if not mt:
+                return self._send_json(400, {"error": "date: gebruik YYYY-MM-DD of DD-MM"})
+            day, month = (int(mt.group(3)), int(mt.group(2))) if len(mt.group(1)) == 4 else (int(mt.group(1)), int(mt.group(2)))
+            picked = [m for m in picked if m["day"] == day and m["month"] == month]
+        if not picked:
+            return self._send_json(404, {"error": "geen wedstrijden gevonden voor deze ronde/datum", **hint})
+        want_json_fmt = params.get("format") or "jpg"
+        extra = {k: str(params[k]) for k in ("title", "label", "variant", "homeLabel", "awayLabel") if params.get(k)}
+        items, errors, files = [], [], []
+        base = self._public_base()
+        for m in sorted(picked, key=lambda x: (x["month"], x["day"], x.get("time") or "")):
+            p = {"kind": kind, "home": m["home"], "away": m["away"], "date": "%d-%d" % (m["day"], m["month"]), "time": m.get("time") or "",
+                 "format": want_json_fmt, **extra}
+            try:
+                for attempt in range(40):             # one at a time: wait while the renderer is busy with other calls
+                    try:
+                        result = RENDERER.render(p)
+                        break
+                    except RendererBusy:
+                        time.sleep(1.5)
+                else:
+                    raise RendererBusy("te druk")
+                data = base64.b64decode(result["dataUrl"].split(",", 1)[1])
+                name = _safe_export_name(result.get("fileName")) or ("thumbnail-%d.%s" % (int(time.time()), result.get("format", "jpg")))
+                saved = self._store_export(name, data)
+                files.append((name, data))
+                items.append({"home": m["home"], "away": m["away"], "homeCode": club_code(comp, m["home"]), "awayCode": club_code(comp, m["away"]),
+                              "date": "%04d-%02d-%02d" % (_season_year(m["month"]), m["month"], m["day"]), "time": m.get("time"), "round": m.get("round"),
+                              "name": name, "path": saved["path"], "url": saved["url"], "bytes": saved["bytes"]})
+            except Exception as err:
+                errors.append({"home": m["home"], "away": m["away"], "error": str(err)})
+        if str(params.get("zip", "")).lower() in ("1", "true", "yes") and files:
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+                for name, data in files:
+                    z.writestr(name, data)
+            zname = "%s_round-%s.zip" % (kind.upper(), want_round or want_date.replace("/", "-"))
+            body = buf.getvalue()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Disposition", f'attachment; filename="{_safe_export_name(zname) or "thumbnails.zip"}"')
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self._send_json(200 if items else 502, {"kind": kind, "round": int(want_round) if want_round else None, "count": len(items), "format": "jpg" if want_json_fmt in ("jpg", "jpeg") else want_json_fmt, "items": items, "errors": errors})
 
     # --- per-item storage ---
     def _query_key(self):
@@ -2703,7 +2831,8 @@ class Handler(SimpleHTTPRequestHandler):
     def handle_schedule(self):
         try:
             d = self._comp_data()
-            self._json(200, {"fixtures": legacy_schedule(d), "fetchedAt": d.get("fetchedAt")})
+            comp = "women" if parse_qs(urlparse(self.path).query).get("comp", [""])[0] == "women" else "men"
+            self._json(200, {"fixtures": legacy_schedule(d, comp), "fetchedAt": d.get("fetchedAt")})
         except Exception as err:
             self._json(502, {"error": str(err)})
 
@@ -2717,7 +2846,21 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         # Always revalidate: otherwise a browser keeps running an older script.js/CSV after a deploy.
         self.send_header("Cache-Control", "no-cache, must-revalidate")
+        origin = self.headers.get("Origin")
+        if origin and self.path.startswith(("/api/thumbnail", "/exports/")) and cors_allowed(origin):
+            # the thumbnail API may be called straight from the browser by the allowed sites (admin, LiveDirector)
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Expose-Headers", "X-Export-Url, Content-Disposition")
+            self.send_header("Access-Control-Max-Age", "86400")
         super().end_headers()
+
+    def do_OPTIONS(self):   # CORS preflight (a POST with a JSON body asks first)
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def log_message(self, format, *args):
         sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))

@@ -1595,7 +1595,7 @@
   function thumbDocs() {
     const clubs = (cfg) => cfg.clubs.map(([c]) => ({ code: c, name: labelOf(cfg, c) }));
     const common = {
-      format: 'webp (default), jpg or png',
+      format: 'jpg (default for shl and shlw), webp (default for the other kinds) or png',
       json: '1 = answer with JSON ({ url, path, name, bytes, format, data }) instead of the image itself',
     };
     const kinds = {
@@ -1633,6 +1633,9 @@
         'Without json=1 the answer is the image itself (Content-Type image/webp, image/jpeg or image/png). With json=1 you get a JSON with the image URL, which you can fetch or hand to the user.',
         'Every rendered image is also stored and can be fetched again at /exports/<name>.',
         'Rendering takes a few seconds. HTTP 429 means busy: wait a few seconds and retry.',
+        'A whole round in one call: GET or POST /api/thumbnails with kind=shl|shlw and round=12 (or date=2026-11-14). Matches, dates and times come from the programme. Answer: JSON { count, items: [{ home, away, homeCode, awayCode, date, time, round, url }], errors } (or one zip with zip=1). It renders one image at a time, so a round takes about 5 seconds per match.',
+        'GET /api/schedule?comp=men|women lists the fixtures with homeCode and awayCode (the same club codes as this API), so no names have to be translated.',
+        'The API can be called straight from the browser by admin.bytomorrow.nl (CORS); other sites are added on the server (environment variable THUMB_CORS_ORIGINS).',
         'The Lotto Volley League mail header, Watch live and Player of the Month visuals have no API: they are made by hand in the editor.',
       ],
       common, kinds,
