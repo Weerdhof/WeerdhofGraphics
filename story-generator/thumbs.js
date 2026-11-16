@@ -1596,7 +1596,7 @@
     const clubs = (cfg) => cfg.clubs.map(([c]) => ({ code: c, name: labelOf(cfg, c) }));
     const common = {
       format: 'jpg (default for shl and shlw), webp (default for the other kinds) or png',
-      json: '1 = answer with JSON ({ url, path, name, bytes, format, data }) instead of the image itself',
+      json: '1 = answer with JSON ({ url, path, name, bytes, format, data }) instead of the image itself. data is an object: { home, away, date, time, round, fixtureFound }',
     };
     const kinds = {
       shl: { title: 'SHL (Super Handball League, men) livestream or highlights thumbnail', size: '1920x1080',
@@ -1639,6 +1639,19 @@
         'The Lotto Volley League mail header, Watch live and Player of the Month visuals have no API: they are made by hand in the editor.',
       ],
       common, kinds,
+      endpoints: {
+        batch: {
+          title: 'A whole round (or one day) in one call', path: '/api/thumbnails', methods: 'GET, POST (JSON body takes the same fields)', kinds: 'shl, shlw',
+          required: { 'round  or  date': 'round = round number (e.g. 12), or date = YYYY-MM-DD / DD-MM for one day. The SHLW programme has no round numbers: use date there. Matches, dates and times are taken from the programme (/api/schedule)' },
+          optional: { kind: 'shl (default) or shlw', format: 'jpg (default), webp or png', zip: '1 = answer with one zip of all images instead of JSON', title: 'text at the bottom of every image', variant: '"highlights" (shl only)', label: 'text in the bar (highlights only)' },
+          answer: 'JSON { kind, round, count, format, items: [{ home, away, homeCode, awayCode, date, time, round, name, path, url, bytes }], errors: [{ home, away, error }] }. One image is rendered at a time (about 5 seconds per match), so wait for the answer. HTTP 400 lists the available rounds (or upcoming dates).',
+          example: '/api/thumbnails?kind=shl&round=12' },
+        schedule: {
+          title: 'The programme, with club codes', path: '/api/schedule?comp=men|women', methods: 'GET',
+          answer: '{ fixtures: [{ home, away, homeCode, awayCode, day, month, time, played, round? }], fetchedAt }. homeCode and awayCode are the club codes of this API (the same as the tag codes in admin), so the names do not have to be translated. SHLW fixtures have no round.',
+          example: '/api/schedule?comp=men' },
+        cors: 'Browser calls (CORS) to /api/thumbnail, /api/thumbnails and /exports/ are allowed from https://admin.bytomorrow.nl. Other sites have to be added on the server (environment variable THUMB_CORS_ORIGINS, comma separated, * wildcards allowed).',
+      },
       page: '/api-docs',
     };
   }

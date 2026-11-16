@@ -23,10 +23,14 @@
 <li>Clubs: the code or the full club name. An unknown club gives HTTP 400 and lists the valid codes.</li>
 <li>Without <code>json=1</code> the answer is the image. With <code>json=1</code> it is JSON with the image URL.</li>
 <li>Rendered images are stored and can be fetched again at <code>/exports/&lt;name&gt;</code>.</li>
-<li>HTTP 429 means busy, retry after a few seconds.</li></ul>
+<li>HTTP 429 means busy, retry after a few seconds.</li>
+<li>A whole round at once: <code>/api/thumbnails?kind=shl&amp;round=12</code>. The programme with club codes: <code>/api/schedule?comp=men</code>.</li></ul>
 
 <h2>Kinds, fields and clubs</h2>
 <div id="kinds"><p class="mut">Loading the description from <code>/api/thumbnail?help=1</code> …</p></div>
+
+<h2>More endpoints</h2>
+<div id="endpoints"><p class="mut">Loading …</p></div>
 
 <noscript><p>Without JavaScript: open <a href="/api/thumbnail?help=1">/api/thumbnail?help=1</a> for the full JSON description.</p></noscript>
 <script>
@@ -43,6 +47,16 @@
         '<p>Example:</p><pre>' + esc(location.origin + x.example) + '</pre>' +
         '<p class="clubs"><b>Clubs (' + x.clubs.length + '):</b> ' + x.clubs.map(function (c) { return '<code>' + esc(c.code) + '</code> ' + esc(c.name); }).join(' · ') + '</p>';
     }).join('');
+    var ep = d.endpoints || {}, out = '';
+    ['batch', 'schedule'].forEach(function (k) {
+      var x = ep[k]; if (!x) return;
+      out += '<h3><code>' + esc(x.path) + '</code> ' + esc(x.title) + ' <span class="mut">(' + esc(x.methods) + ')</span></h3>';
+      if (x.kinds) out += '<p class="mut">kind: ' + esc(x.kinds) + '</p>';
+      if (x.required || x.optional) out += '<table>' + (x.required ? '<tr><th colspan="2">Required</th></tr>' + rows(x.required) : '') + (x.optional ? '<tr><th colspan="2">Optional</th></tr>' + rows(x.optional) : '') + '</table>';
+      out += '<p><b>Answer:</b> ' + esc(x.answer) + '</p><p>Example:</p><pre>' + esc(location.origin + x.example) + '</pre>';
+    });
+    if (ep.cors) out += '<h3>CORS</h3><p>' + esc(ep.cors) + '</p>';
+    document.getElementById('endpoints').innerHTML = out || '<p class="mut">-</p>';
   }).catch(function (e) { document.getElementById('kinds').innerHTML = '<p>Could not load the description (' + esc(e.message) + '). Try <a href="/api/thumbnail?help=1">/api/thumbnail?help=1</a>.</p>'; });
 })();
 </script>

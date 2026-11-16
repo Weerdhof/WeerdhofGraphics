@@ -28,8 +28,12 @@ Exports (so images can be fetched with a plain download, without driving the bro
     GET /api/plan                    the planning of the "Uitgelicht" section: learned from the usage log (auto) or the fixed planning
     GET|POST /api/thumbnail        render a livestream thumbnail server-side with a headless browser (Playwright) from
                                    kind=shl|shlw|nextmen|nextwomen, home, away, date (YYYY-MM-DD or DD-MM), time,
-                                   format=webp|jpg|png (+ optional title, label, variant=highlights, homeLabel, awayLabel,
+                                   format=jpg|webp|png (jpg is the default for shl and shlw, webp for the others) (+ optional title, label, variant=highlights, homeLabel, awayLabel,
                                    homeName, awayName); answers with the image, or JSON with its URL when json=1.
+    GET|POST /api/thumbnails       a whole round (kind=shl|shlw, round=12, or date=YYYY-MM-DD) of livestream thumbnails in one call:
+                                   JSON with one url per match, or one zip with zip=1 (matches, dates and times come from the programme)
+    GET /api/schedule?comp=        the fixtures also carry homeCode / awayCode (the thumbnail API's club codes)
+    CORS: /api/thumbnail, /api/thumbnails and /exports/ answer browsers on https://admin.bytomorrow.nl (more: THUMB_CORS_ORIGINS)
     GET /api/thumbnail?help=1      the API describes itself (kinds, fields, club codes, notes for AI) as JSON;
                                    the same as a page: /api-docs; short pointer for AI: /llms.txt
 
