@@ -901,6 +901,10 @@
     women: Array.from({ length: RANK_ROWS }, () => ({ code: '', p: '', pts: '' })),
   };
 
+  // Ranking: the arrows (movers) next to the positions, compared with a table saved in an earlier week (/api/standings-history)
+  var rankArrows = { men: { on: false, vs: '' }, women: { on: false, vs: '' } };   // vs = the week to compare with ('' = the week before)
+  var rankHist = {}, rankHistLoading = {};                                       // comp -> { ts, list }
+
   let compKey = 'men';
   const comp = () => COMPETITIONS[compKey];
 
@@ -1306,7 +1310,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         compKey, mode, roundId: currentRoundId, date: state.date, matches: state.matches,
-        sm: smState, transparentBg, showDates, resultsFormat, postDecor, ranking: rankState,
+        sm: smState, transparentBg, showDates, resultsFormat, postDecor, ranking: rankState, rankArrows,
       }));
     } catch (err) { /* private browsing / quota / disabled storage — just skip */ }
     scheduleServerSave();
@@ -2739,6 +2743,7 @@
     const teamCodes = Object.keys(comp().teamColors).sort();
     const names = compKey === 'men' ? MEN_TEAM_NAMES : {};
     const rows = rankState[compKey];
+    buildRankArrowsRow();
     rows.forEach((row, i) => {
       const node = tpl.content.firstElementChild.cloneNode(true);
       const numEl = node.querySelector('.rank-num');
@@ -3112,6 +3117,7 @@
       ctx.font = `500 ${RANK_HEADER_FONT}px "${fontFamily}"`;
       ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
       ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
+      const prevPos = rankDeltas();
       rankState.men.forEach((row, i) => {
         if (!row.code) return;
         const cy = RANK_ROW_TOP + RANK_ROW_H * i + RANK_ROW_H / 2;
@@ -3123,6 +3129,7 @@
         ctx.fillText(row.p, RANK_P_X, cy);
         ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
         ctx.fillText(row.pts, RANK_PTS_X, cy);
+        if (prevPos && prevPos[row.code]) drawRankMove(prevPos[row.code] - (i + 1), RANK_CARD_LEFT, RANK_NUM_X, cy, `500 ${RANK_DATA_FONT}px "${fontFamily}"`);
       });
       const mark = loadImg('assets/ranking/mark.png');
       if (mark && mark.complete && mark.naturalWidth) ctx.drawImage(mark, RANK_MARK.x, RANK_MARK.y, RANK_MARK.w, RANK_MARK.h);
@@ -3139,6 +3146,7 @@
       ctx.font = `700 ${WRANK_HEADER_FONT}px "${fontFamily}"`;
       ctx.fillText('PTS', WRANK_PTS_X, WRANK_HEADER_Y);
       WRANK_DIVIDER_Y.forEach(y => fillRow(ctx, L, y, R - L, WRANK_DIVIDER_H, WRANK_DIVIDER_COLOR, WRANK_DIVIDER_H / 2));
+      const prevPos = rankDeltas();
       rankState.women.forEach((row, i) => {
         if (!row.code) return;
         const cy = WRANK_ROW_TOP + WRANK_ROW_H * i + WRANK_ROW_H / 2;
@@ -3150,6 +3158,7 @@
         ctx.fillText(row.p, WRANK_P_X, cy);
         ctx.font = `700 ${WRANK_DATA_FONT}px "${fontFamily}"`;
         ctx.fillText(row.pts, WRANK_PTS_X, cy);
+        if (prevPos && prevPos[row.code]) drawRankMove(prevPos[row.code] - (i + 1), WRANK_CARD_LEFT, WRANK_NUM_X, cy, `500 ${WRANK_DATA_FONT}px "${fontFamily}"`);
       });
     }
     ctx.restore();
@@ -4864,6 +4873,90 @@
     }
   }
 
+  // ---------- Ranking arrows: weekly saves ----------
+  function rankHistEnsure(force) {
+    const k = compKey, hit = rankHist[k];
+    if (!force && hit && Date.now() - hit.ts < 60000) return Promise.resolve();
+    if (rankHistLoading[k]) return rankHistLoading[k];
+    rankHistLoading[k] = fetch('/api/standings-history?comp=' + k).then(r => r.json())
+      .then(j => { rankHist[k] = { ts: Date.now(), list: j.snapshots || [], error: j.error || '' }; })
+      .catch(() => { rankHist[k] = { ts: Date.now(), list: [], error: 'Ophalen mislukt' }; })
+      .finally(() => { delete rankHistLoading[k]; if (mode === 'ranking' && !isMovers()) { fillRankArrowsSelect(); render(); } });
+    return rankHistLoading[k];
+  }
+  const rankHistList = () => (rankHist[compKey] && rankHist[compKey].list) || [];
+  // the week to compare with: the chosen one, else the newest week before the current one
+  function rankArrowBase() {
+    const list = rankHistList(), o = rankArrows[compKey];
+    if (!list.length) return null;
+    return list.find(x => x.week === o.vs) || list.find(x => x.week !== list[0].week) || null;
+  }
+  const weekNum = (w) => parseInt(String(w).split('-W')[1], 10);
+  function rankWeekLabel(sn) {
+    const M = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'], p = String(sn.asOf || '').split('-');
+    return `Week ${weekNum(sn.week)} · stand per ${parseInt(p[2], 10)} ${M[parseInt(p[1], 10) - 1] || ''}${sn.reconstructed ? ' (berekend uit de uitslagen)' : ''}`;
+  }
+  function fillRankArrowsSelect() {
+    const sel = document.getElementById('rankArrowsVs'), info = document.getElementById('rankArrowsInfo');
+    if (!sel) return;
+    const list = rankHistList(), base = rankArrowBase(), h = rankHist[compKey];
+    sel.innerHTML = '';
+    list.filter(x => x.week !== list[0].week).forEach(sn => { const o = document.createElement('option'); o.value = sn.week; o.textContent = rankWeekLabel(sn); sel.appendChild(o); });
+    if (base) sel.value = base.week;
+    info.textContent = !h ? 'Opgeslagen weken laden…' : h.error ? 'Kon de opgeslagen weken niet ophalen: ' + h.error
+      : base ? `De pijltjes tonen welke teams zijn gestegen of gedaald sinds week ${weekNum(base.week)}. De stand van elke week wordt vanzelf bewaard (${list.length} weken opgeslagen).`
+      : 'Er is nog geen eerdere week opgeslagen om mee te vergelijken.';
+  }
+  function buildRankArrowsRow() {
+    const node = document.createElement('div');
+    node.className = 'field rank-arrows-field';
+    node.innerHTML = '<label class="upcoming-toggle"><input type="checkbox" id="rankArrowsOn"> Pijltjes omhoog en omlaag (movers)</label>' +
+      '<div id="rankArrowsBox"><label for="rankArrowsVs">Vergelijk met de stand van</label><select id="rankArrowsVs"></select></div>' +
+      '<p class="sync-info" id="rankArrowsInfo"></p>' +
+      '<button class="btn btn-link" id="rankSaveWeek" type="button">Stand van deze week opslaan</button><p class="save-status" id="rankSaveStatus" hidden></p>';
+    matchesList.appendChild(node);
+    const on = node.querySelector('#rankArrowsOn'), box = node.querySelector('#rankArrowsBox'), sel = node.querySelector('#rankArrowsVs');
+    on.checked = rankArrows[compKey].on; box.hidden = !on.checked;
+    on.addEventListener('change', () => { rankArrows[compKey].on = on.checked; box.hidden = !on.checked; if (on.checked) rankHistEnsure(); render(); });
+    sel.addEventListener('change', () => { rankArrows[compKey].vs = sel.value; render(); });
+    node.querySelector('#rankSaveWeek').addEventListener('click', () => {
+      const st = node.querySelector('#rankSaveStatus'), k = compKey;
+      st.hidden = false; st.className = 'save-status'; st.textContent = 'Opslaan…';
+      fetch('/api/standings-history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ comp: k, action: 'save' }) })
+        .then(r => r.json()).then(j => {
+          if (j.error) throw new Error(j.error);
+          rankHist[k] = { ts: Date.now(), list: j.snapshots || [], error: '' };
+          st.className = 'save-status ok'; st.textContent = `✓ Stand van week ${weekNum((j.snapshots[0] || {}).week)} opgeslagen`;
+          if (k === compKey) { fillRankArrowsSelect(); render(); }
+        }).catch(err => { st.className = 'save-status warn'; st.textContent = '✗ Opslaan mislukt: ' + err.message; });
+    });
+    fillRankArrowsSelect();
+    rankHistEnsure();
+  }
+  // up / down triangle left of the position number, centred between the card's edge and the number, and on the digits' own centre
+  // (the same coordinates as the row itself, so it also works in the Post's scaled card)
+  function drawRankMove(delta, cardLeft, numX, cy, font) {
+    if (!delta) return;
+    const women = compKey === 'women', up = delta > 0, col = up ? (women ? '#c93cf0' : '#1fb24a') : (women ? '#fc7745' : '#f35579');
+    const size = 10, x = (cardLeft + numX) / 2;
+    ctx.save();
+    ctx.font = font; ctx.textBaseline = 'middle';
+    const m = ctx.measureText('0'), y = cy - (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;   // middle of the digits, not of the line
+    ctx.fillStyle = col; ctx.beginPath();
+    if (up) { ctx.moveTo(x, y - size); ctx.lineTo(x + size * 1.15, y + size * 0.7); ctx.lineTo(x - size * 1.15, y + size * 0.7); }
+    else { ctx.moveTo(x, y + size); ctx.lineTo(x + size * 1.15, y - size * 0.7); ctx.lineTo(x - size * 1.15, y - size * 0.7); }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  // position changes per club code since the week that is compared with (empty when the arrows are off or there is nothing to compare with)
+  function rankDeltas() {
+    if (!rankArrows[compKey].on) return null;
+    rankHistEnsure();
+    const base = rankArrowBase(); if (!base) return null;
+    const prev = {}; base.rows.forEach(r => { prev[r.code] = r.pos; });
+    return prev;
+  }
+
   function renderRanking() {
     if (compKey === 'women') { renderWomenRanking(); return; }
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -4914,6 +5007,7 @@
     ctx.fillText('P', RANK_P_X, RANK_HEADER_Y);
     ctx.fillText('PTS', RANK_PTS_X, RANK_HEADER_Y);
 
+    const prevPos = rankDeltas();
     rankState.men.forEach((row, i) => {
       if (!row.code) return;
       const cy = RANK_ROW_TOP + RANK_ROW_H * i + RANK_ROW_H / 2;
@@ -4931,6 +5025,7 @@
       // template is Medium.
       ctx.font = `700 ${RANK_DATA_FONT}px "${fontFamily}"`;
       ctx.fillText(row.pts, RANK_PTS_X, cy);
+      if (prevPos && prevPos[row.code]) drawRankMove(prevPos[row.code] - (i + 1), RANK_CARD_LEFT, RANK_NUM_X, cy, `500 ${RANK_DATA_FONT}px "${fontFamily}"`);
     });
 
     saveState();
@@ -4989,6 +5084,7 @@
         WRANK_DIVIDER_COLOR, WRANK_DIVIDER_H / 2);
     });
 
+    const prevPos = rankDeltas();
     rankState.women.forEach((row, i) => {
       if (!row.code) return;
       const cy = WRANK_ROW_TOP + WRANK_ROW_H * i + WRANK_ROW_H / 2;
@@ -5006,6 +5102,7 @@
       // PTS is the one column set in Bold — everything else is Medium.
       ctx.font = `700 ${WRANK_DATA_FONT}px "${fontFamily}"`;
       ctx.fillText(row.pts, WRANK_PTS_X, cy);
+      if (prevPos && prevPos[row.code]) drawRankMove(prevPos[row.code] - (i + 1), WRANK_CARD_LEFT, WRANK_NUM_X, cy, `500 ${WRANK_DATA_FONT}px "${fontFamily}"`);
     });
 
     const footerImg = loadImg(C.footerLogo);
@@ -5349,6 +5446,8 @@
       syncFormatButtons();
     }
     ['men', 'women'].forEach(key => {
+      const ra = savedState.rankArrows && savedState.rankArrows[key];
+      if (ra && typeof ra === 'object') rankArrows[key] = { on: !!ra.on, vs: String(ra.vs || '') };
       const saved = savedState.ranking && savedState.ranking[key];
       if (Array.isArray(saved) && saved.length === RANK_ROWS) {
         saved.forEach((row, i) => {
@@ -5390,7 +5489,7 @@
       };
     }
     if (mode === 'ranking') {
-      return { ...common, kind: 'ranking', format: resultsFormat, manual: !!rankManual[compKey], rows: rankState[compKey].map(r => ({ ...r })) };
+      return { ...common, kind: 'ranking', format: resultsFormat, manual: !!rankManual[compKey], arrows: { ...rankArrows[compKey] }, rows: rankState[compKey].map(r => ({ ...r })) };
     }
     const sm = {};
     ['homeScore', 'awayScore', 'tsSide', 'tsFirst', 'tsLast', 'tsGoals', 'pwTeam', 'pwName', 'nlDate', 'nlTime', 'postponed', 'annKicker', 'annTitle', 'annText'].forEach(k => { sm[k] = smState[k]; });
@@ -5414,6 +5513,7 @@
       if (d.format === 'story' || d.format === 'post') resultsFormat = d.format;
       (d.rows || []).forEach((r, i) => { if (rankState[compKey][i]) Object.assign(rankState[compKey][i], r); });
       rankManual[compKey] = !!d.manual;
+      if (d.arrows) rankArrows[compKey] = { on: !!d.arrows.on, vs: String(d.arrows.vs || '') };
     } else if (d.kind === 'single') {
       if (d.format === 'story' || d.format === 'post') smFormat = d.format;
       const sm = d.sm || {};

@@ -12,6 +12,7 @@ Everything else reads from that store:
     GET /api/stream-state|stream-matches|stream-config, PUT /api/stream-config   stream dashboard (stream.html)
     GET|PUT /api/narrowcasting, GET /api/weather   the narrowcasting screen (/narrowcasting) and its agenda editor (/narrowcasting/beheer)
     GET /api/movers?comp=&since=0  table before the latest matchday + position changes (since = matchdays back)
+    GET|POST /api/standings-history?comp=  the table of every week (saved by itself after each check; POST action=save|delete), for the arrows on the Ranking
     GET /api/overview?comp=    results + upcoming for the home page and the ticker
     GET /api/sync-status       when each competition was last checked / last changed
 
@@ -507,6 +508,127 @@ def compute_movers(comp, since=0, force=False):
 
 
 # ---------------------------------------------------------------------------
+# The standings per week. Every week's table is kept (the week = the ISO week of the latest played match, so a Monday
+# still belongs to the weekend before), the Ranking graphics use it for the up/down arrows. Saved automatically after
+# every check of the sites, and on request; the first time the weeks before are worked out from the results.
+# ---------------------------------------------------------------------------
+HISTORY_FILE = os.path.join(DATA_DIR, "standings_history.json")
+history_lock = threading.Lock()
+HISTORY_KEEP = 80
+
+
+def _history_load():
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            h = json.load(f)
+        return h if isinstance(h, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _history_save(h):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    tmp = HISTORY_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(h, f)
+    os.replace(tmp, HISTORY_FILE)
+
+
+def _iso_week(day):
+    iso = day.isocalendar()
+    return "%d-W%02d" % (iso[0], iso[1])
+
+
+def _match_date(m):
+    try:
+        return datetime(_season_year(m["month"]), m["month"], m["day"]).date()
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def _int(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _standing_rows(comp, d):
+    rows = []
+    for i, row in enumerate(d.get("standings") or []):
+        code = _club_code(comp, row.get("club"))
+        if code:
+            rows.append({"code": code, "club": row.get("club"), "pos": i + 1, "played": _int(row.get("played")), "points": _int(row.get("points"))})
+    return rows
+
+
+def snapshot_standings(comp, d=None, manual=False):
+    """Stores the current table under the week of the latest played match (replacing that week's earlier save)."""
+    d = d or get_comp_data(comp)
+    rows = _standing_rows(comp, d)
+    played = [x for x in (_match_date(m) for m in d.get("results", []) if m.get("homeScore") is not None) if x]
+    if not rows or not played:
+        return None
+    last = max(played)
+    week = _iso_week(last)
+    with history_lock:
+        h = _history_load()
+        weeks = h.setdefault(comp, {})
+        cur = weeks.get(week)
+        if cur and cur.get("rows") == rows and not (manual and not cur.get("manual")):
+            return cur
+        snap = {"week": week, "asOf": last.isoformat(), "savedAt": int(time.time()), "manual": bool(manual or (cur and cur.get("manual"))), "rows": rows}
+        weeks[week] = snap
+        for old in sorted(weeks)[:-HISTORY_KEEP]:
+            weeks.pop(old, None)
+        _history_save(h)
+        return snap
+
+
+def _backfill_history(comp):
+    """Works out the tables of the weeks before from the results (once per competition), so there is something to compare with."""
+    with history_lock:
+        h = _history_load()
+        if h.get("_backfilled", {}).get(comp):
+            return
+    added = {}
+    try:
+        for since in range(0, 6):
+            mv = compute_movers(comp, since)
+            sel = mv["selected"]
+            if sel < 1:
+                break
+            prev_cluster = mv["clusters"][sel - 1]
+            day = _match_date({"day": prev_cluster["to"]["day"], "month": prev_cluster["to"]["month"]})
+            if not day:
+                continue
+            order = sorted([r for r in mv["rows"] if r.get("prevPos")], key=lambda r: r["prevPos"])
+            rows = [{"code": r["code"], "club": r["club"], "pos": r["prevPos"], "played": r["prevPlayed"], "points": r["prevPoints"]} for r in order if r.get("code")]
+            if rows:
+                added.setdefault(_iso_week(day), {"week": _iso_week(day), "asOf": day.isoformat(), "savedAt": int(time.time()), "manual": False, "reconstructed": True, "rows": rows})
+    except Exception:
+        pass
+    with history_lock:
+        h = _history_load()
+        weeks = h.setdefault(comp, {})
+        for wk, snap in added.items():
+            weeks.setdefault(wk, snap)
+        h.setdefault("_backfilled", {})[comp] = True
+        _history_save(h)
+
+
+def standings_history(comp):
+    try:
+        snapshot_standings(comp)
+    except Exception:
+        pass
+    _backfill_history(comp)
+    with history_lock:
+        weeks = _history_load().get(comp, {})
+    return [weeks[k] for k in sorted(weeks, reverse=True)]
+
+
+# ---------------------------------------------------------------------------
 # Stream dashboard (stream.html): a full-screen page for a live stream that shows, relative to the kick-off of a match,
 # the other results, the standings, a big title and then nothing (clean). Men only. The planning is stored here (stream.json).
 # (In handball there is no kick-off: it is the throw-off. Variable names still say kickoff.)
@@ -721,25 +843,9 @@ def legacy_results(d):
             for m in d.get("results", []) if m.get("homeScore") is not None]
 
 
-# The club codes of the thumbnail API (the same as the tag codes in admin); a team name that contains one of the
-# fragments gets that code. Keep in sync with MEN / WOMEN in story-generator/thumbs.js.
-CLUB_ALIASES = {
-    "men": {"SAB": ["bocholt"], "IZE": ["izegem"], "EUP": ["eupen"], "HCS": ["sprimont"], "BEV": ["bevo"], "PEL": ["pelt"],
-            "BWH": ["hercules", "whc"], "DFS": ["arnhem"], "HUP": ["hurry"], "HCV": ["vise", "visé"], "HVA": ["aalsmeer", "royalfloraholland"],
-            "HUB": ["hubo"], "VOL": ["volendam"], "TAC": ["tachos", "mossel", "witte ster"]},
-    "women": {"DSVD": ["dsvd", "aqqo"], "E&O": ["misker", "oosting"], "FOR": ["foreholte"], "KWI": ["kwiek"], "MHV": ["m.h.v"],
-              "PSV": ["hypotheekvisie", "eindhoven"], "QUI": ["quintus"], "SEW": ["westfriesland"], "V&L": ["geonius"],
-              "VEN": ["venlo", "cabooter"], "VOC": ["ruitenheer"], "VOL": ["volendam"], "VZV": ["juro"], "WPK": ["westlandia"]},
-}
-
-
 def club_code(comp, name):
-    n = unicodedata.normalize("NFD", name or "")
-    n = "".join(c for c in n if not unicodedata.combining(c)).lower()
-    for code, frags in CLUB_ALIASES.get(comp, {}).items():
-        if any(unicodedata.normalize("NFD", fr).encode("ascii", "ignore").decode() in n for fr in frags):
-            return code
-    return None
+    """The club code of the thumbnail API (the same as the tag codes in admin) for a team name from the feeds."""
+    return _club_code(comp, name)
 
 
 def _season_year(month):
@@ -781,6 +887,7 @@ def _monitor_loop():
         for comp in ("men", "women"):
             try:
                 refresh_comp(comp)
+                snapshot_standings(comp)
             except Exception:
                 pass
         # then get today's planned assets ready (preview + pre-filled data) in the background
@@ -1924,6 +2031,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.path = spa_rewrite(self.path)
         if self.path.startswith("/api/results"):
             self.handle_results()
+        elif self.path.startswith("/api/standings-history"):
+            self.handle_standings_history()
         elif self.path.startswith("/api/standings"):
             self.handle_standings()
         elif self.path.startswith("/api/movers"):
@@ -2048,6 +2157,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_photo_put()
         elif self.path.startswith("/api/item"):
             self.handle_item_put()
+        elif self.path.startswith("/api/standings-history"):
+            self.handle_standings_history()
         elif self.path.startswith("/api/thumbnails"):
             self.handle_thumbnails()
         elif self.path.startswith("/api/thumbnail"):
@@ -2816,6 +2927,34 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json(200, cfg)
         except Exception as err:
             self._send_json(400, {"error": str(err)})
+
+    def handle_standings_history(self):
+        """GET /api/standings-history?comp=men|women : the saved weekly tables, newest first.
+        POST { comp, action: "save" | "delete", week? } : save the current table now (under its week), or delete a week."""
+        params = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+        if self.command == "POST":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if 0 < length < 10_000 else {}
+                if isinstance(body, dict):
+                    params.update({k: v for k, v in body.items() if isinstance(v, (str, int, float))})
+            except ValueError:
+                return self._json(400, {"error": "ongeldige JSON"})
+        comp = "women" if str(params.get("comp", "")) == "women" else "men"
+        try:
+            action = str(params.get("action", ""))
+            if self.command == "POST" and action == "save":
+                if not snapshot_standings(comp, get_comp_data(comp, force=True), manual=True):
+                    return self._json(409, {"error": "geen stand of uitslagen beschikbaar om op te slaan"})
+            elif self.command == "POST" and action == "delete":
+                week = str(params.get("week", ""))
+                with history_lock:
+                    h = _history_load()
+                    h.get(comp, {}).pop(week, None)
+                    _history_save(h)
+            self._json(200, {"comp": comp, "snapshots": standings_history(comp)})
+        except Exception as err:
+            self._json(502, {"error": str(err)})
 
     def handle_movers(self):
         try:
