@@ -81,44 +81,62 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 .mc .mt { position: absolute; left: 24px; top: 58px; right: 24px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 900; font-size: 32px; line-height: 38px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc .mt2 { position: absolute; left: 24px; top: 98px; right: 24px; font-family: "Niveau Grotesk", "Arial Black", sans-serif; font-weight: 700; font-size: 30px; line-height: 36px; color: #a9aedc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* SHL slide: the look of the SHL stream graphics (off-white bars, a lime tab, Clash Display) */
-.slide.shl { font-family: "ClashDisplay", Arial, sans-serif; color: #14142b; }
-.slide.shl .pn { position: absolute; top: 150px; }
-.slide.shl .tab { height: 56px; padding: 0 40px; background: #ccff33; color: #14142b; font-weight: 700; font-size: 32px; line-height: 56px; letter-spacing: .5px; text-transform: uppercase; display: inline-block; }
-.slide.shl.women .tab { background: #e353fc; }
-.slide.shl .tab small { font-size: 22px; font-weight: 600; opacity: .7; margin-left: 14px; }
-.slide.shl .shl-logo { position: absolute; right: 80px; top: 36px; height: 92px; }
-.crest { display: inline-block; vertical-align: middle; background-repeat: no-repeat; background-color: #fff; }
-.st-h, .st-r { position: relative; height: 44px; margin-bottom: 4px; background: #f3f3ee; font-size: 27px; font-weight: 600; line-height: 44px; }
-.st-h { height: 40px; background: #14142b; color: #ccff33; font-size: 20px; font-weight: 700; line-height: 40px; border-bottom: 0; text-transform: uppercase; letter-spacing: 1px; }
-.slide.shl.women .st-h { color: #e353fc; }
+/* SHL slides (Stand, Komende wedstrijden): the same stage, title and clock as the other slides, with the SHL look (Clash Display, lime, the logo) */
+.slide.shl { font-family: "ClashDisplay", Arial, sans-serif; color: #fff; }
+.slide.shl .ttl { font-family: "ClashDisplay", Arial, sans-serif; font-weight: 500; font-size: 84px; letter-spacing: -1px; }
+.slide.shl .ttl b { font-weight: 700; color: #ccff33; }
+.slide.shl.women .ttl b { color: #e353fc; }
+.slide.shl .ttl .cn { background: #ccff33; color: #14142b; font-family: "ClashDisplay", Arial, sans-serif; font-weight: 700; padding: 5px 26px 9px; letter-spacing: 1px; }
+.slide.shl.women .ttl .cn { background: #e353fc; }
+.slide.shl .pn { position: absolute; top: 196px; }
+.slide.shl .shl-logo { position: absolute; right: 80px; bottom: 30px; height: 64px; opacity: .95; }
+.crest { display: inline-block; vertical-align: middle; background-repeat: no-repeat; background-color: #fff; border-radius: 9px; }
+.slide.shl .gh2 { height: 36px; margin-bottom: 8px; font-size: 18px; font-weight: 700; line-height: 36px; letter-spacing: 1px; text-transform: uppercase; color: #ccff33; border-bottom: 2px solid rgba(255,255,255,.25); }
+.slide.shl.women .gh2 { color: #e353fc; }
+.slide.shl .gh2 small { margin-left: 16px; font-size: 18px; font-weight: 600; color: #a9aedc; letter-spacing: 1px; }
+
+/* the table */
+.st-h, .st-r { position: relative; height: 50px; margin-bottom: 4px; border-radius: 14px; background: #12104a; font-size: 26px; font-weight: 600; line-height: 50px; }
+.st-h { height: 36px; margin-bottom: 8px; border-radius: 0; background: transparent; color: #a9aedc; font-size: 18px; font-weight: 700; line-height: 36px; border-bottom: 2px solid rgba(255,255,255,.25); text-transform: uppercase; letter-spacing: 1px; }
+.st-r.zone { margin-top: 10px; }                                         /* the SHL zones, as in the ranking graphic: after 8 and after 10 */
 .st-r span, .st-h span { position: absolute; top: 0; text-align: center; }
-.st-r .pos, .st-h .pos { left: 8px; width: 44px; }
-.st-r .cr { left: 62px; top: 4px; }
-.st-r .nm, .st-h .nm { left: 124px; width: 400px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-r .c1, .st-h .c1 { left: 540px; width: 56px; } .st-r .c2, .st-h .c2 { left: 600px; width: 56px; } .st-r .c3, .st-h .c3 { left: 660px; width: 56px; } .st-r .c4, .st-h .c4 { left: 720px; width: 56px; }
-.st-r .pts, .st-h .pts { left: 790px; width: 80px; font-weight: 700; }
-.st-r .pts { background: #ccff33; height: 44px; }
+.st-r .pos, .st-h .pos { left: 32px; width: 40px; }
+.st-r .pos { font-weight: 700; }
+.st-r.lead .pos { color: #ccff33; }
+.slide.shl.women .st-r.lead .pos { color: #e353fc; }
+.st-r .mv { left: 10px; width: 18px; }            /* the arrow: places gained or lost since last week */
+.st-r .mv::before { content: ""; position: absolute; left: 1px; border-left: 7px solid transparent; border-right: 7px solid transparent; }
+.st-r .mv.up::before { top: 19px; border-bottom: 12px solid #ccff33; }
+.st-r .mv.dn::before { top: 20px; border-top: 12px solid #ff6b8b; }
+.slide.shl.women .st-r .mv.up::before { border-bottom-color: #e353fc; } .slide.shl.women .st-r .mv.dn::before { border-top-color: #ff9a5c; }
+.st-r .cr { left: 84px; top: 6px; }
+.st-r .nm, .st-h .nm { left: 138px; width: 380px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-r .c1, .st-h .c1 { left: 530px; width: 52px; } .st-r .c2, .st-h .c2 { left: 588px; width: 52px; } .st-r .c3, .st-h .c3 { left: 646px; width: 52px; } .st-r .c4, .st-h .c4 { left: 704px; width: 52px; }
+.st-r .c1, .st-r .c2, .st-r .c3, .st-r .c4 { color: #a9aedc; }
+.st-r .pts, .st-h .pts { left: 780px; width: 84px; font-weight: 700; }
+.st-r .pts { top: 7px; height: 36px; border-radius: 10px; background: #ccff33; color: #14142b; line-height: 36px; }
 .slide.shl.women .st-r .pts { background: #e353fc; }
 .st-r:nth-child(2) .nm { font-weight: 700; }
-.rs { position: relative; height: 84px; margin-bottom: 8px; background: #f3f3ee; }
-.rs .cr1 { position: absolute; left: 14px; top: 11px; } .rs .cr2 { position: absolute; right: 14px; top: 11px; }
-.rs .n1 { position: absolute; left: 96px; width: 240px; top: 0; font-size: 24px; font-weight: 700; line-height: 84px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
-.rs .n2 { position: absolute; right: 96px; width: 240px; top: 0; font-size: 24px; font-weight: 700; line-height: 84px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
-.rs .sc { position: absolute; left: 50%; margin-left: -85px; top: 12px; width: 170px; height: 60px; background: #ccff33; text-align: center; font-weight: 700; font-size: 36px; line-height: 60px; }
+
+/* the latest results */
+.rs { position: relative; height: 78px; margin-bottom: 8px; border-radius: 16px; background: #12104a; }
+.rs .cr1 { position: absolute; left: 12px; top: 10px; } .rs .cr2 { position: absolute; right: 12px; top: 10px; }
+.rs .n1 { position: absolute; left: 84px; width: 250px; top: 0; font-size: 23px; font-weight: 700; line-height: 78px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.rs .n2 { position: absolute; right: 84px; width: 250px; top: 0; font-size: 23px; font-weight: 700; line-height: 78px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.rs .lo { color: #a9aedc; }
+.rs .sc { position: absolute; left: 50%; margin-left: -82px; top: 12px; width: 164px; height: 54px; border-radius: 12px; background: #ccff33; color: #14142b; text-align: center; font-weight: 700; font-size: 34px; line-height: 54px; }
 .slide.shl.women .rs .sc { background: #e353fc; }
-.rs .dt { position: absolute; left: 0; top: -22px; font-size: 18px; opacity: .55; }
-.rs.noscore .sc { background: #14142b; color: #ccff33; font-size: 30px; }
+.rs.noscore .sc { background: #060228; color: #ccff33; font-size: 30px; }
 
 /* the next streams of SHL / SHLW */
-.sr { position: relative; height: 92px; margin-bottom: 8px; background: #f3f3ee; }
-.sr .sd { position: absolute; left: 0; top: 0; width: 230px; height: 92px; background: #ccff33; text-align: center; font-weight: 700; font-size: 28px; line-height: 92px; text-transform: uppercase; letter-spacing: .5px; }
+.sr { position: relative; height: 92px; margin-bottom: 10px; border-radius: 20px; background: #12104a; }
+.sr .sd { position: absolute; left: 0; top: 0; width: 230px; height: 92px; border-radius: 20px 0 0 20px; background: #ccff33; color: #14142b; text-align: center; font-weight: 700; font-size: 28px; line-height: 92px; text-transform: uppercase; letter-spacing: .5px; }
 .slide.shl.women .sr .sd { background: #e353fc; }
 .sr .cr1 { position: absolute; left: 252px; top: 15px; } .sr .cr2 { position: absolute; right: 16px; top: 15px; }
 .sr .n1 { position: absolute; left: 336px; width: 540px; top: 0; font-size: 30px; font-weight: 700; line-height: 92px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
 .sr .n2 { position: absolute; right: 100px; width: 540px; top: 0; font-size: 30px; font-weight: 700; line-height: 92px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
-.sr .sc { position: absolute; left: 50%; margin-left: 30px; top: 16px; width: 170px; height: 60px; background: #14142b; color: #ccff33; text-align: center; font-weight: 700; font-size: 36px; line-height: 60px; }
-.slide.shl.women .sr .sc { color: #e353fc; }
+.sr .sc { position: absolute; left: 50%; margin-left: 30px; top: 16px; width: 170px; height: 60px; border-radius: 12px; background: #ccff33; color: #14142b; text-align: center; font-weight: 700; font-size: 36px; line-height: 60px; }
+.slide.shl.women .sr .sc { background: #e353fc; }
 .slide.shl.women .crest { border-radius: 22%; }
 
 /* weather */
@@ -162,12 +180,8 @@ body { font-family: "Open Sans", Arial, sans-serif; color: #fff; }
 @keyframes lg-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 .pre .lg1 { animation-play-state: paused; }
 
-/* SHLW: the white look of the women's stream graphics */
-.slide.shl.women .st-r, .slide.shl.women .rs, .slide.shl.women .sr { background: #f3eefa; }
-.slide.shl.women .tab { color: #1a1b38; }
-.slide.shl.women .st-h { background: #1a1b38; }
-.slide.shl.women .rs .sc, .slide.shl.women .st-r .pts { color: #1a1b38; }
-.slide.shl.women .sr .sc { background: #1a1b38; color: #e353fc; }
+/* SHLW: the same dark cards, in the pink of the women's graphics */
+.slide.shl.women .rs .sc, .slide.shl.women .st-r .pts, .slide.shl.women .sr .sc, .slide.shl.women .sr .sd { color: #1a1b38; }
 .slide.shl.women .crest { background-color: #fff; box-shadow: 0 0 0 1px rgba(26,27,56,.08); }
 .slide.shl .rs .n1 { width: 226px; font-size: 22px; } .slide.shl .rs .n2 { width: 226px; font-size: 22px; }
 

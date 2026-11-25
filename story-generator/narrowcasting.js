@@ -335,31 +335,32 @@
   function streamsHtml(comp) {
     var D = shl[comp], women = comp === 'women', i, n, d, diff, lab, today = ymd(wallNow());
     if (!D || !D.next || !D.next.length || show[women ? 'shlw' : 'shl'] === false) return null;
-    var h = shlLogo(women) + '<div class="pn" style="left:80px;width:1760px"><div class="tab rz">Komende wedstrijden<small>' + (women ? 'SHLW' : 'SHL') + '</small></div>';
+    var h = '<div class="ttl rz">Komende <b>wedstrijden</b><span class="cn">' + (women ? 'SHLW' : 'SHL') + '</span></div>' + shlLogo(women) + '<div class="pn" style="left:80px;width:1760px">';
     for (i = 0; i < D.next.length; i++) {
       n = D.next[i]; d = new Date(parseYmd(n.date)); diff = Math.round((parseYmd(n.date) - parseYmd(today)) / 86400000);
       lab = diff <= 0 ? 'Vandaag' : diff === 1 ? 'Morgen' : WD_LOW[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MON[d.getUTCMonth()];
       h += '<div class="sr rz"' + dly(i) + '><span class="sd">' + esc(lab) + '</span><span class="cr1">' + crest(n.homeCode, 62, women) + '</span><span class="n1">' + esc(n.home) + '</span>' +
-        '<span class="sc">' + esc(n.time || '\u2013') + '</span><span class="n2">' + esc(n.away) + '</span><span class="cr2">' + crest(n.awayCode, 62, women) + '</span></div>';
+        '<span class="sc">' + esc(n.time || '–') + '</span><span class="n2">' + esc(n.away) + '</span><span class="cr2">' + crest(n.awayCode, 62, women) + '</span></div>';
     }
     return h + '</div>';
   }
-  // the table and the latest results, in the look of the SHL stream graphics
+  // the table and the latest results, in the SHL look (Clash Display, lime) on the same dark stage as the other slides
   function shlHtml(comp) {
     var D = shl[comp], women = comp === 'women';
     if (!D || show[women ? 'shlw' : 'shl'] === false) return null;
-    var st = D.standings, rs = D.results || [], i, h = shlLogo(women);
-    h += '<div class="pn" style="left:80px;width:880px"><div class="tab rz">Stand<small>' + (women ? 'SHLW' : 'SHL') + '</small></div>' +
+    var st = D.standings, rs = D.results || [], i, r, hw, aw, h = '<div class="ttl rz">Stand <b>' + (women ? 'SHLW' : 'SHL') + '</b></div>' + shlLogo(women);
+    h += '<div class="pn" style="left:80px;width:880px">' +
       '<div class="st-h rz"' + dly(0) + '><span class="pos">#</span><span class="nm">Club</span><span class="c1">G</span><span class="c2">W</span><span class="c3">GL</span><span class="c4">V</span><span class="pts">PT</span></div>';
     for (i = 0; i < Math.min(14, st.length); i++) {
-      h += '<div class="st-r rz"' + dly(i + 1) + '><span class="pos">' + (st[i].pos || i + 1) + '</span><span class="cr">' + crest(st[i].code, 36, women) + '</span><span class="nm">' + esc(st[i].name || st[i].club) + '</span>' +
+      h += '<div class="st-r rz' + (i === 8 || i === 10 ? ' zone' : '') + (i === 0 ? ' lead' : '') + '"' + dly(i + 1) + '>' + (st[i].move ? '<span class="mv ' + (st[i].move > 0 ? 'up' : 'dn') + '"></span>' : '') +
+        '<span class="pos">' + (st[i].pos || i + 1) + '</span><span class="cr">' + crest(st[i].code, 38, women) + '</span><span class="nm">' + esc(st[i].name || st[i].club) + '</span>' +
         '<span class="c1">' + esc(st[i].played) + '</span><span class="c2">' + esc(st[i].w) + '</span><span class="c3">' + esc(st[i].d) + '</span><span class="c4">' + esc(st[i].l) + '</span><span class="pts">' + esc(st[i].points) + '</span></div>';
     }
-    h += '</div><div class="pn" style="left:1000px;width:840px"><div class="tab rz">Uitslagen<small>' + (D.round ? 'Speelronde ' + D.round : '') + '</small></div>';
+    h += '</div><div class="pn" style="left:1000px;width:840px"><div class="gh2 rz"' + dly(0) + '>Uitslagen' + (D.round ? '<small>Speelronde ' + D.round + '</small>' : '') + '</div>';
     for (i = 0; i < Math.min(8, rs.length); i++) {
-      var r = rs[i];
-      h += '<div class="rs rz"' + dly(i + 2) + '><span class="cr1">' + crest(r.homeCode, 62, women) + '</span><span class="n1">' + esc(r.home) + '</span>' +
-        '<span class="sc">' + r.homeScore + ' \u2013 ' + r.awayScore + '</span><span class="n2">' + esc(r.away) + '</span><span class="cr2">' + crest(r.awayCode, 62, women) + '</span></div>';
+      r = rs[i]; hw = +r.homeScore > +r.awayScore; aw = +r.awayScore > +r.homeScore;
+      h += '<div class="rs rz"' + dly(i + 2) + '><span class="cr1">' + crest(r.homeCode, 58, women) + '</span><span class="n1' + (aw ? ' lo' : '') + '">' + esc(r.home) + '</span>' +
+        '<span class="sc">' + r.homeScore + ' – ' + r.awayScore + '</span><span class="n2' + (hw ? ' lo' : '') + '">' + esc(r.away) + '</span><span class="cr2">' + crest(r.awayCode, 58, women) + '</span></div>';
     }
     return h + '</div>';
   }
@@ -874,7 +875,7 @@
       var shlSlide = s.type === 'streams' || s.type === 'stand';
       var mm = meeting.mode !== 'off' && (s.type === 'slogan' || s.type === 'welcome' || s.type === 'soon' || s.type === 'meeting' || s.type === 'vrijmibo');
       slidesEl.innerHTML = '<div class="slide pre' + (shlSlide ? ' shl' + (s.comp === 'women' ? ' women' : '') : '') + (mm ? ' mm' : '') + (s.type === 'soon' ? ' soonl' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (s.type === 'soon' || s.type === 'meeting' || s.type === 'vrijmibo' ? ' lowlogo' : '') + '">' + html + '</div>';
-      stage.className = 'stage' + (shlSlide || s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
+      stage.className = 'stage' + (s.type === 'logo' ? ' noclock' : '') + (mm ? ' mm' : '') + (themeKey(s.type) ? ' th-' + themeKey(s.type) : '') + (stage.className.indexOf(' inv') >= 0 ? ' inv' : '');
       dots(slides.length, idx);
       startPillars();
       if (s.type === 'platforms') startPlatScroll(SLIDE_MS.platforms - 4000);

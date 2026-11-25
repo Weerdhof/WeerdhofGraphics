@@ -1421,6 +1421,16 @@ def narrow_comp(comp):
     res = [{"home": _clean_club(r["home"]), "away": _clean_club(r["away"]), "homeCode": _club_code(comp, r["home"]), "awayCode": _club_code(comp, r["away"]),
             "homeScore": r["homeScore"], "awayScore": r["awayScore"], "day": r["day"], "month": r["month"]} for r in sorted(latest, key=lambda x: x["ord"])]
     st = [dict(x, code=_club_code(comp, x["club"]), name=_clean_club(x["club"]), pos=i + 1) for i, x in enumerate(d.get("standings") or [])]
+    try:                                     # the arrows: places gained (+) or lost (-) since the table of the week before (the saved weeks)
+        hist = standings_history(comp)
+        base = next((h for h in hist if h["week"] != hist[0]["week"]), None) if hist else None
+        if base:
+            prev = {r["code"]: r["pos"] for r in base["rows"]}
+            for row in st:
+                if prev.get(row["code"]):
+                    row["move"] = prev[row["code"]] - row["pos"]
+    except Exception:
+        pass
     nxt = []
     for m in sorted(d.get("upcoming", []), key=lambda x: (x.get("ord", 0), x.get("time") or "99:99")):
         date = _season_date(int(m.get("day") or 0), int(m.get("month") or 0), today)
